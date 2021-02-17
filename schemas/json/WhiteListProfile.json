@@ -1,0 +1,122 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"$ref": "#/definitions/WhiteListProfile",
+	"title": "WhiteListProfile",
+	"definitions": {
+		"SurveyResponses": {
+			"required": [
+				"email"
+			],
+			"properties": {
+				"email": {
+					"type": "string"
+				},
+				"respondentID": {
+					"type": "integer"
+				},
+				"startTimestamp": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"endTimestamp": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"importTimestamp": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"birthYear": {
+					"type": "integer"
+				},
+				"gender": {
+					"type": "string"
+				},
+				"relationshipStatus": {
+					"type": "string"
+				},
+				"employmentStatus": {
+					"type": "string"
+				},
+				"location": {
+					"type": "string"
+				},
+				"numberOfChildrenUnder18": {
+					"type": "integer"
+				},
+				"householdIncomeAmount": {
+					"type": "integer"
+				},
+				"netWorthAmount": {
+					"type": "integer"
+				},
+				"taxFilingStatus": {
+					"type": "string"
+				},
+				"marginalTaxBracket": {
+					"type": "integer"
+				},
+				"emergencySavingsAmount": {
+					"type": "integer"
+				},
+				"savingForEducation": {
+					"type": "boolean"
+				},
+				"educationSavingsGoal": {
+					"type": "integer"
+				},
+				"educationSavingsAmount": {
+					"type": "integer"
+				},
+				"retirementSavingsGoal": {
+					"type": "integer"
+				},
+				"retirementSavingsAmount": {
+					"type": "integer"
+				},
+				"lifeInsuranceAmount": {
+					"type": "integer"
+				},
+				"haveWill": {
+					"type": "boolean"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"WhiteListProfile": {
+			"required": [
+				"email",
+				"impartWealthId"
+			],
+			"properties": {
+				"email": {
+					"type": "string",
+					"format": "email"
+				},
+				"impartWealthId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"screenName": {
+					"type": "string"
+				},
+				"createdDate": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"updatedDate": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"surveyResponses": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/SurveyResponses"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	}
+}

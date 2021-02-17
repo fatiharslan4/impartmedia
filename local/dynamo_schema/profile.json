@@ -1,0 +1,81 @@
+{
+  "TableName": "local_profile",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "impartWealthId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "authenticationId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "email",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "screenName",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "impartWealthId",
+      "KeyType": "HASH"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "idx_authenticationId",
+      "KeySchema": [
+        {
+          "AttributeName": "authenticationId",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
+    },
+    {
+      "IndexName": "idx_email",
+      "KeySchema": [
+        {
+          "AttributeName": "email",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "KEYS_ONLY"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
+    },
+    {
+      "IndexName": "idx_screenName",
+      "KeySchema": [
+        {
+          "AttributeName": "screenName",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "KEYS_ONLY"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
+    }
+  ],
+  "ProvisionedThroughput": {
+    "ReadCapacityUnits": 5,
+    "WriteCapacityUnits": 5
+  }
+}

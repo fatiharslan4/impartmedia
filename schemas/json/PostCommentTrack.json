@@ -1,0 +1,49 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"$ref": "#/definitions/PostCommentTrack",
+	"title": "PostCommentTrack",
+	"definitions": {
+		"PostCommentTrack": {
+			"required": [
+				"impartWealthId",
+				"contentId",
+				"hiveId",
+				"upVoted",
+				"downVoted"
+			],
+			"properties": {
+				"impartWealthId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"contentId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"hiveId": {
+					"type": "string"
+				},
+				"postId": {
+					"type": "string"
+				},
+				"upVoted": {
+					"type": "boolean"
+				},
+				"downVoted": {
+					"type": "boolean"
+				},
+				"votedDatetime": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"saved": {
+					"type": "boolean"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	}
+}

@@ -1,0 +1,244 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"$ref": "#/definitions/Profile",
+	"title": "Profile",
+	"definitions": {
+		"Address": {
+			"properties": {
+				"updatedDate": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"address1": {
+					"type": "string"
+				},
+				"address2": {
+					"type": "string"
+				},
+				"city": {
+					"type": "string"
+				},
+				"state": {
+					"maxLength": 2,
+					"minLength": 2,
+					"type": "string"
+				},
+				"zip": {
+					"type": "string"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"Attributes": {
+			"properties": {
+				"updatedDate": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"name": {
+					"type": "string"
+				},
+				"address": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/Address"
+				},
+				"hives": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/HiveMembership"
+					},
+					"type": "array"
+				},
+				"admin": {
+					"type": "boolean"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"HiveMembership": {
+			"required": [
+				"hiveId"
+			],
+			"properties": {
+				"hiveId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"hiveName": {
+					"type": "string"
+				},
+				"joinDateTime": {
+					"type": "string",
+					"format": "date-time"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"NotificationProfile": {
+			"properties": {
+				"deviceToken": {
+					"type": "string"
+				},
+				"awsPlatformEndpointARN": {
+					"type": "string"
+				},
+				"subscriptions": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/Subscription"
+					},
+					"type": "array"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"Profile": {
+			"required": [
+				"impartWealthId",
+				"authenticationId",
+				"email"
+			],
+			"properties": {
+				"impartWealthId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"authenticationId": {
+					"type": "string"
+				},
+				"email": {
+					"type": "string",
+					"format": "email"
+				},
+				"screenName": {
+					"type": "string"
+				},
+				"attributes": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/Attributes"
+				},
+				"createdDate": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"updatedDate": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"notificationProfile": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/NotificationProfile"
+				},
+				"surveyResponses": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/SurveyResponses"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"Subscription": {
+			"required": [
+				"Name",
+				"SubscriptionARN"
+			],
+			"properties": {
+				"Name": {
+					"type": "string"
+				},
+				"SubscriptionARN": {
+					"type": "string"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"SurveyResponses": {
+			"required": [
+				"email"
+			],
+			"properties": {
+				"email": {
+					"type": "string"
+				},
+				"respondentID": {
+					"type": "integer"
+				},
+				"startTimestamp": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"endTimestamp": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"importTimestamp": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"birthYear": {
+					"type": "integer"
+				},
+				"gender": {
+					"type": "string"
+				},
+				"relationshipStatus": {
+					"type": "string"
+				},
+				"employmentStatus": {
+					"type": "string"
+				},
+				"location": {
+					"type": "string"
+				},
+				"numberOfChildrenUnder18": {
+					"type": "integer"
+				},
+				"householdIncomeAmount": {
+					"type": "integer"
+				},
+				"netWorthAmount": {
+					"type": "integer"
+				},
+				"taxFilingStatus": {
+					"type": "string"
+				},
+				"marginalTaxBracket": {
+					"type": "integer"
+				},
+				"emergencySavingsAmount": {
+					"type": "integer"
+				},
+				"savingForEducation": {
+					"type": "boolean"
+				},
+				"educationSavingsGoal": {
+					"type": "integer"
+				},
+				"educationSavingsAmount": {
+					"type": "integer"
+				},
+				"retirementSavingsGoal": {
+					"type": "integer"
+				},
+				"retirementSavingsAmount": {
+					"type": "integer"
+				},
+				"lifeInsuranceAmount": {
+					"type": "integer"
+				},
+				"haveWill": {
+					"type": "boolean"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	}
+}

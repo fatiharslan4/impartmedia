@@ -1,0 +1,27 @@
+version: "3"
+services:
+#  backend:
+#    image: impart-backend
+#    ports:
+#      - "8080:8080"
+  dynamodb:
+    image: amazon/dynamodb-local
+    ports:
+      - "8000:8000"
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+#    healthcheck:
+#      test: ["CMD", '(echo > /dev/tcp/127.0.0.1/8000) >/dev/null 2>&1']
+#      interval: 5s
+#      timeout: 1s
+#      retries: 3
+#      start_period: 5s
+  createTables:
+    depends_on:
+      - dynamodb
+    image: amazon/aws-cli
+    volumes:
+      - $PWD/schemas/dynamo:/tables
+      - $PWD/script:/script
+    entrypoint: /bin/bash
+    working_dir: /tables
+    command: ["/script/wait-for-it.sh", "dynamodb:8000", "--", "/script/deploy_dynamo_tables_local.sh"]

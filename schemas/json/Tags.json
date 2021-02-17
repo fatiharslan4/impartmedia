@@ -1,0 +1,38 @@
+{
+	"items": {
+		"$schema": "http://json-schema.org/draft-04/schema#",
+		"$ref": "#/definitions/Tag"
+	},
+	"type": "array",
+	"title": "Tags",
+	"definitions": {
+		"Tag": {
+			"required": [
+				"id",
+				"name",
+				"longName",
+				"description",
+				"sortOrder"
+			],
+			"properties": {
+				"id": {
+					"type": "integer"
+				},
+				"name": {
+					"type": "string"
+				},
+				"longName": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"sortOrder": {
+					"type": "integer"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	}
+}

@@ -1,0 +1,258 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"$ref": "#/definitions/Post",
+	"title": "Post",
+	"definitions": {
+		"Comment": {
+			"required": [
+				"hiveId",
+				"postId",
+				"impartWealthId",
+				"screenName",
+				"content",
+				"upVotes",
+				"downVotes"
+			],
+			"properties": {
+				"hiveId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"postId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"commentId": {
+					"type": "string"
+				},
+				"commentDatetime": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"impartWealthId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"screenName": {
+					"type": "string"
+				},
+				"content": {
+					"$ref": "#/definitions/Content"
+				},
+				"edits": {
+					"items": {
+						"$ref": "#/definitions/Edit"
+					},
+					"type": "array"
+				},
+				"upVotes": {
+					"type": "integer"
+				},
+				"downVotes": {
+					"type": "integer"
+				},
+				"postCommentTrack": {
+					"$ref": "#/definitions/PostCommentTrack"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"Content": {
+			"required": [
+				"markdown"
+			],
+			"properties": {
+				"markdown": {
+					"maxLength": 300000,
+					"type": "string"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"Edit": {
+			"required": [
+				"impartWealthId",
+				"screenName",
+				"datetime",
+				"deleted"
+			],
+			"properties": {
+				"impartWealthId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"screenName": {
+					"type": "string"
+				},
+				"datetime": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"notes": {
+					"type": "string"
+				},
+				"deleted": {
+					"type": "boolean"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"NextPage": {
+			"required": [
+				"offsetContentId",
+				"offsetTimestamp"
+			],
+			"properties": {
+				"offsetContentId": {
+					"type": "string"
+				},
+				"offsetTimestamp": {
+					"type": "string",
+					"format": "date-time"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"Post": {
+			"required": [
+				"hiveId",
+				"isPinnedPost",
+				"postId",
+				"postDatetime",
+				"lastCommentDatetime",
+				"impartWealthId",
+				"screenName",
+				"subject",
+				"content",
+				"commentCount",
+				"tags",
+				"upVotes",
+				"downVotes",
+				"nextCommentPage"
+			],
+			"properties": {
+				"hiveId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"isPinnedPost": {
+					"type": "boolean"
+				},
+				"postId": {
+					"type": "string"
+				},
+				"postDatetime": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"lastCommentDatetime": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"edits": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/Edit"
+					},
+					"type": "array"
+				},
+				"impartWealthId": {
+					"type": "string"
+				},
+				"screenName": {
+					"type": "string"
+				},
+				"subject": {
+					"type": "string"
+				},
+				"content": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/Content"
+				},
+				"commentCount": {
+					"type": "integer"
+				},
+				"tags": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array"
+				},
+				"upVotes": {
+					"type": "integer"
+				},
+				"downVotes": {
+					"type": "integer"
+				},
+				"postCommentTrack": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/PostCommentTrack"
+				},
+				"comments": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/Comment"
+					},
+					"type": "array"
+				},
+				"nextCommentPage": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/NextPage"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"PostCommentTrack": {
+			"required": [
+				"impartWealthId",
+				"contentId",
+				"hiveId",
+				"upVoted",
+				"downVoted"
+			],
+			"properties": {
+				"impartWealthId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"contentId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"hiveId": {
+					"type": "string"
+				},
+				"postId": {
+					"type": "string"
+				},
+				"upVoted": {
+					"type": "boolean"
+				},
+				"downVoted": {
+					"type": "boolean"
+				},
+				"votedDatetime": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"saved": {
+					"type": "boolean"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	}
+}

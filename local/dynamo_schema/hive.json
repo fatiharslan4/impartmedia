@@ -1,0 +1,19 @@
+{
+  "TableName": "local_hive",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "hiveId",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "hiveId",
+      "KeyType": "HASH"
+    }
+  ],
+  "ProvisionedThroughput": {
+    "ReadCapacityUnits": 5,
+    "WriteCapacityUnits": 5
+  }
+}

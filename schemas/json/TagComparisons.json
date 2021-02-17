@@ -1,0 +1,78 @@
+{
+	"items": {
+		"$schema": "http://json-schema.org/draft-04/schema#",
+		"$ref": "#/definitions/TagComparison"
+	},
+	"type": "array",
+	"title": "TagComparisons",
+	"definitions": {
+		"Percentile": {
+			"required": [
+				"percent",
+				"highValue"
+			],
+			"properties": {
+				"percent": {
+					"type": "integer"
+				},
+				"highValue": {
+					"type": "integer"
+				},
+				"displayValue": {
+					"type": "string"
+				},
+				"fill": {
+					"type": "boolean"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"TagComparison": {
+			"required": [
+				"tagId",
+				"sortOrder",
+				"percentile",
+				"displayPercentile",
+				"value",
+				"displayScope",
+				"percentiles"
+			],
+			"properties": {
+				"tagId": {
+					"type": "integer"
+				},
+				"sortOrder": {
+					"type": "integer"
+				},
+				"percentile": {
+					"type": "integer"
+				},
+				"displayPercentile": {
+					"type": "string"
+				},
+				"value": {
+					"type": "integer"
+				},
+				"displayValue": {
+					"type": "string"
+				},
+				"displayScope": {
+					"type": "string"
+				},
+				"displayDescription": {
+					"type": "string"
+				},
+				"percentiles": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/Percentile"
+					},
+					"type": "array"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	}
+}

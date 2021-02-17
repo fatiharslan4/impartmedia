@@ -1,0 +1,49 @@
+{
+  "TableName": "local_post_comment_track",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "impartWealthId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "contentId",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "impartWealthId",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "contentId",
+      "KeyType": "RANGE"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "gsi_contentId",
+      "KeySchema": [
+        {
+          "AttributeName": "contentId",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "impartWealthId",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
+    }
+  ],
+  "ProvisionedThroughput": {
+    "ReadCapacityUnits": 5,
+    "WriteCapacityUnits": 5
+  }
+}

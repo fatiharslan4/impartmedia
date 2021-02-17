@@ -1,0 +1,188 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"$ref": "#/definitions/Hive",
+	"title": "Hive",
+	"definitions": {
+		"Hive": {
+			"required": [
+				"hiveId",
+				"hiveName",
+				"hiveDescription",
+				"administrators",
+				"pinnedPostId",
+				"tagComparisons",
+				"pinnedPostNotificationTopicARN"
+			],
+			"properties": {
+				"hiveId": {
+					"maxLength": 27,
+					"minLength": 27,
+					"type": "string"
+				},
+				"hiveName": {
+					"type": "string"
+				},
+				"hiveDescription": {
+					"type": "string"
+				},
+				"administrators": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/HiveAdmin"
+					},
+					"type": "array"
+				},
+				"hiveDistributions": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/HiveDistribution"
+					},
+					"type": "array"
+				},
+				"metrics": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/HiveMetrics"
+				},
+				"pinnedPostId": {
+					"type": "string"
+				},
+				"tagComparisons": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/TagComparison"
+					},
+					"type": "array"
+				},
+				"pinnedPostNotificationTopicARN": {
+					"type": "string"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"HiveAdmin": {
+			"required": [
+				"impartWealthId",
+				"screenName"
+			],
+			"properties": {
+				"impartWealthId": {
+					"type": "string"
+				},
+				"screenName": {
+					"type": "string"
+				},
+				"adminDatetime": {
+					"type": "string",
+					"format": "date-time"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"HiveDistribution": {
+			"required": [
+				"displayText",
+				"displayValue",
+				"sortValue"
+			],
+			"properties": {
+				"displayText": {
+					"type": "string"
+				},
+				"displayValue": {
+					"type": "string"
+				},
+				"sortValue": {
+					"type": "integer"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"HiveMetrics": {
+			"required": [
+				"memberCount",
+				"postCount"
+			],
+			"properties": {
+				"memberCount": {
+					"type": "integer"
+				},
+				"postCount": {
+					"type": "integer"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"Percentile": {
+			"required": [
+				"percent",
+				"highValue"
+			],
+			"properties": {
+				"percent": {
+					"type": "integer"
+				},
+				"highValue": {
+					"type": "integer"
+				},
+				"displayValue": {
+					"type": "string"
+				},
+				"fill": {
+					"type": "boolean"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"TagComparison": {
+			"required": [
+				"tagId",
+				"sortOrder",
+				"percentile",
+				"displayPercentile",
+				"value",
+				"displayScope",
+				"percentiles"
+			],
+			"properties": {
+				"tagId": {
+					"type": "integer"
+				},
+				"sortOrder": {
+					"type": "integer"
+				},
+				"percentile": {
+					"type": "integer"
+				},
+				"displayPercentile": {
+					"type": "string"
+				},
+				"value": {
+					"type": "integer"
+				},
+				"displayValue": {
+					"type": "string"
+				},
+				"displayScope": {
+					"type": "string"
+				},
+				"displayDescription": {
+					"type": "string"
+				},
+				"percentiles": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/Percentile"
+					},
+					"type": "array"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	}
+}

@@ -32,6 +32,8 @@ var ErrExists = errors.New("resource already exists")
 // ErrNoOp is returned when attempting to update something to a state that is already in the proper state.
 var ErrNoOp = errors.New("resource already matches exactly as request")
 
+var ErrNoAPIKey = errors.New("no api key provided")
+
 type Error interface {
 	ToGatewayResponse() events.APIGatewayProxyResponse
 	HttpStatus() int

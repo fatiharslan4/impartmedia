@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
-	"github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -20,7 +19,6 @@ type dynamo struct {
 	Logger *zap.Logger
 	dynamodbiface.DynamoDBAPI
 	tableEnvironment string
-	hiveCache        *cache.Cache
 }
 
 const hiveTableName = "hive"
@@ -66,13 +64,6 @@ func newDynamo(region, endpoint, environment string, logger *zap.Logger) (*dynam
 			return nil, fmt.Errorf("expected table name of %s, got %s", tableName, *resp.Table.TableName)
 		}
 	}
-
-	if environment == "prod" {
-		h.hiveCache = cache.New(1*time.Minute, -1)
-	} else {
-		h.hiveCache = cache.New(1*time.Millisecond, -1)
-	}
-
 	return h, nil
 }
 
@@ -108,11 +99,7 @@ func (d *dynamo) GetHives() (models.Hives, error) {
 		return out, err
 	}
 
-	d.hiveCache.DeleteExpired()
 	d.Logger.Debug("retrieved", zap.Any("hive", out))
-	for _, h := range out {
-		d.hiveCache.Set(h.HiveID, h, cache.DefaultExpiration)
-	}
 	return out, nil
 }
 
@@ -126,13 +113,6 @@ func (d *dynamo) getTableNameForEnvironment(tableName string) string {
 func (d *dynamo) GetHive(hiveID string, consistentRead bool) (models.Hive, error) {
 	var out models.Hive
 	var err error
-
-	d.hiveCache.DeleteExpired()
-	if cachedHive, found := d.hiveCache.Get(hiveID); found && !consistentRead {
-
-		d.Logger.Debug("found cached hive - returning it instead of going to dynamo")
-		return cachedHive.(models.Hive), nil
-	}
 
 	input := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
@@ -166,8 +146,6 @@ func (d *dynamo) GetHive(hiveID string, consistentRead bool) (models.Hive, error
 	if !out.HiveDistributions.IsSorted() {
 		out.HiveDistributions.Sort()
 	}
-
-	d.hiveCache.Set(hiveID, out, cache.DefaultExpiration)
 
 	return out, nil
 }

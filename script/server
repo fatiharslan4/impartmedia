@@ -1,8 +1,17 @@
 #!/bin/bash
 
-docker-compose down -v --remove-orphans > /dev/null
-docker-compose rm -f -v  > /dev/null
-docker-compose up -d
+function show_help {
+  echo "help!"
+}
+
+while [[ $1 == -* ]]; do
+    case "$1" in
+      -h|--help|-\?) show_help; exit 0;;
+      -c|--container) container=1; shift;;
+      --) shift; break;;
+      -*) echo "invalid option: $1" 1>&2; show_help; exit 1;;
+    esac
+done
 
 
 function setup_local_env {
@@ -14,7 +23,20 @@ function setup_local_env {
   export IMPART_DYNAMO_ENDPOINT="http://localhost:8000"
   export IMPART_IOS_NOTIFICATION_ARN="arn:aws:sns:us-east-1:518740895671:app/APNS_SANDBOX/impart_wealth_dev"
   export IMPART_PROFILE_SCHEMA_PATH="./schemas/json/Profile.json"
+  export AWS_ACCESS_KEY_ID=dummy
+  export AWS_SECRET_ACCESS_KEY=dummy
 }
+
+docker-compose down -v --remove-orphans > /dev/null
+docker-compose rm -f -v  > /dev/null
+docker-compose up -d dynamodb createTables
+
+if [[ "${container}" -eq 1 ]]; then
+    docker-compose build
+    docker wait backend_createTables_1 > /dev/null
+    docker-compose up backend
+    exit 0
+fi
 
 go build -o impart-backend cmd/server/main.go
 

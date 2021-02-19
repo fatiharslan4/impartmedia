@@ -15,3 +15,4 @@
 # vendor/
 .idea
 impart-backend
+schemas/dynamo/allow.json

@@ -5,33 +5,48 @@ set -e
 #echo -ne '\n\n\n\n' | aws configure
 mkdir -p ~/.aws
 cat << EOF > ~/.aws/config
-[default]
+[local]
 region=us-east-2
 output=json
 EOF
 
 cat << EOF > ~/.aws/credentials
-[default]
+[local]
 aws_access_key_id = dummy
 aws_secret_access_key = dummy
 EOF
 
-aws dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
+aws --profile local dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
   --cli-input-json file:///tables/profile.json
 
-aws dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
+aws --profile local dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
   --cli-input-json file:///tables/whitelist_profile.json
 
-aws dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
+aws --profile local dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
   --cli-input-json file:///tables/hive.json
 
-aws dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
+aws --profile local dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
   --cli-input-json file:///tables/hive_post.json
 
-aws dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
+aws --profile local dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
   --cli-input-json file:///tables/hive_post_reply.json
 
-  aws dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
+aws --profile local dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 create-table \
   --cli-input-json file:///tables/post_comment_track.json
 
-aws dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 list-tables
+cat << EOF > allow.json
+{
+  "email": {
+    "S": "dev.poster@test.com"
+  },
+  "impartWealthId": {
+    "S": "1GuRwMnzwwRxE0phxifmPMHH9hX"
+  },
+  "screenName": {
+    "S": "\"newscreenname\""
+  }
+}
+EOF
+
+aws --profile local dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 put-item --table-name local_whitelist_profile --item file://./allow.json
+aws --profile local dynamodb --region us-east-2 --endpoint-url http://dynamodb:8000 list-tables

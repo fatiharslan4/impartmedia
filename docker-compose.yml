@@ -1,20 +1,36 @@
 version: "3"
 services:
-#  backend:
-#    image: impart-backend
-#    ports:
-#      - "8080:8080"
+  backend:
+    build:
+      dockerfile: ./Dockerfile
+      context: .
+    ports:
+      - "8080:8080"
+    environment:
+      - IMPART_ENV=local
+      - IMPART_DEBUG=true
+      - IMPART_PORT=8080
+      - IMPART_API_KEY=38c31c4a79c04fd102e105f23a7cdcf832e40ad1b1a526ba82da9fe1f86aa5aab288a3f1a85f5edf39478d65c05c6f1328c82de7e1677ca31a4392ab
+      - IMPART_REGION=us-east-2
+      - IMPART_DYNAMO_ENDPOINT=http://dynamodb:8000
+      - IMPART_IOS_NOTIFICATION_ARN=arn:aws:sns:us-east-1:518740895671:app/APNS_SANDBOX/impart_wealth_dev
+      - IMPART_PROFILE_SCHEMA_PATH=./schemas/json/Profile.json
+      - AWS_ACCESS_KEY_ID=dummy
+      - AWS_SECRET_ACCESS_KEY=dummy
+    entrypoint: ["/app/impart-backend"]
+    depends_on:
+      - dynamodb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/ping"]
+      interval: 20s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
   dynamodb:
     image: amazon/dynamodb-local
     ports:
       - "8000:8000"
     command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
-#    healthcheck:
-#      test: ["CMD", '(echo > /dev/tcp/127.0.0.1/8000) >/dev/null 2>&1']
-#      interval: 5s
-#      timeout: 1s
-#      retries: 3
-#      start_period: 5s
   createTables:
     depends_on:
       - dynamodb

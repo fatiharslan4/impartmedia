@@ -52,13 +52,17 @@ func main() {
 
 	r := gin.New()
 	r.RedirectTrailingSlash = true
-	r.Use(ginzap.RecoveryWithZap(logger, true))        // panics don't stop server
-	r.Use(ginzap.Ginzap(logger, time.RFC3339, true))   // logs all requests
-	r.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
-	r.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
+	r.Use(ginzap.RecoveryWithZap(logger, true))      // panics don't stop server
+	r.Use(ginzap.Ginzap(logger, time.RFC3339, true)) // logs all requests
+
 	r.NoRoute(noRouteFunc)
+	r.GET("/ping", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "pong")
+	})
 
 	v1 := r.Group("/v1")
+	v1.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
+	v1.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
 	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
 
 	hive.SetupRoutes(v1, services.HiveData, services.Hive, logger)
@@ -66,7 +70,7 @@ func main() {
 
 	server := cfg.GetHttpServer()
 	server.Handler = r
-
+	logger.Info("Impart backend started.", zap.Int("port", cfg.Port), zap.String("env", string(cfg.Env)))
 	if err := graceful.Graceful(server.ListenAndServe, server.Shutdown); err != nil {
 		logger.Fatal("error serving", zap.Error(err))
 	}

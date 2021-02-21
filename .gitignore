@@ -16,3 +16,5 @@
 .idea
 impart-backend
 schemas/dynamo/allow.json
+*/.terraform
+*/.terraform.lock.hcl

@@ -52,7 +52,7 @@ func NewAuthService(cfg *config.Impart, profileData profiledata.Store, logger *z
 func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		//allow some routes through authz
-		if strings.HasPrefix(ctx.FullPath(), "/v1/whitelist") || ctx.Request.RequestURI == "/v1/profiles/new" && ctx.Request.Method == "GET" {
+		if strings.Contains(ctx.FullPath(), "/v1/whitelist") || strings.Contains(ctx.Request.RequestURI, "/v1/profiles/new") && ctx.Request.Method == "GET" {
 			ctx.Next()
 			return
 		}

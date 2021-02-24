@@ -15,7 +15,7 @@ type Environment string
 const (
 	Local         Environment = "local"
 	Development   Environment = "dev"
-	IOS           Environment = "IOS-dev"
+	IOS           Environment = "iosdev"
 	Preproduction Environment = "preprod"
 	Production    Environment = "prod"
 )
@@ -31,7 +31,7 @@ type Impart struct {
 	Region             string      `split_words:"true" default:"us-east-2"`
 	DynamoEndpoint     string      `split_words:"true" default:"http://localhost:8000"`
 	IOSNotificationARN string      `split_words:"true" default:""`
-	ProfileSchemaPath  string      `split_words:"true" default:"./Profile.json"`
+	ProfileSchemaPath  string      `split_words:"true" default:"./schemas/json/Profile.json"`
 }
 
 func GetImpart() (*Impart, error) {

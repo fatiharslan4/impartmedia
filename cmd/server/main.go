@@ -60,7 +60,7 @@ func main() {
 		ctx.String(http.StatusOK, "pong")
 	})
 
-	v1 := r.Group("/v1")
+	v1 := r.Group(fmt.Sprintf("%s/v1", cfg.Env))
 	v1.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
 	v1.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
 	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })

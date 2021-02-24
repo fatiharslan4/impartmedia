@@ -22,3 +22,6 @@ RUN mkdir -p ~/.aws && \
 RUN cat ~/.aws/config && cat ~/.aws/credentials
 
 ENTRYPOINT ["/app/impart-backend"]
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=3s --retries=3 \
+  CMD curl -f http://localhost/ping || exit 1

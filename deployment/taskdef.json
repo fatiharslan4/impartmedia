@@ -1,0 +1,33 @@
+[
+  {
+    "name": "api",
+    "image": "${image}",
+    "memoryReservation": 128,
+    "portMappings": [
+      {
+        "containerPort": ${container_port},
+        "protocol": "tcp"
+      }
+    ],
+    "essential": true,
+    "environment": [${env_variables}],
+    "disableNetworking": false,
+    "privileged": false,
+    "readonlyRootFilesystem": true,
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${log_group}",
+        "awslogs-region": "${region}",
+        "awslogs-stream-prefix": "${env}"
+        }
+      },
+    "healthCheck": {
+      "command": ["CMD-SHELL", "curl -f http://localhost:${container_port}/ping || exit 1" ],
+      "interval": 60,
+      "timeout": 2,
+      "retries": 3,
+      "startPeriod": 60
+    }
+  }
+]

@@ -1,13 +1,14 @@
 // creates a target group for each environment in the target groups variable
 resource "aws_lb_target_group" "map" {
-  for_each      = var.target_groups
+  for_each = var.target_groups
   name     = "backend-${each.key}"
-  port     = 80
-  protocol = "HTTP"
   vpc_id   = data.aws_vpc.impart-backend.id
+  port = 8080
+  protocol = "HTTP"
   health_check {
     enabled = true
     interval = 20
+    port = "traffic-port"
     path = "/ping"
     protocol = "HTTP"
     timeout = 5

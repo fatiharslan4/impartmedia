@@ -18,6 +18,10 @@ resource "aws_lb_target_group" "map" {
   }
 }
 
+locals {
+
+}
+
 // creates a listener rule to allow traffic only if it has the correct api key
 resource "aws_lb_listener_rule" "map" {
   for_each      = var.target_groups
@@ -31,7 +35,7 @@ resource "aws_lb_listener_rule" "map" {
 
   condition {
     path_pattern {
-      values = ["/${each.key}/*"]
+      values = concat(["/${each.key}/v1/*"], each.key == "prod" ? ["/v1/*"] : [])
     }
   }
 

@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/impartwealthapp/backend/pkg/tags"
-
 	"github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
@@ -18,6 +16,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/profile"
+	"github.com/impartwealthapp/backend/pkg/tags"
 	"github.com/ory/graceful"
 	"go.uber.org/zap"
 )
@@ -60,7 +59,14 @@ func main() {
 		ctx.String(http.StatusOK, "pong")
 	})
 
-	v1 := r.Group(fmt.Sprintf("%s/v1", cfg.Env))
+	var v1Route string
+	if cfg.Env == config.Production || cfg.Env == config.Local {
+		v1Route = "v1"
+	} else {
+		v1Route = fmt.Sprintf("%s/v1", cfg.Env)
+	}
+
+	v1 := r.Group(v1Route)
 	v1.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
 	v1.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
 	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })

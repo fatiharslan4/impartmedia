@@ -22,7 +22,7 @@ variable "deployments" {
       enabled = true,
       desired_count = 4,
       api_key = "AAs8wLBVd41EEO7Qws25ocutQAjuzwz5MM1nNNLa",
-      image_tag = "2e6bbd3",
+      image_tag = "285801f",
       environment_variables = [
         {
           key = "ENV",
@@ -62,7 +62,7 @@ variable "deployments" {
       enabled = true,
       desired_count = 4,
       api_key = "yCwm0JHpIR49GLTG8pqnd6lmTo10Cw2b5gr9qGNM",
-      image_tag = "2e6bbd3",
+      image_tag = "285801f",
       environment_variables = [
         {
           key = "ENV",
@@ -102,7 +102,7 @@ variable "deployments" {
       enabled = true,
       desired_count = 4,
       api_key = "K39z2qMKV959GdI7sWpczbnhyiw4Zno6RCVXh233",
-      image_tag = "2e6bbd3",
+      image_tag = "285801f",
       environment_variables = [
         {
           key = "ENV",
@@ -142,7 +142,7 @@ variable "deployments" {
       enabled = true,
       desired_count = 4,
       api_key = "I1TuBFDPdh5vRYdqqIRDn7OqITyyPIQO3SQnemuS",
-      image_tag = "2e6bbd3",
+      image_tag = "285801f",
       environment_variables = [
         {
           key = "ENV",

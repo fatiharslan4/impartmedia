@@ -1,0 +1,8 @@
+#!/bin/bash
+
+mysql -h mysql -u root "-p${MYSQL_ROOT_PASSWORD}" << EOF
+GRANT ALL PRIVILEGES on *.* to 'impart_super'@'%';
+CREATE USER IF NOT EXISTS '${CRUD_USER}'@'%' IDENTIFIED BY '${CRUD_PASSWORD}';
+GRANT SELECT, INSERT, UPDATE, DELETE ON impart.* TO '${CRUD_USER}'@'%';
+FLUSH PRIVILEGES;
+EOF

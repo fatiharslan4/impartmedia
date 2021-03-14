@@ -1,0 +1,46 @@
+#!/bin/bash
+
+while [[ $1 == -* ]]; do
+    case "$1" in
+      -h|--help|-\?) show_help; exit 0;;
+      -c|--container) container=1; shift;;
+      --clean) clean=true; shift;;
+      --) shift; break;;
+      -*) echo "invalid option: $1" 1>&2; show_help; exit 1;;
+    esac
+done
+
+
+function setup_local_env {
+  export IMPART_ENV="local"
+  export IMPART_DEBUG="true"
+  export IMPART_PORT="8080"
+  export IMPART_API_KEY="38c31c4a79c04fd102e105f23a7cdcf832e40ad1b1a526ba82da9fe1f86aa5aab288a3f1a85f5edf39478d65c05c6f1328c82de7e1677ca31a4392ab"
+  export IMPART_REGION="us-east-2"
+  export IMPART_DYNAMO_ENDPOINT="http://localhost:8000"
+  export IMPART_IOS_NOTIFICATION_ARN="arn:aws:sns:us-east-1:518740895671:app/APNS_SANDBOX/impart_wealth_dev"
+  export IMPART_PROFILE_SCHEMA_PATH="./schemas/json/Profile.json"
+  export AWS_ACCESS_KEY_ID=dummy
+  export AWS_SECRET_ACCESS_KEY=dummy
+  export IMPART_DB_HOST=localhost
+  export IMPART_DB_PORT=3306
+  export IMPART_DB_NAME=impart
+  export IMPART_DB_MIGRATION_USERNAME=impart_super
+  export IMPART_DB_MIGRATION_PASSWORD=supersecretpassword
+  export IMPART_DB_USERNAME=impart_crud
+  export IMPART_DB_PASSWORD=supersecretpassword
+}
+
+if [[ $(docker ps -q --filter "name=backend_mysql_1" --filter "health=healthy" | wc -l) -ne 1 ]]; then
+  clean=true
+fi
+
+
+if [[ "${clean}" == "true" ]]; then
+  script/run_local_db.sh
+fi
+setup_local_env
+
+go test -mod=vendor --tags=integration -p 1 --count=1  ./...
+
+

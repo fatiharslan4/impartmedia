@@ -1,97 +1,37 @@
 package impart
 
 import (
+	"context"
+	"database/sql"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"go.uber.org/zap"
 	"net"
 	"net/http"
-	"reflect"
 	"runtime"
 	"time"
-
-	"github.com/aws/aws-lambda-go/events"
-	"github.com/kelseyhightower/envconfig"
-	"go.uber.org/zap"
 )
 
-// ExecutionContext provides the re-usable execution context within a lambda function.
-type ExecutionContext struct {
-	Warm   bool
-	Debug  bool
-	Logger *zap.Logger
-	Stage  string
-	*Config
+const AuthIDRequestContextKey = "AuthIDRequestContextKey{}"
+const UserRequestContextKey = "UserRequestContextKey{}"
+const HiveMembershipsContextKey = "HiveMembershipsContextKey{}"
+
+func GetCtxAuthID(ctx context.Context) string {
+	return ctx.Value(AuthIDRequestContextKey).(string)
 }
 
-// Config represents the environment configuration
-type Config struct {
-	Region string `split_words:"true"`
+func GetCtxUser(ctx context.Context) *dbmodels.User {
+	return ctx.Value(UserRequestContextKey).(*dbmodels.User)
 }
 
-// SetupExecutionContext parses the base ImpartLambda configuration
-// and takes any additional configurations to parse.
-// this function is mean to be called on startup, and will panic on any errors
-func SetupExecutionContext(stage string, additionalConfig interface{}) ExecutionContext {
-	cfg := &Config{}
-
-	if err := envconfig.Process("", cfg); err != nil {
-		panic("unable to load env variables" + err.Error())
-	}
-
-	if additionalConfig != nil {
-		v := reflect.ValueOf(additionalConfig)
-
-		if v.Kind() != reflect.Ptr {
-			panic("Expected a pointer to a configuration value")
-		}
-
-		if err := envconfig.Process("", additionalConfig); err != nil {
-			panic("unable to load env variables for additional config: " + err.Error())
-		}
-	}
-
-	logger, err := zap.NewProduction()
-
-	if err != nil {
-		panic("unable to instantiate zap production logger" + err.Error())
-	}
-
-	execContext := ExecutionContext{
-		Warm:   true,
-		Debug:  false,
-		Logger: logger.Named(stage),
-		Stage:  stage,
-		Config: cfg,
-	}
-
-	return execContext
-}
-
-func AuthIdFromRequest(request events.APIGatewayProxyRequest) string {
-	return AuthIdFromContext(request.RequestContext)
-}
-
-func AuthIdFromContext(ctx events.APIGatewayProxyRequestContext) string {
-	authId, ok := ctx.Authorizer["authenticationId"]
-	if !ok {
-		return ""
-	}
-	return authId.(string)
-}
-
-func NewDevelopmentLogger(stage string) *zap.Logger {
-	l, _ := zap.NewDevelopment()
-	return l.Named(stage)
-}
-
-func NewProductionLogger(stage string) *zap.Logger {
-	l, _ := zap.NewProduction()
-	return l.Named(stage)
-}
+//func GetCtxHiveMemberships(ctx context.Context) dbmodels.HiveSlice {
+//	return ctx.Value(UserRequestContextKey).(dbmodels.HiveSlice)
+//}
 
 func CurrentUTC() time.Time {
-	return time.Now().In(time.UTC)
+	return time.Now().UTC().Truncate(time.Millisecond)
 }
 
-func ImpartHttpClient(timeout time.Duration) *http.Client {
+func NewHttpClient(timeout time.Duration) *http.Client {
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -106,5 +46,19 @@ func ImpartHttpClient(timeout time.Duration) *http.Client {
 	}
 	return &http.Client{
 		Transport: transport,
+	}
+}
+
+func CommitRollbackLogger(tx *sql.Tx, err error, logger *zap.Logger) {
+	if err != nil {
+		logger.Info("hit error executing sql transaction", zap.Error(err))
+		rollbackErr := tx.Rollback()
+		if rollbackErr != nil {
+			logger.Info("encountered an error attempting to rollback", zap.Error(err))
+		}
+		return
+	}
+	if err = tx.Commit(); err != nil && err != sql.ErrTxDone {
+		logger.Info("encountered an error attempting to commit transaction", zap.Error(err))
 	}
 }

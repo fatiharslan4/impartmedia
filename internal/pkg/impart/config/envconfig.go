@@ -2,15 +2,19 @@ package config
 
 import (
 	"fmt"
+	"go.uber.org/zap"
 	"net/http"
-
-	"github.com/xeipuuv/gojsonschema"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/ory/graceful"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 type Environment string
+
+func (e Environment) String() string {
+	return string(e)
+}
 
 const (
 	Local         Environment = "local"
@@ -32,6 +36,16 @@ type Impart struct {
 	DynamoEndpoint     string      `split_words:"true" default:"http://localhost:8000"`
 	IOSNotificationARN string      `split_words:"true" default:""`
 	ProfileSchemaPath  string      `split_words:"true" default:"./schemas/json/Profile.json"`
+	MigrationsPath     string      `split_word:"true" default:"schemas/migrations"`
+
+	DBHost     string `split_words:"true" default:"localhost"`
+	DBPort     int    `split_words:"true" default:"3036"`
+	DBName     string `split_words:"true" default:"impart"`
+	DBUsername string `split_words:"true"`
+	DBPassword string `split_words:"true"`
+
+	DBMigrationUsername string `split_words:"true"`
+	DBMigrationPassword string `split_words:"true"`
 }
 
 func GetImpart() (*Impart, error) {
@@ -63,4 +77,13 @@ func (ic Impart) GetProfileSchemaValidator() (gojsonschema.JSONLoader, error) {
 	v := gojsonschema.NewReferenceLoader(fmt.Sprintf("file://%s", ic.ProfileSchemaPath))
 	_, err := v.LoadJSON()
 	return v, err
+}
+
+type ZapBoilWriter struct {
+	*zap.Logger
+}
+
+func (l *ZapBoilWriter) Write(p []byte) (n int, err error) {
+	l.Debug(string(p))
+	return len(p), nil
 }

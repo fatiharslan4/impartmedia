@@ -1,0 +1,9 @@
+FROM alpine:3.12
+
+RUN apk add --update --no-cache ca-certificates curl mysql-client
+WORKDIR /tmp
+RUN curl -L -o migrate.tar.gz https://github.com/golang-migrate/migrate/releases/download/v4.14.1/migrate.linux-amd64.tar.gz
+RUN tar -zxvf migrate.tar.gz && mv ./migrate.linux-amd64 /usr/bin/migrate
+
+ENTRYPOINT ["migrate"]
+CMD ["--help"]

@@ -1,8 +1,9 @@
 package hive
 
 import (
-	"strings"
-	"time"
+	"context"
+	"database/sql"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
@@ -12,143 +13,64 @@ import (
 	"go.uber.org/zap"
 )
 
+var _ Service = &service{}
+
 type Service interface {
-	GetHive(authID, hiveID string) (models.Hive, impart.Error)
-	GetHives(authID string) (models.Hives, impart.Error)
-	CreateHive(authID string, hive models.Hive) (models.Hive, impart.Error)
-	EditHive(authID string, hive models.Hive) (models.Hive, impart.Error)
-	HiveProfilePercentiles(profileID, hiveID, authenticationId string) (tags.TagComparisons, impart.Error)
+	GetHive(ctx context.Context, hiveID uint64) (models.Hive, impart.Error)
+	GetHives(ctx context.Context) (models.Hives, impart.Error)
+	CreateHive(ctx context.Context, hive models.Hive) (models.Hive, impart.Error)
+	EditHive(ctx context.Context, hive models.Hive) (models.Hive, impart.Error)
+	HiveProfilePercentiles(ctx context.Context, hiveID uint64) (tags.TagComparisons, impart.Error)
 
-	NewPost(post models.Post, authenticationID string) (models.Post, impart.Error)
-	EditPost(post models.Post, authenticationID string) (models.Post, impart.Error)
-	GetPost(hiveID, postID string, consistentRead bool, authenticationID string) (models.Post, impart.Error)
-	GetPosts(getPostsInput data.GetPostsInput, authenticationID string) (models.Posts, *models.NextPage, impart.Error)
-	Votes(vote VoteInput, authID string) (models.PostCommentTrack, impart.Error)
-	//DownVotes(hiveID, postID, commentID string, subtract bool, authenticationID string) impart.Error
-	CommentCount(hiveID, postID string, subtract bool, authenticationID string) impart.Error
-	DeletePost(hiveID, postID string, authenticationID string) impart.Error
-	PinPost(hiveID, postID, authenticationID string, pin bool) impart.Error
+	NewPost(ctx context.Context, post models.Post) (models.Post, impart.Error)
+	EditPost(ctx context.Context, post models.Post) (models.Post, impart.Error)
+	GetPost(ctx context.Context, postID uint64, includeComments bool) (models.Post, impart.Error)
+	GetPosts(ctx context.Context, getPostsInput data.GetPostsInput) (models.Posts, *models.NextPage, impart.Error)
+	Votes(ctx context.Context, vote VoteInput) (models.PostCommentTrack, impart.Error)
+	DeletePost(ctx context.Context, postID uint64) impart.Error
+	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) impart.Error
 
-	GetComments(hiveID, postID string, limit int64, nextPage *models.NextPage, authenticationID string) (models.Comments, *models.NextPage, impart.Error)
-	//GetCommentsByImpartWealthID(impartWealthID string, limit int64, offset time.Time, authenticationID string) (models.Comments, impart.Error)
-	GetComment(hiveID, postID, commentID string, consistentRead bool, authenticationID string) (models.Comment, impart.Error)
-	NewComment(comment models.Comment, authenticationID string) (models.Comment, impart.Error)
-	EditComment(comment models.Comment, authenticationID string) (models.Comment, impart.Error)
-	DeleteComment(postID, commentID string, authenticationID string) impart.Error
-
-	Logger() *zap.Logger
+	GetComments(ctx context.Context, postID uint64, limit, offset int) (models.Comments, *models.NextPage, impart.Error)
+	GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error)
+	NewComment(ctx context.Context, comment models.Comment) (models.Comment, impart.Error)
+	EditComment(ctx context.Context, comment models.Comment) (models.Comment, impart.Error)
+	DeleteComment(ctx context.Context, commentID uint64) impart.Error
 }
 
 const maxNotificationLength = 512
-
-// New creates a new Hive Service
-func New(region, dynamoEndpoint, environment, platformApplicationARN string, logger *zap.Logger) Service {
-	start := time.Now()
-	defer func(start time.Time) {
-		logger.Debug("created new complete hive service", zap.Duration("elapsed", time.Since(start)))
-	}(start)
-
-	hiveStore, err := data.NewHiveData(region, dynamoEndpoint, environment, logger)
-	if err != nil {
-		panic(err)
-	}
-	logger.Debug("created new hive data service", zap.Duration("elapsed", time.Since(start)))
-
-	start = time.Now()
-	postStore, err := data.NewPostData(region, dynamoEndpoint, environment, logger)
-	if err != nil {
-		panic(err)
-	}
-	logger.Debug("created new post data service", zap.Duration("elapsed", time.Since(start)))
-
-	start = time.Now()
-	profileStore, err := profiledata.New(region, dynamoEndpoint, environment, logger.Sugar())
-	if err != nil {
-		panic(err)
-	}
-	logger.Debug("created new profile data service", zap.Duration("elapsed", time.Since(start)))
-
-	start = time.Now()
-	commentStore, err := data.NewCommentData(region, dynamoEndpoint, environment, logger)
-	if err != nil {
-		panic(err)
-	}
-	logger.Debug("created new comment data service", zap.Duration("elapsed", time.Since(start)))
-
-	start = time.Now()
-	trackStore, err := data.NewContentTrack(region, dynamoEndpoint, environment, logger)
-	if err != nil {
-		panic(err)
-	}
-	logger.Debug("created new content track data service", zap.Duration("elapsed", time.Since(start)))
-
-	start = time.Now()
-	var notificationSvc impart.NotificationService
-	if strings.Contains(dynamoEndpoint, "localhost") || strings.Contains(dynamoEndpoint, "127.0.0.1") {
-		notificationSvc = impart.NewNoopNotificationService()
-	} else {
-		notificationSvc = impart.NewImpartNotificationService(environment, region, platformApplicationARN, logger)
-	}
-	logger.Debug("created new notification service", zap.Duration("elapsed", time.Since(start)))
-
-	return &service{
-		logger:              logger,
-		hiveData:            hiveStore,
-		postData:            postStore,
-		profileData:         profileStore,
-		commentData:         commentStore,
-		trackStore:          trackStore,
-		notificationService: notificationSvc,
-	}
-}
-
-//TODO: Refactor this...maybe.
-func NewWithProfile(region, dynamoEndpoint, environment, platformApplicationARN string, logger *zap.Logger, profileStore profiledata.Store) service {
-	hiveStore, err := data.NewHiveData(region, dynamoEndpoint, environment, logger)
-	if err != nil {
-		panic(err)
-	}
-
-	postStore, err := data.NewPostData(region, dynamoEndpoint, environment, logger)
-	if err != nil {
-		panic(err)
-	}
-
-	commentStore, err := data.NewCommentData(region, dynamoEndpoint, environment, logger)
-	if err != nil {
-		panic(err)
-	}
-
-	trackStore, err := data.NewContentTrack(region, dynamoEndpoint, environment, logger)
-	if err != nil {
-		panic(err)
-	}
-
-	var notificationSvc impart.NotificationService
-	if strings.Contains(dynamoEndpoint, "localhost") || strings.Contains(dynamoEndpoint, "127.0.0.1") {
-		notificationSvc = impart.NewNoopNotificationService()
-	} else {
-		notificationSvc = impart.NewImpartNotificationService(environment, region, platformApplicationARN, logger)
-	}
-
-	return service{
-		logger:              logger,
-		hiveData:            hiveStore,
-		postData:            postStore,
-		profileData:         profileStore,
-		commentData:         commentStore,
-		trackStore:          trackStore,
-		notificationService: notificationSvc,
-	}
-}
 
 type service struct {
 	logger              *zap.Logger
 	hiveData            data.Hives
 	postData            data.Posts
-	profileData         profiledata.Store
 	commentData         data.Comments
-	trackStore          data.UserTrack
+	reactionData        data.UserTrack
+	profileData         profiledata.Store
 	notificationService impart.NotificationService
-	tableEnvironment    string
+	db                  *sql.DB
+}
+
+// New creates a new Hive Service
+func New(cfg *config.Impart, db *sql.DB, logger *zap.Logger) Service {
+	hd := data.NewHiveService(db, logger)
+	var notificationSvc impart.NotificationService
+	if cfg.Env == config.Local {
+		notificationSvc = impart.NewNoopNotificationService()
+	} else {
+		notificationSvc = impart.NewImpartNotificationService(db, cfg.Env.String(), cfg.Region, cfg.IOSNotificationARN, logger)
+	}
+	profileData := profiledata.NewMySQLStore(db, logger)
+	svc := &service{
+		logger:              logger,
+		db:                  db,
+		hiveData:            hd,
+		postData:            hd,
+		commentData:         hd,
+		reactionData:        hd,
+		notificationService: notificationSvc,
+		profileData:         profileData,
+	}
+
+	return svc
+
 }

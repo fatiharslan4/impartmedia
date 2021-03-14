@@ -2,6 +2,8 @@ package models
 
 import (
 	"encoding/json"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"math"
 	"reflect"
 	"sort"
 	"time"
@@ -20,9 +22,8 @@ type PagedCommentsResponse struct {
 type Comments []Comment
 
 type Comment struct {
-	HiveID           string           `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
-	PostID           string           `json:"postId" jsonschema:"minLength=27,maxLength=27"`
-	CommentID        string           `json:"commentId,omitempty"`
+	PostID           uint64           `json:"postId" jsonschema:"minLength=27,maxLength=27"`
+	CommentID        uint64           `json:"commentId,omitempty"`
 	CommentDatetime  time.Time        `json:"commentDatetime,omitempty"`
 	ImpartWealthID   string           `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27"`
 	ScreenName       string           `json:"screenName"`
@@ -70,9 +71,8 @@ func (c Comment) Copy() Comment {
 func (c *Comment) Random() {
 
 	*c = Comment{
-		HiveID:          ksuid.New().String(),
-		PostID:          ksuid.New().String(),
-		CommentID:       ksuid.New().String(),
+		PostID:          uint64(r.Number(math.MaxInt32)),
+		CommentID:       uint64(r.Number(math.MaxInt32)),
 		ImpartWealthID:  ksuid.New().String(),
 		ScreenName:      r.SillyName(),
 		Content:         RandomContent(7),
@@ -85,21 +85,61 @@ func (c *Comment) Random() {
 
 }
 
-func (comments Comments) ContentIDs() []string {
-	out := make([]string, len(comments))
+//func (c Comment) ToDBModel() *dbmodels.Comment {
+//	return &dbmodels.Comment{
+//		PostID:          c.PostID,
+//		ImpartWealthID:  "",
+//		CreatedTS:       time.Time{},
+//		Content:         "",
+//		LastReplyTS:     time.Time{},
+//		ParentCommentID: null.Uint64{},
+//		UpVoteCount:     0,
+//		DownVoteCount:   0,
+//		R:               nil,
+//		L:               ,
+//	}
+//}
 
-	for i, comment := range comments {
-		out[i] = comment.CommentID
+func CommentsFromDBModelSlice(comments dbmodels.CommentSlice) Comments {
+	out := make(Comments, len(comments), len(comments))
+	for i, c := range comments {
+		out[i] = CommentFromDBModel(c)
 	}
-
 	return out
 }
 
-func (comments Comments) AppendContentTracks(tracks map[string]PostCommentTrack) {
-
-	for i := 0; i < len(comments); i++ {
-		if currentTrack, ok := tracks[comments[i].CommentID]; ok {
-			comments[i].PostCommentTrack = currentTrack
-		}
+func CommentFromDBModel(c *dbmodels.Comment) Comment {
+	out := Comment{
+		PostID:          c.PostID,
+		CommentID:       c.CommentID,
+		CommentDatetime: c.CreatedTS,
+		ImpartWealthID:  c.ImpartWealthID,
+		Content: Content{
+			Markdown: c.Content,
+		},
+		//Edits:            nil,
+		UpVotes:          c.UpVoteCount,
+		DownVotes:        c.DownVoteCount,
+		PostCommentTrack: PostCommentTrack{},
 	}
+	if c.R.ImpartWealth != nil {
+		out.ScreenName = c.R.ImpartWealth.ScreenName
+	}
+	if len(c.R.CommentReactions) > 0 {
+		out.PostCommentTrack = PostCommentTrackFromCommentReaction(c.R.CommentReactions[0])
+	}
+	return out
+}
+
+func PostCommentTrackFromCommentReaction(r *dbmodels.CommentReaction) PostCommentTrack {
+	out := PostCommentTrack{
+		ImpartWealthID: r.ImpartWealthID,
+		ContentID:      r.PostID,
+		PostID:         r.PostID,
+		UpVoted:        r.Upvoted,
+		DownVoted:      r.Downvoted,
+		VotedDatetime:  r.UpdatedTS,
+	}
+
+	return out
 }

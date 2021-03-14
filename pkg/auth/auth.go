@@ -10,11 +10,9 @@ import (
 )
 
 const (
-	impartAuth0Audience        = "https://api.impartwealth.com"
-	impartAuth0Issuer          = "https://impartwealth.auth0.com/"
-	arrayAudienceError         = "cannot unmarshal array into Go struct field StandardClaims.aud of type string"
-	AuthenticationIDContextKey = "authenticationID"
-	ImpartWealthIDContextKey   = "impartWealthID"
+	impartAuth0Audience = "https://api.impartwealth.com"
+	impartAuth0Issuer   = "https://impartwealth.auth0.com/"
+	arrayAudienceError  = "cannot unmarshal array into Go struct field StandardClaims.aud of type string"
 )
 
 var parser = jwt.Parser{}

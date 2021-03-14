@@ -1,0 +1,32 @@
+#!/bin/bash
+set -e
+
+echo "pulling docker-compose images for running locally"
+cat <<"EOF"
+================IMPORTANT===================
+THE FOLLOWING COMMAND WILL FAIL TO PULL impartwealth/migrate:latest THIS IS FINE, IT WILL BE BUILT
+============================================
+EOF
+docker-compose -f docker-compose.yml pull --ignore-pull-failures  || true
+
+echo "building local image"
+./script/builddocker.sh
+
+echo "building migrate container"
+docker build -t impartwealth/migrate:latest -f script/misc/Migrate_Dockerfile ./script/misc
+
+
+if [[ ! -f "/usr/local/bin/migrate" ]]; then
+  echo "installing migrate locally"
+  curl -L -o migrate.tar.gz https://github.com/golang-migrate/migrate/releases/download/v4.14.1/migrate.darwin-amd64.tar.gz
+  tar -zxvf migrate.tar.gz && mv -v ./migrate.darwin-amd64 /usr/local/bin/migrate
+  rm -v migrate.tar.gz
+fi
+
+if ! command -v sqlboiler &> /dev/null; then
+  cwd=$(pwd)
+  cd ~/
+  go get -u -t github.com/volatiletech/sqlboiler
+  go get github.com/volatiletech/sqlboiler/drivers/sqlboiler-mysql
+  cd "${cwd}"
+fi

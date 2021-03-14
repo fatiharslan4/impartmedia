@@ -1,54 +1,55 @@
 package profile
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"reflect"
 	"strings"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	profile_data "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
-	"github.com/leebenson/conform"
 	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/zap"
 )
 
 type Service interface {
-	NewProfile(contextAuthID string, p models.Profile) (models.Profile, impart.Error)
-	GetProfile(GetProfileInput) (models.Profile, impart.Error)
-	UpdateProfile(contextAuthID string, p models.Profile) (models.Profile, impart.Error)
-	DeleteProfile(contextAuthID, impartWealthID string) impart.Error
-	ScreenNameExists(screenName string) bool
+	NewProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
+	GetProfile(ctx context.Context, getProfileInput GetProfileInput) (models.Profile, impart.Error)
+	UpdateProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
+	DeleteProfile(ctx context.Context, impartWealthID string) impart.Error
+	ScreenNameExists(ctx context.Context, screenName string) bool
 
-	WhiteListSearch(impartWealthId, email, screenName string) (models.WhiteListProfile, impart.Error)
-	UpdateWhitelistScreenName(impartWealthId, screenName string) impart.Error
-	CreateWhitelistEntry(profile models.WhiteListProfile) impart.Error
 	ValidateSchema(document gojsonschema.JSONLoader) impart.Error
 	Logger() *zap.Logger
 }
 
-func New(logger *zap.SugaredLogger, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {
+func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {
 	return &profileService{
 		stage:               stage,
 		SugaredLogger:       logger,
-		db:                  dal,
+		profileStore:        dal,
 		notificationService: ns,
 		schemaValidator:     schema,
+		db:                  db,
 	}
 }
 
 type profileService struct {
 	stage string
 	*zap.SugaredLogger
-	db                  profile_data.Store
+	profileStore        profile_data.Store
 	schemaValidator     gojsonschema.JSONLoader
 	notificationService impart.NotificationService
+	db                  *sql.DB
 }
 
-func (ps *profileService) ScreenNameExists(screenName string) bool {
-	impartId, err := ps.db.GetImpartIdFromScreenName(screenName)
-	if err == nil && impartId != "" {
+func (ps *profileService) ScreenNameExists(ctx context.Context, screenName string) bool {
+	user, err := ps.profileStore.GetUserFromScreenName(ctx, screenName)
+	if err == nil && user != nil {
 		return true
 	}
 	return false
@@ -58,68 +59,65 @@ func (ps *profileService) Logger() *zap.Logger {
 	return ps.Desugar()
 }
 
-func (ps *profileService) DeleteProfile(contextAuthID, impartWealthID string) impart.Error {
+func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID string) impart.Error {
 	if strings.TrimSpace(impartWealthID) == "" {
 		return impart.NewError(impart.ErrBadRequest, "impartWealthID is empty")
 	}
-	p, err := ps.db.GetProfile(impartWealthID, true)
+	contextUser := impart.GetCtxUser(ctx)
+	if contextUser == nil || contextUser.ImpartWealthID == "" {
+		return impart.NewError(impart.ErrBadRequest, "context user not found")
+	}
+	userToDelete, err := ps.profileStore.GetUser(ctx, impartWealthID)
 	if err != nil {
 		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", impartWealthID))
 	}
 
-	// If the user is not deleting their own profile, and the user is not an admin, error out.
-	if p.AuthenticationID != contextAuthID {
-		contextUserProfile, err := ps.db.GetProfileFromAuthId(contextAuthID, false)
+	if contextUser.ImpartWealthID == userToDelete.ImpartWealthID ||
+		contextUser.Admin {
+		ps.Logger().Info("request to delete a user passed validation", zap.String("deleteUser", userToDelete.ImpartWealthID),
+			zap.String("contextUser", contextUser.ImpartWealthID))
+		err = ps.profileStore.DeleteProfile(ctx, impartWealthID)
 		if err != nil {
-			return impart.NewError(err, "unable to get context profile after mismatch "+
-				"on requested delete profile autID")
+			return impart.NewError(err, "unable to retrieve profile")
 		}
-		if !contextUserProfile.Attributes.Admin {
-			return impart.NewError(impart.ErrUnauthorized, "user is not authorized")
-		}
+		return nil
 	}
 
-	err = ps.db.DeleteProfile(impartWealthID)
-	if err != nil {
-		return impart.NewError(err, "unable to retrieve profile")
-	}
-
-	return nil
+	return impart.NewError(impart.ErrUnauthorized, "user is not authorized")
 
 }
 
-func (ps *profileService) NewProfile(contextAuthID string, p models.Profile) (models.Profile, impart.Error) {
+func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error) {
 	var empty models.Profile
 	var err error
 
-	err = conform.Strings(&p)
-	if err != nil {
-		return empty, impart.NewError(err, "unable to conform profile")
-	}
-
-	if contextAuthID == "" {
+	contextAuthId := impart.GetCtxAuthID(ctx)
+	if contextAuthId == "" {
 		return empty, impart.NewError(impart.ErrBadRequest, "Unable to locate authenticationID")
 	}
-	p.AuthenticationID = contextAuthID
-
-	// Populate whitelist entries if they exist
-	whitelistEntry, impartErr := ps.WhiteListSearch(p.ImpartWealthID, "", "")
-	if impartErr != nil {
-		if impartErr.Err() == impart.ErrNotFound {
-			p.SurveyResponses = models.SurveyResponses{}
-		} else {
-			return empty, impartErr
-		}
+	ctxUser, err := ps.profileStore.GetUserFromAuthId(ctx, contextAuthId)
+	if err != nil && err != impart.ErrNotFound {
+		ps.Logger().Error("error checking existing profile", zap.Error(err))
+		return empty, impart.NewError(impart.ErrUnknown, "unable to check existing profile")
+	} else if err == impart.ErrNotFound {
+		//new authenticated user is created this profile/user
+		p.AuthenticationID = contextAuthId
+	} else if ctxUser != nil && ctxUser.Admin {
+		//allow the creation of the profile by an admin
+		ps.Logger().Info("admin user is creating a new user",
+			zap.String("admin", ctxUser.Email),
+			zap.String("userEmail", p.ImpartWealthID),
+			zap.String("userEmail", p.Email))
+	} else if ctxUser.ImpartWealthID == p.ImpartWealthID {
+		return empty, impart.NewError(impart.ErrExists, "an existing impart wealth user for this id exists")
 	} else {
-		p.SurveyResponses = whitelistEntry.SurveyResponses
+		//what?
+		return empty, impart.NewError(impart.ErrUnknown, "unable to create profile; unknown state")
 	}
 
-	// If no screenName is provided, use screenName from whitelist Entry.
-	if p.ScreenName == "" && whitelistEntry.ScreenName != "" {
-		p.ScreenName = whitelistEntry.ScreenName
-	}
+	p.SurveyResponses = models.SurveyResponses{}
 
-	if impartErr := ps.validateNewProfile(p); impartErr != nil {
+	if impartErr := ps.validateNewProfile(ctx, p); impartErr != nil {
 		return empty, impartErr
 	}
 
@@ -127,239 +125,187 @@ func (ps *profileService) NewProfile(contextAuthID string, p models.Profile) (mo
 	p.UpdatedDate = impart.CurrentUTC()
 	p.Attributes.UpdatedDate = impart.CurrentUTC()
 	p.SurveyResponses.ImportTimestamp = impart.CurrentUTC()
+	p.Admin = false
 
-	if p.Attributes.Admin && ps.stage == "prod" {
-		p.Attributes.Admin = false
-	}
-
-	p.NotificationProfile, err = ps.SubscribeDeviceToken(p)
+	dbUser, err := p.DBUser()
 	if err != nil {
-		return empty, impart.NewError(err, "error syncing profile device token and hive subscriptions")
+		return empty, impart.NewError(impart.ErrUnknown, "couldn't convert profile to profileStore user")
 	}
+	dbProfile, err := p.DBProfile()
+	if err != nil {
+		return empty, impart.NewError(impart.ErrUnknown, "couldn't convert profile to profileStore profile")
+	}
+	dbUser.CreatedTS = impart.CurrentUTC()
+	dbUser.UpdatedTS = impart.CurrentUTC()
+	dbProfile.UpdatedTS = impart.CurrentUTC()
+	endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
+	dbUser.AwsSNSAppArn = endpointARN
 
-	created, err := ps.db.CreateProfile(p)
+	err = ps.profileStore.CreateUserProfile(ctx, dbUser, dbProfile)
 	if err != nil {
 		ps.Error(err)
 		return empty, impart.NewError(err, "unable to create profile")
 	}
+	dbUser, err = ps.profileStore.GetUser(ctx, dbUser.ImpartWealthID)
+	if err != nil {
+		ps.Error(err)
+		return empty, impart.NewError(err, "unable to create profile")
+	}
+	dbProfile = dbUser.R.ImpartWealthProfile
+	out, err := models.ProfileFromDBModel(dbUser, dbProfile)
+	if err != nil {
+		return models.Profile{}, impart.NewError(err, "")
+	}
 
-	//hides subscriptions from impart app temporarily
-	//TODO: remove this
-	created.NotificationProfile.Subscriptions = nil
-	return created, nil
+	return *out, nil
 }
 
 type GetProfileInput struct {
-	ImpartWealthID, SearchAuthenticationID, SearchEmail, SearchScreenName, ContextAuthID string
+	ImpartWealthID, SearchEmail, SearchScreenName string
 }
 
-func (ps *profileService) GetProfile(gpi GetProfileInput) (models.Profile, impart.Error) {
+func (gpi GetProfileInput) isSelf(ctxUser *dbmodels.User) bool {
+	if gpi.ImpartWealthID != "" && gpi.ImpartWealthID == ctxUser.ImpartWealthID {
+		return true
+	}
+	if gpi.SearchEmail != "" && gpi.SearchEmail == ctxUser.Email {
+		return true
+	}
+	if gpi.SearchScreenName != "" && gpi.SearchScreenName == ctxUser.ScreenName {
+		return true
+	}
+	return false
+}
+
+func (ps *profileService) GetProfile(ctx context.Context, gpi GetProfileInput) (models.Profile, impart.Error) {
+	var out *models.Profile
+	var u *dbmodels.User
 	var err error
-	var p models.Profile
-	var impartWealthID string
 
-	getProfileFunc := func(id string) (models.Profile, impart.Error) {
-		if p, err = ps.db.GetProfile(id, false); err != nil {
-			return p, impart.NewError(err, "unable to retrieve profile")
-		}
-		if p.AuthenticationID != gpi.ContextAuthID {
-			return models.Profile{}, impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("authentication ID in token does not match for impart Id %s", id))
-		}
-		//hides subscriptions from impart app temporarily
-		//TODO: remove this
-		p.NotificationProfile.Subscriptions = nil
-		return p, nil
+	ctxUser := impart.GetCtxUser(ctx)
+	if gpi.isSelf(ctxUser) {
+		u = ctxUser
+	} else if gpi.ImpartWealthID != "" {
+		u, err = ps.profileStore.GetUser(ctx, gpi.ImpartWealthID)
+	} else if gpi.SearchEmail != "" {
+		u, err = ps.profileStore.GetUserFromEmail(ctx, gpi.SearchEmail)
+	} else if gpi.SearchScreenName != "" {
+		u, err = ps.profileStore.GetUserFromScreenName(ctx, gpi.SearchScreenName)
+	}
+	if err != nil {
+		return models.Profile{}, impart.NewError(err, "unable to find a matching profile")
 	}
 
-	if gpi.ImpartWealthID != "" {
-		return getProfileFunc(gpi.ImpartWealthID)
+	p := u.R.ImpartWealthProfile
+	if p == nil {
+		p, err = ps.profileStore.GetProfile(ctx, u.ImpartWealthID)
+	}
+	if err != nil {
+		return models.Profile{}, impart.NewError(err, "unable to find a matching profile")
 	}
 
-	if gpi.SearchAuthenticationID != "" {
-		if impartWealthID, err = ps.db.GetImpartIdFromAuthId(gpi.SearchAuthenticationID); err != nil {
-			return p, impart.NewError(err, "unable to find the profile for authenticationId "+gpi.SearchAuthenticationID)
-		}
-		return getProfileFunc(impartWealthID)
+	out, err = models.ProfileFromDBModel(u, p)
+	if err != nil {
+		return models.Profile{}, impart.NewError(err, "")
 	}
 
-	if gpi.SearchEmail != "" {
-		if impartWealthID, err = ps.db.GetImpartIdFromEmail(gpi.SearchEmail); err != nil {
-			return p, impart.NewError(err, "unable to find the profile for email"+gpi.SearchEmail)
-		}
-		return getProfileFunc(impartWealthID)
-	}
-	if gpi.SearchScreenName != "" {
-		if impartWealthID, err = ps.db.GetImpartIdFromScreenName(gpi.SearchScreenName); err != nil {
-			return p, impart.NewError(err, "unable to find the profile for screenName"+gpi.SearchScreenName)
-		}
-		return getProfileFunc(impartWealthID)
-	}
-
-	return p, impart.NewError(impart.ErrBadRequest, "no valid query parameters to return profile")
+	return *out, nil
 }
 
-func (ps *profileService) UpdateProfile(contextAuthID string, p models.Profile) (models.Profile, impart.Error) {
-	var originalProfile models.Profile
+func (ps *profileService) UpdateProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error) {
 	var empty models.Profile
 	var err error
 
-	if err = conform.Strings(&p); err != nil {
-		return models.Profile{}, impart.NewError(err, "invalid message format")
-	}
+	ctxUser := impart.GetCtxUser(ctx)
 
-	requestorProfile, err := ps.db.GetProfileFromAuthId(contextAuthID, false)
-	if err != nil {
-		return p, impart.NewError(err, fmt.Sprintf("unable to find requestors profile from authenticationId %s", contextAuthID))
-	}
-
-	if p.AuthenticationID != contextAuthID && !requestorProfile.Attributes.Admin {
+	if p.AuthenticationID != ctxUser.AuthenticationID && !ctxUser.Admin || p.ImpartWealthID != ctxUser.ImpartWealthID {
 		return models.Profile{}, impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("user %s is not authorized to modify profile of %s: %s",
-			requestorProfile.ScreenName, p.ScreenName, p.ImpartWealthID))
+			ctxUser.ScreenName, p.ScreenName, p.ImpartWealthID))
 	}
 
-	if originalProfile, err = ps.db.GetProfile(p.ImpartWealthID, true); err != nil {
-		return empty, impart.NewError(err, fmt.Sprintf("error retrieving existing profile"))
+	existingDBUser, err := ps.profileStore.GetUser(ctx, p.ImpartWealthID)
+	if err != nil {
+		return models.Profile{}, impart.NewError(impart.ErrUnknown, "unable to fetch existing user from dB")
 	}
-
+	existingDBProfile := existingDBUser.R.ImpartWealthProfile
 	ps.Logger().Debug("Checking Updated Profile",
-		zap.Any("original", originalProfile),
+		zap.Any("existingDBUser", *existingDBUser),
+		zap.Any("existingDBProfile", *existingDBProfile),
 		zap.Any("updated", p))
 
 	if p.CreatedDate.IsZero() ||
-		p.UpdatedDate.IsZero() ||
-		p.CreatedDate != originalProfile.CreatedDate ||
-		p.UpdatedDate != originalProfile.UpdatedDate {
+		p.UpdatedDate.IsZero() || !p.CreatedDate.Equal(existingDBUser.CreatedTS) || !p.UpdatedDate.Equal(existingDBUser.UpdatedTS) {
 		msg := "profile being updated appears to be incorrect - critical properties do not match the profile being updated."
-		ps.Logger().Error(msg, zap.Any("updatedProfile", p))
+		ps.Logger().Error(msg, zap.Time("inCreatedTS", p.CreatedDate),
+			zap.Time("existingCreatedTS", existingDBUser.CreatedTS),
+			zap.Time("inUpdatedTS", p.UpdatedDate),
+			zap.Time("existingUpdatedTS", existingDBUser.UpdatedTS))
 		return empty, impart.NewError(impart.ErrBadRequest, msg)
 	}
 
-	err = ps.UpdateProfileSync(originalProfile, &p)
-
-	p.UpdatedDate = impart.CurrentUTC()
-	p, err = ps.db.UpdateProfile(contextAuthID, p)
-	if err != nil {
-		return empty, impart.NewError(err, fmt.Sprintf("Unable to update profile %s", originalProfile.ImpartWealthID))
+	if existingDBUser.DeviceToken != "" && strings.TrimSpace(p.DeviceToken) == "" {
+		err = ps.notificationService.UnsubscribeAll(ctx, existingDBUser.ImpartWealthID)
+		ps.Logger().Error("error unsusbcribing", zap.Error(err))
+	} else if existingDBUser.DeviceToken != p.DeviceToken {
+		existingDBUser.DeviceToken = p.DeviceToken
+		existingDBUser.UpdatedTS = impart.CurrentUTC()
+		if err := ps.SubscribeNewDeviceToken(ctx, existingDBUser); err != nil {
+			return empty, impart.NewError(impart.ErrUnknown, "unknown error updating subscriptions")
+		}
 	}
-	//hides subscriptions from impart app temporarily
-	//TODO: remove this
-	p.NotificationProfile.Subscriptions = nil
 
-	return p, nil
+	tmpProfile, err := models.ProfileFromDBModel(existingDBUser, existingDBProfile)
+	if err != nil {
+		return models.Profile{}, impart.NewError(impart.ErrUnknown, "unable to generate an impart profile from existing DB profile")
+	}
+
+	if !reflect.DeepEqual(p.SurveyResponses, tmpProfile.SurveyResponses) {
+		if err := existingDBProfile.SurveyResponses.Marshal(p.SurveyResponses); err != nil {
+			return empty, impart.NewError(impart.ErrUnknown, "unable to update profile")
+		}
+	}
+
+	if !reflect.DeepEqual(p.Attributes, tmpProfile.Attributes) {
+		if err := existingDBProfile.Attributes.Marshal(p.Attributes); err != nil {
+			return empty, impart.NewError(impart.ErrUnknown, "unable to update profile")
+		}
+	}
+
+	if p.ScreenName != existingDBUser.ScreenName {
+		existingDBUser.ScreenName = p.ScreenName
+	}
+
+	err = ps.profileStore.UpdateProfile(ctx, existingDBUser, existingDBProfile)
+	if err != nil {
+		ps.Logger().Error("couldn't save profile in DB", zap.Error(err))
+		return empty, impart.NewError(impart.ErrUnknown, "unable save profile in DB")
+	}
+
+	up, err := models.ProfileFromDBModel(existingDBUser, existingDBProfile)
+	if err != nil {
+		return empty, impart.NewError(impart.ErrUnknown, "unable to update profile")
+	}
+	return *up, nil
 }
 
-// UpdateProfileSync takes a pointer to the profile that is being updated makes sure the incoming changes has all the appropriate additional touches
-func (ps *profileService) UpdateProfileSync(originalProfile models.Profile, updatedProfile *models.Profile) (err error) {
-	if err = ps.CheckNotificationProfileChanged(originalProfile, updatedProfile); err != nil {
+func (ps *profileService) SubscribeNewDeviceToken(ctx context.Context, user *dbmodels.User) error {
+	endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, user.DeviceToken, user.AwsSNSAppArn)
+	if err != nil {
+		return err
+	}
+	user.AwsSNSAppArn = endpointARN
+	user.UpdatedTS = impart.CurrentUTC()
+	if _, err := user.Update(ctx, ps.db, boil.Infer()); err != nil {
 		return err
 	}
 
-	return err
-}
+	subs, err := dbmodels.NotificationSubscriptions(
+		dbmodels.NotificationSubscriptionWhere.ImpartWealthID.EQ(user.ImpartWealthID)).All(ctx, ps.db)
 
-func (ps *profileService) CheckNotificationProfileChanged(currentProfile models.Profile, updatedProfile *models.Profile) error {
-
-	///unhides subscriptions from impart app temporarily
-	//TODO: remove this
-	if strings.TrimSpace(updatedProfile.NotificationProfile.DeviceToken) != "" {
-		updatedProfile.NotificationProfile.Subscriptions = currentProfile.NotificationProfile.Subscriptions
-	}
-
-	currentNotificationProfile := currentProfile.NotificationProfile
-	updatedNotificationProfile := updatedProfile.NotificationProfile
-
-	if cmp.Equal(currentNotificationProfile, updatedNotificationProfile, cmpopts.EquateEmpty(),
-		cmpopts.SortSlices(
-			func(i, j models.Subscription) bool {
-				return i.Name < j.Name
-			})) {
-		return nil
-	}
-
-	//Check for bad updates with missing subs
-	if currentNotificationProfile.DeviceToken == updatedNotificationProfile.DeviceToken && len(currentNotificationProfile.Subscriptions) != len(updatedNotificationProfile.Subscriptions) {
-		ps.Logger().Warn("received a changed profile where device tokens were the same, but subscriptions were not - not updating anything")
-		//De-refs the pointers to set the new updated profile back to the current profile
-		updatedNotificationProfile = currentNotificationProfile
-		return nil
-	}
-
-	// Check if we're removing notification profile
-	if currentNotificationProfile.DeviceToken != "" && updatedNotificationProfile.DeviceToken == "" {
-		for _, subscription := range currentNotificationProfile.Subscriptions {
-			err := ps.notificationService.UnsubscribeTopic(subscription.SubscriptionARN)
-			// Swallows error and moves on.
-			if err != nil {
-				ps.Logger().Error("error unsubscribing to topic", zap.Error(err), zap.Any("subscription", subscription))
-			}
-		}
-		return nil
-	}
-
-	// Check if we're changing device token
-	if currentNotificationProfile.DeviceToken != updatedNotificationProfile.DeviceToken {
-		//endpointARN, err := ps.notificationService.SyncTokenEndpoint(updatedNotificationProfile.DeviceToken, updatedNotificationProfile.AWSPlatformEndpointARN)
-		//if err != nil {
-		//	return err
-		//}
-		//
-		//var memberships models.HiveMemberships
-		//if len(updatedProfile.Attributes.HiveMemberships) < 0 {
-		//	memberships = updatedProfile.Attributes.HiveMemberships
-		//} else {
-		//	memberships = currentProfile.Attributes.HiveMemberships
-		//}
-		////Add hive topics
-		//for _, h := range memberships{
-		//	hive, err := ps.db.GetHive(h.HiveID, false)
-		//	if err != nil {
-		//		ps.Logger().Error("error getting hive from DB", zap.Error(err))
-		//	}
-		//	subscription, err := ps.notificationService.SubscribeTopic(endpointARN, hive.PinnedPostNotificationTopicARN)
-		//	if err != nil {
-		//		ps.Logger().Error("error subscribing to topic", zap.Error(err))
-		//	}
-		//	updatedNotificationProfile.Subscriptions = append(updatedNotificationProfile.Subscriptions, models.Subscription{Name: hive.PinnedPostNotificationTopicARN, SubscriptionARN: subscription})
-		//}
-		//
-		//updatedNotificationProfile.AWSPlatformEndpointARN = endpointARN
-
-		//updatedProfile.NotificationProfile = updatedNotificationProfile
-		var err error
-		updatedProfile.NotificationProfile, err = ps.SubscribeDeviceToken(*updatedProfile)
-		if err != nil {
+	for _, sub := range subs {
+		if err := ps.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, sub.TopicArn); err != nil {
 			return err
 		}
 	}
-
 	return nil
-}
-
-func (ps *profileService) SubscribeDeviceToken(profile models.Profile) (models.NotificationProfile, error) {
-	notificationProfile := profile.NotificationProfile
-
-	if strings.TrimSpace(notificationProfile.DeviceToken) == "" {
-		return models.NotificationProfile{}, nil
-	}
-
-	endpointARN, err := ps.notificationService.SyncTokenEndpoint(notificationProfile.DeviceToken, notificationProfile.AWSPlatformEndpointARN)
-	if err != nil {
-		return models.NotificationProfile{}, err
-	}
-
-	notificationProfile.AWSPlatformEndpointARN = endpointARN
-
-	for _, h := range profile.Attributes.HiveMemberships {
-		hive, err := ps.db.GetHive(h.HiveID, false)
-		if err != nil {
-			ps.Logger().Error("error getting hive from DB", zap.Error(err))
-		}
-		subscription, err := ps.notificationService.SubscribeTopic(endpointARN, hive.PinnedPostNotificationTopicARN)
-		if err != nil {
-			ps.Logger().Error("error subscribing to topic", zap.Error(err))
-		}
-		notificationProfile.Subscriptions = append(notificationProfile.Subscriptions, models.Subscription{Name: hive.PinnedPostNotificationTopicARN, SubscriptionARN: subscription})
-	}
-
-	return notificationProfile, nil
 }

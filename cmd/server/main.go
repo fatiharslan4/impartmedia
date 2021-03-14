@@ -1,10 +1,17 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
+	"github.com/impartwealthapp/backend/pkg/data/migrater"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-contrib/zap"
@@ -34,20 +41,64 @@ func main() {
 		logger.Fatal("nil config")
 		return
 	}
-
 	if cfg.Debug {
 		gin.SetMode(gin.DebugMode)
+		//boil.DebugMode = true
+		boil.WithDebugWriter(context.TODO(), &config.ZapBoilWriter{Logger: logger})
 		logger, _ = zap.NewDevelopment()
 		if cfg.Env == config.Local || cfg.Env == config.Development {
-			logger.Debug("config startup", zap.Any("config", cfg))
+			logger.Debug("config startup", zap.Any("config", *cfg))
 		}
-
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
+
+	migrationDB, err := cfg.GetMigrationDBConnection()
+	if err != nil {
+		logger.Fatal("unable to connect to DB", zap.Error(err))
+	}
+
+	//Trap sigterm during migraitons
+	migrationsDoneChan := make(chan bool)
+	shutdownMigrationsChan := make(chan bool)
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+	go func() {
+		select {
+		case <-sigc:
+			logger.Info("received a shutdown request during migrations, sending shutdown signal")
+			shutdownMigrationsChan <- true
+		case <-migrationsDoneChan:
+			logger.Info("migrations complete, no longer waiting for sig int")
+			return
+		}
+	}()
+
+	err = migrater.RunMigrationsUp(migrationDB, cfg.MigrationsPath, logger, shutdownMigrationsChan)
+	if err != nil {
+		logger.Fatal("error running migrations", zap.Error(err))
+	}
+	migrationsDoneChan <- true
+	if err := migrationDB.Close(); err != nil {
+		logger.Fatal("error closing migrations DB connection", zap.Error(err))
+	}
+
+	boil.SetLocation(time.UTC)
+	db, err := cfg.GetDBConnection()
+	if err != nil {
+		logger.Fatal("unable to connect to DB", zap.Error(err))
+	}
+	defer db.Close()
 	defer logger.Sync()
 
-	services := setupServices(cfg, logger)
+	if err := migrater.BootStrapAdminUser(db, cfg.Env, logger); err != nil {
+		logger.Fatal("unable to bootstrap user", zap.Error(err))
+	}
+
+	services := setupServices(cfg, db, logger)
 
 	r := gin.New()
 	r.RedirectTrailingSlash = true
@@ -71,7 +122,7 @@ func main() {
 	v1.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
 	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
 
-	hive.SetupRoutes(v1, services.HiveData, services.Hive, logger)
+	hive.SetupRoutes(v1, db, services.HiveData, services.Hive, logger)
 	profile.SetupRoutes(v1, services.ProfileData, services.Profile, logger)
 
 	server := cfg.GetHttpServer()
@@ -96,14 +147,11 @@ type Services struct {
 	Notifications impart.NotificationService
 }
 
-func setupServices(cfg *config.Impart, logger *zap.Logger) *Services {
+func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services {
 	var err error
 	svcs := &Services{}
-	svcs.ProfileData, err = profiledata.New(cfg.Region, cfg.DynamoEndpoint, string(cfg.Env), logger.Sugar())
-	if err != nil {
-		logger.Fatal("err creating profile data service", zap.Error(err))
-	}
-	svcs.HiveData, err = hivedata.NewHiveData(cfg.Region, cfg.DynamoEndpoint, string(cfg.Env), logger)
+	svcs.ProfileData = profiledata.NewMySQLStore(db, logger)
+	svcs.HiveData = hivedata.NewHiveService(db, logger)
 
 	svcs.Auth, err = auth.NewAuthService(cfg, svcs.ProfileData, logger)
 	if err != nil {
@@ -113,7 +161,7 @@ func setupServices(cfg *config.Impart, logger *zap.Logger) *Services {
 	if strings.Contains(cfg.DynamoEndpoint, "localhost") || strings.Contains(cfg.DynamoEndpoint, "127.0.0.1") {
 		svcs.Notifications = impart.NewNoopNotificationService()
 	} else {
-		svcs.Notifications = impart.NewImpartNotificationService(string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
+		svcs.Notifications = impart.NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
 	}
 
 	profileValidator, err := cfg.GetProfileSchemaValidator()
@@ -121,9 +169,9 @@ func setupServices(cfg *config.Impart, logger *zap.Logger) *Services {
 		logger.Fatal("err creating profile schema validator", zap.Error(err))
 	}
 
-	svcs.Profile = profile.New(logger.Sugar(), svcs.ProfileData, svcs.Notifications, profileValidator, string(cfg.Env))
+	svcs.Profile = profile.New(logger.Sugar(), db, svcs.ProfileData, svcs.Notifications, profileValidator, string(cfg.Env))
 
-	svcs.Hive = hive.New(cfg.Region, cfg.DynamoEndpoint, string(cfg.Env), cfg.IOSNotificationARN, logger)
+	svcs.Hive = hive.New(cfg, db, logger)
 
 	return svcs
 }

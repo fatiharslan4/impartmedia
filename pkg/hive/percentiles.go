@@ -1,7 +1,9 @@
 package hive
 
 import (
+	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"strings"
 
 	humanize "github.com/dustin/go-humanize"
@@ -10,22 +12,33 @@ import (
 	"github.com/impartwealthapp/backend/pkg/tags"
 )
 
-func (s *service) HiveProfilePercentiles(impartWealthID, hiveID, authenticationId string) (tags.TagComparisons, impart.Error) {
+func (s *service) HiveProfilePercentiles(ctx context.Context, hiveID uint64) (tags.TagComparisons, impart.Error) {
 	var comparisons tags.TagComparisons
-	profile, impartErr := s.validateHiveAccess(hiveID, authenticationId)
-	if impartErr != nil {
-		return comparisons, impartErr
-	}
-	if impartWealthID != profile.ImpartWealthID {
-		return comparisons, impart.NewError(impart.ErrUnauthorized, "authenticated profile ID does not match input profile ID")
-	}
+	ctxUser := impart.GetCtxUser(ctx)
 
-	hive, err := s.hiveData.GetHive(hiveID, false)
+	dbProfile, err := s.profileData.GetProfile(ctx, ctxUser.ImpartWealthID)
 	if err != nil {
-		return comparisons, impart.NewError(err, fmt.Sprintf("error getting hive %s", hiveID))
+		s.logger.Error("error getting db profile", zap.Error(err))
+		return tags.TagComparisons{}, impart.NewError(impart.ErrUnknown, "unable to get profile")
+	}
+	dbHive, err := s.hiveData.GetHive(ctx, hiveID)
+	if err != nil {
+		return comparisons, impart.NewError(err, fmt.Sprintf("error getting hive %v", hiveID))
 	}
 
-	return profileCompare(profile, hive.TagComparisons), nil
+	hive, err := models.HiveFromDB(dbHive)
+	if err != nil {
+		s.logger.Error("error converting db hive", zap.Error(err))
+		return tags.TagComparisons{}, impart.NewError(impart.ErrUnknown, "unable to build hive")
+	}
+
+	profile, err := models.ProfileFromDBModel(ctxUser, dbProfile)
+	if err != nil {
+		s.logger.Error("error getting db profile", zap.Error(err))
+		return tags.TagComparisons{}, impart.NewError(impart.ErrUnknown, "unable to build profile")
+	}
+
+	return profileCompare(*profile, hive.TagComparisons), nil
 }
 
 func profileCompare(p models.Profile, comparisons tags.TagComparisons) tags.TagComparisons {

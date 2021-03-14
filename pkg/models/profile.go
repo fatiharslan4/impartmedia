@@ -2,6 +2,8 @@ package models
 
 import (
 	"encoding/json"
+	"errors"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"reflect"
 	"time"
 
@@ -15,26 +17,33 @@ type NextProfilePage struct {
 	ImpartWealthID string `json:"impartWealthId"`
 }
 
+func (p *Profile) RedactSensitiveFields() {
+	p.AuthenticationID = ""
+	p.DeviceToken = ""
+	p.SurveyResponses = SurveyResponses{}
+	p.Attributes = Attributes{}
+}
+
 // Profile for Impart Wealth
 type Profile struct {
-	ImpartWealthID      string              `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27"`
-	AuthenticationID    string              `json:"authenticationId" conform:"trim"`
-	Email               string              `json:"email" conform:"email,lowercase" jsonschema:"format=email"`
-	ScreenName          string              `json:"screenName,omitempty" conform:"trim,lowercase"`
-	Attributes          Attributes          `json:"attributes,omitempty"`
-	CreatedDate         time.Time           `json:"createdDate,omitempty"`
-	UpdatedDate         time.Time           `json:"updatedDate,omitempty"`
-	NotificationProfile NotificationProfile `json:"notificationProfile,omitempty"`
-	SurveyResponses     SurveyResponses     `json:"surveyResponses,omitempty"`
+	ImpartWealthID   string          `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27"`
+	AuthenticationID string          `json:"authenticationId" conform:"trim"`
+	Email            string          `json:"email" conform:"email,lowercase" jsonschema:"format=email"`
+	ScreenName       string          `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=4,maxLength=35"`
+	Admin            bool            `json:"admin,omitempty"`
+	Attributes       Attributes      `json:"attributes,omitempty"`
+	CreatedDate      time.Time       `json:"createdDate,omitempty"`
+	UpdatedDate      time.Time       `json:"updatedDate,omitempty"`
+	DeviceToken      string          `json:"notificationProfile,omitempty"`
+	SurveyResponses  SurveyResponses `json:"surveyResponses,omitempty"`
+	HiveMemberships  HiveMemberships `json:"hives,omitempty"`
 }
 
 // Attributes for Impart Wealth
 type Attributes struct {
-	UpdatedDate     time.Time       `json:"updatedDate,omitempty"`
-	Name            string          `json:"name,omitempty" conform:"name,trim,ucfirst" `
-	Address         Address         `json:"address,omitempty"`
-	HiveMemberships HiveMemberships `json:"hives,omitempty"`
-	Admin           bool            `json:"admin,omitempty"`
+	UpdatedDate time.Time `json:"updatedDate,omitempty"`
+	Name        string    `json:"name,omitempty" conform:"name,trim,ucfirst" `
+	Address     Address   `json:"address,omitempty"`
 }
 
 // Address
@@ -55,34 +64,26 @@ type NotificationProfile struct {
 
 type Subscriptions []Subscription
 type Subscription struct {
-	Name            string
+	Name            string `json: name`
 	SubscriptionARN string
 }
 
-type WhiteListProfile struct {
-	Email           string          `json:"email" conform:"email,lowercase" jsonschema:"format=email"`
-	ImpartWealthID  string          `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27"`
-	ScreenName      string          `json:"screenName,omitempty" conform:"trim,lowercase"`
-	CreatedDate     time.Time       `json:"createdDate,omitempty"`
-	UpdatedDate     time.Time       `json:"updatedDate,omitempty"`
-	SurveyResponses SurveyResponses `json:"surveyResponses,omitempty"`
-}
-
-func NewProfile(profileJson string) (Profile, error) {
+func UnmarshallJson(profileJson string) (Profile, error) {
 	var p Profile
 	var err error
 
-	err = json.Unmarshal([]byte(profileJson), &p)
-	if err != nil {
-		return Profile{}, err
+	if err = json.Unmarshal([]byte(profileJson), &p); err != nil {
+		return p, err
 	}
 
-	conform.Strings(&p)
+	if err = conform.Strings(&p); err != nil {
+		return p, err
+	}
 
 	return p, nil
 }
 
-func (p *Profile) ToJson() string {
+func (p *Profile) MarshallJson() string {
 	b, _ := json.MarshalIndent(&p, "", "\t")
 	return string(b)
 }
@@ -95,30 +96,7 @@ func (p Profile) Copy() Profile {
 	return p
 }
 
-func (p Profile) IsHiveMember(hiveID string) bool {
-	for _, h := range p.Attributes.HiveMemberships {
-		if h.HiveID == hiveID {
-			return true
-		}
-	}
-	return false
-}
-
 func (p Profile) EqualsIgnoreTimes(pc Profile) bool {
-	t := time.Unix(0, 0)
-	modTimes := func(ip *Profile) {
-		ip.UpdatedDate = t
-		ip.CreatedDate = t
-		ip.Attributes.Address.UpdatedDate = t
-		ip.Attributes.UpdatedDate = t
-		ip.SurveyResponses.ImportTimestamp = t
-		ip.SurveyResponses.EndTimestamp = t
-		ip.SurveyResponses.StartTimestamp = t
-		ip.SurveyResponses.ImportTimestamp = t
-	}
-	modTimes(&p)
-	modTimes(&pc)
-
 	return reflect.DeepEqual(p, pc)
 }
 
@@ -141,9 +119,6 @@ func RandomProfile() Profile {
 				State:       r.State(0),
 				Zip:         r.PostalCode("US"),
 			},
-			HiveMemberships: []HiveMembership{
-				{HiveName: r.Adjective() + r.Noun(), HiveID: r.RandStringRunes(27)},
-			},
 		},
 		SurveyResponses: RandomSurveyResponses(),
 	}
@@ -151,11 +126,71 @@ func RandomProfile() Profile {
 	return p
 }
 
-func (wp *WhiteListProfile) Randomize() {
-	wp.ImpartWealthID = ksuid.New().String()
-	wp.Email = r.Email()
-	wp.ScreenName = r.SillyName()
-	wp.CreatedDate = impart.CurrentUTC()
-	wp.UpdatedDate = impart.CurrentUTC()
-	wp.SurveyResponses = RandomSurveyResponses()
+func (p Profile) DBUser() (*dbmodels.User, error) {
+	out := &dbmodels.User{
+		ImpartWealthID:   p.ImpartWealthID,
+		AuthenticationID: p.AuthenticationID,
+		Email:            p.Email,
+		ScreenName:       p.ScreenName,
+		DeviceToken:      p.DeviceToken,
+		Admin:            false,
+	}
+	return out, nil
+}
+
+func (p Profile) DBProfile() (*dbmodels.Profile, error) {
+	out := &dbmodels.Profile{
+		ImpartWealthID: p.ImpartWealthID,
+		//Attributes:      ,
+		//SurveyResponses: nil,
+	}
+	if err := out.Attributes.Marshal(p.Attributes); err != nil {
+		return nil, err
+	}
+	if err := out.SurveyResponses.Marshal(p.SurveyResponses); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error) {
+	if u == nil || p == nil {
+		return nil, errors.New("nil db user or db profile")
+	}
+	out := &Profile{
+		ImpartWealthID:   u.ImpartWealthID,
+		AuthenticationID: u.AuthenticationID,
+		Email:            u.Email,
+		ScreenName:       u.ScreenName,
+		Admin:            u.Admin,
+		//Attributes:       Attributes{},
+		CreatedDate: u.CreatedTS,
+		DeviceToken: u.DeviceToken,
+		//SurveyResponses:  SurveyResponses{},
+		HiveMemberships: make(HiveMemberships, len(u.R.MemberHiveHives), len(u.R.MemberHiveHives)),
+	}
+	if u.UpdatedTS.After(p.UpdatedTS) {
+		out.UpdatedDate = u.UpdatedTS
+	} else {
+		out.UpdatedDate = p.UpdatedTS
+	}
+	if p.Attributes != nil {
+		if err := p.Attributes.Unmarshal(&out.Attributes); err != nil {
+			return nil, err
+		}
+	}
+	if p.SurveyResponses != nil {
+		if err := p.SurveyResponses.Unmarshal(&out.SurveyResponses); err != nil {
+			return nil, err
+		}
+	}
+
+	for i, hive := range u.R.MemberHiveHives {
+		out.HiveMemberships[i] = HiveMembership{
+			HiveID:   hive.HiveID,
+			HiveName: hive.Name,
+		}
+	}
+
+	return out, nil
 }

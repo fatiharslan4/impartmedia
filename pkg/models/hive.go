@@ -2,96 +2,53 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
+	"math"
 	"reflect"
 	"sort"
 	"strings"
 	"time"
 
 	r "github.com/Pallinder/go-randomdata"
-	"github.com/gin-gonic/gin"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/tags"
 	"github.com/leebenson/conform"
 	"github.com/segmentio/ksuid"
 )
 
-const OffsetContentIDQueryParam = "offsetContentId"
-const OffsetTimestampQueryParam = "offsetTimestamp"
-
 type NextPage struct {
-	ContentID string    `json:"offsetContentId"`
-	Timestamp time.Time `json:"offsetTimestamp"`
-}
-
-func NextPageFromContext(ctx *gin.Context) (*NextPage, error) {
-	offsetContentId := ctx.Query(OffsetContentIDQueryParam)
-	offsetTimestamp := ctx.Query(OffsetTimestampQueryParam)
-
-	contentIdPresent := len(strings.TrimSpace(offsetContentId)) > 0
-	timestampPresent := len(strings.TrimSpace(offsetTimestamp)) > 0
-
-	if (!contentIdPresent) && !timestampPresent {
-		return nil, nil
-	}
-
-	if (contentIdPresent && !timestampPresent) || (!contentIdPresent && timestampPresent) {
-		return nil, fmt.Errorf("invalid offset - both %s and %s must be provided", OffsetContentIDQueryParam, OffsetTimestampQueryParam)
-	}
-
-	parsedTimestamp, err := time.Parse(time.RFC3339, offsetTimestamp)
-	if err != nil {
-		return nil, err
-	}
-
-	return &NextPage{
-		ContentID: offsetContentId,
-		Timestamp: parsedTimestamp,
-	}, nil
+	Offset int `json:"offset"`
 }
 
 // HiveMemberships are primarily an attribute of the profile for a customer
 // Said another way - Hives don't have members, members have hives with which they belong.
 type HiveMemberships []HiveMembership
 type HiveMembership struct {
-	HiveID       string    `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
-	HiveName     string    `json:"hiveName,omitempty" conform:"ucfirst,trim"`
-	JoinDatetime time.Time `json:"joinDateTime,omitempty"`
+	HiveID   uint64 `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
+	HiveName string `json:"hiveName,omitempty" conform:"ucfirst,trim"`
 }
 
-type HiveAdmin struct {
-	ImpartWealthID string    `json:"impartWealthId"`
-	ScreenName     string    `json:"screenName" conform:"trim"`
-	AdminDatetime  time.Time `json:"adminDatetime,omitempty"`
-}
+//type HiveAdmin struct {
+//	ImpartWealthID string    `json:"impartWealthId"`
+//	ScreenName     string    `json:"screenName" conform:"trim"`
+//	AdminDatetime  time.Time `json:"adminDatetime,omitempty"`
+//}
 
 type Hives []Hive
 
 // Hive represents the top level organization of a hive community
 type Hive struct {
-	HiveID                         string              `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
-	HiveName                       string              `json:"hiveName" conform:"ucfirst,trim"`
-	HiveDescription                string              `json:"hiveDescription" conform:"trim"`
-	Administrators                 []HiveAdmin         `json:"administrators"`
-	HiveDistributions              HiveDistributions   `json:"hiveDistributions,omitempty"`
-	Metrics                        HiveMetrics         `json:"metrics,omitempty"`
-	PinnedPostID                   string              `json:"pinnedPostId"`
-	TagComparisons                 tags.TagComparisons `json:"tagComparisons"`
-	PinnedPostNotificationTopicARN string              `json:"pinnedPostNotificationTopicARN"`
+	HiveID          uint64 `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
+	HiveName        string `json:"hiveName" conform:"ucfirst,trim"`
+	HiveDescription string `json:"hiveDescription" conform:"trim"`
+	//Administrators    []HiveAdmin       `json:"administrators"`
+	HiveDistributions HiveDistributions `json:"hiveDistributions,omitempty"`
+	//Metrics                        HiveMetrics         `json:"metrics,omitempty"`
+	PinnedPostID   uint64              `json:"pinnedPostId"`
+	TagComparisons tags.TagComparisons `json:"tagComparisons"`
+	//PinnedPostNotificationTopicARN string              `json:"pinnedPostNotificationTopicARN"`
 }
-
-//type HiveDetails struct {
-//	AgeRange               string `json:"ageRange"`
-//	GenderDistribution     string `json:"genderDistribution"`
-//	MaritalDistribution    string `json:"maritalDistribution"`
-//	EmploymentDistribution string `json:"employmentDistribution"`
-//	Income                 string `json:"income"`
-//	Location               string `json:"location"`
-//	HasChildren            string `json:"hasChildren"`
-//	HasEmergencyFunds      string `json:"hasEmergencyFunds"`
-//	HasSavings             string `json:"hasSavings"`
-//	HasWill                string `json:"hasWill"`
-//}
 
 type HiveMetrics struct {
 	MemberCount int `json:"memberCount"`
@@ -136,13 +93,34 @@ func (hds *HiveDistributions) Pop(position int) {
 // If the ContentID is a PostID, then PostID will be empty, while if contentID is a commentID, then PostID will be non-empty.
 type PostCommentTrack struct {
 	ImpartWealthID string    `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27"`
-	ContentID      string    `json:"contentId" jsonschema:"minLength=27,maxLength=27"`
-	HiveID         string    `json:"hiveId"`
-	PostID         string    `json:"postId,omitempty"`
+	ContentID      uint64    `json:"contentId" jsonschema:"minLength=27,maxLength=27"`
+	PostID         uint64    `json:"postId,omitempty"`
 	UpVoted        bool      `json:"upVoted"`
 	DownVoted      bool      `json:"downVoted"`
 	VotedDatetime  time.Time `json:"votedDatetime,omitempty"`
-	Saved          bool      `json:"saved,omitempty"`
+}
+
+func PostCommentTrackFromDB(p *dbmodels.PostReaction, c *dbmodels.CommentReaction) PostCommentTrack {
+	if p == nil {
+		return PostCommentTrack{
+			ImpartWealthID: c.ImpartWealthID,
+			ContentID:      c.CommentID,
+			PostID:         c.PostID,
+			UpVoted:        c.Upvoted,
+			DownVoted:      c.Downvoted,
+			VotedDatetime:  c.UpdatedTS,
+		}
+	}
+	//is a post
+	return PostCommentTrack{
+		ImpartWealthID: p.ImpartWealthID,
+		ContentID:      p.PostID,
+		PostID:         p.PostID,
+		UpVoted:        p.Upvoted,
+		DownVoted:      p.Downvoted,
+		VotedDatetime:  p.UpdatedTS,
+	}
+
 }
 
 // Latest returns the
@@ -168,8 +146,8 @@ func (e Edits) SortDescending() {
 	})
 }
 
-func (p Hive) ToJson() string {
-	b, _ := json.MarshalIndent(&p, "", "\t")
+func (h Hive) ToJson() string {
+	b, _ := json.MarshalIndent(&h, "", "\t")
 	return string(b)
 }
 
@@ -183,24 +161,9 @@ func (h Hive) Copy() Hive {
 
 func RandomHive() Hive {
 	h := Hive{
-		HiveID:          ksuid.New().String(),
+		HiveID:          uint64(r.Number(math.MaxInt32)),
 		HiveName:        r.Noun(),
 		HiveDescription: r.Noun() + r.SillyName(),
-		Administrators: []HiveAdmin{
-			{
-				ImpartWealthID: ksuid.New().String(),
-				ScreenName:     r.SillyName(),
-				AdminDatetime:  impart.CurrentUTC(),
-			},
-		},
-		//Details: HiveDetails{
-		//	AgeRange:           "Generation X (1961 - 1981)",
-		//	GenderDistribution: "whatever",
-		//},
-		Metrics: HiveMetrics{
-			MemberCount: r.Number(1, 100),
-			PostCount:   r.Number(100, 1000),
-		},
 	}
 	conform.Strings(&h)
 	return h
@@ -237,4 +200,55 @@ func RandomContent(length int) Content {
 	return Content{
 		Markdown: c.String(),
 	}
+}
+
+func HivesFromDB(dbHives dbmodels.HiveSlice) (Hives, error) {
+	out := make(Hives, len(dbHives), len(dbHives))
+	for i, dbh := range dbHives {
+		h, err := HiveFromDB(dbh)
+		if err != nil {
+			return out, err
+		}
+		out[i] = h
+	}
+	return out, nil
+}
+
+func HiveFromDB(dbHive *dbmodels.Hive) (Hive, error) {
+	out := Hive{
+		HiveID:          dbHive.HiveID,
+		HiveName:        dbHive.Name,
+		HiveDescription: dbHive.Description,
+		PinnedPostID:    dbHive.PinnedPostID.Uint64,
+	}
+
+	if err := dbHive.HiveDistributions.Unmarshal(&out.HiveDistributions); err != nil {
+		return out, err
+	}
+
+	if err := dbHive.TagComparisons.Unmarshal(&out.TagComparisons); err != nil {
+		return out, err
+	}
+
+	return out, nil
+}
+
+func (h Hive) ToDBModel() (*dbmodels.Hive, error) {
+	dbh := &dbmodels.Hive{
+		HiveID:       h.HiveID,
+		Name:         h.HiveName,
+		Description:  h.HiveDescription,
+		PinnedPostID: null.Uint64From(h.PinnedPostID),
+		//TagComparisons:       null.JSON{},
+		//HiveDistributions:    null.JSON{},
+	}
+	err := dbh.HiveDistributions.Marshal(&h.HiveDistributions)
+	if err != nil {
+		return nil, err
+	}
+	err = dbh.TagComparisons.Marshal(&h.TagComparisons)
+	if err != nil {
+		return nil, err
+	}
+	return dbh, nil
 }

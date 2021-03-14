@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/rsa"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -49,16 +50,17 @@ func NewAuthService(cfg *config.Impart, profileData profiledata.Store, logger *z
 	return svc, nil
 }
 
+// RequestAuthorizationHandler Validates the bearer
 func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		//allow some routes through authz
-		if strings.Contains(ctx.FullPath(), "/v1/whitelist") || strings.Contains(ctx.Request.RequestURI, "/v1/profiles/new") && ctx.Request.Method == "GET" {
+		if strings.Contains(ctx.Request.RequestURI, "/v1/profiles/new") && ctx.Request.Method == "GET" {
 			ctx.Next()
 			return
 		}
 		parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
 		if len(parts) != 2 || parts[0] != AuthorizationHeaderBearerType || len(parts[0]) == 0 || len(parts[1]) == 0 {
-			a.logger.Debug("invalid authorization header", zap.Strings("split_authz_header", parts))
+			a.logger.Info("invalid authorization header", zap.Strings("split_authz_header", parts))
 			ctx.AbortWithError(http.StatusUnauthorized, impart.ErrUnauthorized)
 			return
 		}
@@ -69,19 +71,24 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 			return
 		}
 		authID := claims.Subject
-		//impartID, err := a.profileData.GetImpartIdFromAuthId(authID)
-		//if err != nil {
-		//	a.logger.Error("couldn't locate impart ID from authID, failing auth request.", zap.String("authID", authID), zap.Error(err))
-		//	if err == impart.ErrNotFound {
-		//		ctx.AbortWithError(http.StatusNotFound, err)
-		//	} else {
-		//		ctx.AbortWithError(http.StatusUnauthorized, impart.ErrUnknown)
-		//	}
-		//	return
-		//}
-
-		ctx.Set(AuthenticationIDContextKey, authID)
-		//ctx.Set(ImpartWealthIDContextKey, impartID)
+		a.logger.Debug("request authentication context", zap.String("authId", authID))
+		ctx.Set(impart.AuthIDRequestContextKey, authID)
+		u, err := a.profileData.GetUserFromAuthId(ctx, authID)
+		if u == nil {
+			//only one route is allowed to not have a user, and that's when one is being created.
+			//so if this is null on that route alone, that's okay - but otherwise, abort.
+			if strings.HasSuffix(ctx.Request.RequestURI, "/v1/profiles") && ctx.Request.Method == "POST" {
+				ctx.Next()
+				return
+			}
+			ctx.AbortWithError(http.StatusUnauthorized, fmt.Errorf("authentication profile has no impart user"))
+			return
+		}
+		//always set this value because it should always be present, minus account creation.
+		ctx.Set(impart.UserRequestContextKey, u)
+		a.logger.Debug("request user context", zap.String("impartWealthId", u.ImpartWealthID),
+			zap.String("screenName", u.ScreenName),
+			zap.String("email", u.Email))
 		ctx.Next()
 	}
 }

@@ -1,91 +1,167 @@
+// +build integration
+
 package data
 
 import (
-	"testing"
-
-	"github.com/impartwealthapp/backend/pkg/models"
-	"github.com/stretchr/testify/assert"
+	"context"
+	"database/sql"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
+	"github.com/impartwealthapp/backend/pkg/data/migrater"
+	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/segmentio/ksuid"
+	"github.com/stretchr/testify/suite"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"go.uber.org/zap"
+	"testing"
 )
 
-var localDynamo = "http://localhost:8000"
-var logger = newLogger()
-
-func newLogger() *zap.Logger {
-	l, _ := zap.NewProduction()
-	return l
+type HiveTestSuite struct {
+	suite.Suite
+	logger   *zap.Logger
+	cfg      *config.Impart
+	db       *sql.DB
+	hiveData HiveService
 }
 
-func TestNewHiveStore(t *testing.T) {
-	hs, err := NewHiveData("us-east-2", localDynamo, "local", logger)
-
-	assert.NotNil(t, hs)
-	assert.Nil(t, err)
+func TestHiveTestSuite(t *testing.T) {
+	suite.Run(t, new(HiveTestSuite))
 }
 
-func TestHiveDynamo_CreateHive2(t *testing.T) {
-	hs, _ := NewHiveData("us-east-2", localDynamo, "local", logger)
+const pathToMigrationsDir = "../../../schemas/migrations"
 
-	h := models.RandomHive()
-	hd := make(models.HiveDistributions, 1, 1)
-	hd[0] = models.HiveDistribution{DisplayValue: "ABC", DisplayText: "letters", SortValue: 1}
+func (s *HiveTestSuite) SetupSuite() {
+	var err error
+	s.logger = zap.NewNop()
+	s.cfg, err = config.GetImpart()
+	s.cfg.MigrationsPath = pathToMigrationsDir
+	s.Require().NoError(err)
+	s.db, err = s.cfg.GetDBConnection()
+	s.Require().NoError(err)
+	s.hiveData = NewHiveService(s.db, s.logger)
 
-	h.HiveDistributions = hd
-	hive, err := hs.NewHive(h)
-
-	assert.Nil(t, err)
-	assert.JSONEq(t, h.ToJson(), hive.ToJson())
+	migrationDB, err := s.cfg.GetMigrationDBConnection()
+	s.Require().NoError(err)
+	err = migrater.RunMigrationsDown(migrationDB, s.cfg.MigrationsPath, s.logger, nil)
+	if err != nil && err != migrate.ErrNoChange {
+		s.FailNow("DB Down Error %v", err)
+	}
 }
 
-func TestHiveDynamo_GetHive(t *testing.T) {
-	hs, _ := NewHiveData("us-east-2", localDynamo, "local", logger)
+func (s *HiveTestSuite) TearDownSuite() {
+	s.db.Close()
+}
 
-	h := models.RandomHive()
-	h.HiveDistributions = append(h.HiveDistributions, models.HiveDistribution{
-		DisplayText: "blach", DisplayValue: "blech",
+func (s *HiveTestSuite) SetupTest() {
+	migrationDB, err := s.cfg.GetMigrationDBConnection()
+	s.Require().NoError(err)
+	defer migrationDB.Close()
+	err = migrater.RunMigrationsUp(migrationDB, s.cfg.MigrationsPath, s.logger, nil)
+	s.Require().NoError(err)
+}
+
+func (s *HiveTestSuite) TearDownTest() {
+	migrationDB, err := s.cfg.GetMigrationDBConnection()
+	s.Require().NoError(err)
+	defer migrationDB.Close()
+	err = migrater.RunMigrationsDown(migrationDB, s.cfg.MigrationsPath, s.logger, nil)
+	s.Require().NoError(err)
+}
+
+func (s *HiveTestSuite) contextWithImpartAdmin() context.Context {
+	id := ksuid.New().String()
+	user := &dbmodels.User{
+		ImpartWealthID:   id,
+		AuthenticationID: id,
+		Email:            id,
+		ScreenName:       id,
+		CreatedTS:        impart.CurrentUTC(),
+		UpdatedTS:        impart.CurrentUTC(),
+		DeviceToken:      "d",
+		AwsSNSAppArn:     "f",
+		Admin:            true,
+	}
+	err := user.Insert(context.TODO(), s.db, boil.Infer())
+	s.NoError(err)
+
+	return context.WithValue(context.Background(), impart.UserRequestContextKey, user)
+}
+
+func (s *HiveTestSuite) bootstrapTestHive(ctx context.Context) uint64 {
+
+	hive := &dbmodels.Hive{
+		Name:         "test hive",
+		Description:  "test hive",
+		PinnedPostID: null.Uint64From(1),
+		//TagComparisons:       null.JSON{},
+		NotificationTopicArn: null.StringFrom("abc"),
+		//HiveDistributions:    null.JSON{},
+	}
+	hive, err := s.hiveData.NewHive(ctx, hive)
+	s.NoError(err)
+	return hive.HiveID
+}
+
+func (s *HiveTestSuite) TestCreateHive() {
+	ctx := s.contextWithImpartAdmin()
+	hive, err := s.hiveData.NewHive(ctx, &dbmodels.Hive{
+		Name:         "test hive",
+		Description:  "test hive",
+		PinnedPostID: null.Uint64From(1),
+		//TagComparisons:       null.JSON{},
+		NotificationTopicArn: null.StringFrom("abc"),
+		//HiveDistributions:    null.JSON{},
 	})
-	h.HiveDistributions = append(h.HiveDistributions, models.HiveDistribution{
-		DisplayText: "blach2", DisplayValue: "",
-	})
+	s.NoError(err)
+	s.NotZero(hive.HiveID)
+	gHive, err := s.hiveData.GetHive(ctx, hive.HiveID)
+	s.NoError(err)
+	s.Equal(gHive.HiveID, hive.HiveID)
+}
 
-	hive, err := hs.NewHive(h)
-	assert.Nil(t, err)
-	assert.Equal(t, h.HiveName, hive.HiveName)
+func (s *HiveTestSuite) TestEditHive() {
+	ctx := s.contextWithImpartAdmin()
+	hiveID := s.bootstrapTestHive(ctx)
+	existingHive, err := s.hiveData.GetHive(ctx, hiveID)
+	s.NoError(err)
+	s.Equal(existingHive.HiveID, hiveID)
 
-	getHive, err := hs.GetHive(hive.HiveID, true)
-	assert.NoError(t, err)
-	assert.Equal(t, hive, getHive)
+	newPinnedPostID := null.Uint64From(existingHive.PinnedPostID.Uint64 + 1)
+	existingHive.PinnedPostID = newPinnedPostID
+	updatedHive, err := s.hiveData.EditHive(ctx, existingHive)
+
+	s.NoError(err)
+	s.Equal(newPinnedPostID.Uint64, updatedHive.PinnedPostID.Uint64)
 
 }
 
-func TestHiveDynamo_GetHives(t *testing.T) {
-	hs, _ := NewHiveData("us-east-2", localDynamo, "local", logger)
-	h1 := models.RandomHive()
-	_, err := hs.NewHive(h1)
-	assert.Nil(t, err)
+func (s *HiveTestSuite) TestGetHives() {
+	ctx := s.contextWithImpartAdmin()
+	hiveID := s.bootstrapTestHive(ctx)
+	hiveID2 := s.bootstrapTestHive(ctx)
+	hiveID3 := s.bootstrapTestHive(ctx)
 
-	h2 := models.RandomHive()
-	_, err = hs.NewHive(h2)
-	assert.Nil(t, err)
+	hives, err := s.hiveData.GetHives(ctx)
+	s.NoError(err)
 
-	hives, err := hs.GetHives()
-	assert.Nil(t, err)
-	assert.Contains(t, hives, h1)
+	var foundHive1, foundHive2, foundHive3 bool
+	for _, h := range hives {
+		switch h.HiveID {
+		case 1:
 
-	assert.Contains(t, hives, h2)
-}
-
-func TestHiveDynamo_EditHive(t *testing.T) {
-	hs, _ := NewHiveData("us-east-2", localDynamo, "local", logger)
-
-	h := models.RandomHive()
-
-	hive, err := hs.NewHive(h)
-
-	assert.Nil(t, err)
-	hive.HiveDescription = "abc123"
-	r, err := hs.EditHive(hive)
-
-	assert.Nil(t, err)
-	assert.JSONEq(t, hive.ToJson(), r.ToJson())
+		case hiveID:
+			foundHive1 = true
+		case hiveID2:
+			foundHive2 = true
+		case hiveID3:
+			foundHive3 = true
+		default:
+			s.FailNow("found an unexpected hive id %s", h.HiveID)
+		}
+	}
+	s.True(foundHive1)
+	s.True(foundHive2)
+	s.True(foundHive3)
 }

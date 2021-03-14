@@ -1,85 +1,57 @@
 package hive
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
-	"github.com/impartwealthapp/backend/pkg/models"
 	"go.uber.org/zap"
 )
 
 const adminPostNotification = "Your Hive is Buzzing"
 
 // This is a lot of branches; should probably be broken up.
-func (s *service) PinPost(hiveID, postID, authenticationID string, pin bool) impart.Error {
-	var h models.Hive
-	var p models.Post
-	var impartErr impart.Error
-	var err error
+func (s *service) PinPost(ctx context.Context, hiveID, postID uint64, pin bool) impart.Error {
+	ctxUser := impart.GetCtxUser(ctx)
 
-	profile, err := s.profileData.GetProfileFromAuthId(authenticationID, false)
-	if err != nil {
-		return impart.NewError(err, "unable to map authenticationId to an impart wealth user")
-	}
-
-	if !profile.Attributes.Admin {
+	if !ctxUser.Admin {
 		return impart.NewError(impart.ErrUnauthorized, "cannot pin a post unless you are a hive admin")
 	}
-
-	if p, impartErr = s.GetPost(hiveID, postID, false, authenticationID); impartErr != nil {
-		return impartErr
+	err := s.hiveData.PinPost(ctx, hiveID, postID, pin)
+	if err != nil {
+		if err == impart.ErrNoOp {
+			return nil
+		}
+		s.logger.Error("error pining post", zap.Error(err))
+		return impart.NewError(impart.ErrUnknown, "unable to pin post")
+	}
+	dbHive, err := s.hiveData.GetHive(ctx, hiveID)
+	if err != nil {
+		s.logger.Error("error pining post", zap.Error(err))
+		return impart.NewError(impart.ErrUnknown, "unable to pin post")
+	}
+	dbPost, err := s.postData.GetPost(ctx, postID)
+	if err != nil {
+		s.logger.Error("error pining post", zap.Error(err))
+		return impart.NewError(impart.ErrUnknown, "unable to pin post")
 	}
 
-	if h, impartErr = s.GetHive(authenticationID, hiveID); impartErr != nil {
-		return impartErr
-	}
-
-	if pin {
-		if h.PinnedPostID != p.PostID {
-			if h.PinnedPostID != "" {
-				if err = s.postData.SetPinStatus(hiveID, h.PinnedPostID, false); err != nil {
-					return impart.NewError(err, "error un-setting pinned post status")
-				}
-			}
-
-			if err = s.hiveData.PinPost(hiveID, postID); err != nil {
-				return impart.NewError(err, "error setting postID on hive")
-			}
-
-			pushNotification := impart.Alert{
-				Title: aws.String(adminPostNotification),
-				Body:  aws.String(p.Subject),
-			}
-
-			additionalData := impart.NotificationData{
-				EventDatetime: impart.CurrentUTC(),
-				PostID:        p.PostID,
-			}
-
-			err = s.notificationService.NotifyTopic(additionalData, pushNotification, h.PinnedPostNotificationTopicARN)
-			if err != nil {
-				s.logger.Error("error sending notification to topic", zap.Error(err))
-			}
+	if pin && dbHive.PinnedPostID.Uint64 == dbPost.PostID {
+		pushNotification := impart.Alert{
+			Title: aws.String(adminPostNotification),
+			Body:  aws.String(dbPost.Subject),
 		}
 
-		if !p.IsPinnedPost {
-			if err = s.postData.SetPinStatus(hiveID, postID, true); err != nil {
-				return impart.NewError(err, "error setting post to pinned")
-			}
-		}
-	} else {
-		// unpin or not pinned
-		if h.PinnedPostID != "" {
-			if err = s.hiveData.PinPost(hiveID, ""); err != nil {
-				return impart.NewError(err, "error un-setting hives pinned postID")
-			}
+		additionalData := impart.NotificationData{
+			EventDatetime: impart.CurrentUTC(),
+			PostID:        dbPost.PostID,
 		}
 
-		if p.IsPinnedPost {
-			if err = s.postData.SetPinStatus(hiveID, postID, false); err != nil {
-				return impart.NewError(err, "error un-setting post to unpinned")
-			}
+		err = s.notificationService.NotifyTopic(ctx, additionalData, pushNotification, dbHive.NotificationTopicArn.String)
+		if err != nil {
+			s.logger.Error("error sending notification to topic", zap.Error(err))
 		}
+
 	}
 
 	return nil

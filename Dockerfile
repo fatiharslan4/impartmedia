@@ -9,7 +9,7 @@ RUN apt-get -y update && \
   apt-get install -y curl wget ca-certificates
 WORKDIR /app
 COPY --from=build /app/impart-backend /app/
-COPY --from=build /app/schemas/json /app/schemas/json
+COPY --from=build /app/schemas /app/schemas
 
 RUN mkdir -p ~/.aws && \
    echo "[local]" > ~/.aws/config && \
@@ -23,5 +23,5 @@ RUN cat ~/.aws/config && cat ~/.aws/credentials
 
 ENTRYPOINT ["/app/impart-backend"]
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=3s --retries=3 \
+HEALTHCHECK --interval=5s --timeout=3s --start-period=1s --retries=3 \
   CMD curl -f http://localhost/ping || exit 1

@@ -1,16 +1,16 @@
 package hive
 
 import (
+	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/impartwealthapp/backend/pkg/auth"
 	hivedata "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
-	"github.com/impartwealthapp/backend/pkg/tags"
 	"go.uber.org/zap"
 )
 
@@ -20,13 +20,14 @@ type hiveHandler struct {
 	logger      *zap.Logger
 }
 
-func SetupRoutes(version *gin.RouterGroup, hiveData hivedata.Hives, hiveService Service, logger *zap.Logger) {
+func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, hiveService Service, logger *zap.Logger) {
 	handler := &hiveHandler{
 		hiveData:    hiveData,
 		hiveService: hiveService,
 		logger:      logger,
 	}
 	hiveRoutes := version.Group("/hives")
+	hiveRoutes.Use(hiveAuthorizationHandler(db, logger))
 
 	//base group is /:version/hives
 	hiveRoutes.GET("", handler.GetHivesFunc())
@@ -56,33 +57,88 @@ func SetupRoutes(version *gin.RouterGroup, hiveData hivedata.Hives, hiveService 
 
 }
 
+// RequestAuthorizationHandler Validates the bearer
+func hiveAuthorizationHandler(db *sql.DB, logger *zap.Logger) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
+		hives, err := ctxUser.MemberHiveHives().All(ctx, db)
+		if err != nil && err != sql.ErrNoRows {
+			logger.Error("unable to get hive memberships", zap.Error(err))
+			return
+		}
+		ctx.Set(impart.HiveMembershipsContextKey, hives)
+		if ctxUser.Admin {
+			//proceed with hive access
+			ctx.Next()
+			return
+		}
+
+		hiveIdStr := ctx.Param("hiveId")
+		if hiveIdStr == "" {
+			ctx.Next()
+			return
+		}
+
+		if hiveIdStr != "" {
+			hiveID, err := strconv.ParseUint(hiveIdStr, 10, 64)
+			if err != nil {
+				ctx.AbortWithError(http.StatusBadRequest, impart.ErrBadRequest)
+				return
+			}
+			for _, h := range hives {
+				if hiveID == h.HiveID {
+					//proceed with hive access
+					ctx.Next()
+					return
+				}
+			}
+		}
+		//if we got here, the context user does not have hive access
+		ctx.AbortWithError(http.StatusUnauthorized, impart.ErrUnauthorized)
+	}
+}
+
 func (hh *hiveHandler) GetHivesFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
-		hiveID := ctx.Param("hiveId")
+		hiveIDstr := ctx.Param("hiveId")
 
-		if hiveID == "" {
-			hives, err := hh.hiveService.GetHives(authID)
+		ctxUser := impart.GetCtxUser(ctx)
+		dbHives := ctxUser.R.MemberHiveHives
+
+		if hiveIDstr == "" {
+			hives, err := models.HivesFromDB(dbHives)
 			if err != nil {
-				ctx.JSON(err.HttpStatus(), err)
-				return
+				hh.logger.Error("error converting hive", zap.Error(err))
+				ctx.JSON(http.StatusInternalServerError, nil)
 			}
 			ctx.JSON(http.StatusOK, hives)
 			return
 		}
 
-		hive, err := hh.hiveService.GetHive(authID, hiveID)
+		hiveId, err := strconv.ParseUint(hiveIDstr, 10, 64)
 		if err != nil {
-			ctx.JSON(err.HttpStatus(), err)
+			iErr := impart.NewError(impart.ErrBadRequest, "hiveId must be an integer")
+			ctx.JSON(iErr.HttpStatus(), iErr)
 			return
 		}
-		ctx.JSON(http.StatusOK, hive)
+		var h models.Hive
+		for _, dbh := range dbHives {
+			if dbh.HiveID == hiveId {
+				h, err = models.HiveFromDB(dbh)
+				if err != nil {
+					hh.logger.Error("error converting hive", zap.Error(err))
+					ctx.JSON(impart.UnknownError.HttpStatus(), impart.UnknownError)
+					return
+				}
+			}
+		}
+
+		ctx.JSON(http.StatusOK, h)
 	}
 }
 
 func (hh *hiveHandler) CreateHiveFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
 
 		h := models.Hive{}
 		stdErr := ctx.BindJSON(&h)
@@ -92,7 +148,7 @@ func (hh *hiveHandler) CreateHiveFunc() gin.HandlerFunc {
 			return
 		}
 
-		h, err := hh.hiveService.CreateHive(authID, h)
+		h, err := hh.hiveService.CreateHive(ctx, h)
 		if err != nil {
 			ctx.JSON(err.HttpStatus(), err)
 			return
@@ -104,7 +160,7 @@ func (hh *hiveHandler) CreateHiveFunc() gin.HandlerFunc {
 
 func (hh *hiveHandler) EditHiveFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
+
 		h := models.Hive{}
 		stdErr := ctx.BindJSON(&h)
 		if stdErr != nil {
@@ -113,7 +169,7 @@ func (hh *hiveHandler) EditHiveFunc() gin.HandlerFunc {
 			return
 		}
 
-		h, err := hh.hiveService.EditHive(authID, h)
+		h, err := hh.hiveService.EditHive(ctx, h)
 		if err != nil {
 			ctx.JSON(err.HttpStatus(), err)
 			return
@@ -123,13 +179,24 @@ func (hh *hiveHandler) EditHiveFunc() gin.HandlerFunc {
 	}
 }
 
+func ctxUint64Param(ctx *gin.Context, param string) (uint64, impart.Error) {
+	strVal := ctx.Param(param)
+	out, err := strconv.ParseUint(strVal, 10, 64)
+	if err != nil {
+		return 0, impart.NewError(impart.ErrBadRequest, fmt.Sprintf("invalid value for param %s: %s", param, strVal))
+	}
+	return out, nil
+}
+
 func (hh *hiveHandler) GetHivePercentilesFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
-		hiveID := ctx.Param("hiveId")
-		impartWealthID := ctx.Param("impartWealthId")
+		var hiveId uint64
+		var impartErr impart.Error
+		if hiveId, impartErr = ctxUint64Param(ctx, "hiveId"); impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impartErr)
+		}
 
-		tagCompares, impartErr := hh.hiveService.HiveProfilePercentiles(impartWealthID, hiveID, authID)
+		tagCompares, impartErr := hh.hiveService.HiveProfilePercentiles(ctx, hiveId)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impartErr)
 		}
@@ -141,48 +208,47 @@ func (hh *hiveHandler) GetHivePercentilesFunc() gin.HandlerFunc {
 func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var posts models.Posts
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
+		var hiveId uint64
+		var impartErr impart.Error
+		if hiveId, impartErr = ctxUint64Param(ctx, "hiveId"); impartErr != nil {
+			ctx.AbortWithError(impartErr.HttpStatus(), impartErr)
+			return
+		}
 
 		gpi := hivedata.GetPostsInput{}
-		gpi.HiveID = ctx.Param("hiveId")
+		gpi.HiveID = hiveId
 		params := ctx.Request.URL.Query()
 
 		tagIDStrings, inMap := params["tags"]
-		tagIDs := make(tags.TagIDs, 0)
 		if inMap {
 			for _, s := range tagIDStrings {
 				parsed, err := strconv.Atoi(s)
 				if err == nil {
-					tagIDs = append(tagIDs, parsed)
+					gpi.TagIDs = append(gpi.TagIDs, parsed)
 				}
 			}
-			gpi.TagIDs = tagIDs
 		}
 
-		var stdErr error
-		gpi.Limit, stdErr = parseLimit(ctx)
-		if stdErr != nil {
-			return
-		}
-
-		gpi.NextPage, stdErr = models.NextPageFromContext(ctx)
-		if stdErr != nil {
-			err := impart.NewError(stdErr, "Invalid offset query parameters")
-			ctx.JSON(http.StatusBadRequest, err)
+		var err error
+		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
+		if err != nil {
+			hh.logger.Error("couldn't parse limit and offset", zap.Error(err))
+			impartErr = impart.NewError(impart.ErrUnknown, "couldn't parse limit and offset")
+			ctx.AbortWithError(impartErr.HttpStatus(), impartErr)
 			return
 		}
 
 		if lastCommentSort := strings.TrimSpace(params.Get("sortByLatestComment")); lastCommentSort != "" {
 			if parsedLastCommentSort, err := strconv.ParseBool(lastCommentSort); err != nil {
-				ctx.JSON(http.StatusBadRequest, impart.NewError(stdErr, "invalid sortByLatestComment boolean"))
+				ctx.JSON(http.StatusBadRequest, impart.NewError(err, "invalid sortByLatestComment boolean"))
 			} else {
 				gpi.IsLastCommentSorted = parsedLastCommentSort
 			}
 		}
 
-		posts, nextPage, err := hh.hiveService.GetPosts(gpi, authID)
-		if err != nil {
-			ctx.JSON(err.HttpStatus(), err)
+		posts, nextPage, impartErr := hh.hiveService.GetPosts(ctx, gpi)
+		if impartErr != nil {
+			ctx.AbortWithError(impartErr.HttpStatus(), impartErr)
 			return
 		}
 
@@ -192,17 +258,21 @@ func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 		})
 	}
 }
-func parseLimit(ctx *gin.Context) (limit int64, err error) {
+func parseLimitOffset(ctx *gin.Context) (limit int, offset int, err error) {
 	params := ctx.Request.URL.Query()
 
 	if limitParam := strings.TrimSpace(params.Get("limit")); limitParam != "" {
-		var parsedLimit int
-		if parsedLimit, err = strconv.Atoi(limitParam); err != nil {
+		if limit, err = strconv.Atoi(limitParam); err != nil {
 			ctx.JSON(http.StatusBadRequest, impart.NewError(err, "invalid limit passed in"))
 			return
 		}
+	}
 
-		limit = int64(parsedLimit)
+	if offsetParam := strings.TrimSpace(params.Get("offset")); offsetParam != "" {
+		if offset, err = strconv.Atoi(offsetParam); err != nil {
+			ctx.JSON(http.StatusBadRequest, impart.NewError(err, "invalid limit passed in"))
+			return
+		}
 	}
 
 	return
@@ -211,9 +281,13 @@ func parseLimit(ctx *gin.Context) (limit int64, err error) {
 func (hh *hiveHandler) GetPostFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var post models.Post
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
-		hiveID := ctx.Param("hiveId")
-		postID := ctx.Param("postId")
+
+		var impartErr impart.Error
+		var postId uint64
+		if postId, impartErr = ctxUint64Param(ctx, "postId"); impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impartErr)
+		}
+
 		commentsQueryParam := ctx.Query("comments")
 
 		var includeComments bool
@@ -225,7 +299,7 @@ func (hh *hiveHandler) GetPostFunc() gin.HandlerFunc {
 			}
 		}
 
-		post, impartErr := hh.hiveService.GetPost(hiveID, postID, includeComments, authID)
+		post, impartErr = hh.hiveService.GetPost(ctx, postId, includeComments)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impartErr)
 			return
@@ -237,28 +311,32 @@ func (hh *hiveHandler) GetPostFunc() gin.HandlerFunc {
 
 func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
-		hiveID := ctx.Param("hiveId")
+
+		var hiveId uint64
+		var impartErr impart.Error
+		if hiveId, impartErr = ctxUint64Param(ctx, "hiveId"); impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impartErr)
+		}
 
 		p := models.Post{}
-		stdErr := ctx.BindJSON(&p)
-		if stdErr != nil {
-			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Post")
-			ctx.JSON(err.HttpStatus(), err)
+		err := ctx.BindJSON(&p)
+		if err != nil {
+			impartErr = impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Post")
+			ctx.JSON(impartErr.HttpStatus(), impartErr)
 			return
 		}
 		hh.logger.Debug("creating", zap.Any("post", p))
 
-		if p.HiveID != hiveID {
-			err := impart.NewError(impart.ErrBadRequest, "hiveID in route does not match hiveID in post body")
-			hh.logger.Error("error getting param", zap.Error(err.Err()))
-			ctx.JSON(err.HttpStatus(), err)
+		if p.HiveID != hiveId {
+			impartErr = impart.NewError(impart.ErrBadRequest, "hiveID in route does not match hiveID in post body")
+			hh.logger.Error("error getting param", zap.Error(impartErr.Err()))
+			ctx.JSON(impartErr.HttpStatus(), impartErr)
 			return
 		}
 
-		p, err := hh.hiveService.NewPost(p, authID)
-		if err != nil {
-			ctx.JSON(err.HttpStatus(), err)
+		p, impartErr = hh.hiveService.NewPost(ctx, p)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impartErr)
 			return
 		}
 		hh.logger.Debug("created post, returning", zap.Any("createdPost", p))
@@ -269,11 +347,25 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 
 func (hh *hiveHandler) EditPostFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
-		paramHiveID := ctx.Param("hiveId")
-		paramPostID := ctx.Param("postId")
 
-		if pinned := ctx.Query("pinned"); pinned != "" {
+		var hiveId uint64
+		var postId uint64
+		var impartErr impart.Error
+		if hiveId, impartErr = ctxUint64Param(ctx, "hiveId"); impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impartErr)
+		}
+		if postId, impartErr = ctxUint64Param(ctx, "postId"); impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impartErr)
+		}
+
+		pinned := ctx.Query("pinned")
+		ctxUser := impart.GetCtxUser(ctx)
+
+		if pinned != "" {
+			if !ctxUser.Admin {
+				ctx.AbortWithError(http.StatusUnauthorized, impart.ErrUnauthorized)
+				return
+			}
 			pin, err := strconv.ParseBool(pinned)
 			if err != nil {
 				impartErr := impart.NewError(impart.ErrBadRequest, "invalid pinned query parameter")
@@ -281,26 +373,29 @@ func (hh *hiveHandler) EditPostFunc() gin.HandlerFunc {
 				return
 			}
 
-			if impartErr := hh.hiveService.PinPost(paramHiveID, paramPostID, authID, pin); impartErr != nil {
+			if impartErr := hh.hiveService.PinPost(ctx, hiveId, postId, pin); impartErr != nil {
 				ctx.JSON(impartErr.HttpStatus(), impartErr)
 				return
 			}
 			ctx.Status(http.StatusOK)
 			return
+
 		}
 
 		p := models.Post{}
 		err := ctx.BindJSON(&p)
 		if err != nil {
+			hh.logger.Error("deserialization error", zap.Error(err))
 			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Post")
 			ctx.JSON(impartErr.HttpStatus(), impartErr)
 			return
 		}
+		if postId != p.PostID {
+			impartErr := impart.NewError(impart.ErrBadRequest, "post IDs do not match")
+			ctx.JSON(impartErr.HttpStatus(), impartErr)
+		}
 
-		p.HiveID = paramHiveID
-		p.PostID = paramPostID
-
-		p, impartErr := hh.hiveService.EditPost(p, authID)
+		p, impartErr = hh.hiveService.EditPost(ctx, p)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impartErr)
 			return
@@ -312,10 +407,19 @@ func (hh *hiveHandler) EditPostFunc() gin.HandlerFunc {
 
 func (hh *hiveHandler) PostCommentCounterFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
-		hiveID := ctx.Param("hiveId")
-		postID := ctx.Param("postId")
-		commentID := ctx.Param("commentId")
+
+		var postId, commentId uint64
+		var impartErr impart.Error
+		if _, ok := ctx.Params.Get("postId"); ok {
+			if postId, impartErr = ctxUint64Param(ctx, "postId"); impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impartErr)
+			}
+		}
+		if _, ok := ctx.Params.Get("commentId"); ok {
+			if commentId, impartErr = ctxUint64Param(ctx, "commentId"); impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impartErr)
+			}
+		}
 
 		upVoteParam := strings.TrimSpace(ctx.Query("upVote"))
 		downVoteParm := strings.TrimSpace(ctx.Query("downVote"))
@@ -327,9 +431,8 @@ func (hh *hiveHandler) PostCommentCounterFunc() gin.HandlerFunc {
 		}
 
 		v := VoteInput{
-			HiveID:    hiveID,
-			PostID:    postID,
-			CommentID: commentID,
+			PostID:    postId,
+			CommentID: commentId,
 		}
 
 		if upVoteParam != "" {
@@ -351,7 +454,7 @@ func (hh *hiveHandler) PostCommentCounterFunc() gin.HandlerFunc {
 			}
 		}
 
-		userTrack, impartErr := hh.hiveService.Votes(v, authID)
+		userTrack, impartErr := hh.hiveService.Votes(ctx, v)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impartErr)
 			return
@@ -363,13 +466,17 @@ func (hh *hiveHandler) PostCommentCounterFunc() gin.HandlerFunc {
 
 func (hh *hiveHandler) DeletePostFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
-		hiveID := ctx.Param("hiveId")
-		postID := ctx.Param("postId")
 
-		err := hh.hiveService.DeletePost(hiveID, postID, authID)
+		var postId uint64
+		var impartErr impart.Error
+		if postId, impartErr = ctxUint64Param(ctx, "postId"); impartErr != nil {
+			ctx.AbortWithError(impartErr.HttpStatus(), impartErr)
+			return
+		}
+
+		err := hh.hiveService.DeletePost(ctx, postId)
 		if err != nil {
-			ctx.JSON(err.HttpStatus(), err)
+			ctx.AbortWithError(err.HttpStatus(), err)
 			return
 		}
 
@@ -381,38 +488,40 @@ func (hh *hiveHandler) GetCommentsFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var comments models.Comments
 
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
-		hiveID := ctx.Param("hiveId")
-		postID := ctx.Param("postId")
-		commentID := ctx.Param("commentId")
+		var postId, commentId uint64
+		var impartErr impart.Error
+		if _, ok := ctx.Params.Get("postId"); ok {
+			if postId, impartErr = ctxUint64Param(ctx, "postId"); impartErr != nil {
+				ctx.AbortWithError(impartErr.HttpStatus(), impartErr)
+				return
+			}
+		}
+		if _, ok := ctx.Params.Get("commentId"); ok {
+			if commentId, impartErr = ctxUint64Param(ctx, "commentId"); impartErr != nil {
+				ctx.AbortWithError(impartErr.HttpStatus(), impartErr)
+				return
+			}
+		}
 
 		//Single Comment Route
-		if commentID != "" {
-			comment, err := hh.hiveService.GetComment(hiveID, postID, commentID, false, authID)
-			if err != nil {
-				ctx.JSON(err.HttpStatus(), err)
+		if commentId > 0 {
+			comment, impartErr := hh.hiveService.GetComment(ctx, commentId)
+			if impartErr != nil {
+				ctx.AbortWithError(impartErr.HttpStatus(), impartErr)
 				return
 			}
 			ctx.JSON(http.StatusOK, comment)
 			return
 		}
 
-		limit, stdErr := parseLimit(ctx)
-		if stdErr != nil {
-			return
-		}
-
-		nextPage, stdErr := models.NextPageFromContext(ctx)
-		if stdErr != nil {
-			err := impart.NewError(stdErr, "Invalid offset query parameters")
-			ctx.JSON(http.StatusBadRequest, err)
-			return
-		}
-		hh.logger.Debug("received request for comments", zap.Any("nextPage", nextPage), zap.Any("params", ctx.Params))
-
-		comments, nextPage, err := hh.hiveService.GetComments(hiveID, postID, limit, nextPage, authID)
+		limit, offset, err := parseLimitOffset(ctx)
 		if err != nil {
-			ctx.JSON(err.HttpStatus(), err)
+			return
+		}
+
+		comments, nextPage, impartErr := hh.hiveService.GetComments(ctx, postId, limit, offset)
+		if impartErr != nil {
+			ctx.AbortWithError(impartErr.HttpStatus(), impartErr)
 			return
 		}
 		out := models.PagedCommentsResponse{
@@ -426,9 +535,14 @@ func (hh *hiveHandler) GetCommentsFunc() gin.HandlerFunc {
 
 func (hh *hiveHandler) CreateCommentFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
-		hiveID := ctx.Param("hiveId")
-		postID := ctx.Param("postId")
+
+		var postId uint64
+		var impartErr impart.Error
+		if _, ok := ctx.Params.Get("postId"); ok {
+			if postId, impartErr = ctxUint64Param(ctx, "postId"); impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impartErr)
+			}
+		}
 
 		c := models.Comment{}
 		stdErr := ctx.BindJSON(&c)
@@ -439,21 +553,14 @@ func (hh *hiveHandler) CreateCommentFunc() gin.HandlerFunc {
 		}
 		hh.logger.Debug("creating", zap.Any("comment", c))
 
-		if c.HiveID != hiveID {
-			err := impart.NewError(impart.ErrBadRequest, "hiveID in route does not match hiveID in comment body")
-			hh.logger.Error("bad request - mismatch hiveID", zap.Any("comment", c), zap.Error(err.Err()))
-			ctx.JSON(err.HttpStatus(), err)
-			return
-		}
-
-		if c.PostID != postID {
+		if c.PostID != postId {
 			err := impart.NewError(impart.ErrBadRequest, "PostID in route does not match PostID in comment body")
 			hh.logger.Error("bad request - mismatch postID", zap.Any("comment", c), zap.Error(err.Err()))
 			ctx.JSON(err.HttpStatus(), err)
 			return
 		}
 
-		c, err := hh.hiveService.NewComment(c, authID)
+		c, err := hh.hiveService.NewComment(ctx, c)
 		if err != nil {
 			ctx.JSON(err.HttpStatus(), err)
 			return
@@ -467,7 +574,19 @@ func (hh *hiveHandler) CreateCommentFunc() gin.HandlerFunc {
 func (hh *hiveHandler) EditCommentFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		c := models.Comment{}
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
+
+		var postId, commentId uint64
+		var impartErr impart.Error
+		if _, ok := ctx.Params.Get("postId"); ok {
+			if postId, impartErr = ctxUint64Param(ctx, "postId"); impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impartErr)
+			}
+		}
+		if _, ok := ctx.Params.Get("commentId"); ok {
+			if commentId, impartErr = ctxUint64Param(ctx, "commentId"); impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impartErr)
+			}
+		}
 
 		err := ctx.BindJSON(&c)
 		if err != nil {
@@ -476,11 +595,22 @@ func (hh *hiveHandler) EditCommentFunc() gin.HandlerFunc {
 			ctx.JSON(err.HttpStatus(), err)
 			return
 		}
-		c.HiveID = ctx.Param("hiveId")
-		c.PostID = ctx.Param("postId")
-		c.CommentID = ctx.Param("commentId")
 
-		c, impartErr := hh.hiveService.EditComment(c, authID)
+		if c.PostID != postId {
+			err := impart.NewError(impart.ErrBadRequest, "PostID in route does not match PostID in comment body")
+			hh.logger.Error("bad request - mismatch postID", zap.Any("comment", c), zap.Error(err.Err()))
+			ctx.JSON(err.HttpStatus(), err)
+			return
+		}
+
+		if c.CommentID != commentId {
+			err := impart.NewError(impart.ErrBadRequest, "CommentID in route does not match CommentID in comment body")
+			hh.logger.Error("bad request - mismatch CommentID", zap.Any("comment", c), zap.Error(err.Err()))
+			ctx.JSON(err.HttpStatus(), err)
+			return
+		}
+
+		c, impartErr = hh.hiveService.EditComment(ctx, c)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impartErr)
 			return
@@ -492,11 +622,16 @@ func (hh *hiveHandler) EditCommentFunc() gin.HandlerFunc {
 
 func (hh *hiveHandler) DeleteCommentFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authID := ctx.GetString(auth.AuthenticationIDContextKey)
-		postID := ctx.Param("postId")
-		commentID := ctx.Param("commentId")
 
-		err := hh.hiveService.DeleteComment(postID, commentID, authID)
+		var commentId uint64
+		var impartErr impart.Error
+		if _, ok := ctx.Params.Get("commentId"); ok {
+			if commentId, impartErr = ctxUint64Param(ctx, "commentId"); impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impartErr)
+			}
+		}
+
+		err := hh.hiveService.DeleteComment(ctx, commentId)
 		if err != nil {
 			ctx.JSON(err.HttpStatus(), err)
 			return

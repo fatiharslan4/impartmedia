@@ -7,37 +7,62 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - IMPART_ENV=local
-      - IMPART_DEBUG=true
+      - IMPART_ENV
+      - IMPART_DEBUG
       - IMPART_PORT=8080
-      - IMPART_API_KEY=38c31c4a79c04fd102e105f23a7cdcf832e40ad1b1a526ba82da9fe1f86aa5aab288a3f1a85f5edf39478d65c05c6f1328c82de7e1677ca31a4392ab
-      - IMPART_REGION=us-east-2
-      - IMPART_DYNAMO_ENDPOINT=http://dynamodb:8000
-      - IMPART_IOS_NOTIFICATION_ARN=arn:aws:sns:us-east-1:518740895671:app/APNS_SANDBOX/impart_wealth_dev
+      - IMPART_API_KEY
+      - IMPART_REGION
+      - IMPART_IOS_NOTIFICATION_ARN
       - IMPART_PROFILE_SCHEMA_PATH=./schemas/json/Profile.json
-      - AWS_ACCESS_KEY_ID=dummy
-      - AWS_SECRET_ACCESS_KEY=dummy
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - IMPART_DB_HOST=mysql
+      - IMPART_DB_PORT=3306
+      - IMPART_DB_NAME
+      - IMPART_DB_MIGRATION_USERNAME
+      - IMPART_DB_MIGRATION_PASSWORD
+      - IMPART_DB_USERNAME
+      - IMPART_DB_PASSWORD
     entrypoint: ["/app/impart-backend"]
     depends_on:
-      - dynamodb
+      - bootstrap-mysql
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/ping"]
       interval: 20s
       timeout: 2s
       retries: 3
       start_period: 5s
-  dynamodb:
-    image: amazon/dynamodb-local
-    ports:
-      - "8000:8000"
-    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
-  createTables:
-    depends_on:
-      - dynamodb
-    image: amazon/aws-cli
+  mysql:
+    image: mysql/mysql-server:5.7
     volumes:
-      - $PWD/schemas/dynamo:/tables
+      - mysql-volume:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=impart
+      - MYSQL_USER=impart_super
+      - MYSQL_PASSWORD=supersecretpassword
+      - MYSQL_ROOT_PASSWORD=supersecretpassword
+      - MYSQL_ROOT_HOST=%
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: [ "CMD", "/healthcheck.sh" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+  bootstrap-mysql:
+    image: mysql/mysql-server:5.7
+    environment:
+      - MYSQL_DATABASE=impart
+      - MYSQL_USER=impart_super
+      - MYSQL_PASSWORD=supersecretpassword
+      - CRUD_USER=impart_crud
+      - CRUD_PASSWORD=supersecretpassword
+      - MYSQL_ROOT_PASSWORD=supersecretpassword
+    volumes:
       - $PWD/script:/script
-    entrypoint: /bin/bash
-    working_dir: /tables
-    command: ["/script/wait-for-it.sh", "dynamodb:8000", "--", "/script/deploy_dynamo_tables_local.sh"]
+    entrypoint: [ "/script/wait-for-it.sh", "mysql:3306", "-t", "30", "--", "/script/misc/create_users.sh" ]
+    depends_on:
+      - mysql
+volumes:
+  mysql-volume:

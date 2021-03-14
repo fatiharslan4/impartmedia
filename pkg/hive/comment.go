@@ -1,280 +1,140 @@
 package hive
 
 import (
+	"context"
 	"fmt"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"strings"
-	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
-	hive_data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
-	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
 )
 
-func (s *service) GetComments(hiveID, postID string, limit int64, nextPage *models.NextPage, authenticationID string) (models.Comments, *models.NextPage, impart.Error) {
-	p, impartErr := s.validateHiveAccess(hiveID, authenticationID)
-	if impartErr != nil {
-		return models.Comments{}, nil, impartErr
-	}
-
-	comments, nextPage, err := s.commentData.GetComments(postID, limit, nextPage)
+func (s *service) GetComments(ctx context.Context, postID uint64, limit, offset int) (models.Comments, *models.NextPage, impart.Error) {
+	dbComments, nextPage, err := s.commentData.GetComments(ctx, postID, limit, offset)
 	if err != nil {
-		s.logger.Error("error getting comment", zap.Error(err),
-			zap.String("hiveId", hiveID),
-			zap.String("postId", postID),
-			zap.Int64("limit", limit),
-			zap.Any("offset", nextPage),
-			zap.String("authenticationId", authenticationID))
-		return models.Comments{}, nextPage, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to returns comments for post %s", postID))
-	}
-
-	comments, err = s.addCommentTracks(p.ImpartWealthID, hiveID, postID, comments)
-	if err != nil && err != impart.ErrNotFound {
-		s.logger.Error("error getting comment tracks", zap.Error(err),
-			zap.String("hiveID", hiveID), zap.String("postID", postID))
-		return models.Comments{}, nextPage, impart.NewError(err, "error retrieving comment tracks")
-	}
-
-	comments.SortAscending()
-	return comments, nextPage, nil
-}
-
-func (s *service) addCommentTracks(impartWealthID, hiveID, postID string, comments models.Comments) (models.Comments, error) {
-
-	if len(comments) > 0 {
-		commentIDs := comments.ContentIDs()
-		s.logger.Debug("getting comment tracking data", zap.Strings("contentIDs", commentIDs))
-
-		commentTracks, err := s.trackStore.GetUserTrackForContent(impartWealthID, comments.ContentIDs())
-		if err != nil {
-			if err != impart.ErrNotFound {
-				s.logger.Error("error getting comment tracks", zap.Error(err),
-					zap.String("hiveID", hiveID), zap.String("postID", postID))
-				return comments, err
-			}
-			s.logger.Debug("no comment tracks found")
-
+		if err == impart.ErrNotFound {
+			return models.Comments{}, nil, impart.NewError(err, "no comments found for post")
+		} else {
+			return models.Comments{}, nil, impart.NewError(impart.ErrUnknown, "couldn't fetch comments")
 		}
-		s.logger.Debug("retrieved comment tracks", zap.Any("tracks", commentTracks))
-		comments.AppendContentTracks(commentTracks)
 	}
-	return comments, nil
+	return models.CommentsFromDBModelSlice(dbComments), nextPage, nil
 }
 
-//func (s *service) GetCommentsByImpartWealthID(impartWealthID string, limit int64, offset time.Time, authenticationID string) (models.Comments, impart.Error) {
-//	comments, err := s.commentData.GetCommentsByImpartWealthID(impartWealthID, limit, offset)
-//	if err != nil {
-//		return models.Comments{}, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to returns comments for impartWealthID %s", impartWealthID))
-//	}
-//
-//	return comments, nil
-//}
-
-func (s *service) GetComment(hiveID, postID, commentID string, consistentRead bool, authenticationID string) (models.Comment, impart.Error) {
-	p, impartErr := s.validateHiveAccess(hiveID, authenticationID)
-	if impartErr != nil {
-		return models.Comment{}, impartErr
-	}
-
-	comment, err := s.commentData.GetComment(postID, commentID, false)
+func (s *service) GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error) {
+	dbComment, err := s.commentData.GetComment(ctx, commentID)
 	if err != nil {
-		s.logger.Error("error getting comment", zap.Error(err),
-			zap.String("hiveId", hiveID),
-			zap.String("postId", postID),
-			zap.String("commentId", commentID),
-			zap.String("authenticationId", authenticationID))
-		return models.Comment{}, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to get comment %s for postID %s", commentID, postID))
+		if err == impart.ErrNotFound {
+			return models.Comment{}, impart.NewError(err, "no comments found for post")
+		} else {
+			return models.Comment{}, impart.NewError(impart.ErrUnknown, "couldn't fetch comments")
+		}
 	}
-
-	comment.PostCommentTrack, err = s.trackStore.GetUserTrack(p.ImpartWealthID, comment.CommentID, false)
-	if err != nil && err != impart.ErrNotFound {
-		return models.Comment{}, impart.NewError(err, "error getting tracked data for comment")
-	}
-
-	return comment, nil
+	return models.CommentFromDBModel(dbComment), nil
 }
 
-func (s *service) NewComment(c models.Comment, authenticationID string) (models.Comment, impart.Error) {
-	var profile models.Profile
-	var out models.Comment
-	var post models.Post
-	var impartErr impart.Error
+func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comment, impart.Error) {
+	var empty models.Comment
 	var err error
 
 	if len(strings.TrimSpace(c.Content.Markdown)) < 1 {
-		return out, impart.NewError(impart.ErrBadRequest, "post is less than 1 character1")
+		return empty, impart.NewError(impart.ErrBadRequest, "post is less than 1 character1")
+	}
+	ctxUser := impart.GetCtxUser(ctx)
+	newComment := &dbmodels.Comment{
+		PostID:         c.PostID,
+		ImpartWealthID: ctxUser.ImpartWealthID,
+		CreatedTS:      impart.CurrentUTC(),
+		Content:        c.Content.Markdown,
+		LastReplyTS:    impart.CurrentUTC(),
+		//ParentCommentID: c.p, //no threading for now
+		UpVoteCount:   0,
+		DownVoteCount: 0,
 	}
 
-	// Check validations asynchronously
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		profile, impartErr = s.validateHiveAccess(c.HiveID, authenticationID)
-		if impartErr != nil {
-			s.logger.Error("cannot validate the user is able to post to this hive", zap.Any("impartError", impartErr))
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		post, err = s.postData.GetPost(c.HiveID, c.PostID, false)
-		if err != nil {
-			if err == impart.ErrNotFound {
-				impartErr = impart.NewError(err, "post does not exist")
-			}
-			impartErr = impart.NewError(err, "error getting existing post for comment")
-		}
-	}()
-	//Wait for both validations
-	wg.Wait()
-
-	if impartErr != nil {
-		return out, impartErr
-	}
-
-	c.ImpartWealthID = profile.ImpartWealthID
-	c.ScreenName = profile.ScreenName
-	c.CommentID = ksuid.New().String()
-	c.CommentDatetime = impart.CurrentUTC()
-	c.Edits = models.Edits{}
-	c.UpVotes = 0
-	c.DownVotes = 0
-
-	s.logger.Debug("creating comment in data store", zap.Any("comment", c))
-
-	comment, err := s.commentData.NewComment(c)
+	comment, err := s.commentData.NewComment(ctx, newComment)
 	if err != nil {
 		s.logger.Error("error creating comment", zap.Error(err), zap.Any("comment", comment))
 		return models.Comment{}, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error creating NewComment for user %s", c.ImpartWealthID))
 	}
+	out := models.CommentFromDBModel(comment)
+	dbPost, err := s.postData.GetPost(ctx, c.PostID)
+	if err != nil {
+		s.logger.Error("error getting post from newly created comment")
+		return out, nil
+	}
+	previewEnd := maxNotificationLength
+	if len(dbPost.Subject) < maxNotificationLength {
+		previewEnd = len(dbPost.Subject)
+	}
 
-	//These waitgroup funcs log errors they encounter, but do not return any errors to the caller as they are non essential to the request.
-	wg = sync.WaitGroup{}
-	wg.Add(3)
+	previewText := dbPost.Subject[0:previewEnd]
+	notificationData := impart.NotificationData{
+		EventDatetime: impart.CurrentUTC(),
+		PostID:        dbPost.PostID,
+	}
+
+	alert := impart.Alert{
+		Title: aws.String(fmt.Sprintf("New Comment on Your Post: %s", dbPost.Subject)),
+		Body:  aws.String(fmt.Sprintf("%s wrote %s", ctxUser.ScreenName, previewText)),
+	}
+
+	s.logger.Debug("sending notification", zap.Any("impartWealthId", dbPost.R.ImpartWealth.ImpartWealthID), zap.Any("alert", alert))
+
 	go func() {
-		defer wg.Done()
-		if err = s.postData.UpdateTimestampLater(post.HiveID, post.PostID, hive_data.LastCommentDatetimeColumnName, c.CommentDatetime); err != nil {
-			s.logger.Error("Error updating timestamp", zap.Error(err))
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		if err = s.postData.IncrementDecrementPost(post.HiveID, post.PostID, hive_data.CommentCountColumnName, false); err != nil {
-			s.logger.Error("Error updating timestamp", zap.Error(err))
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		posterProfile, err := s.profileData.GetProfile(post.ImpartWealthID, false)
-		if err != nil {
-			s.logger.Error("error getting posters profile", zap.Error(err))
-			return
-		}
-		np := posterProfile.NotificationProfile
-
-		previewEnd := maxNotificationLength
-		if len(post.Subject) < maxNotificationLength {
-			previewEnd = len(post.Subject)
-		}
-
-		previewText := post.Subject[0:previewEnd]
-		notificationData := impart.NotificationData{
-			EventDatetime: impart.CurrentUTC(),
-			PostID:        c.PostID,
-		}
-
-		alert := impart.Alert{
-			Title: aws.String(fmt.Sprintf("New Comment on Your Post: %s", post.Subject)),
-			Body:  aws.String(fmt.Sprintf("%s wrote %s", comment.ScreenName, previewText)),
-		}
-
-		s.logger.Debug("sending notification", zap.Any("notificationProfile", np), zap.Any("alert", alert))
-
-		if strings.TrimSpace(np.DeviceToken) != "" {
-			err = s.sendNotification(notificationData, alert, posterProfile)
+		if strings.TrimSpace(dbPost.R.ImpartWealth.ImpartWealthID) != "" {
+			err = s.sendNotification(notificationData, alert, dbPost.R.ImpartWealth.ImpartWealthID)
 			if err != nil {
 				s.logger.Error("error attempting to send post reply ", zap.Error(err))
 			}
 		}
 	}()
 
-	//We don't wait here cause we need the outputs above, we wait because lambda runtime can shut this down before logging
-	// any output or actually making these requests.
-	wg.Wait()
-	return comment, nil
-}
-
-func (s *service) EditComment(editedComment models.Comment, authenticationID string) (models.Comment, impart.Error) {
-	var out models.Comment
-
-	existingComment, err := s.commentData.GetComment(editedComment.PostID, editedComment.CommentID, true)
-	if err != nil {
-		return out, impart.NewError(err, "unable to locate existing comment to edit")
-	}
-
-	profile, impartErr := s.selfOrAdmin(existingComment.HiveID, existingComment.ImpartWealthID, authenticationID)
-	if impartErr != nil {
-		s.logger.Error("user is not authorized to edit this comment",
-			zap.Any("comment", editedComment), zap.String("authenticationId", authenticationID))
-		return models.Comment{}, impartErr
-	}
-
-	if existingComment.Content.Markdown == editedComment.Content.Markdown {
-		return out, impart.NewError(impart.ErrBadRequest, "content has not changed")
-	}
-
-	newEdit := models.Edit{
-		Datetime:       impart.CurrentUTC(),
-		ImpartWealthID: profile.ImpartWealthID,
-		ScreenName:     profile.ScreenName,
-	}
-
-	existingComment.Edits = append(existingComment.Edits, newEdit)
-	existingComment.Content = editedComment.Content
-
-	s.logger.Debug("Editing post", zap.Any("edit", newEdit), zap.Any("updated post", existingComment))
-
-	out, err = s.commentData.EditComment(existingComment)
-	if err != nil {
-		s.logger.Error("error editing comment", zap.Error(err), zap.Any("comment", existingComment))
-		return models.Comment{}, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to get edit comment %s for postID %s", editedComment.CommentID, editedComment.PostID))
-	}
-
 	return out, nil
 }
 
-func (s *service) DeleteComment(postID, commentID, authenticationID string) impart.Error {
-	s.logger.Debug("received comment delete request", zap.String("postId", postID),
-		zap.String("commentId", commentID),
-		zap.String("authenticationId", authenticationID))
+func (s *service) EditComment(ctx context.Context, editedComment models.Comment) (models.Comment, impart.Error) {
+	var empty models.Comment
+	ctxUser := impart.GetCtxUser(ctx)
+	existingComment, err := s.commentData.GetComment(ctx, editedComment.CommentID)
+	if err != nil {
+		s.logger.Error("error fetcing post trying to edit", zap.Error(err))
+		return empty, impart.UnknownError
+	}
+	if !ctxUser.Admin && existingComment.ImpartWealthID != ctxUser.ImpartWealthID {
+		return empty, impart.NewError(impart.ErrUnauthorized, "unable to edit a comment that's not yours")
+	}
+	existingComment.Content = editedComment.Content.Markdown
+	c, err := s.commentData.EditComment(ctx, existingComment)
+	if err != nil {
+		return empty, impart.UnknownError
+	}
+	return models.CommentFromDBModel(c), nil
+}
 
-	existingComment, err := s.commentData.GetComment(postID, commentID, true)
+func (s *service) DeleteComment(ctx context.Context, commentID uint64) impart.Error {
+	s.logger.Debug("received comment delete request",
+		zap.Uint64("commentId", commentID))
+
+	ctxUser := impart.GetCtxUser(ctx)
+	existingComment, err := s.commentData.GetComment(ctx, commentID)
 	if err != nil {
 		return impart.NewError(err, "unable to locate existing comment to delete")
 	}
 
-	_, impartErr := s.selfOrAdmin(existingComment.HiveID, existingComment.ImpartWealthID, authenticationID)
-	if impartErr != nil {
-		s.logger.Error("user is not authorized to edit this comment",
-			zap.Any("comment", existingComment), zap.String("authenticationId", authenticationID))
-		return impartErr
+	if !ctxUser.Admin && existingComment.ImpartWealthID != ctxUser.ImpartWealthID {
+		return impart.NewError(impart.ErrUnauthorized, "unable to delete a comment that's not yours")
 	}
 
-	err = s.commentData.DeleteComment(postID, commentID)
+	err = s.commentData.DeleteComment(ctx, commentID)
 	if err != nil {
 		if err == impart.ErrNotFound {
 			return impart.NewError(err, "Comment not found")
 		}
 		return impart.NewError(err, "error deleting comment")
-	}
-	err = s.postData.IncrementDecrementPost(existingComment.HiveID, postID, hive_data.CommentCountColumnName, true)
-	if err != nil {
-		s.logger.Error("error decrementing post comments ")
 	}
 	return nil
 }

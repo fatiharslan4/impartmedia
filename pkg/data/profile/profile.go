@@ -1,27 +1,27 @@
 package profile
 
-import "github.com/impartwealthapp/backend/pkg/models"
+import (
+	"context"
+	"database/sql"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"go.uber.org/zap"
+)
 
 type Store interface {
-	GetImpartIdFromAuthId(authenticationId string) (string, error)
-	GetImpartIdFromEmail(email string) (string, error)
-	GetImpartIdFromScreenName(screenName string) (string, error)
-	CreateProfile(p models.Profile) (models.Profile, error)
-	GetProfile(impartWealthId string, consistentRead bool) (models.Profile, error)
-	GetProfileFromAuthId(authenticationId string, consistentRead bool) (models.Profile, error)
-	UpdateProfile(authId string, p models.Profile) (models.Profile, error)
-	DeleteProfile(impartWealthID string) error
+	GetUser(ctx context.Context, impartWealthID string) (*dbmodels.User, error)
+	GetUserFromAuthId(ctx context.Context, authenticationId string) (*dbmodels.User, error)
+	GetUserFromEmail(ctx context.Context, email string) (*dbmodels.User, error)
+	GetUserFromScreenName(ctx context.Context, screenName string) (*dbmodels.User, error)
+	CreateUserProfile(ctx context.Context, user *dbmodels.User, profile *dbmodels.Profile) error
+	GetProfile(ctx context.Context, impartWealthId string) (*dbmodels.Profile, error)
+	UpdateProfile(ctx context.Context, user *dbmodels.User, profile *dbmodels.Profile) error
+	DeleteProfile(ctx context.Context, impartWealthID string) error
+}
 
-	GetNotificationProfiles(*models.NextProfilePage) ([]models.Profile, *models.NextProfilePage, error)
+func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {
+	s := newMysqlStore(db, logger)
 
-	UpdateProfileProperty(impartWealthID, propertyPathName string, propertyPathValue interface{}) error
-
-	CreateWhitelistEntry(profile models.WhiteListProfile) error
-	GetWhitelistEntry(impartWealthID string) (models.WhiteListProfile, error)
-	SearchWhitelistEntry(t SearchType, value string) (models.WhiteListProfile, error)
-	UpdateWhitelistEntryScreenName(impartWealthID, screenName string) error
-
-	GetHive(hiveID string, consistentRead bool) (models.Hive, error)
+	return s
 }
 
 // The type of search to perform
@@ -43,16 +43,16 @@ func (s SearchType) String() string {
 	}
 }
 
-func (s SearchType) IndexName() string {
-	switch s {
-	case emailSearch:
-		return emailIndexName
-	case screenNameSearch:
-		return screenNameIndexName
-	default:
-		return ""
-	}
-}
+//func (s SearchType) IndexName() string {
+//	switch s {
+//	case emailSearch:
+//		return emailIndexName
+//	case screenNameSearch:
+//		return screenNameIndexName
+//	default:
+//		return ""
+//	}
+//}
 
 func EmailSearchType() SearchType {
 	return emailSearch

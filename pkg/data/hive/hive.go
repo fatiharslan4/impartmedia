@@ -1,209 +1,156 @@
 package data
 
-import (
-	"fmt"
-	"time"
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+import (
+	"context"
+	"database/sql"
 	"github.com/impartwealthapp/backend/pkg/impart"
-	"github.com/impartwealthapp/backend/pkg/models"
-	"github.com/pkg/errors"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"go.uber.org/zap"
 )
 
-type dynamo struct {
-	Logger *zap.Logger
-	dynamodbiface.DynamoDBAPI
-	tableEnvironment string
+var _ Hives = &mysqlHiveData{}
+var _ HiveService = &mysqlHiveData{}
+
+type mysqlHiveData struct {
+	logger *zap.Logger
+	db     *sql.DB
 }
 
-const hiveTableName = "hive"
+//counterfeiter:generate . HiveService
+type HiveService interface {
+	Hives
+	Comments
+	Posts
+	UserTrack
+}
+
+func NewHiveService(db *sql.DB, logger *zap.Logger) HiveService {
+	return &mysqlHiveData{
+		logger: logger,
+		db:     db,
+	}
+}
 
 // Hives is the interface for Hive CRUD operations
 type Hives interface {
-	GetHives() (models.Hives, error)
-	GetHive(hiveID string, consistentRead bool) (models.Hive, error)
-	NewHive(hive models.Hive) (models.Hive, error)
-	EditHive(hive models.Hive) (models.Hive, error)
-	PinPost(hiveID, PostID string) error
+	GetHives(ctx context.Context) (dbmodels.HiveSlice, error)
+	GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, error)
+	NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error)
+	EditHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error)
+	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) error
 }
 
-func newDynamo(region, endpoint, environment string, logger *zap.Logger) (*dynamo, error) {
-	h := &dynamo{
-		tableEnvironment: environment,
-		Logger:           logger,
+func (d *mysqlHiveData) GetHives(ctx context.Context) (dbmodels.HiveSlice, error) {
+	ctxUser := impart.GetCtxUser(ctx)
+	if ctxUser == nil {
+		return dbmodels.HiveSlice{}, impart.UnknownError
+	}
+	if !ctxUser.Admin {
+		return ctxUser.R.MemberHiveHives, nil
+	}
+	return dbmodels.Hives().All(ctx, d.db)
+}
+
+func (d *mysqlHiveData) GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, error) {
+	return dbmodels.FindHive(ctx, d.db, hiveID)
+}
+
+func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error) {
+	ctxUser := impart.GetCtxUser(ctx)
+	if !ctxUser.Admin {
+		return nil, impart.ErrUnauthorized
 	}
 
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(region),
-	})
-	if err != nil {
+	hive.HiveID = 0
+	if err := hive.Insert(ctx, d.db, boil.Infer()); err != nil {
 		return nil, err
 	}
-	if endpoint != "" {
-		h.DynamoDBAPI = dynamodb.New(sess,
-			&aws.Config{
-				Endpoint:   aws.String(endpoint),
-				HTTPClient: impart.ImpartHttpClient(30 * time.Second),
-			})
+
+	return hive, hive.Reload(ctx, d.db)
+}
+
+func (d *mysqlHiveData) EditHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error) {
+	ctxUser := impart.GetCtxUser(ctx)
+	if !ctxUser.Admin {
+		return nil, impart.ErrUnauthorized
+	}
+
+	if _, err := hive.Update(ctx, d.db, boil.Infer()); err != nil {
+		return nil, err
+	}
+
+	return hive, hive.Reload(ctx, d.db)
+}
+
+// PinPost takes a hive and post id of a post ot pin or unpin
+// if a post is being pinned, within the same transaction we need to (maybe) unpin the old post,
+// mark the new post as pinned, and update the hive to point to the new post.
+func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin bool) error {
+	ctxUser := impart.GetCtxUser(ctx)
+	if !ctxUser.Admin {
+		return impart.ErrUnauthorized
+	}
+
+	toPin, err := dbmodels.FindPost(ctx, d.db, postID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return impart.ErrNotFound
+		}
+		return err
+	}
+	hive, err := dbmodels.Hives(dbmodels.HiveWhere.HiveID.EQ(hiveID)).One(ctx, d.db)
+	if err != nil {
+		return err
+	}
+
+	if toPin.Pinned == pin && hive.PinnedPostID.Valid && hive.PinnedPostID.Uint64 == postID {
+		return impart.ErrNoOp
+	}
+	if toPin.HiveID != hiveID {
+		return impart.ErrBadRequest
+	}
+
+	//if this post has a pin, and doesn't match the request pin
+	// that we're removing, do nothing.
+	if hive.PinnedPostID.Uint64 == postID {
+		return impart.ErrNoOp
+	}
+
+	tx, err := d.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer impart.CommitRollbackLogger(tx, err, d.logger)
+
+	if hive.PinnedPostID.Valid {
+		if !pin && postID == hive.PinnedPostID.Uint64 || pin {
+
+			existingPinnedPost, err := dbmodels.FindPost(ctx, d.db, hive.PinnedPostID.Uint64)
+			if err != nil {
+				return err
+			}
+			existingPinnedPost.Pinned = false
+			if _, err := existingPinnedPost.Update(ctx, d.db, boil.Whitelist(dbmodels.PostColumns.Pinned)); err != nil {
+				return err
+			}
+		}
+	}
+
+	toPin.Pinned = pin
+	_, err = toPin.Update(ctx, tx, boil.Whitelist(dbmodels.PostColumns.Pinned))
+
+	if pin {
+		hive.PinnedPostID.SetValid(postID)
+		_, err = hive.Update(ctx, tx, boil.Whitelist(dbmodels.HiveColumns.PinnedPostID))
+		return err
 	} else {
-		h.DynamoDBAPI = dynamodb.New(sess)
+		//unpin
+		hive.PinnedPostID = null.Uint64{}
+		_, err = hive.Update(ctx, tx, boil.Whitelist(dbmodels.HiveColumns.PinnedPostID))
+		return err
 	}
-
-	if environment == "local" || environment == "dev" {
-		tableName := h.getTableNameForEnvironment(hiveTableName)
-		resp, err := h.DescribeTable(&dynamodb.DescribeTableInput{TableName: aws.String(tableName)})
-		if err != nil {
-			return nil, errors.Wrap(err, "error retrieving info for "+tableName)
-		}
-		if *resp.Table.TableName != tableName {
-			return nil, fmt.Errorf("expected table name of %s, got %s", tableName, *resp.Table.TableName)
-		}
-	}
-	return h, nil
-}
-
-// NewHiveData returns an implementation of data.Hives
-func NewHiveData(region, endpoint, environment string, logger *zap.Logger) (Hives, error) {
-	return newDynamo(region, endpoint, environment, logger)
-}
-
-func (d *dynamo) GetHives() (models.Hives, error) {
-	out := make(models.Hives, 0)
-	var err error
-
-	input := &dynamodb.ScanInput{
-		TableName:      aws.String(d.getTableNameForEnvironment(hiveTableName)),
-		ConsistentRead: aws.Bool(false),
-		Limit:          aws.Int64(100),
-	}
-
-	resp, err := d.Scan(input)
-	if err != nil {
-		d.Logger.Error("error scanning for hives in dynamodb", zap.Error(err))
-		return out, handleAWSErr(err)
-	}
-
-	if resp.Items == nil {
-		d.Logger.Debug("get items returned nil", zap.Error(err))
-		return out, impart.ErrNotFound
-	}
-
-	err = dynamodbattribute.UnmarshalListOfMaps(resp.Items, &out)
-	if err != nil {
-		d.Logger.Error("Error trying to unmarshal list of hives", zap.Error(err))
-		return out, err
-	}
-
-	d.Logger.Debug("retrieved", zap.Any("hive", out))
-	return out, nil
-}
-
-func (d *dynamo) getTableNameForEnvironment(tableName string) string {
-	if d.tableEnvironment != "" {
-		return fmt.Sprintf("%s_%s", d.tableEnvironment, tableName)
-	}
-	return tableName
-}
-
-func (d *dynamo) GetHive(hiveID string, consistentRead bool) (models.Hive, error) {
-	var out models.Hive
-	var err error
-
-	input := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"hiveId": {
-				S: aws.String(hiveID),
-			},
-		},
-		TableName:      aws.String(d.getTableNameForEnvironment(hiveTableName)),
-		ConsistentRead: aws.Bool(consistentRead),
-	}
-
-	resp, err := d.GetItem(input)
-	if err != nil {
-		d.Logger.Error("error getting item from dynamodb", zap.Error(err))
-		return models.Hive{}, handleAWSErr(err)
-	}
-
-	if resp.Item == nil {
-		d.Logger.Debug("get item return null", zap.Error(err))
-		return models.Hive{}, impart.ErrNotFound
-	}
-
-	err = dynamodbattribute.UnmarshalMap(resp.Item, &out)
-	if err != nil {
-		d.Logger.Error("Error trying to unmarshal attribute", zap.Error(err))
-		return models.Hive{}, err
-	}
-	d.Logger.Debug("retrieved", zap.Any("hive", out))
-
-	out.HiveDistributions.CleanEmptyValues()
-	if !out.HiveDistributions.IsSorted() {
-		out.HiveDistributions.Sort()
-	}
-
-	return out, nil
-}
-
-func (d *dynamo) NewHive(hive models.Hive) (models.Hive, error) {
-	var err error
-
-	hive.HiveDistributions.CleanEmptyValues()
-	if !hive.HiveDistributions.IsSorted() {
-		hive.HiveDistributions.Sort()
-	}
-
-	item, err := dynamodbattribute.MarshalMap(hive)
-	if err != nil {
-		return models.Hive{}, err
-	}
-
-	input := &dynamodb.PutItemInput{
-		Item:                   item,
-		ReturnConsumedCapacity: aws.String("NONE"),
-		TableName:              aws.String(d.getTableNameForEnvironment(hiveTableName)),
-		ConditionExpression:    aws.String("attribute_not_exists(hiveId)"),
-		ReturnValues:           aws.String("NONE"),
-	}
-
-	_, err = d.PutItem(input)
-	if err != nil {
-		return models.Hive{}, err
-	}
-
-	return d.GetHive(hive.HiveID, true)
-}
-
-func (d *dynamo) EditHive(hive models.Hive) (models.Hive, error) {
-	var err error
-
-	hive.HiveDistributions.CleanEmptyValues()
-	if !hive.HiveDistributions.IsSorted() {
-		hive.HiveDistributions.Sort()
-	}
-
-	item, err := dynamodbattribute.MarshalMap(hive)
-	if err != nil {
-		return models.Hive{}, err
-	}
-
-	input := &dynamodb.PutItemInput{
-		Item:                   item,
-		ReturnConsumedCapacity: aws.String("NONE"),
-		TableName:              aws.String(d.getTableNameForEnvironment(hiveTableName)),
-		ConditionExpression:    aws.String("attribute_exists (hiveId)"),
-	}
-
-	_, err = d.PutItem(input)
-	if err != nil {
-		d.Logger.Error("Error replacing dynamoDB item", zap.Error(err), zap.Any("hive", hive))
-		return models.Hive{}, err
-	}
-
-	return d.GetHive(hive.HiveID, true)
 }

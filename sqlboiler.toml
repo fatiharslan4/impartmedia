@@ -1,0 +1,14 @@
+output = "pkg/models/dbmodels"
+pkgname = "dbmodels"
+wipe = true
+no-tests = true
+
+[mysql]
+dbname = "impart"
+schema = "impart"
+host = "localhost"
+port = 3306
+user = "impart_super"
+pass = "supersecretpassword"
+sslmode = "false"
+blacklist = ["schema_migrations"]

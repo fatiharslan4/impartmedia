@@ -1,253 +1,169 @@
 package hive
 
 import (
+	"context"
 	"fmt"
-	"strings"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
-	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
 )
 
 // VoteInput is the input to register an upvote or downvote on a comment or post.
 type VoteInput struct {
-	HiveID, PostID, CommentID string
-	Upvote                    bool
-	Increment                 bool
+	PostID, CommentID uint64
+	Upvote            bool
+	Increment         bool
 }
 
-func (s *service) Votes(v VoteInput, authID string) (models.PostCommentTrack, impart.Error) {
+func (s *service) Votes(ctx context.Context, v VoteInput) (models.PostCommentTrack, impart.Error) {
 	var out models.PostCommentTrack
 	s.logger.Debug("received vote request", zap.Any("input", v))
 
-	p, impartErr := s.validateHiveAccess(v.HiveID, authID)
-	if impartErr != nil {
-		return out, impartErr
-	}
+	var in data.ContentInput
 
-	var contentID string
-	if len(strings.TrimSpace(v.CommentID)) == 27 {
-		contentID = v.CommentID
+	if v.CommentID > 0 {
+		in.Id = v.CommentID
+		in.Type = data.Comment
 	} else {
-		contentID = v.PostID
+		in.Id = v.PostID
+		in.Type = data.Post
 	}
-
 	var err error
 	if v.Upvote {
 		if v.Increment {
-			err = s.trackStore.AddUpVote(p.ImpartWealthID, contentID, v.HiveID, v.PostID)
+			err = s.reactionData.AddUpVote(ctx, in)
 		} else {
-			err = s.trackStore.TakeUpVote(p.ImpartWealthID, contentID, v.HiveID, v.PostID)
+			err = s.reactionData.TakeUpVote(ctx, in)
 		}
 	} else { //Downvote
 		if v.Increment {
-			err = s.trackStore.AddDownVote(p.ImpartWealthID, contentID, v.HiveID, v.PostID)
+			err = s.reactionData.AddDownVote(ctx, in)
 		} else {
-			err = s.trackStore.TakeDownVote(p.ImpartWealthID, contentID, v.HiveID, v.PostID)
+			err = s.reactionData.TakeDownVote(ctx, in)
 		}
 	}
 
-	if err != nil && err != impart.ErrNoOp {
-		s.logger.Error("error updating track store", zap.Error(err), zap.Any("vote", v), zap.Any("profile", p))
-		return out, impart.NewError(err, "error updating customers vote tracking")
-	}
-
-	out, err = s.trackStore.GetUserTrack(p.ImpartWealthID, contentID, true)
+	out, err = s.reactionData.GetUserTrack(ctx, in)
 	if err != nil {
-		s.logger.Error("error getting updated tracked item track store", zap.Error(err), zap.Any("vote", v), zap.Any("profile", p))
+		s.logger.Error("error getting updated tracked item track store", zap.Error(err), zap.Any("vote", v))
 		return out, impart.NewError(err, "unable to retrieve recently tracked content")
 	}
 
 	return out, nil
 }
 
-func (s *service) CommentCount(hiveID, postID string, subtract bool, authenticationID string) impart.Error {
-	_, impartErr := s.validateHiveAccess(hiveID, authenticationID)
-	if impartErr != nil {
-		return impartErr
-	}
-
-	if err := s.postData.IncrementDecrementPost(hiveID, postID, data.CommentCountColumnName, subtract); err != nil {
-		return impart.NewError(err, "error incrementing commentCount")
-	}
-	return nil
-}
-
 func (s *service) Logger() *zap.Logger {
 	return s.logger
 }
 
-func (s *service) sendNotification(data impart.NotificationData, alert impart.Alert, profile models.Profile) error {
-	if profile.NotificationProfile.DeviceToken != "" {
-		sentARN, err := s.notificationService.NotifyAppleDevice(data, alert, profile.NotificationProfile.DeviceToken, profile.NotificationProfile.AWSPlatformEndpointARN)
-		if err != nil {
-			return err
-		}
-		if sentARN != profile.NotificationProfile.AWSPlatformEndpointARN {
-			//update the users AWS ARN for notifications
-			profile.NotificationProfile.AWSPlatformEndpointARN = sentARN
-			err := s.profileData.UpdateProfileProperty(profile.ImpartWealthID, "notificationProfile.awsPlatformEndpointARN", profile.NotificationProfile.AWSPlatformEndpointARN)
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		s.logger.Debug("profile has no notification profile", zap.Any("profile", profile))
-	}
-	return nil
+func (s *service) sendNotification(data impart.NotificationData, alert impart.Alert, impartWealthId string) error {
+	return s.notificationService.Notify(context.TODO(), data, alert, impartWealthId)
 }
 
-func (s *service) selfOrAdmin(hiveID, originalContentImpartWealthID, authenticationID string) (models.Profile, impart.Error) {
-
-	profile, err := s.profileData.GetProfileFromAuthId(authenticationID, false)
-	if err != nil {
-		s.logger.Error("Profile Data not retrieved", zap.String("authenticationId", authenticationID))
-		return models.Profile{}, impart.NewError(err, "unable to map authenticationId to an impart wealth user")
+// REturns unauthorized if
+func (s *service) validateHiveAccess(ctx context.Context, hiveID uint64) impart.Error {
+	ctxUser := impart.GetCtxUser(ctx)
+	if ctxUser == nil {
+		return impart.NewError(impart.ErrUnauthorized, "user is not a member of this hive")
+	}
+	if impart.GetCtxUser(ctx).Admin {
+		return nil
 	}
 
-	if profile.ImpartWealthID == originalContentImpartWealthID || profile.Attributes.Admin {
-		s.logger.Debug("impartWealthId of authenticated user matches the impartWealthId of the original content user,"+
-			"or user is admin",
-			zap.String("original", originalContentImpartWealthID),
-			zap.String("authenticatedUser", profile.ImpartWealthID),
-			zap.Bool("isAdmin", profile.Attributes.Admin))
-		return profile, nil
-	}
-
-	hive, err := s.hiveData.GetHive(hiveID, false)
-	if err != nil {
-		s.logger.Error("error getting hive data", zap.String("hiveId", hiveID))
-		return models.Profile{}, impart.NewError(err, "unable to validate admin privileges for editing the post.")
-	}
-
-	var isAdmin bool
-	for _, a := range hive.Administrators {
-		if a.ImpartWealthID == profile.ImpartWealthID {
-			isAdmin = true
-			break
+	for _, h := range ctxUser.R.MemberHiveHives {
+		if h.HiveID == hiveID {
+			return nil
 		}
 	}
+	return impart.NewError(impart.ErrUnauthorized, "user is not a member of this hive")
 
-	if !isAdmin {
-		s.logger.Warn("user is not a hive admin, and is attempting to modify something not their own. ")
-		return models.Profile{}, impart.NewError(impart.ErrUnauthorized, "user not authorized to take this action on the resource.")
-	}
-
-	return profile, nil
 }
 
-func (s *service) validateHiveAccess(hiveID, authenticationID string) (models.Profile, impart.Error) {
-	if _, err := s.hiveData.GetHive(hiveID, false); err != nil {
-		return models.Profile{}, impart.NewError(err, fmt.Sprintf("unable to retreive hive %s", hiveID))
-	}
-
-	profile, err := s.profileData.GetProfileFromAuthId(authenticationID, false)
-	if err != nil {
-		return models.Profile{}, impart.NewError(err, "unable to map authenticationId to an impart wealth user")
-	}
-
-	if !isMember(hiveID, profile) && !profile.Attributes.Admin {
-		return models.Profile{}, impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("user is not a member of "+
-			"hive '%s'; denied.", hiveID))
-	}
-
-	return profile, nil
-}
-
-func isMember(hiveID string, profile models.Profile) bool {
-	for _, m := range profile.Attributes.HiveMemberships {
-		if m.HiveID == hiveID {
-
-			return true
-		}
-	}
-	return false
-}
-
-func (s *service) GetHive(authID, hiveID string) (models.Hive, impart.Error) {
-	if _, err := s.validateHiveAccess(hiveID, authID); err != nil {
+func (s *service) GetHive(ctx context.Context, hiveID uint64) (models.Hive, impart.Error) {
+	if err := s.validateHiveAccess(ctx, hiveID); err != nil {
 		return models.Hive{}, err
 	}
 
-	hive, err := s.hiveData.GetHive(hiveID, false)
+	dbHive, err := s.hiveData.GetHive(ctx, hiveID)
 	if err != nil {
 		s.logger.Error("error getting hive", zap.Error(err))
 		if err == impart.ErrNotFound {
-			return hive, impart.NewError(err, fmt.Sprintf("hive %s not found", hiveID))
+			return models.Hive{}, impart.NewError(err, fmt.Sprintf("hive %v not found", hiveID))
 		}
-		return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to retrieve hive %s", hiveID))
+		return models.Hive{}, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to retrieve hive %v", hiveID))
+	}
+
+	hive, err := models.HiveFromDB(dbHive)
+	if err != nil {
+		s.logger.Error("couldn't convert db model to hive", zap.Error(err))
+		return models.Hive{}, impart.NewError(impart.ErrUnknown, "bad db model")
 	}
 	return hive, nil
 }
 
 // If the auth user is an admin, then return all hives.  Otherwise only return hives the user is a member of.
-func (s *service) GetHives(authID string) (models.Hives, impart.Error) {
+func (s *service) GetHives(ctx context.Context) (models.Hives, impart.Error) {
 	var err error
-	var profile models.Profile
-	var hives models.Hives
-	profile, err = s.profileData.GetProfileFromAuthId(authID, false)
+
+	dbHives, err := s.hiveData.GetHives(ctx)
 	if err != nil {
-		return hives, impart.NewError(err, "error looking up profile using authenticationId")
+		return models.Hives{}, impart.NewError(impart.ErrUnknown, "unable fetch dbmodels")
 	}
 
-	if profile.Attributes.Admin {
-		hives, err := s.hiveData.GetHives()
-		if err != nil {
-			return hives, impart.NewError(impart.ErrUnknown, "error when attempting to retrieve hives")
-		}
-		return hives, nil
-	}
-	hives = make(models.Hives, 0, 0)
-
-	for _, hm := range profile.Attributes.HiveMemberships {
-		h, err := s.hiveData.GetHive(hm.HiveID, false)
-		if err != nil {
-			return models.Hives{}, impart.NewError(err, "could not retrieve hive id")
-		}
-		hives = append(hives, h)
+	hives, err := models.HivesFromDB(dbHives)
+	if err != nil {
+		return models.Hives{}, impart.NewError(impart.ErrUnknown, "unable to convert hives from dbmodel")
 	}
 
 	return hives, nil
 }
 
-func (s *service) CreateHive(authID string, hive models.Hive) (models.Hive, impart.Error) {
+func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive, impart.Error) {
 	var err error
-	var profile models.Profile
-	profile, err = s.profileData.GetProfileFromAuthId(authID, false)
-	if err != nil {
-		return models.Hive{}, impart.NewError(err, "error retrieving profile for hives")
-	}
 
-	if !profile.Attributes.Admin {
+	ctxUser := impart.GetCtxUser(ctx)
+	if !ctxUser.Admin {
 		return models.Hive{}, impart.NewError(impart.ErrUnauthorized, "non-admin users cannot create hives.")
 	}
 
-	hive.HiveID = ksuid.New().String()
+	dbh, err := hive.ToDBModel()
+	if err != nil {
+		return models.Hive{}, impart.NewError(impart.ErrUnknown, "unable to convert hives to  dbmodel")
+	}
 
-	hive, err = s.hiveData.NewHive(hive)
+	dbh, err = s.hiveData.NewHive(ctx, dbh)
 	if err != nil {
 		return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to create hive %s", hive.HiveName))
 	}
-	return hive, nil
-}
-
-func (s *service) EditHive(authID string, hive models.Hive) (models.Hive, impart.Error) {
-	var err error
-	var profile models.Profile
-	profile, err = s.profileData.GetProfileFromAuthId(authID, false)
+	out, err := models.HiveFromDB(dbh)
 	if err != nil {
-		return models.Hive{}, impart.NewError(err, "error retrieving profile for hives")
+		return models.Hive{}, impart.NewError(impart.ErrUnknown, "unable to convert hives to  dbmodel")
 	}
 
-	if !profile.Attributes.Admin {
+	return out, nil
+}
+
+func (s *service) EditHive(ctx context.Context, hive models.Hive) (models.Hive, impart.Error) {
+	ctxUser := impart.GetCtxUser(ctx)
+	if !ctxUser.Admin {
 		return models.Hive{}, impart.NewError(impart.ErrUnauthorized, "non-admin users cannot create hives.")
 	}
 
-	hive, err = s.hiveData.EditHive(hive)
+	dbh, err := hive.ToDBModel()
 	if err != nil {
-		return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to edit hive %s", hive.HiveName))
+		return models.Hive{}, impart.NewError(impart.ErrUnknown, "unable to convert hives to  dbmodel")
 	}
-	return hive, nil
+
+	dbh, err = s.hiveData.EditHive(ctx, dbh)
+	if err != nil {
+		return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to create hive %s", hive.HiveName))
+	}
+	out, err := models.HiveFromDB(dbh)
+	if err != nil {
+		return models.Hive{}, impart.NewError(impart.ErrUnknown, "unable to convert hives to  dbmodel")
+	}
+
+	return out, nil
 }

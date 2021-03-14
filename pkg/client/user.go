@@ -113,17 +113,16 @@ func (c *impartManagementClient) CreateUser(in CreateUserRequest) (CreateUserRes
 		AuthenticationID: out.AuthenticationID,
 		Email:            in.Email,
 		ScreenName:       in.ScreenName,
+		HiveMemberships:  nil,
 		Attributes: models.Attributes{
-			UpdatedDate:     time.Now(),
-			Name:            out.Email,
-			Address:         models.Address{},
-			HiveMemberships: nil,
-			Admin:           in.Admin,
+			UpdatedDate: time.Now(),
+			Name:        out.Email,
+			Address:     models.Address{},
+			Admin:       in.Admin,
 		},
-		CreatedDate:         time.Now(),
-		UpdatedDate:         time.Now(),
-		NotificationProfile: models.NotificationProfile{},
-		SurveyResponses:     models.SurveyResponses{},
+		CreatedDate:     time.Now(),
+		UpdatedDate:     time.Now(),
+		SurveyResponses: models.SurveyResponses{},
 	}
 
 	b := new(bytes.Buffer)

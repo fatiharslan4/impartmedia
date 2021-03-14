@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-
-	"github.com/aws/aws-lambda-go/events"
 )
 
 // ErrNotImplemented is returned when the requested method has not been implemented
@@ -35,16 +33,22 @@ var ErrNoOp = errors.New("resource already matches exactly as request")
 var ErrNoAPIKey = errors.New("no api key provided")
 
 type Error interface {
-	ToGatewayResponse() events.APIGatewayProxyResponse
+	error
 	HttpStatus() int
 	ToJson() string
 	Err() error
 	Msg() string
 }
 
+var _ error = &impartError{}
+
 type impartError struct {
 	err error
 	msg string
+}
+
+func (e impartError) Error() string {
+	return e.err.Error()
 }
 
 func (e impartError) Err() error {
@@ -59,10 +63,7 @@ func NewError(err error, msg string) Error {
 	return impartError{err: err, msg: msg}
 }
 
-// ErrorCheck takes an input error and returns a formatted api gateway response
-func (e impartError) ToGatewayResponse() events.APIGatewayProxyResponse {
-	return events.APIGatewayProxyResponse{Body: e.ToJson(), StatusCode: e.HttpStatus()}
-}
+var UnknownError = NewError(ErrUnknown, "Internal Server Error")
 
 // ErrorCheck takes an input error and returns a formatted api gateway response
 func (e impartError) HttpStatus() int {

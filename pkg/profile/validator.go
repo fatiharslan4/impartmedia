@@ -1,8 +1,11 @@
 package profile
 
 import (
+	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"net/mail"
+	"regexp"
 	"strings"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -11,7 +14,9 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 )
 
-func (ps *profileService) validateNewProfile(p models.Profile) impart.Error {
+var screenNameRegexp = regexp.MustCompile(`[[:alnum:]]+$`)
+
+func (ps *profileService) validateNewProfile(ctx context.Context, p models.Profile) impart.Error {
 	var err error
 
 	if _, err = ksuid.Parse(p.ImpartWealthID); err != nil {
@@ -19,15 +24,15 @@ func (ps *profileService) validateNewProfile(p models.Profile) impart.Error {
 	}
 
 	// Validate doesn't exist
-	existingProfile, err := ps.db.GetProfile(p.ImpartWealthID, true)
+	user, err := ps.profileStore.GetUser(ctx, p.ImpartWealthID)
 	if err != nil {
 		if err != impart.ErrNotFound {
 			return impart.NewError(err, "error checking impartID")
 		}
 		err = nil
 	}
-	if existingProfile.ImpartWealthID != "" {
-		return impart.NewError(impart.ErrExists, "profile already exists")
+	if user != nil {
+		return impart.NewError(impart.ErrExists, "impartWealthId already exists")
 	}
 
 	// Validate Auth ID
@@ -40,7 +45,7 @@ func (ps *profileService) validateNewProfile(p models.Profile) impart.Error {
 		return impart.NewError(impart.ErrBadRequest, "invalid email address")
 	}
 
-	impartWealthId, err := ps.db.GetImpartIdFromAuthId(p.AuthenticationID)
+	user, err = ps.profileStore.GetUserFromAuthId(ctx, p.AuthenticationID)
 	if err != nil {
 		if err != impart.ErrNotFound {
 			return impart.NewError(err, "error checking authenticationId")
@@ -48,11 +53,11 @@ func (ps *profileService) validateNewProfile(p models.Profile) impart.Error {
 			err = nil
 		}
 	}
-	if impartWealthId != "" {
+	if user != nil {
 		return impart.NewError(impart.ErrExists, fmt.Sprintf("authenticationId %s already exists!", p.AuthenticationID))
 	}
 
-	impartWealthId, err = ps.db.GetImpartIdFromEmail(p.Email)
+	user, err = ps.profileStore.GetUserFromEmail(ctx, p.Email)
 	if err != nil {
 		if err != impart.ErrNotFound {
 			return impart.NewError(err, "error checking email")
@@ -60,22 +65,26 @@ func (ps *profileService) validateNewProfile(p models.Profile) impart.Error {
 			err = nil
 		}
 	}
-	if impartWealthId != "" {
+	if user != nil {
 		return impart.NewError(impart.ErrExists, "email already exists!")
 	}
 
-	if strings.TrimSpace(p.ScreenName) != "" {
-		impartWealthId, err = ps.db.GetImpartIdFromScreenName(p.ScreenName)
-		if err != nil {
-			if err != impart.ErrNotFound {
-				return impart.NewError(err, "error checking screenName")
-			} else {
-				err = nil
-			}
+	if screenNameRegexp.FindString(p.ScreenName) != p.ScreenName {
+		{
+			ps.Logger().Error("invalid screen name", zap.String("screenName", p.ScreenName))
+			return impart.NewError(impart.ErrBadRequest, "invalid screen name, must be alphanumeric characters only")
 		}
-		if impartWealthId != "" {
-			return impart.NewError(impart.ErrExists, "screenName already exists")
+	}
+	user, err = ps.profileStore.GetUserFromScreenName(ctx, p.ScreenName)
+	if err != nil {
+		if err != impart.ErrNotFound {
+			return impart.NewError(err, "error checking screenName")
+		} else {
+			err = nil
 		}
+	}
+	if user != nil {
+		return impart.NewError(impart.ErrExists, "screenName already exists")
 	}
 
 	return nil
@@ -84,7 +93,8 @@ func (ps *profileService) validateNewProfile(p models.Profile) impart.Error {
 func (ps *profileService) ValidateSchema(document gojsonschema.JSONLoader) impart.Error {
 	result, err := gojsonschema.Validate(ps.schemaValidator, document)
 	if err != nil {
-		ps.SugaredLogger.Fatal(err.Error())
+		ps.SugaredLogger.Error(err.Error())
+		return impart.NewError(impart.ErrBadRequest, "unable to validate schema")
 	}
 
 	if result.Valid() {

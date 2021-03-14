@@ -21,7 +21,6 @@ var topLevelModels = map[string]interface{}{
 	"PostCommentTrack":      models.PostCommentTrack{},
 	"PagedPostsResponse":    models.PagedPostsResponse{},
 	"PagedCommentsResponse": models.PagedCommentsResponse{},
-	"WhiteListProfile":      models.WhiteListProfile{},
 	"Tags":                  tags.Tags{},
 	"TagComparisons":        tags.TagComparisons{},
 }

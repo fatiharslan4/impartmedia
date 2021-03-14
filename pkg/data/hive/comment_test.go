@@ -1,185 +1,125 @@
+// +build integration
+
 package data
 
 import (
-	"net"
-	"testing"
-	"time"
-
-	"github.com/impartwealthapp/backend/pkg/models"
-	"github.com/stretchr/testify/assert"
+	"context"
+	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 )
 
-var commentData = func() Comments {
-	_, err := net.DialTimeout("tcp", "localhost:8000", time.Duration(1*time.Second))
-	if err != nil {
-		panic(err)
+func (s *HiveTestSuite) bootstrapComment(ctx context.Context, postId uint64) uint64 {
+	var err error
+	ctxUser := impart.GetCtxUser(ctx)
+	newComment := &dbmodels.Comment{
+		PostID:          postId,
+		ImpartWealthID:  ctxUser.ImpartWealthID,
+		CreatedTS:       impart.CurrentUTC(),
+		Content:         "moleh moleh moleh",
+		LastReplyTS:     impart.CurrentUTC(),
+		ParentCommentID: null.Uint64{},
 	}
-	p, err := NewCommentData("us-east-2", localDynamo, "local", logger)
-	if err != nil {
-		panic(err)
+	newComment, err = s.hiveData.NewComment(ctx, newComment)
+	s.NoError(err)
+	s.NotZero(newComment.CommentID)
+	return newComment.CommentID
+}
+
+func (s *HiveTestSuite) TestGetNewComment() {
+	ctx := s.contextWithImpartAdmin()
+	hiveID := s.bootstrapTestHive(ctx)
+	ctxUser := impart.GetCtxUser(ctx)
+	postID := s.bootstrapPost(ctx, hiveID)
+
+	newComment := dbmodels.Comment{
+		PostID:          postID,
+		ImpartWealthID:  ctxUser.ImpartWealthID,
+		CreatedTS:       impart.CurrentUTC(),
+		Content:         "moleh moleh moleh",
+		LastReplyTS:     impart.CurrentUTC(),
+		ParentCommentID: null.Uint64{},
 	}
-	return p
-}()
+	tmp := newComment
+	createdComment, err := s.hiveData.NewComment(ctx, &tmp)
+	s.NoError(err)
+	s.NotZero(createdComment.CommentID)
+	s.Equal(newComment.PostID, createdComment.PostID)
+	s.Equal(newComment.ImpartWealthID, createdComment.ImpartWealthID)
+	s.Equal(newComment.CreatedTS, createdComment.CreatedTS)
+	s.Equal(newComment.Content, createdComment.Content)
+	s.Equal(newComment.LastReplyTS, createdComment.LastReplyTS)
 
-func TestDynamo_NewComment(t *testing.T) {
-	c := models.Comment{}
-	c.Random()
-	//c.CommentDatetime = impart.CurrentUTC()
+	//comment, err
+}
 
-	cc, err := commentData.NewComment(c)
-	assert.NoError(t, err)
-	assert.Equal(t, c, cc)
+func (s *HiveTestSuite) TestDeleteComment() {
+	ctx := s.contextWithImpartAdmin()
+	hiveID := s.bootstrapTestHive(ctx)
+	postID := s.bootstrapPost(ctx, hiveID)
+	commentID := s.bootstrapComment(ctx, postID)
 
-	c2 := models.Comment{}
-	c2.Random()
-	//c2.CommentDatetime = now()
+	existingComment, err := s.hiveData.GetComment(ctx, commentID)
+	s.NoError(err)
+	s.NotNil(existingComment)
 
-	cc, err = commentData.NewComment(c2)
-	assert.NoError(t, err)
-	assert.Equal(t, c2, cc)
+	err = s.hiveData.DeleteComment(ctx, commentID)
+
+	existingComment, err = s.hiveData.GetComment(ctx, commentID)
+	s.NotNil(err)
+	s.Equal(impart.ErrNotFound, err)
+	s.Nil(existingComment)
 
 }
 
-func TestDynamo_EditComment(t *testing.T) {
-	c := models.Comment{}
-	c.Random()
-	//c.CommentDatetime = now()
+func (s *HiveTestSuite) TestGetEditComment() {
+	ctx := s.contextWithImpartAdmin()
+	hiveID := s.bootstrapTestHive(ctx)
+	postID := s.bootstrapPost(ctx, hiveID)
+	commentID := s.bootstrapComment(ctx, postID)
 
-	cc, err := commentData.NewComment(c)
-	assert.NoError(t, err)
-	assert.Equal(t, c, cc)
+	existingComment, err := s.hiveData.GetComment(ctx, commentID)
+	s.NoError(err)
 
-	newEdit := models.RandomEdit()
-	c.Edits = append(c.Edits, newEdit)
-
-	newContent := c.Content.Markdown + models.RandomContent(1).Markdown
-	c.Content.Markdown = newContent
-
-	editedComment, err := commentData.EditComment(c)
-	assert.NoError(t, err)
-	assert.Equal(t, c.Content.Markdown, editedComment.Content.Markdown)
-	assert.Contains(t, c.Edits, newEdit)
+	existingComment.Content = "edited content"
+	c, err := s.hiveData.EditComment(ctx, existingComment)
+	s.NoError(err)
+	s.Equal("edited content", c.Content)
 
 }
 
-func TestDynamo_GetComments(t *testing.T) {
-	c := models.Comment{}
-	c.Random()
-	//c.CommentDatetime = now()
-
-	cc, err := commentData.NewComment(c)
-	assert.NoError(t, err)
-	assert.Equal(t, c, cc)
-
-	staticHiveID := c.HiveID
-	staticPostID := c.PostID
-
-	for i := 0; i < 9; i++ {
-		c.Random()
-		c.HiveID = staticHiveID
-		c.PostID = staticPostID
-		_, err = commentData.NewComment(c)
-		assert.NoError(t, err)
+func (s *HiveTestSuite) TestGetCommentsPaging() {
+	ctx := s.contextWithImpartAdmin()
+	hiveID := s.bootstrapTestHive(ctx)
+	//ctxUser := impart.GetCtxUser(ctx)
+	postID := s.bootstrapPost(ctx, hiveID)
+	expectedCommentIds := []uint64{
+		s.bootstrapComment(ctx, postID),
+		s.bootstrapComment(ctx, postID),
+		s.bootstrapComment(ctx, postID),
+		s.bootstrapComment(ctx, postID),
+		s.bootstrapComment(ctx, postID),
 	}
 
-	posts, _, err := commentData.GetComments(staticPostID, 10, nil)
-	assert.NoError(t, err)
-	assert.Len(t, posts, 10)
-}
+	comments, nextPage, err := s.hiveData.GetComments(ctx, postID, 2, 0)
+	s.NoError(err)
+	s.Len(comments, 2)
+	s.Require().NotNil(nextPage)
+	s.Equal(2, nextPage.Offset)
+	s.Equal(expectedCommentIds[0], comments[0].CommentID)
+	s.Equal(expectedCommentIds[1], comments[1].CommentID)
 
-func TestDynamo_GetCommentsByImpartWealthID(t *testing.T) {
-	c := models.Comment{}
-	c.Random()
-	//c.CommentDatetime = now()
+	comments, nextPage, err = s.hiveData.GetComments(ctx, postID, 2, nextPage.Offset)
+	s.NoError(err)
+	s.Len(comments, 2)
+	s.Require().NotNil(nextPage)
+	s.Equal(4, nextPage.Offset)
+	s.Equal(expectedCommentIds[2], comments[0].CommentID)
+	s.Equal(expectedCommentIds[3], comments[1].CommentID)
 
-	cc, err := commentData.NewComment(c)
-	assert.NoError(t, err)
-	assert.Equal(t, c, cc)
-
-	staticHiveID := c.HiveID
-	staticPostID := c.PostID
-	staticImpartWealthID := c.ImpartWealthID
-
-	for i := 0; i < 9; i++ {
-		c.Random()
-		c.HiveID = staticHiveID
-		c.PostID = staticPostID
-		if i%2 == 0 && i > 0 {
-			c.ImpartWealthID = staticImpartWealthID
-		}
-		_, err = commentData.NewComment(c)
-		assert.NoError(t, err)
-	}
-
-	n := time.Time{}
-	comments, err := commentData.GetCommentsByImpartWealthID(staticImpartWealthID, 10, n)
-	assert.NoError(t, err)
-	assert.Len(t, comments, 5)
-}
-
-func TestDynamo_DeleteComment(t *testing.T) {
-	c := models.Comment{}
-	c.Random()
-	//c.CommentDatetime = now()
-
-	cc, err := commentData.NewComment(c)
-	assert.NoError(t, err)
-	assert.Equal(t, c, cc)
-
-	c2 := models.Comment{}
-	c2.Random()
-	//c2.CommentDatetime = now()
-
-	cc, err = commentData.NewComment(c2)
-	assert.NoError(t, err)
-	assert.Equal(t, c2, cc)
-
-	err = commentData.DeleteComment(c.PostID, c.CommentID)
-	assert.NoError(t, err)
-	err = commentData.DeleteComment(c2.PostID, c2.CommentID)
-	assert.NoError(t, err)
-
-}
-
-func TestDynamo_GetComments_paging(t *testing.T) {
-	c := models.Comment{}
-	c.Random()
-	//c.CommentDatetime = now()
-
-	cc, err := commentData.NewComment(c)
-	assert.NoError(t, err)
-	assert.Equal(t, c, cc)
-
-	staticHiveID := c.HiveID
-	staticPostID := c.PostID
-
-	for i := 0; i < 12; i++ {
-		time.Sleep(100 * time.Millisecond)
-		c.Random()
-		c.HiveID = staticHiveID
-		c.PostID = staticPostID
-		//c.CommentDatetime = now()
-		_, err = commentData.NewComment(c)
-		assert.NoError(t, err)
-	}
-
-	allComments, _, err := commentData.GetComments(staticPostID, 0, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 13, len(allComments))
-
-	comments, nextPage, err := commentData.GetComments(staticPostID, 5, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 5, len(comments))
-	assert.NotNil(t, nextPage)
-
-	assert.Equal(t, allComments[0], comments[0])
-	assert.Equal(t, allComments[1], comments[1])
-	assert.Equal(t, allComments[2], comments[2])
-	assert.Equal(t, allComments[3], comments[3])
-	assert.Equal(t, allComments[4], comments[4])
-
-	comments2, nextPage, err := commentData.GetComments(staticPostID, 0, nextPage)
-	assert.NoError(t, err)
-	assert.Equal(t, 8, len(comments2))
-	assert.Nil(t, nextPage)
+	comments, nextPage, err = s.hiveData.GetComments(ctx, postID, 2, nextPage.Offset)
+	s.NoError(err)
+	s.Len(comments, 1)
+	s.Require().Nil(nextPage)
+	s.Equal(expectedCommentIds[4], comments[0].CommentID)
 }

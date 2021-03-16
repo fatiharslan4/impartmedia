@@ -116,7 +116,8 @@ resource "aws_ecs_service" "all" {
   cluster         = data.aws_ecs_cluster.backend.id
   task_definition = aws_ecs_task_definition.all[each.key].arn
   desired_count   = each.value.desired_count
-
+  launch_type = "EC2"
+  scheduling_strategy = "REPLICA"
   ordered_placement_strategy {
     type  = "spread"
     field = "instanceId"
@@ -127,7 +128,6 @@ resource "aws_ecs_service" "all" {
     container_name   = "api"
     container_port   = var.container_port
   }
-
   placement_constraints {
     type       = "memberOf"
     expression = "attribute:ecs.availability-zone in [${var.region}a, ${var.region}b]"
@@ -139,6 +139,7 @@ resource "aws_ecs_task_definition" "all" {
   for_each = local.enabled_deployments
   family   = "service-${each.key}"
   task_role_arn        = aws_iam_role.all[each.key].arn
+  network_mode = "bridge"
   container_definitions = templatefile("./taskdef.json",
     {
       env    = each.key

@@ -5,12 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/impartwealthapp/backend/pkg/data/migrater"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -94,7 +94,7 @@ func main() {
 	defer db.Close()
 	defer logger.Sync()
 
-	if err := migrater.BootStrapAdminUser(db, cfg.Env, logger); err != nil {
+	if err := migrater.BootStrapAdminUsers(db, cfg.Env, logger); err != nil {
 		logger.Fatal("unable to bootstrap user", zap.Error(err))
 	}
 
@@ -107,6 +107,10 @@ func main() {
 
 	r.NoRoute(noRouteFunc)
 	r.GET("/ping", func(ctx *gin.Context) {
+		_, err := dbmodels.Pings(dbmodels.PingWhere.Ok.EQ(true)).One(ctx, db)
+		if err != nil {
+			ctx.AbortWithStatus(http.StatusInternalServerError)
+		}
 		ctx.String(http.StatusOK, "pong")
 	})
 
@@ -158,7 +162,7 @@ func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services
 		logger.Fatal("err creating auth service", zap.Error(err))
 	}
 
-	if strings.Contains(cfg.DynamoEndpoint, "localhost") || strings.Contains(cfg.DynamoEndpoint, "127.0.0.1") {
+	if cfg.Env == config.Local {
 		svcs.Notifications = impart.NewNoopNotificationService()
 	} else {
 		svcs.Notifications = impart.NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)

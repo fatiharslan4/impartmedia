@@ -5,6 +5,7 @@ resource "aws_lb_target_group" "map" {
   vpc_id   = data.aws_vpc.impart-backend.id
   port = 8080
   protocol = "HTTP"
+  target_type = "instance"
   health_check {
     enabled = true
     interval = 20

@@ -6,7 +6,9 @@ RUN go build -mod=vendor -o /app/impart-backend /app/cmd/server/main.go
 
 FROM debian:buster-slim
 RUN apt-get -y update && \
-  apt-get install -y curl wget ca-certificates
+  apt-get install -y curl wget ca-certificates iputils-ping netcat dnsutils mariadb-client jq && \
+  apt-get clean && \
+  apt-get autoremove --purge
 WORKDIR /app
 COPY --from=build /app/impart-backend /app/
 COPY --from=build /app/schemas /app/schemas
@@ -23,5 +25,5 @@ RUN cat ~/.aws/config && cat ~/.aws/credentials
 
 ENTRYPOINT ["/app/impart-backend"]
 
-HEALTHCHECK --interval=5s --timeout=3s --start-period=1s --retries=3 \
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
   CMD curl -f http://localhost/ping || exit 1

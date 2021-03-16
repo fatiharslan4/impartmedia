@@ -12,6 +12,7 @@ var TableNames = struct {
 	HiveMembers               string
 	NotificationSubscriptions string
 	NotificationTopic         string
+	Pings                     string
 	Post                      string
 	PostEdits                 string
 	PostReactions             string
@@ -28,6 +29,7 @@ var TableNames = struct {
 	HiveMembers:               "hive_members",
 	NotificationSubscriptions: "notification_subscriptions",
 	NotificationTopic:         "notification_topic",
+	Pings:                     "pings",
 	Post:                      "post",
 	PostEdits:                 "post_edits",
 	PostReactions:             "post_reactions",

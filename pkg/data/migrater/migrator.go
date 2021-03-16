@@ -84,11 +84,44 @@ func RunMigrationsDown(db *sql.DB, filepath string, logger *zap.Logger, stop <-c
 	return m.Down()
 }
 
-func BootStrapAdminUser(db *sql.DB, env config.Environment, logger *zap.Logger) error {
-	var bootstrapUser *dbmodels.User
-	switch env {
-	case config.Local:
-		bootstrapUser = &dbmodels.User{
+func BootStrapAdminUsers(db *sql.DB, env config.Environment, logger *zap.Logger) error {
+	bootstrapAdmins := envAdmins[env]
+	hives, err := dbmodels.Hives().All(context.TODO(), db)
+	if err != nil {
+		return err
+	}
+
+	logger.Info("bootstrapping admin users", zap.String("environment", string(env)),
+		zap.Int("hiveCount", len(hives)), zap.Int("userCount", len(bootstrapAdmins)))
+	for _, u := range bootstrapAdmins {
+		tx, err := db.BeginTx(context.TODO(), &sql.TxOptions{
+			Isolation: sql.LevelSerializable,
+		})
+		if err != nil {
+			if tx != nil {
+				tx.Rollback()
+			}
+			return err
+		}
+		logger.Info("Bootstrapping user", zap.String("email", u.Email))
+		if err = u.Upsert(context.TODO(), tx, boil.Infer(), boil.Infer()); err != nil {
+			tx.Rollback()
+			return err
+		}
+		//make sure the admin is a member of all hives
+
+		if err = u.SetMemberHiveHives(context.TODO(), tx, false, hives...); err != nil {
+			tx.Rollback()
+			return err
+		}
+		tx.Commit()
+	}
+	return nil
+}
+
+var envAdmins = map[config.Environment][]*dbmodels.User{
+	config.Local: []*dbmodels.User{
+		&dbmodels.User{
 			ImpartWealthID:   "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
 			AuthenticationID: "auth0|604b0291d42b9200691ec8a4",
 			Email:            "jamison@impart.media",
@@ -98,18 +131,58 @@ func BootStrapAdminUser(db *sql.DB, env config.Environment, logger *zap.Logger) 
 			DeviceToken:      "",
 			AwsSNSAppArn:     "",
 			Admin:            true,
-		}
-	default:
-		return nil
-	}
-	logger.Info("Bootstrapping user", zap.String("email", bootstrapUser.Email))
-	err := bootstrapUser.Upsert(context.TODO(), db, boil.Infer(), boil.Infer())
-	if err != nil {
-		return err
-	}
-	bootstrapUser.SetMemberHiveHives(context.TODO(), db, false, &dbmodels.Hive{HiveID: 1})
-	if err != nil {
-		return err
-	}
-	return bootstrapUser.Upsert(context.TODO(), db, boil.Infer(), boil.Infer())
+		},
+	},
+	config.Development: []*dbmodels.User{
+		&dbmodels.User{
+			ImpartWealthID:   "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
+			AuthenticationID: "auth0|604e8a730f2d99006dd9521d",
+			Email:            "jamison@impart.media",
+			ScreenName:       "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
+			CreatedTS:        impart.CurrentUTC(),
+			UpdatedTS:        impart.CurrentUTC(),
+			DeviceToken:      "",
+			AwsSNSAppArn:     "",
+			Admin:            true,
+		},
+	},
+	config.IOS: []*dbmodels.User{
+		&dbmodels.User{
+			ImpartWealthID:   "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
+			AuthenticationID: "auth0|604e8b2646a2f7007123d28d",
+			Email:            "jamison@impart.media",
+			ScreenName:       "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
+			CreatedTS:        impart.CurrentUTC(),
+			UpdatedTS:        impart.CurrentUTC(),
+			DeviceToken:      "",
+			AwsSNSAppArn:     "",
+			Admin:            true,
+		},
+	},
+	config.Preproduction: []*dbmodels.User{
+		&dbmodels.User{
+			ImpartWealthID:   "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
+			AuthenticationID: "auth0|604e8a87ffc20800689e61f2",
+			Email:            "jamison@impart.media",
+			ScreenName:       "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
+			CreatedTS:        impart.CurrentUTC(),
+			UpdatedTS:        impart.CurrentUTC(),
+			DeviceToken:      "",
+			AwsSNSAppArn:     "",
+			Admin:            true,
+		},
+	},
+	config.Production: []*dbmodels.User{
+		&dbmodels.User{
+			ImpartWealthID:   "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
+			AuthenticationID: "auth0|604e8b0243674100696d7812",
+			Email:            "jamison@impart.media",
+			ScreenName:       "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
+			CreatedTS:        impart.CurrentUTC(),
+			UpdatedTS:        impart.CurrentUTC(),
+			DeviceToken:      "",
+			AwsSNSAppArn:     "",
+			Admin:            true,
+		},
+	},
 }

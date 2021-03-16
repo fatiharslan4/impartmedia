@@ -15,7 +15,7 @@ func getDefaultConfig() *mysql.Config {
 	mysqlConfig.CheckConnLiveness = true
 	mysqlConfig.Collation = "utf8mb4_unicode_ci"
 	mysqlConfig.Loc = time.UTC
-	mysqlConfig.TLSConfig = "skip-verify"
+	mysqlConfig.TLSConfig = "preferred"
 	mysqlConfig.Timeout = 10 * time.Second
 	mysqlConfig.ReadTimeout = 10 * time.Second
 	mysqlConfig.WriteTimeout = 10 * time.Second

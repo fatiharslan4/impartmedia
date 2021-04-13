@@ -25,22 +25,27 @@ type Service interface {
 }
 
 type authService struct {
-	AuthCertB64 string `split_words:"true"`
-	Auth0Cert   *rsa.PublicKey
-	Auth0Certs  map[string]*rsa.PublicKey
-	APIKey      string
-	logger      *zap.Logger
-	profileData profiledata.Store
+	AuthCertB64           string `split_words:"true"`
+	Auth0Cert             *rsa.PublicKey
+	Auth0Certs            map[string]*rsa.PublicKey
+	APIKey                string
+	logger                *zap.Logger
+	profileData           profiledata.Store
+	cfg                   *config.Impart
+	unauthenticatedRoutes map[string]string
 }
 
 func NewAuthService(cfg *config.Impart, profileData profiledata.Store, logger *zap.Logger) (Service, error) {
+
 	start := time.Now()
 	var err error
 	svc := &authService{
 		logger:      logger,
 		profileData: profileData,
 		APIKey:      cfg.APIKey,
+		cfg:         cfg,
 	}
+	svc.SetUnauthenticatedRoutes(cfg)
 	svc.Auth0Certs, err = GetRSAPublicKeys()
 	if err != nil {
 		return nil, err
@@ -54,7 +59,7 @@ func NewAuthService(cfg *config.Impart, profileData profiledata.Store, logger *z
 func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		//allow some routes through authz
-		if strings.Contains(ctx.Request.RequestURI, "/v1/profiles/new") && ctx.Request.Method == "GET" {
+		if _, ok := a.unauthenticatedRoutes[ctx.Request.URL.Path]; ok {
 			ctx.Next()
 			return
 		}
@@ -101,4 +106,29 @@ func (a *authService) APIKeyHandler() gin.HandlerFunc {
 		}
 		ctx.Next()
 	}
+}
+
+var allowedRoutesBase = map[string]string{
+	"%s/profiles/new":   http.MethodGet,
+	"%s/questionnaires": http.MethodGet,
+}
+
+func (a *authService) SetUnauthenticatedRoutes(cfg *config.Impart) {
+	a.unauthenticatedRoutes = make(map[string]string)
+	var v1Route string
+	if cfg.Env == config.Production || cfg.Env == config.Local {
+		v1Route = "/v1"
+	} else {
+		v1Route = fmt.Sprintf("/%s/v1", cfg.Env)
+	}
+
+	for k, v := range allowedRoutesBase {
+		route := fmt.Sprintf(k, v1Route)
+		a.unauthenticatedRoutes[route] = v
+	}
+
+}
+
+func (a *authService) ValidateEmailVerifiedExceptAccountCreation(ctx *gin.Context) {
+
 }

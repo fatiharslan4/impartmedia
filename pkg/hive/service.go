@@ -29,12 +29,14 @@ type Service interface {
 	Votes(ctx context.Context, vote VoteInput) (models.PostCommentTrack, impart.Error)
 	DeletePost(ctx context.Context, postID uint64) impart.Error
 	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) impart.Error
+	ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
 
 	GetComments(ctx context.Context, postID uint64, limit, offset int) (models.Comments, *models.NextPage, impart.Error)
 	GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error)
 	NewComment(ctx context.Context, comment models.Comment) (models.Comment, impart.Error)
 	EditComment(ctx context.Context, comment models.Comment) (models.Comment, impart.Error)
 	DeleteComment(ctx context.Context, commentID uint64) impart.Error
+	ReportComment(ctx context.Context, commentID uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
 }
 
 const maxNotificationLength = 512

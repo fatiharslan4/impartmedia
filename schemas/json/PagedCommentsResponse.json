@@ -5,7 +5,6 @@
 	"definitions": {
 		"Comment": {
 			"required": [
-				"hiveId",
 				"postId",
 				"impartWealthId",
 				"screenName",
@@ -14,18 +13,11 @@
 				"downVotes"
 			],
 			"properties": {
-				"hiveId": {
-					"maxLength": 27,
-					"minLength": 27,
-					"type": "string"
-				},
 				"postId": {
-					"maxLength": 27,
-					"minLength": 27,
-					"type": "string"
+					"type": "integer"
 				},
 				"commentId": {
-					"type": "string"
+					"type": "integer"
 				},
 				"commentDatetime": {
 					"type": "string",
@@ -109,16 +101,11 @@
 		},
 		"NextPage": {
 			"required": [
-				"offsetContentId",
-				"offsetTimestamp"
+				"offset"
 			],
 			"properties": {
-				"offsetContentId": {
-					"type": "string"
-				},
-				"offsetTimestamp": {
-					"type": "string",
-					"format": "date-time"
+				"offset": {
+					"type": "integer"
 				}
 			},
 			"additionalProperties": false,
@@ -149,7 +136,6 @@
 			"required": [
 				"impartWealthId",
 				"contentId",
-				"hiveId",
 				"upVoted",
 				"downVoted"
 			],
@@ -160,15 +146,10 @@
 					"type": "string"
 				},
 				"contentId": {
-					"maxLength": 27,
-					"minLength": 27,
-					"type": "string"
-				},
-				"hiveId": {
-					"type": "string"
+					"type": "integer"
 				},
 				"postId": {
-					"type": "string"
+					"type": "integer"
 				},
 				"upVoted": {
 					"type": "boolean"
@@ -179,9 +160,6 @@
 				"votedDatetime": {
 					"type": "string",
 					"format": "date-time"
-				},
-				"saved": {
-					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

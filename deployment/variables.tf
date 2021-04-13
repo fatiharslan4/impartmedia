@@ -22,7 +22,7 @@ variable "deployments" {
       enabled = true,
       desired_count = 2,
       api_key = "AAs8wLBVd41EEO7Qws25ocutQAjuzwz5MM1nNNLa",
-      image_tag = "ea7ca53",
+      image_tag = "9121011",
       environment_variables = [
         {
           key = "ENV",
@@ -82,7 +82,7 @@ variable "deployments" {
       enabled = true,
       desired_count = 2,
       api_key = "yCwm0JHpIR49GLTG8pqnd6lmTo10Cw2b5gr9qGNM",
-      image_tag = "90d81b2",
+      image_tag = "9121011",
       environment_variables = [
         {
           key = "ENV",
@@ -90,7 +90,7 @@ variable "deployments" {
         },
         {
           key = "DEBUG",
-          value = "false"
+          value = "true"
         },
         {
           key = "PORT",
@@ -146,7 +146,7 @@ variable "deployments" {
       enabled = true,
       desired_count = 2,
       api_key = "K39z2qMKV959GdI7sWpczbnhyiw4Zno6RCVXh233",
-      image_tag = "90d81b2",
+      image_tag = "9121011",
       environment_variables = [
         {
           key = "ENV",

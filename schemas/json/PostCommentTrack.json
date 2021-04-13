@@ -7,7 +7,6 @@
 			"required": [
 				"impartWealthId",
 				"contentId",
-				"hiveId",
 				"upVoted",
 				"downVoted"
 			],
@@ -18,15 +17,10 @@
 					"type": "string"
 				},
 				"contentId": {
-					"maxLength": 27,
-					"minLength": 27,
-					"type": "string"
-				},
-				"hiveId": {
-					"type": "string"
+					"type": "integer"
 				},
 				"postId": {
-					"type": "string"
+					"type": "integer"
 				},
 				"upVoted": {
 					"type": "boolean"
@@ -37,9 +31,6 @@
 				"votedDatetime": {
 					"type": "string",
 					"format": "date-time"
-				},
-				"saved": {
-					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

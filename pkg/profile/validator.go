@@ -20,7 +20,7 @@ func (ps *profileService) validateNewProfile(ctx context.Context, p models.Profi
 	var err error
 
 	if _, err = ksuid.Parse(p.ImpartWealthID); err != nil {
-		return impart.NewError(err, "invalid impartWealthId - must be ksuid")
+		return impart.NewError(err, "invalid impartWealthId format")
 	}
 
 	// Validate doesn't exist

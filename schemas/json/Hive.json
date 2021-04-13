@@ -8,29 +8,18 @@
 				"hiveId",
 				"hiveName",
 				"hiveDescription",
-				"administrators",
 				"pinnedPostId",
-				"tagComparisons",
-				"pinnedPostNotificationTopicARN"
+				"tagComparisons"
 			],
 			"properties": {
 				"hiveId": {
-					"maxLength": 27,
-					"minLength": 27,
-					"type": "string"
+					"type": "integer"
 				},
 				"hiveName": {
 					"type": "string"
 				},
 				"hiveDescription": {
 					"type": "string"
-				},
-				"administrators": {
-					"items": {
-						"$schema": "http://json-schema.org/draft-04/schema#",
-						"$ref": "#/definitions/HiveAdmin"
-					},
-					"type": "array"
 				},
 				"hiveDistributions": {
 					"items": {
@@ -39,12 +28,8 @@
 					},
 					"type": "array"
 				},
-				"metrics": {
-					"$schema": "http://json-schema.org/draft-04/schema#",
-					"$ref": "#/definitions/HiveMetrics"
-				},
 				"pinnedPostId": {
-					"type": "string"
+					"type": "integer"
 				},
 				"tagComparisons": {
 					"items": {
@@ -52,29 +37,6 @@
 						"$ref": "#/definitions/TagComparison"
 					},
 					"type": "array"
-				},
-				"pinnedPostNotificationTopicARN": {
-					"type": "string"
-				}
-			},
-			"additionalProperties": false,
-			"type": "object"
-		},
-		"HiveAdmin": {
-			"required": [
-				"impartWealthId",
-				"screenName"
-			],
-			"properties": {
-				"impartWealthId": {
-					"type": "string"
-				},
-				"screenName": {
-					"type": "string"
-				},
-				"adminDatetime": {
-					"type": "string",
-					"format": "date-time"
 				}
 			},
 			"additionalProperties": false,
@@ -94,22 +56,6 @@
 					"type": "string"
 				},
 				"sortValue": {
-					"type": "integer"
-				}
-			},
-			"additionalProperties": false,
-			"type": "object"
-		},
-		"HiveMetrics": {
-			"required": [
-				"memberCount",
-				"postCount"
-			],
-			"properties": {
-				"memberCount": {
-					"type": "integer"
-				},
-				"postCount": {
 					"type": "integer"
 				}
 			},

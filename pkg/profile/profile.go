@@ -17,6 +17,7 @@ import (
 )
 
 type Service interface {
+	QuestionnaireService
 	NewProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
 	GetProfile(ctx context.Context, getProfileInput GetProfileInput) (models.Profile, impart.Error)
 	UpdateProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
@@ -96,12 +97,16 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 		return empty, impart.NewError(impart.ErrBadRequest, "Unable to locate authenticationID")
 	}
 	ctxUser, err := ps.profileStore.GetUserFromAuthId(ctx, contextAuthId)
-	if err != nil && err != impart.ErrNotFound {
-		ps.Logger().Error("error checking existing profile", zap.Error(err))
-		return empty, impart.NewError(impart.ErrUnknown, "unable to check existing profile")
-	} else if err == impart.ErrNotFound {
-		//new authenticated user is created this profile/user
-		p.AuthenticationID = contextAuthId
+	if err != nil {
+		if err == impart.ErrNotFound {
+			//new authenticated user is created this profile/user
+			p.AuthenticationID = contextAuthId
+			ps.Logger().Debug("requested to create new profile",
+				zap.Any("AuthenticationID", p.AuthenticationID))
+		} else {
+			ps.Logger().Error("error checking existing profile", zap.Error(err))
+			return empty, impart.NewError(impart.ErrUnknown, "unable to check existing profile")
+		}
 	} else if ctxUser != nil && ctxUser.Admin {
 		//allow the creation of the profile by an admin
 		ps.Logger().Info("admin user is creating a new user",
@@ -112,19 +117,18 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 		return empty, impart.NewError(impart.ErrExists, "an existing impart wealth user for this id exists")
 	} else {
 		//what?
+		ps.Logger().Error("create of profile failed - unexpected situation", zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
 		return empty, impart.NewError(impart.ErrUnknown, "unable to create profile; unknown state")
 	}
-
-	p.SurveyResponses = models.SurveyResponses{}
 
 	if impartErr := ps.validateNewProfile(ctx, p); impartErr != nil {
 		return empty, impartErr
 	}
 
+	ps.Logger().Debug("creating a new user profile", zap.Any("updated", p))
 	p.CreatedDate = impart.CurrentUTC()
 	p.UpdatedDate = impart.CurrentUTC()
 	p.Attributes.UpdatedDate = impart.CurrentUTC()
-	p.SurveyResponses.ImportTimestamp = impart.CurrentUTC()
 	p.Admin = false
 
 	dbUser, err := p.DBUser()
@@ -135,9 +139,9 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	if err != nil {
 		return empty, impart.NewError(impart.ErrUnknown, "couldn't convert profile to profileStore profile")
 	}
-	dbUser.CreatedTS = impart.CurrentUTC()
-	dbUser.UpdatedTS = impart.CurrentUTC()
-	dbProfile.UpdatedTS = impart.CurrentUTC()
+	dbUser.CreatedAt = impart.CurrentUTC()
+	dbUser.UpdatedAt = impart.CurrentUTC()
+	dbProfile.UpdatedAt = impart.CurrentUTC()
 	endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
 	dbUser.AwsSNSAppArn = endpointARN
 
@@ -146,6 +150,7 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 		ps.Error(err)
 		return empty, impart.NewError(err, "unable to create profile")
 	}
+
 	dbUser, err = ps.profileStore.GetUser(ctx, dbUser.ImpartWealthID)
 	if err != nil {
 		ps.Error(err)
@@ -201,7 +206,9 @@ func (ps *profileService) GetProfile(ctx context.Context, gpi GetProfileInput) (
 		p, err = ps.profileStore.GetProfile(ctx, u.ImpartWealthID)
 	}
 	if err != nil {
-		return models.Profile{}, impart.NewError(err, "unable to find a matching profile")
+		if err != impart.ErrNotFound {
+			return models.Profile{}, impart.NewError(err, "error fetching matching profile")
+		}
 	}
 
 	out, err = models.ProfileFromDBModel(u, p)
@@ -234,12 +241,12 @@ func (ps *profileService) UpdateProfile(ctx context.Context, p models.Profile) (
 		zap.Any("updated", p))
 
 	if p.CreatedDate.IsZero() ||
-		p.UpdatedDate.IsZero() || !p.CreatedDate.Equal(existingDBUser.CreatedTS) || !p.UpdatedDate.Equal(existingDBUser.UpdatedTS) {
+		p.UpdatedDate.IsZero() || !p.CreatedDate.Equal(existingDBUser.CreatedAt) || p.UpdatedDate.Sub(existingDBUser.UpdatedAt) < 0 {
 		msg := "profile being updated appears to be incorrect - critical properties do not match the profile being updated."
-		ps.Logger().Error(msg, zap.Time("inCreatedTS", p.CreatedDate),
-			zap.Time("existingCreatedTS", existingDBUser.CreatedTS),
-			zap.Time("inUpdatedTS", p.UpdatedDate),
-			zap.Time("existingUpdatedTS", existingDBUser.UpdatedTS))
+		ps.Logger().Error(msg, zap.Time("inCreatedAt", p.CreatedDate),
+			zap.Time("existingCreatedAt", existingDBUser.CreatedAt),
+			zap.Time("inUpdatedAt", p.UpdatedDate),
+			zap.Time("existingUpdatedAt", existingDBUser.UpdatedAt))
 		return empty, impart.NewError(impart.ErrBadRequest, msg)
 	}
 
@@ -248,7 +255,7 @@ func (ps *profileService) UpdateProfile(ctx context.Context, p models.Profile) (
 		ps.Logger().Error("error unsusbcribing", zap.Error(err))
 	} else if existingDBUser.DeviceToken != p.DeviceToken {
 		existingDBUser.DeviceToken = p.DeviceToken
-		existingDBUser.UpdatedTS = impart.CurrentUTC()
+		existingDBUser.UpdatedAt = impart.CurrentUTC()
 		if err := ps.SubscribeNewDeviceToken(ctx, existingDBUser); err != nil {
 			return empty, impart.NewError(impart.ErrUnknown, "unknown error updating subscriptions")
 		}
@@ -257,12 +264,6 @@ func (ps *profileService) UpdateProfile(ctx context.Context, p models.Profile) (
 	tmpProfile, err := models.ProfileFromDBModel(existingDBUser, existingDBProfile)
 	if err != nil {
 		return models.Profile{}, impart.NewError(impart.ErrUnknown, "unable to generate an impart profile from existing DB profile")
-	}
-
-	if !reflect.DeepEqual(p.SurveyResponses, tmpProfile.SurveyResponses) {
-		if err := existingDBProfile.SurveyResponses.Marshal(p.SurveyResponses); err != nil {
-			return empty, impart.NewError(impart.ErrUnknown, "unable to update profile")
-		}
 	}
 
 	if !reflect.DeepEqual(p.Attributes, tmpProfile.Attributes) {
@@ -294,7 +295,7 @@ func (ps *profileService) SubscribeNewDeviceToken(ctx context.Context, user *dbm
 		return err
 	}
 	user.AwsSNSAppArn = endpointARN
-	user.UpdatedTS = impart.CurrentUTC()
+	user.UpdatedAt = impart.CurrentUTC()
 	if _, err := user.Update(ctx, ps.db, boil.Infer()); err != nil {
 		return err
 	}

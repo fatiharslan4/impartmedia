@@ -119,6 +119,8 @@ func BootStrapAdminUsers(db *sql.DB, env config.Environment, logger *zap.Logger)
 	return nil
 }
 
+// christian PW 1q0FlyD8rP65vhL8UNHzDKQOjzh1q0FllEIfAww
+//
 var envAdmins = map[config.Environment][]*dbmodels.User{
 	config.Local: []*dbmodels.User{
 		&dbmodels.User{
@@ -126,8 +128,8 @@ var envAdmins = map[config.Environment][]*dbmodels.User{
 			AuthenticationID: "auth0|604b0291d42b9200691ec8a4",
 			Email:            "jamison@impart.media",
 			ScreenName:       "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
-			CreatedTS:        impart.CurrentUTC(),
-			UpdatedTS:        impart.CurrentUTC(),
+			CreatedAt:        impart.CurrentUTC(),
+			UpdatedAt:        impart.CurrentUTC(),
 			DeviceToken:      "",
 			AwsSNSAppArn:     "",
 			Admin:            true,
@@ -139,8 +141,8 @@ var envAdmins = map[config.Environment][]*dbmodels.User{
 			AuthenticationID: "auth0|604e8a730f2d99006dd9521d",
 			Email:            "jamison@impart.media",
 			ScreenName:       "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
-			CreatedTS:        impart.CurrentUTC(),
-			UpdatedTS:        impart.CurrentUTC(),
+			CreatedAt:        impart.CurrentUTC(),
+			UpdatedAt:        impart.CurrentUTC(),
 			DeviceToken:      "",
 			AwsSNSAppArn:     "",
 			Admin:            true,
@@ -148,12 +150,21 @@ var envAdmins = map[config.Environment][]*dbmodels.User{
 	},
 	config.IOS: []*dbmodels.User{
 		&dbmodels.User{
+			ImpartWealthID:   "1q0G23gpJvIVLYRH2dGaOWvy8MF",
+			AuthenticationID: "auth0|605563b411413d0068055df2",
+			Email:            "christian@impart.media",
+			ScreenName:       "1q0G23gpJvIVLYRH2dGaOWvy8MF",
+			DeviceToken:      "",
+			AwsSNSAppArn:     "",
+			Admin:            true,
+		},
+		&dbmodels.User{
 			ImpartWealthID:   "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
 			AuthenticationID: "auth0|604e8b2646a2f7007123d28d",
 			Email:            "jamison@impart.media",
 			ScreenName:       "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
-			CreatedTS:        impart.CurrentUTC(),
-			UpdatedTS:        impart.CurrentUTC(),
+			CreatedAt:        impart.CurrentUTC(),
+			UpdatedAt:        impart.CurrentUTC(),
 			DeviceToken:      "",
 			AwsSNSAppArn:     "",
 			Admin:            true,
@@ -165,8 +176,17 @@ var envAdmins = map[config.Environment][]*dbmodels.User{
 			AuthenticationID: "auth0|604e8a87ffc20800689e61f2",
 			Email:            "jamison@impart.media",
 			ScreenName:       "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
-			CreatedTS:        impart.CurrentUTC(),
-			UpdatedTS:        impart.CurrentUTC(),
+			CreatedAt:        impart.CurrentUTC(),
+			UpdatedAt:        impart.CurrentUTC(),
+			DeviceToken:      "",
+			AwsSNSAppArn:     "",
+			Admin:            true,
+		},
+		&dbmodels.User{
+			ImpartWealthID:   "1q0G23gpJvIVLYRH2dGaOWvy8MF",
+			AuthenticationID: "auth0|60556452bda5a40070de4e12",
+			Email:            "christian@impart.media",
+			ScreenName:       "1q0G23gpJvIVLYRH2dGaOWvy8MF",
 			DeviceToken:      "",
 			AwsSNSAppArn:     "",
 			Admin:            true,
@@ -178,8 +198,17 @@ var envAdmins = map[config.Environment][]*dbmodels.User{
 			AuthenticationID: "auth0|604e8b0243674100696d7812",
 			Email:            "jamison@impart.media",
 			ScreenName:       "1pe1n5BsNo7COEkJXhZo7ubL0Fa",
-			CreatedTS:        impart.CurrentUTC(),
-			UpdatedTS:        impart.CurrentUTC(),
+			CreatedAt:        impart.CurrentUTC(),
+			UpdatedAt:        impart.CurrentUTC(),
+			DeviceToken:      "",
+			AwsSNSAppArn:     "",
+			Admin:            true,
+		},
+		&dbmodels.User{
+			ImpartWealthID:   "1q0G23gpJvIVLYRH2dGaOWvy8MF",
+			AuthenticationID: "auth0|6055649a6eb1630070ca9acd",
+			Email:            "christian@impart.media",
+			ScreenName:       "1q0G23gpJvIVLYRH2dGaOWvy8MF",
 			DeviceToken:      "",
 			AwsSNSAppArn:     "",
 			Admin:            true,

@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS answer;
+DROP TABLE IF EXISTS question;
+DROP TABLE IF EXISTS question_type;
+DROP TABLE IF EXISTS questionnaire;

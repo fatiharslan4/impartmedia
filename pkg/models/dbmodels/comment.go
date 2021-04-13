@@ -27,12 +27,17 @@ type Comment struct {
 	CommentID       uint64      `boil:"comment_id" json:"comment_id" toml:"comment_id" yaml:"comment_id"`
 	PostID          uint64      `boil:"post_id" json:"post_id" toml:"post_id" yaml:"post_id"`
 	ImpartWealthID  string      `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	CreatedTS       time.Time   `boil:"created_ts" json:"created_ts" toml:"created_ts" yaml:"created_ts"`
+	CreatedAt       time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt       time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt       null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 	Content         string      `boil:"content" json:"content" toml:"content" yaml:"content"`
 	LastReplyTS     time.Time   `boil:"last_reply_ts" json:"last_reply_ts" toml:"last_reply_ts" yaml:"last_reply_ts"`
 	ParentCommentID null.Uint64 `boil:"parent_comment_id" json:"parent_comment_id,omitempty" toml:"parent_comment_id" yaml:"parent_comment_id,omitempty"`
 	UpVoteCount     int         `boil:"up_vote_count" json:"up_vote_count" toml:"up_vote_count" yaml:"up_vote_count"`
 	DownVoteCount   int         `boil:"down_vote_count" json:"down_vote_count" toml:"down_vote_count" yaml:"down_vote_count"`
+	ReportedCount   int         `boil:"reported_count" json:"reported_count" toml:"reported_count" yaml:"reported_count"`
+	Obfuscated      bool        `boil:"obfuscated" json:"obfuscated" toml:"obfuscated" yaml:"obfuscated"`
+	ReviewedAt      null.Time   `boil:"reviewed_at" json:"reviewed_at,omitempty" toml:"reviewed_at" yaml:"reviewed_at,omitempty"`
 
 	R *commentR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L commentL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -42,22 +47,32 @@ var CommentColumns = struct {
 	CommentID       string
 	PostID          string
 	ImpartWealthID  string
-	CreatedTS       string
+	CreatedAt       string
+	UpdatedAt       string
+	DeletedAt       string
 	Content         string
 	LastReplyTS     string
 	ParentCommentID string
 	UpVoteCount     string
 	DownVoteCount   string
+	ReportedCount   string
+	Obfuscated      string
+	ReviewedAt      string
 }{
 	CommentID:       "comment_id",
 	PostID:          "post_id",
 	ImpartWealthID:  "impart_wealth_id",
-	CreatedTS:       "created_ts",
+	CreatedAt:       "created_at",
+	UpdatedAt:       "updated_at",
+	DeletedAt:       "deleted_at",
 	Content:         "content",
 	LastReplyTS:     "last_reply_ts",
 	ParentCommentID: "parent_comment_id",
 	UpVoteCount:     "up_vote_count",
 	DownVoteCount:   "down_vote_count",
+	ReportedCount:   "reported_count",
+	Obfuscated:      "obfuscated",
+	ReviewedAt:      "reviewed_at",
 }
 
 // Generated where
@@ -85,29 +100,6 @@ func (w whereHelperuint64) NIN(slice []uint64) qm.QueryMod {
 	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
 }
 
-type whereHelperstring struct{ field string }
-
-func (w whereHelperstring) EQ(x string) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
-func (w whereHelperstring) NEQ(x string) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
-func (w whereHelperstring) LT(x string) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
-func (w whereHelperstring) LTE(x string) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
-func (w whereHelperstring) GT(x string) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
-func (w whereHelperstring) GTE(x string) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
-func (w whereHelperstring) IN(slice []string) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
-}
-func (w whereHelperstring) NIN(slice []string) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
-}
-
 type whereHelpertime_Time struct{ field string }
 
 func (w whereHelpertime_Time) EQ(x time.Time) qm.QueryMod {
@@ -126,6 +118,29 @@ func (w whereHelpertime_Time) GT(x time.Time) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GT, x)
 }
 func (w whereHelpertime_Time) GTE(x time.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
+type whereHelpernull_Time struct{ field string }
+
+func (w whereHelpernull_Time) EQ(x null.Time) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Time) NEQ(x null.Time) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Time) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Time) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelpernull_Time) LT(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Time) LTE(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Time) GT(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Time) GTE(x null.Time) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
@@ -175,26 +190,45 @@ func (w whereHelperint) NIN(slice []int) qm.QueryMod {
 	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
 }
 
+type whereHelperbool struct{ field string }
+
+func (w whereHelperbool) EQ(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperbool) NEQ(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
+func (w whereHelperbool) LT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperbool) LTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
+func (w whereHelperbool) GT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
+
 var CommentWhere = struct {
 	CommentID       whereHelperuint64
 	PostID          whereHelperuint64
 	ImpartWealthID  whereHelperstring
-	CreatedTS       whereHelpertime_Time
+	CreatedAt       whereHelpertime_Time
+	UpdatedAt       whereHelpertime_Time
+	DeletedAt       whereHelpernull_Time
 	Content         whereHelperstring
 	LastReplyTS     whereHelpertime_Time
 	ParentCommentID whereHelpernull_Uint64
 	UpVoteCount     whereHelperint
 	DownVoteCount   whereHelperint
+	ReportedCount   whereHelperint
+	Obfuscated      whereHelperbool
+	ReviewedAt      whereHelpernull_Time
 }{
 	CommentID:       whereHelperuint64{field: "`comment`.`comment_id`"},
 	PostID:          whereHelperuint64{field: "`comment`.`post_id`"},
 	ImpartWealthID:  whereHelperstring{field: "`comment`.`impart_wealth_id`"},
-	CreatedTS:       whereHelpertime_Time{field: "`comment`.`created_ts`"},
+	CreatedAt:       whereHelpertime_Time{field: "`comment`.`created_at`"},
+	UpdatedAt:       whereHelpertime_Time{field: "`comment`.`updated_at`"},
+	DeletedAt:       whereHelpernull_Time{field: "`comment`.`deleted_at`"},
 	Content:         whereHelperstring{field: "`comment`.`content`"},
 	LastReplyTS:     whereHelpertime_Time{field: "`comment`.`last_reply_ts`"},
 	ParentCommentID: whereHelpernull_Uint64{field: "`comment`.`parent_comment_id`"},
 	UpVoteCount:     whereHelperint{field: "`comment`.`up_vote_count`"},
 	DownVoteCount:   whereHelperint{field: "`comment`.`down_vote_count`"},
+	ReportedCount:   whereHelperint{field: "`comment`.`reported_count`"},
+	Obfuscated:      whereHelperbool{field: "`comment`.`obfuscated`"},
+	ReviewedAt:      whereHelpernull_Time{field: "`comment`.`reviewed_at`"},
 }
 
 // CommentRels is where relationship names are stored.
@@ -233,9 +267,9 @@ func (*commentR) NewStruct() *commentR {
 type commentL struct{}
 
 var (
-	commentAllColumns            = []string{"comment_id", "post_id", "impart_wealth_id", "created_ts", "content", "last_reply_ts", "parent_comment_id", "up_vote_count", "down_vote_count"}
-	commentColumnsWithoutDefault = []string{"post_id", "impart_wealth_id", "created_ts", "content", "last_reply_ts", "parent_comment_id"}
-	commentColumnsWithDefault    = []string{"comment_id", "up_vote_count", "down_vote_count"}
+	commentAllColumns            = []string{"comment_id", "post_id", "impart_wealth_id", "created_at", "updated_at", "deleted_at", "content", "last_reply_ts", "parent_comment_id", "up_vote_count", "down_vote_count", "reported_count", "obfuscated", "reviewed_at"}
+	commentColumnsWithoutDefault = []string{"post_id", "impart_wealth_id", "created_at", "updated_at", "deleted_at", "content", "last_reply_ts", "parent_comment_id", "reviewed_at"}
+	commentColumnsWithDefault    = []string{"comment_id", "up_vote_count", "down_vote_count", "reported_count", "obfuscated"}
 	commentPrimaryKeyColumns     = []string{"comment_id"}
 )
 
@@ -518,6 +552,7 @@ func (q commentQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bo
 func (o *Comment) Post(mods ...qm.QueryMod) postQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`post_id` = ?", o.PostID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -532,6 +567,7 @@ func (o *Comment) Post(mods ...qm.QueryMod) postQuery {
 func (o *Comment) ParentComment(mods ...qm.QueryMod) commentQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`comment_id` = ?", o.ParentCommentID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -546,6 +582,7 @@ func (o *Comment) ParentComment(mods ...qm.QueryMod) commentQuery {
 func (o *Comment) ImpartWealth(mods ...qm.QueryMod) userQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`impart_wealth_id` = ?", o.ImpartWealthID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -565,6 +602,7 @@ func (o *Comment) ParentCommentComments(mods ...qm.QueryMod) commentQuery {
 
 	queryMods = append(queryMods,
 		qm.Where("`comment`.`parent_comment_id`=?", o.CommentID),
+		qmhelper.WhereIsNull("`comment`.`deleted_at`"),
 	)
 
 	query := Comments(queryMods...)
@@ -586,6 +624,7 @@ func (o *Comment) CommentEdits(mods ...qm.QueryMod) commentEditQuery {
 
 	queryMods = append(queryMods,
 		qm.Where("`comment_edits`.`comment_id`=?", o.CommentID),
+		qmhelper.WhereIsNull("`comment_edits`.`deleted_at`"),
 	)
 
 	query := CommentEdits(queryMods...)
@@ -607,6 +646,7 @@ func (o *Comment) CommentReactions(mods ...qm.QueryMod) commentReactionQuery {
 
 	queryMods = append(queryMods,
 		qm.Where("`comment_reactions`.`comment_id`=?", o.CommentID),
+		qmhelper.WhereIsNull("`comment_reactions`.`deleted_at`"),
 	)
 
 	query := CommentReactions(queryMods...)
@@ -663,6 +703,7 @@ func (commentL) LoadPost(ctx context.Context, e boil.ContextExecutor, singular b
 	query := NewQuery(
 		qm.From(`post`),
 		qm.WhereIn(`post.post_id in ?`, args...),
+		qmhelper.WhereIsNull(`post.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -771,6 +812,7 @@ func (commentL) LoadParentComment(ctx context.Context, e boil.ContextExecutor, s
 	query := NewQuery(
 		qm.From(`comment`),
 		qm.WhereIn(`comment.comment_id in ?`, args...),
+		qmhelper.WhereIsNull(`comment.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -875,6 +917,7 @@ func (commentL) LoadImpartWealth(ctx context.Context, e boil.ContextExecutor, si
 	query := NewQuery(
 		qm.From(`user`),
 		qm.WhereIn(`user.impart_wealth_id in ?`, args...),
+		qmhelper.WhereIsNull(`user.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -977,6 +1020,7 @@ func (commentL) LoadParentCommentComments(ctx context.Context, e boil.ContextExe
 	query := NewQuery(
 		qm.From(`comment`),
 		qm.WhereIn(`comment.parent_comment_id in ?`, args...),
+		qmhelper.WhereIsNull(`comment.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -1075,6 +1119,7 @@ func (commentL) LoadCommentEdits(ctx context.Context, e boil.ContextExecutor, si
 	query := NewQuery(
 		qm.From(`comment_edits`),
 		qm.WhereIn(`comment_edits.comment_id in ?`, args...),
+		qmhelper.WhereIsNull(`comment_edits.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -1173,6 +1218,7 @@ func (commentL) LoadCommentReactions(ctx context.Context, e boil.ContextExecutor
 	query := NewQuery(
 		qm.From(`comment_reactions`),
 		qm.WhereIn(`comment_reactions.comment_id in ?`, args...),
+		qmhelper.WhereIsNull(`comment_reactions.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -1634,7 +1680,7 @@ func (o *Comment) AddCommentReactions(ctx context.Context, exec boil.ContextExec
 
 // Comments retrieves all the records using an executor.
 func Comments(mods ...qm.QueryMod) commentQuery {
-	mods = append(mods, qm.From("`comment`"))
+	mods = append(mods, qm.From("`comment`"), qmhelper.WhereIsNull("`comment`.`deleted_at`"))
 	return commentQuery{NewQuery(mods...)}
 }
 
@@ -1648,7 +1694,7 @@ func FindComment(ctx context.Context, exec boil.ContextExecutor, commentID uint6
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from `comment` where `comment_id`=?", sel,
+		"select %s from `comment` where `comment_id`=? and `deleted_at` is null", sel,
 	)
 
 	q := queries.Raw(query, commentID)
@@ -1672,6 +1718,16 @@ func (o *Comment) Insert(ctx context.Context, exec boil.ContextExecutor, columns
 	}
 
 	var err error
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		if o.UpdatedAt.IsZero() {
+			o.UpdatedAt = currTime
+		}
+	}
 
 	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
 		return err
@@ -1774,6 +1830,12 @@ CacheNoHooks:
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
 func (o *Comment) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		o.UpdatedAt = currTime
+	}
+
 	var err error
 	if err = o.doBeforeUpdateHooks(ctx, exec); err != nil {
 		return 0, err
@@ -1907,6 +1969,14 @@ var mySQLCommentUniqueColumns = []string{
 func (o *Comment) Upsert(ctx context.Context, exec boil.ContextExecutor, updateColumns, insertColumns boil.Columns) error {
 	if o == nil {
 		return errors.New("dbmodels: no comment provided for upsert")
+	}
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		o.UpdatedAt = currTime
 	}
 
 	if err := o.doBeforeUpsertHooks(ctx, exec); err != nil {
@@ -2048,7 +2118,7 @@ CacheNoHooks:
 
 // Delete deletes a single Comment record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *Comment) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o *Comment) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
 		return 0, errors.New("dbmodels: no Comment provided for delete")
 	}
@@ -2057,8 +2127,26 @@ func (o *Comment) Delete(ctx context.Context, exec boil.ContextExecutor) (int64,
 		return 0, err
 	}
 
-	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), commentPrimaryKeyMapping)
-	sql := "DELETE FROM `comment` WHERE `comment_id`=?"
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), commentPrimaryKeyMapping)
+		sql = "DELETE FROM `comment` WHERE `comment_id`=?"
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		o.DeletedAt = null.TimeFrom(currTime)
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE `comment` SET %s WHERE `comment_id`=?",
+			strmangle.SetParamNames("`", "`", 0, wl),
+		)
+		valueMapping, err := queries.BindMapping(commentType, commentMapping, append(wl, commentPrimaryKeyColumns...))
+		if err != nil {
+			return 0, err
+		}
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), valueMapping)
+	}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -2083,12 +2171,17 @@ func (o *Comment) Delete(ctx context.Context, exec boil.ContextExecutor) (int64,
 }
 
 // DeleteAll deletes all matching rows.
-func (q commentQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (q commentQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if q.Query == nil {
 		return 0, errors.New("dbmodels: no commentQuery provided for delete all")
 	}
 
-	queries.SetDelete(q.Query)
+	if hardDelete {
+		queries.SetDelete(q.Query)
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		queries.SetUpdate(q.Query, M{"deleted_at": currTime})
+	}
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
@@ -2104,7 +2197,7 @@ func (q commentQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) 
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o CommentSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o CommentSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if len(o) == 0 {
 		return 0, nil
 	}
@@ -2117,14 +2210,31 @@ func (o CommentSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) 
 		}
 	}
 
-	var args []interface{}
-	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), commentPrimaryKeyMapping)
-		args = append(args, pkeyArgs...)
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), commentPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+		}
+		sql = "DELETE FROM `comment` WHERE " +
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, commentPrimaryKeyColumns, len(o))
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), commentPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+			obj.DeletedAt = null.TimeFrom(currTime)
+		}
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE `comment` SET %s WHERE "+
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, commentPrimaryKeyColumns, len(o)),
+			strmangle.SetParamNames("`", "`", 0, wl),
+		)
+		args = append([]interface{}{currTime}, args...)
 	}
-
-	sql := "DELETE FROM `comment` WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, commentPrimaryKeyColumns, len(o))
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -2179,7 +2289,8 @@ func (o *CommentSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor)
 	}
 
 	sql := "SELECT `comment`.* FROM `comment` WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, commentPrimaryKeyColumns, len(*o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, commentPrimaryKeyColumns, len(*o)) +
+		"and `deleted_at` is null"
 
 	q := queries.Raw(sql, args...)
 
@@ -2196,7 +2307,7 @@ func (o *CommentSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor)
 // CommentExists checks if the Comment row exists.
 func CommentExists(ctx context.Context, exec boil.ContextExecutor, commentID uint64) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from `comment` where `comment_id`=? limit 1)"
+	sql := "select exists(select 1 from `comment` where `comment_id`=? and `deleted_at` is null limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)

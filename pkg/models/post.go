@@ -38,6 +38,9 @@ type Post struct {
 	PostCommentTrack    PostCommentTrack `json:"postCommentTrack,omitempty"`
 	Comments            Comments         `json:"comments,omitempty"`
 	NextCommentPage     *NextPage        `json:"nextCommentPage"`
+	ReportedCount       int              `json:"reportedCount"`
+	Obfuscated          bool             `json:"obfuscated"`
+	ReviewedDatetime    time.Time        `json:"reviewedDatetime,omitempty"`
 }
 
 func (posts Posts) Latest() time.Time {
@@ -103,7 +106,7 @@ func PostFromDB(p *dbmodels.Post) Post {
 		HiveID:              p.HiveID,
 		IsPinnedPost:        p.Pinned,
 		PostID:              p.PostID,
-		PostDatetime:        p.CreatedTS,
+		PostDatetime:        p.CreatedAt,
 		LastCommentDatetime: p.LastCommentTS,
 		//Edits:               nil,
 		ImpartWealthID: p.ImpartWealthID,
@@ -117,9 +120,14 @@ func PostFromDB(p *dbmodels.Post) Post {
 		//PostCommentTrack:    PostCommentTrack{},
 		//Comments:            nil,
 		//NextCommentPage:     nil,
+		ReportedCount: p.ReportedCount,
+		Obfuscated:    p.Obfuscated,
 	}
 	if p.R.ImpartWealth != nil {
 		out.ScreenName = p.R.ImpartWealth.ScreenName
+	}
+	if p.ReviewedAt.Valid {
+		out.ReviewedDatetime = p.ReviewedAt.Time
 	}
 	if len(p.R.Tags) > 0 {
 		out.TagIDs = make([]int, len(p.R.Tags), len(p.R.Tags))
@@ -128,7 +136,7 @@ func PostFromDB(p *dbmodels.Post) Post {
 		}
 	}
 	if len(p.R.PostReactions) > 0 {
-		out.PostCommentTrack = PostCommentTrackFromPostReaction(p.R.PostReactions[0])
+		out.PostCommentTrack = PostCommentTrackFromDB(p.R.PostReactions[0], nil)
 	}
 	if len(p.R.Comments) > 0 {
 
@@ -150,7 +158,7 @@ func (p Post) ToDBModel() *dbmodels.Post {
 		HiveID:         p.HiveID,
 		ImpartWealthID: p.ImpartWealthID,
 		Pinned:         p.IsPinnedPost,
-		CreatedTS:      p.PostDatetime,
+		CreatedAt:      p.PostDatetime,
 		Subject:        p.Subject,
 		Content:        p.Content.Markdown,
 		LastCommentTS:  p.LastCommentDatetime,
@@ -169,7 +177,7 @@ func PostCommentTrackFromPostReaction(r *dbmodels.PostReaction) PostCommentTrack
 		PostID:         r.PostID,
 		UpVoted:        r.Upvoted,
 		DownVoted:      r.Downvoted,
-		VotedDatetime:  r.UpdatedTS,
+		VotedDatetime:  r.UpdatedAt,
 	}
 
 	return out

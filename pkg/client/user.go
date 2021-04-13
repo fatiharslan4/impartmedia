@@ -38,11 +38,12 @@ func (c *impartManagementClient) getContextUserProfile(authToken Auth0TokenRespo
 }
 
 type CreateUserRequest struct {
-	Environment string
-	Email       string
-	Password    string
-	ScreenName  string
-	Admin       bool
+	Environment   string
+	Email         string
+	Password      string
+	ScreenName    string
+	AdminUsername string
+	AdminPassword string
 }
 
 type CreateUserResponse struct {
@@ -50,17 +51,43 @@ type CreateUserResponse struct {
 	AuthenticationID string
 	Email            string
 	ScreenName       string
+	AuthToken        string
+	IDToken          string
 }
 
 func (c *impartManagementClient) CreateUser(in CreateUserRequest) (CreateUserResponse, error) {
 	defer c.logger.Sync()
+
+	// Make sure we can authenticate as the admin
+	authToken, err := c.Authenticate(in.AdminUsername, in.AdminPassword)
+	if err != nil {
+		return CreateUserResponse{}, err
+	}
+	c.logger.Debug("admin user successfully authenticated", zap.String("user", in.AdminUsername))
+
+	// Make sure we can fetch this profile locally before doing anything
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/profiles", c.impartBaseURI), nil)
+	if err != nil {
+		return CreateUserResponse{}, err
+	}
+	req.Header.Set("x-api-key", c.apiKey)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authToken.AccessToken))
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return CreateUserResponse{}, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return CreateUserResponse{}, fmt.Errorf("invalid status code %s when trying to fetch admin profile", resp.Status)
+	}
+	c.logger.Debug("admin user profile is valid", zap.String("user", in.AdminUsername))
+
 	out := CreateUserResponse{
 		ImpartWealthID: ksuid.New().String(),
 	}
 	out.AuthenticationID = fmt.Sprintf("auth0|%s", out.ImpartWealthID)
 	out.ScreenName = out.ImpartWealthID
 	authIDBase := out.ImpartWealthID
-	err := c.auth0Client.User.Create(&management.User{
+	err = c.auth0Client.User.Create(&management.User{
 		ID:            &authIDBase,
 		Connection:    aws.String(fmt.Sprintf("%s-%s", integrationConnectionPrefix, in.Environment)),
 		Email:         &in.Email,
@@ -89,19 +116,13 @@ func (c *impartManagementClient) CreateUser(in CreateUserRequest) (CreateUserRes
 		return out, fmt.Errorf("bad response from server, didn't create expected user")
 	}
 
-	token, err := c.Authenticate(in.Email, in.Password)
-	if err != nil {
-		return out, err
-	}
-	c.logger.Debug("got a valid auth token", zap.Any("tokenResponse", token))
-
 	reqUri := fmt.Sprintf("%s/profiles", c.impartBaseURI)
-	req, err := http.NewRequest("POST", reqUri, nil)
+	req, err = http.NewRequest("POST", reqUri, nil)
 	if err != nil {
 		return out, err
 	}
 	req.Header.Set("x-api-key", c.apiKey)
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", authToken.AccessToken))
 
 	if in.ScreenName == "" {
 		in.ScreenName = in.Email
@@ -113,16 +134,13 @@ func (c *impartManagementClient) CreateUser(in CreateUserRequest) (CreateUserRes
 		AuthenticationID: out.AuthenticationID,
 		Email:            in.Email,
 		ScreenName:       in.ScreenName,
-		HiveMemberships:  nil,
 		Attributes: models.Attributes{
 			UpdatedDate: time.Now(),
 			Name:        out.Email,
 			Address:     models.Address{},
-			Admin:       in.Admin,
 		},
-		CreatedDate:     time.Now(),
-		UpdatedDate:     time.Now(),
-		SurveyResponses: models.SurveyResponses{},
+		CreatedDate: time.Now(),
+		UpdatedDate: time.Now(),
 	}
 
 	b := new(bytes.Buffer)
@@ -131,7 +149,7 @@ func (c *impartManagementClient) CreateUser(in CreateUserRequest) (CreateUserRes
 		return out, err
 	}
 	req.Body = ioutil.NopCloser(b)
-	resp, err := c.httpClient.Do(req)
+	resp, err = c.httpClient.Do(req)
 	if err != nil {
 		if resp.Body != nil {
 			body, err := ioutil.ReadAll(resp.Body)
@@ -146,6 +164,12 @@ func (c *impartManagementClient) CreateUser(in CreateUserRequest) (CreateUserRes
 		return out, fmt.Errorf("invalid status %v; expected %v", resp.Status, http.StatusOK)
 	}
 
+	tokenResp, err := c.Authenticate(in.Email, in.Password)
+	if err != nil {
+		return CreateUserResponse{}, err
+	}
+	out.AuthToken = tokenResp.AccessToken
+	out.IDToken = tokenResp.IDToken
 	return out, nil
 }
 
@@ -173,7 +197,7 @@ func (c *impartManagementClient) DeleteUser(in DeleteUserRequest) (DeleteUserRes
 		return out, err
 	}
 
-	if !p.Attributes.Admin {
+	if !p.Admin {
 		c.logger.Error("you must be an admin to delete users, and this user is not")
 		return out, fmt.Errorf("authenticated user is not an admin")
 	}
@@ -230,7 +254,8 @@ func (c *impartManagementClient) DeleteUser(in DeleteUserRequest) (DeleteUserRes
 				return out, err
 			}
 			if resp.StatusCode != http.StatusOK {
-				return out, fmt.Errorf("unexpected status %v; expected status %v", resp.StatusCode, http.StatusOK)
+				c.logger.Error("http status not 200 after executing delete", zap.String("status", resp.Status))
+				//return out, fmt.Errorf("unexpected status %v; expected status %v", resp.StatusCode, http.StatusOK)
 			}
 			c.logger.Info("deleted impart wealth user", zap.String("impartWealthId", impartWealthId))
 		}

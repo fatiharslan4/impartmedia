@@ -24,25 +24,25 @@ import (
 
 // Profile is an object representing the database table.
 type Profile struct {
-	ImpartWealthID  string     `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	UpdatedTS       time.Time  `boil:"updated_ts" json:"updated_ts" toml:"updated_ts" yaml:"updated_ts"`
-	Attributes      types.JSON `boil:"attributes" json:"attributes" toml:"attributes" yaml:"attributes"`
-	SurveyResponses types.JSON `boil:"survey_responses" json:"survey_responses" toml:"survey_responses" yaml:"survey_responses"`
+	ImpartWealthID string     `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
+	CreatedAt      time.Time  `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt      time.Time  `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	Attributes     types.JSON `boil:"attributes" json:"attributes" toml:"attributes" yaml:"attributes"`
 
 	R *profileR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L profileL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var ProfileColumns = struct {
-	ImpartWealthID  string
-	UpdatedTS       string
-	Attributes      string
-	SurveyResponses string
+	ImpartWealthID string
+	CreatedAt      string
+	UpdatedAt      string
+	Attributes     string
 }{
-	ImpartWealthID:  "impart_wealth_id",
-	UpdatedTS:       "updated_ts",
-	Attributes:      "attributes",
-	SurveyResponses: "survey_responses",
+	ImpartWealthID: "impart_wealth_id",
+	CreatedAt:      "created_at",
+	UpdatedAt:      "updated_at",
+	Attributes:     "attributes",
 }
 
 // Generated where
@@ -69,15 +69,15 @@ func (w whereHelpertypes_JSON) GTE(x types.JSON) qm.QueryMod {
 }
 
 var ProfileWhere = struct {
-	ImpartWealthID  whereHelperstring
-	UpdatedTS       whereHelpertime_Time
-	Attributes      whereHelpertypes_JSON
-	SurveyResponses whereHelpertypes_JSON
+	ImpartWealthID whereHelperstring
+	CreatedAt      whereHelpertime_Time
+	UpdatedAt      whereHelpertime_Time
+	Attributes     whereHelpertypes_JSON
 }{
-	ImpartWealthID:  whereHelperstring{field: "`profile`.`impart_wealth_id`"},
-	UpdatedTS:       whereHelpertime_Time{field: "`profile`.`updated_ts`"},
-	Attributes:      whereHelpertypes_JSON{field: "`profile`.`attributes`"},
-	SurveyResponses: whereHelpertypes_JSON{field: "`profile`.`survey_responses`"},
+	ImpartWealthID: whereHelperstring{field: "`profile`.`impart_wealth_id`"},
+	CreatedAt:      whereHelpertime_Time{field: "`profile`.`created_at`"},
+	UpdatedAt:      whereHelpertime_Time{field: "`profile`.`updated_at`"},
+	Attributes:     whereHelpertypes_JSON{field: "`profile`.`attributes`"},
 }
 
 // ProfileRels is where relationship names are stored.
@@ -101,8 +101,8 @@ func (*profileR) NewStruct() *profileR {
 type profileL struct{}
 
 var (
-	profileAllColumns            = []string{"impart_wealth_id", "updated_ts", "attributes", "survey_responses"}
-	profileColumnsWithoutDefault = []string{"impart_wealth_id", "updated_ts", "attributes", "survey_responses"}
+	profileAllColumns            = []string{"impart_wealth_id", "created_at", "updated_at", "attributes"}
+	profileColumnsWithoutDefault = []string{"impart_wealth_id", "created_at", "updated_at", "attributes"}
 	profileColumnsWithDefault    = []string{}
 	profilePrimaryKeyColumns     = []string{"impart_wealth_id"}
 )
@@ -386,6 +386,7 @@ func (q profileQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bo
 func (o *Profile) ImpartWealth(mods ...qm.QueryMod) userQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`impart_wealth_id` = ?", o.ImpartWealthID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -440,6 +441,7 @@ func (profileL) LoadImpartWealth(ctx context.Context, e boil.ContextExecutor, si
 	query := NewQuery(
 		qm.From(`user`),
 		qm.WhereIn(`user.impart_wealth_id in ?`, args...),
+		qmhelper.WhereIsNull(`user.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -587,6 +589,16 @@ func (o *Profile) Insert(ctx context.Context, exec boil.ContextExecutor, columns
 	}
 
 	var err error
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		if o.UpdatedAt.IsZero() {
+			o.UpdatedAt = currTime
+		}
+	}
 
 	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
 		return err
@@ -678,6 +690,12 @@ CacheNoHooks:
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
 func (o *Profile) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		o.UpdatedAt = currTime
+	}
+
 	var err error
 	if err = o.doBeforeUpdateHooks(ctx, exec); err != nil {
 		return 0, err
@@ -811,6 +829,14 @@ var mySQLProfileUniqueColumns = []string{
 func (o *Profile) Upsert(ctx context.Context, exec boil.ContextExecutor, updateColumns, insertColumns boil.Columns) error {
 	if o == nil {
 		return errors.New("dbmodels: no profile provided for upsert")
+	}
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		o.UpdatedAt = currTime
 	}
 
 	if err := o.doBeforeUpsertHooks(ctx, exec); err != nil {

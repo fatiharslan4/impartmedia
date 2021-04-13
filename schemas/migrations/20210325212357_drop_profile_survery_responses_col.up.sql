@@ -1,0 +1,1 @@
+CALL DropColumnIfExists('profile', 'survey_responses');

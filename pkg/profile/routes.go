@@ -2,25 +2,28 @@ package profile
 
 import (
 	"encoding/json"
+	"github.com/segmentio/ksuid"
 	"github.com/xeipuuv/gojsonschema"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
-	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
 )
 
 type profileHandler struct {
-	profileData    profiledata.Store
-	profileService Service
-	logger         *zap.Logger
+	profileData          profiledata.Store
+	profileService       Service
+	questionnaireService QuestionnaireService
+	logger               *zap.Logger
 }
 
-func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store, profileService Service, logger *zap.Logger) {
+func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
+	profileService Service, logger *zap.Logger) {
 	handler := profileHandler{
 		profileData:    profileData,
 		profileService: profileService,
@@ -34,6 +37,11 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store, profil
 
 	profileRoutes.GET("/:impartWealthId", handler.GetProfileFunc())
 	profileRoutes.DELETE("/:impartWealthId", handler.DeleteProfileFunc())
+
+	questionnaireRoutes := version.Group("/questionnaires")
+	questionnaireRoutes.GET("", handler.AllQuestionnaireHandler())                     //returns a list of questionnaire; filter by `name` query param
+	questionnaireRoutes.GET("/:impartWealthId", handler.GetUserQuestionnaireHandler()) //returns a list of past questionnaires taken by this impart wealth id; filter by `name` query param
+	questionnaireRoutes.POST("/:impartWealthId", handler.SaveUserQuestionnaire())      //posts a new questionnaire for this impart wealth id
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -41,24 +49,48 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 		var impartErr impart.Error
 		var p models.Profile
 
-		gpi := GetProfileInput{
-			ImpartWealthID:   ctx.Param("impartWealthId"),
-			SearchEmail:      ctx.Query("email"),
-			SearchScreenName: ctx.Query("screenName"),
-		}
-		if gpi.ImpartWealthID == "" && gpi.SearchEmail == "" && gpi.SearchScreenName == "" {
-			ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "query parameters missing"))
-		}
-
-		ph.logger.Debug("getting profile", zap.Any("gpi", gpi))
-
-		if gpi.ImpartWealthID == "new" {
+		impartWealthId := ctx.Param("impartWealthId")
+		if impartWealthId == "new" {
 			p := models.Profile{
 				ImpartWealthID: ksuid.New().String(),
 			}
 			ctx.JSON(200, p)
 			return
 		}
+
+		ctxUser := impart.GetCtxUser(ctx)
+		if strings.TrimSpace(impartWealthId) == "" {
+			dbp, err := ph.profileData.GetProfile(ctx, ctxUser.ImpartWealthID)
+			if err != nil {
+				if ctxUser == nil {
+					ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "query parameters missing"))
+					return
+				}
+			}
+			p, err := models.ProfileFromDBModel(ctxUser, dbp)
+			if err != nil {
+				if ctxUser == nil {
+					ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "query parameters missing"))
+					return
+				}
+			}
+			ctx.JSON(200, p)
+			return
+		}
+		gpi := GetProfileInput{
+			ImpartWealthID:   impartWealthId,
+			SearchEmail:      ctx.Query("email"),
+			SearchScreenName: ctx.Query("screenName"),
+		}
+		if gpi.ImpartWealthID == "" && gpi.SearchEmail == "" && gpi.SearchScreenName == "" {
+			if ctxUser == nil {
+				ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "query parameters missing"))
+				return
+			}
+			gpi = GetProfileInput{ImpartWealthID: ctxUser.ImpartWealthID}
+		}
+
+		ph.logger.Debug("getting profile", zap.Any("gpi", gpi))
 
 		p, impartErr = ph.profileService.GetProfile(ctx, gpi)
 		if impartErr != nil {
@@ -95,7 +127,7 @@ func (ph *profileHandler) CreateProfileFunc() gin.HandlerFunc {
 		p, impartErr = ph.profileService.NewProfile(ctx, p)
 		if impartErr != nil {
 			ph.logger.Error(impartErr.Error())
-			ctx.JSON(impartErr.HttpStatus(), impartErr)
+			ctx.AbortWithError(impartErr.HttpStatus(), impartErr)
 			return
 		}
 
@@ -144,9 +176,56 @@ func (ph *profileHandler) DeleteProfileFunc() gin.HandlerFunc {
 		impartErr := ph.profileService.DeleteProfile(ctx, impartWealthID)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impartErr)
+			//ctx.AbortWithError(err.HttpStatus(), err)
 			return
 		}
 
 		ctx.Status(http.StatusOK)
+	}
+}
+
+func (ph *profileHandler) AllQuestionnaireHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		nameParam := ctx.Query("name")
+
+		qs, err := ph.profileService.GetQuestionnaires(ctx, nameParam)
+		if err != nil {
+			ctx.JSON(err.HttpStatus(), err)
+			return
+		}
+		ctx.JSON(http.StatusOK, qs)
+	}
+}
+
+func (ph *profileHandler) GetUserQuestionnaireHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		impartWealthId := ctx.Param("impartWealthId")
+		name := ctx.Query("name")
+		qs, err := ph.profileService.GetUserQuestionnaires(ctx, impartWealthId, name)
+		if err != nil {
+			ctx.JSON(err.HttpStatus(), err)
+			return
+		}
+		ctx.JSON(http.StatusOK, qs)
+	}
+}
+
+func (ph *profileHandler) SaveUserQuestionnaire() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		q := models.Questionnaire{}
+		if err := ctx.BindJSON(&q); err != nil {
+			ph.logger.Error("invalid json payload", zap.Error(err))
+			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Questionnaire")
+			ctx.JSON(err.HttpStatus(), err)
+			return
+		}
+
+		if err := ph.profileService.SaveQuestionnaire(ctx, q); err != nil {
+			ctx.JSON(err.HttpStatus(), err)
+			return
+		}
+
+		ctx.Status(http.StatusCreated)
+		return
 	}
 }

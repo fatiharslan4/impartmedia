@@ -7,7 +7,9 @@ import (
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 type ContentType int
@@ -41,6 +43,9 @@ type UserTrack interface {
 	TakeDownVote(ctx context.Context, in ContentInput) error
 	//Save(ctx context.Context,  contentID, hiveID, postID string) error
 	//DeleteTracks(ctx context.Context, in ContentInput) error
+
+	ReportPost(ctx context.Context, postId uint64, reason *string, remove bool) error
+	ReportComment(ctx context.Context, commentId uint64, reason *string, remove bool) error
 }
 
 //// NewContentTrack returns an implementation of data.Comments interface
@@ -160,7 +165,7 @@ func (d *mysqlHiveData) vote(ctx context.Context, upVote, increment bool, in Con
 			dbp = &dbmodels.PostReaction{
 				PostID:         in.Id,
 				ImpartWealthID: ctxUser.ImpartWealthID,
-				UpdatedTS:      impart.CurrentUTC(),
+				UpdatedAt:      impart.CurrentUTC(),
 			}
 			err = dbp.Insert(ctx, d.db, boil.Infer())
 			if err != nil {
@@ -226,7 +231,7 @@ func (d *mysqlHiveData) vote(ctx context.Context, upVote, increment bool, in Con
 			dbc = &dbmodels.CommentReaction{
 				CommentID:      in.Id,
 				ImpartWealthID: ctxUser.ImpartWealthID,
-				UpdatedTS:      impart.CurrentUTC(),
+				UpdatedAt:      impart.CurrentUTC(),
 			}
 			err = dbc.Insert(ctx, d.db, boil.Infer())
 			if err != nil {
@@ -331,4 +336,165 @@ func voteDelta(d VoteDeltaInput) VoteDeltOutput {
 
 	return VoteDeltOutput{}
 
+}
+
+func (d *mysqlHiveData) ReportPost(ctx context.Context, postId uint64, reason *string, remove bool) error {
+	ctxUser := impart.GetCtxUser(ctx)
+	reactionNeedsInsert := false
+	var pr *dbmodels.PostReaction
+	var post *dbmodels.Post
+	var err error
+	var tx *sql.Tx
+	tx, err = d.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	defer impart.CommitRollbackLogger(tx, err, d.logger)
+	//lock the record, regardless of whether it exists or not.
+	if pr, err = dbmodels.PostReactions(dbmodels.PostReactionWhere.PostID.EQ(postId),
+		dbmodels.PostReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID),
+		qm.For("UPDATE")).One(ctx, tx); err != nil {
+		if err == sql.ErrNoRows {
+			pr = &dbmodels.PostReaction{
+				PostID:         postId,
+				ImpartWealthID: ctxUser.ImpartWealthID,
+				Upvoted:        false,
+				Downvoted:      false,
+				Reported:       false,
+			}
+			reactionNeedsInsert = true
+		} else {
+			return err
+		}
+	}
+	//alter the reaction first
+	if remove {
+		if !pr.Reported {
+			tx.Rollback()
+			return impart.ErrNoOp
+		} else {
+			pr.Reported = false
+		}
+	} else {
+		if pr.Reported {
+			tx.Rollback()
+			return impart.ErrNoOp
+		} else {
+			pr.Reported = true
+		}
+	}
+	//we're only here if we're changing the reaction - we need to update the parent Post with the reaction accordingly.
+	post, err = dbmodels.Posts(dbmodels.PostWhere.PostID.EQ(postId), qm.For("UPDATE")).One(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	if pr.Reported {
+		pr.ReportedReason = null.StringFromPtr(reason)
+		post.ReportedCount++
+		if !post.ReviewedAt.Valid {
+			// if this post has never been reviewed, mark it as obfuscated
+			post.Obfuscated = true
+		}
+	} else {
+		//we're removing a report
+		post.ReportedCount--
+		if !post.ReviewedAt.Valid && post.ReportedCount == 0 {
+			//if this hasn't been reviewed, and the report count went to 0, un-obfuscate it.
+			post.Obfuscated = false
+		}
+	}
+
+	if reactionNeedsInsert {
+		err = pr.Insert(ctx, tx, boil.Infer())
+	} else {
+		_, err = pr.Update(ctx, tx, boil.Infer())
+	}
+	if err != nil {
+		return err
+	}
+
+	if err = post.Upsert(ctx, tx, boil.Infer(), boil.Infer()); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (d *mysqlHiveData) ReportComment(ctx context.Context, commentId uint64, reason *string, remove bool) error {
+	ctxUser := impart.GetCtxUser(ctx)
+	reactionNeedsInsert := false
+	var cr *dbmodels.CommentReaction
+	var comment *dbmodels.Comment
+	var err error
+	var tx *sql.Tx
+	tx, err = d.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	defer impart.CommitRollbackLogger(tx, err, d.logger)
+
+	//we're only here if we're changing the reaction - we need to update the parent Comment with the reaction accordingly.
+	comment, err = dbmodels.Comments(dbmodels.CommentWhere.CommentID.EQ(commentId), qm.For("UPDATE")).One(ctx, tx)
+	if err != nil {
+		return err
+	}
+
+	//lock the record, regardless of whether it exists or not.
+	if cr, err = dbmodels.CommentReactions(dbmodels.CommentReactionWhere.CommentID.EQ(commentId),
+		dbmodels.CommentReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID),
+		qm.For("UPDATE")).One(ctx, tx); err != nil {
+		if err == sql.ErrNoRows {
+			cr = &dbmodels.CommentReaction{
+				CommentID:      commentId,
+				PostID:         comment.PostID,
+				ImpartWealthID: ctxUser.ImpartWealthID,
+				Upvoted:        false,
+				Downvoted:      false,
+				Reported:       false,
+			}
+			reactionNeedsInsert = true
+		} else {
+			return err
+		}
+	}
+	//alter the reaction first
+	if remove {
+		if !cr.Reported {
+			tx.Rollback()
+			return impart.ErrNoOp
+		} else {
+			cr.Reported = false
+		}
+	} else {
+		if cr.Reported {
+			tx.Rollback()
+			return impart.ErrNoOp
+		} else {
+			cr.Reported = true
+		}
+	}
+
+	if cr.Reported {
+		cr.ReportedReason = null.StringFromPtr(reason)
+		comment.ReportedCount++
+		if !comment.ReviewedAt.Valid {
+			// if this comment has never been reviewed, mark it as obfuscated
+			comment.Obfuscated = true
+		}
+	} else {
+		//we're removing a report
+		comment.ReportedCount--
+		if !comment.ReviewedAt.Valid && comment.ReportedCount == 0 {
+			//if this hasn't been reviewed, and the report count went to 0, un-obfuscate it.
+			comment.Obfuscated = false
+		}
+	}
+
+	if reactionNeedsInsert {
+		err = cr.Insert(ctx, tx, boil.Infer())
+	} else {
+		_, err = cr.Update(ctx, tx, boil.Infer())
+	}
+	if err != nil {
+		return err
+	}
+
+	if err = comment.Upsert(ctx, tx, boil.Infer(), boil.Infer()); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

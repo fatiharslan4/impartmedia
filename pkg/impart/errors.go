@@ -3,6 +3,7 @@ package impart
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 )
 
@@ -48,7 +49,7 @@ type impartError struct {
 }
 
 func (e impartError) Error() string {
-	return e.err.Error()
+	return fmt.Sprintf("%s; %s", e.err, e.msg)
 }
 
 func (e impartError) Err() error {
@@ -64,6 +65,7 @@ func NewError(err error, msg string) Error {
 }
 
 var UnknownError = NewError(ErrUnknown, "Internal Server Error")
+var UserUnauthorized = NewError(ErrUnauthorized, "This user is not authorized for this resource")
 
 // ErrorCheck takes an input error and returns a formatted api gateway response
 func (e impartError) HttpStatus() int {
@@ -83,6 +85,8 @@ func (e impartError) HttpStatus() int {
 		statusCode = http.StatusUnauthorized
 	case ErrExists:
 		statusCode = http.StatusConflict
+	case ErrNoOp:
+		statusCode = http.StatusNotModified
 	default:
 		statusCode = http.StatusInternalServerError
 	}

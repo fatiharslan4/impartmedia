@@ -1,4 +1,6 @@
 #!/bin/bash
 
-sqlboiler mysql
+echo "Generating DB code..."
+sqlboiler mysql --add-soft-deletes
+echo "Done."
 #go test ./pkg/models/dbmodels/...

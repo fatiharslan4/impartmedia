@@ -362,6 +362,7 @@ func (q notificationSubscriptionQuery) Exists(ctx context.Context, exec boil.Con
 func (o *NotificationSubscription) ImpartWealth(mods ...qm.QueryMod) userQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`impart_wealth_id` = ?", o.ImpartWealthID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -430,6 +431,7 @@ func (notificationSubscriptionL) LoadImpartWealth(ctx context.Context, e boil.Co
 	query := NewQuery(
 		qm.From(`user`),
 		qm.WhereIn(`user.impart_wealth_id in ?`, args...),
+		qmhelper.WhereIsNull(`user.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)

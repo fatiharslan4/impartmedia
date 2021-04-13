@@ -3,6 +3,7 @@ package hive
 import (
 	"context"
 	"fmt"
+	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"strings"
 
@@ -47,7 +48,7 @@ func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comm
 	newComment := &dbmodels.Comment{
 		PostID:         c.PostID,
 		ImpartWealthID: ctxUser.ImpartWealthID,
-		CreatedTS:      impart.CurrentUTC(),
+		CreatedAt:      impart.CurrentUTC(),
 		Content:        c.Content.Markdown,
 		LastReplyTS:    impart.CurrentUTC(),
 		//ParentCommentID: c.p, //no threading for now
@@ -137,4 +138,37 @@ func (s *service) DeleteComment(ctx context.Context, commentID uint64) impart.Er
 		return impart.NewError(err, "error deleting comment")
 	}
 	return nil
+}
+
+func (s *service) ReportComment(ctx context.Context, commentID uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error) {
+	var dbReason *string
+	var empty models.PostCommentTrack
+	if !remove && reason == "" {
+		return empty, impart.NewError(impart.ErrBadRequest, "must provide a reason for reporting")
+	}
+	if reason != "" {
+		dbReason = &reason
+	}
+
+	err := s.reactionData.ReportComment(ctx, commentID, dbReason, remove)
+	if err != nil {
+		s.logger.Error("couldn't report comment", zap.Error(err), zap.Uint64("commentId", commentID))
+		switch err {
+		case impart.ErrNoOp:
+			return empty, impart.NewError(impart.ErrNoOp, "comment is already in the input reported state")
+		case impart.ErrNotFound:
+			return empty, impart.NewError(err, fmt.Sprintf("could not find comment %v to report", commentID))
+		default:
+			return empty, impart.UnknownError
+		}
+	}
+	out, err := s.reactionData.GetUserTrack(ctx, data.ContentInput{
+		Type: data.Comment,
+		Id:   commentID,
+	})
+	if err != nil {
+		s.logger.Error("couldn't get updated user track object", zap.Error(err))
+		return empty, impart.UnknownError
+	}
+	return out, nil
 }

@@ -27,7 +27,9 @@ type PostEdit struct {
 	PostID         uint64      `boil:"post_id" json:"post_id" toml:"post_id" yaml:"post_id"`
 	EditID         uint        `boil:"edit_id" json:"edit_id" toml:"edit_id" yaml:"edit_id"`
 	ImpartWealthID string      `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	EditTimestamp  time.Time   `boil:"edit_timestamp" json:"edit_timestamp" toml:"edit_timestamp" yaml:"edit_timestamp"`
+	CreatedAt      time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt      time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt      null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 	Deleted        bool        `boil:"deleted" json:"deleted" toml:"deleted" yaml:"deleted"`
 	Notes          null.String `boil:"notes" json:"notes,omitempty" toml:"notes" yaml:"notes,omitempty"`
 
@@ -39,55 +41,40 @@ var PostEditColumns = struct {
 	PostID         string
 	EditID         string
 	ImpartWealthID string
-	EditTimestamp  string
+	CreatedAt      string
+	UpdatedAt      string
+	DeletedAt      string
 	Deleted        string
 	Notes          string
 }{
 	PostID:         "post_id",
 	EditID:         "edit_id",
 	ImpartWealthID: "impart_wealth_id",
-	EditTimestamp:  "edit_timestamp",
+	CreatedAt:      "created_at",
+	UpdatedAt:      "updated_at",
+	DeletedAt:      "deleted_at",
 	Deleted:        "deleted",
 	Notes:          "notes",
 }
 
 // Generated where
 
-type whereHelperuint struct{ field string }
-
-func (w whereHelperuint) EQ(x uint) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
-func (w whereHelperuint) NEQ(x uint) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
-func (w whereHelperuint) LT(x uint) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
-func (w whereHelperuint) LTE(x uint) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
-func (w whereHelperuint) GT(x uint) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
-func (w whereHelperuint) GTE(x uint) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
-func (w whereHelperuint) IN(slice []uint) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
-}
-func (w whereHelperuint) NIN(slice []uint) qm.QueryMod {
-	values := make([]interface{}, 0, len(slice))
-	for _, value := range slice {
-		values = append(values, value)
-	}
-	return qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", w.field), values...)
-}
-
 var PostEditWhere = struct {
 	PostID         whereHelperuint64
 	EditID         whereHelperuint
 	ImpartWealthID whereHelperstring
-	EditTimestamp  whereHelpertime_Time
+	CreatedAt      whereHelpertime_Time
+	UpdatedAt      whereHelpertime_Time
+	DeletedAt      whereHelpernull_Time
 	Deleted        whereHelperbool
 	Notes          whereHelpernull_String
 }{
 	PostID:         whereHelperuint64{field: "`post_edits`.`post_id`"},
 	EditID:         whereHelperuint{field: "`post_edits`.`edit_id`"},
 	ImpartWealthID: whereHelperstring{field: "`post_edits`.`impart_wealth_id`"},
-	EditTimestamp:  whereHelpertime_Time{field: "`post_edits`.`edit_timestamp`"},
+	CreatedAt:      whereHelpertime_Time{field: "`post_edits`.`created_at`"},
+	UpdatedAt:      whereHelpertime_Time{field: "`post_edits`.`updated_at`"},
+	DeletedAt:      whereHelpernull_Time{field: "`post_edits`.`deleted_at`"},
 	Deleted:        whereHelperbool{field: "`post_edits`.`deleted`"},
 	Notes:          whereHelpernull_String{field: "`post_edits`.`notes`"},
 }
@@ -116,8 +103,8 @@ func (*postEditR) NewStruct() *postEditR {
 type postEditL struct{}
 
 var (
-	postEditAllColumns            = []string{"post_id", "edit_id", "impart_wealth_id", "edit_timestamp", "deleted", "notes"}
-	postEditColumnsWithoutDefault = []string{"post_id", "edit_id", "impart_wealth_id", "edit_timestamp", "notes"}
+	postEditAllColumns            = []string{"post_id", "edit_id", "impart_wealth_id", "created_at", "updated_at", "deleted_at", "deleted", "notes"}
+	postEditColumnsWithoutDefault = []string{"post_id", "edit_id", "impart_wealth_id", "created_at", "updated_at", "deleted_at", "notes"}
 	postEditColumnsWithDefault    = []string{"deleted"}
 	postEditPrimaryKeyColumns     = []string{"post_id", "edit_id"}
 )
@@ -401,6 +388,7 @@ func (q postEditQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (b
 func (o *PostEdit) Post(mods ...qm.QueryMod) postQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`post_id` = ?", o.PostID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -415,6 +403,7 @@ func (o *PostEdit) Post(mods ...qm.QueryMod) postQuery {
 func (o *PostEdit) ImpartWealth(mods ...qm.QueryMod) userQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`impart_wealth_id` = ?", o.ImpartWealthID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -469,6 +458,7 @@ func (postEditL) LoadPost(ctx context.Context, e boil.ContextExecutor, singular 
 	query := NewQuery(
 		qm.From(`post`),
 		qm.WhereIn(`post.post_id in ?`, args...),
+		qmhelper.WhereIsNull(`post.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -573,6 +563,7 @@ func (postEditL) LoadImpartWealth(ctx context.Context, e boil.ContextExecutor, s
 	query := NewQuery(
 		qm.From(`user`),
 		qm.WhereIn(`user.impart_wealth_id in ?`, args...),
+		qmhelper.WhereIsNull(`user.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -729,7 +720,7 @@ func (o *PostEdit) SetImpartWealth(ctx context.Context, exec boil.ContextExecuto
 
 // PostEdits retrieves all the records using an executor.
 func PostEdits(mods ...qm.QueryMod) postEditQuery {
-	mods = append(mods, qm.From("`post_edits`"))
+	mods = append(mods, qm.From("`post_edits`"), qmhelper.WhereIsNull("`post_edits`.`deleted_at`"))
 	return postEditQuery{NewQuery(mods...)}
 }
 
@@ -743,7 +734,7 @@ func FindPostEdit(ctx context.Context, exec boil.ContextExecutor, postID uint64,
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from `post_edits` where `post_id`=? AND `edit_id`=?", sel,
+		"select %s from `post_edits` where `post_id`=? AND `edit_id`=? and `deleted_at` is null", sel,
 	)
 
 	q := queries.Raw(query, postID, editID)
@@ -767,6 +758,16 @@ func (o *PostEdit) Insert(ctx context.Context, exec boil.ContextExecutor, column
 	}
 
 	var err error
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		if o.UpdatedAt.IsZero() {
+			o.UpdatedAt = currTime
+		}
+	}
 
 	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
 		return err
@@ -859,6 +860,12 @@ CacheNoHooks:
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
 func (o *PostEdit) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		o.UpdatedAt = currTime
+	}
+
 	var err error
 	if err = o.doBeforeUpdateHooks(ctx, exec); err != nil {
 		return 0, err
@@ -991,6 +998,14 @@ func (o *PostEdit) Upsert(ctx context.Context, exec boil.ContextExecutor, update
 	if o == nil {
 		return errors.New("dbmodels: no post_edits provided for upsert")
 	}
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		o.UpdatedAt = currTime
+	}
 
 	if err := o.doBeforeUpsertHooks(ctx, exec); err != nil {
 		return err
@@ -1120,7 +1135,7 @@ CacheNoHooks:
 
 // Delete deletes a single PostEdit record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *PostEdit) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o *PostEdit) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
 		return 0, errors.New("dbmodels: no PostEdit provided for delete")
 	}
@@ -1129,8 +1144,26 @@ func (o *PostEdit) Delete(ctx context.Context, exec boil.ContextExecutor) (int64
 		return 0, err
 	}
 
-	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), postEditPrimaryKeyMapping)
-	sql := "DELETE FROM `post_edits` WHERE `post_id`=? AND `edit_id`=?"
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), postEditPrimaryKeyMapping)
+		sql = "DELETE FROM `post_edits` WHERE `post_id`=? AND `edit_id`=?"
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		o.DeletedAt = null.TimeFrom(currTime)
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE `post_edits` SET %s WHERE `post_id`=? AND `edit_id`=?",
+			strmangle.SetParamNames("`", "`", 0, wl),
+		)
+		valueMapping, err := queries.BindMapping(postEditType, postEditMapping, append(wl, postEditPrimaryKeyColumns...))
+		if err != nil {
+			return 0, err
+		}
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), valueMapping)
+	}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1155,12 +1188,17 @@ func (o *PostEdit) Delete(ctx context.Context, exec boil.ContextExecutor) (int64
 }
 
 // DeleteAll deletes all matching rows.
-func (q postEditQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (q postEditQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if q.Query == nil {
 		return 0, errors.New("dbmodels: no postEditQuery provided for delete all")
 	}
 
-	queries.SetDelete(q.Query)
+	if hardDelete {
+		queries.SetDelete(q.Query)
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		queries.SetUpdate(q.Query, M{"deleted_at": currTime})
+	}
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
@@ -1176,7 +1214,7 @@ func (q postEditQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor)
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o PostEditSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o PostEditSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if len(o) == 0 {
 		return 0, nil
 	}
@@ -1189,14 +1227,31 @@ func (o PostEditSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor)
 		}
 	}
 
-	var args []interface{}
-	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), postEditPrimaryKeyMapping)
-		args = append(args, pkeyArgs...)
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), postEditPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+		}
+		sql = "DELETE FROM `post_edits` WHERE " +
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, postEditPrimaryKeyColumns, len(o))
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), postEditPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+			obj.DeletedAt = null.TimeFrom(currTime)
+		}
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE `post_edits` SET %s WHERE "+
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, postEditPrimaryKeyColumns, len(o)),
+			strmangle.SetParamNames("`", "`", 0, wl),
+		)
+		args = append([]interface{}{currTime}, args...)
 	}
-
-	sql := "DELETE FROM `post_edits` WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, postEditPrimaryKeyColumns, len(o))
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1251,7 +1306,8 @@ func (o *PostEditSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor
 	}
 
 	sql := "SELECT `post_edits`.* FROM `post_edits` WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, postEditPrimaryKeyColumns, len(*o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, postEditPrimaryKeyColumns, len(*o)) +
+		"and `deleted_at` is null"
 
 	q := queries.Raw(sql, args...)
 
@@ -1268,7 +1324,7 @@ func (o *PostEditSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor
 // PostEditExists checks if the PostEdit row exists.
 func PostEditExists(ctx context.Context, exec boil.ContextExecutor, postID uint64, editID uint) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from `post_edits` where `post_id`=? AND `edit_id`=? limit 1)"
+	sql := "select exists(select 1 from `post_edits` where `post_id`=? AND `edit_id`=? and `deleted_at` is null limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)

@@ -4,6 +4,7 @@
 package dbmodels
 
 var TableNames = struct {
+	Answer                    string
 	Comment                   string
 	CommentEdits              string
 	CommentReactions          string
@@ -18,9 +19,14 @@ var TableNames = struct {
 	PostReactions             string
 	PostTag                   string
 	Profile                   string
+	Question                  string
+	QuestionType              string
+	Questionnaire             string
 	Tag                       string
 	User                      string
+	UserAnswers               string
 }{
+	Answer:                    "answer",
 	Comment:                   "comment",
 	CommentEdits:              "comment_edits",
 	CommentReactions:          "comment_reactions",
@@ -35,6 +41,10 @@ var TableNames = struct {
 	PostReactions:             "post_reactions",
 	PostTag:                   "post_tag",
 	Profile:                   "profile",
+	Question:                  "question",
+	QuestionType:              "question_type",
+	Questionnaire:             "questionnaire",
 	Tag:                       "tag",
 	User:                      "user",
+	UserAnswers:               "user_answers",
 }

@@ -42,16 +42,6 @@
 				"address": {
 					"$schema": "http://json-schema.org/draft-04/schema#",
 					"$ref": "#/definitions/Address"
-				},
-				"hives": {
-					"items": {
-						"$schema": "http://json-schema.org/draft-04/schema#",
-						"$ref": "#/definitions/HiveMembership"
-					},
-					"type": "array"
-				},
-				"admin": {
-					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,
@@ -63,35 +53,10 @@
 			],
 			"properties": {
 				"hiveId": {
-					"maxLength": 27,
-					"minLength": 27,
-					"type": "string"
+					"type": "integer"
 				},
 				"hiveName": {
 					"type": "string"
-				},
-				"joinDateTime": {
-					"type": "string",
-					"format": "date-time"
-				}
-			},
-			"additionalProperties": false,
-			"type": "object"
-		},
-		"NotificationProfile": {
-			"properties": {
-				"deviceToken": {
-					"type": "string"
-				},
-				"awsPlatformEndpointARN": {
-					"type": "string"
-				},
-				"subscriptions": {
-					"items": {
-						"$schema": "http://json-schema.org/draft-04/schema#",
-						"$ref": "#/definitions/Subscription"
-					},
-					"type": "array"
 				}
 			},
 			"additionalProperties": false,
@@ -117,7 +82,12 @@
 					"format": "email"
 				},
 				"screenName": {
+					"maxLength": 35,
+					"minLength": 4,
 					"type": "string"
+				},
+				"admin": {
+					"type": "boolean"
 				},
 				"attributes": {
 					"$schema": "http://json-schema.org/draft-04/schema#",
@@ -131,110 +101,15 @@
 					"type": "string",
 					"format": "date-time"
 				},
-				"notificationProfile": {
-					"$schema": "http://json-schema.org/draft-04/schema#",
-					"$ref": "#/definitions/NotificationProfile"
-				},
-				"surveyResponses": {
-					"$schema": "http://json-schema.org/draft-04/schema#",
-					"$ref": "#/definitions/SurveyResponses"
-				}
-			},
-			"additionalProperties": false,
-			"type": "object"
-		},
-		"Subscription": {
-			"required": [
-				"Name",
-				"SubscriptionARN"
-			],
-			"properties": {
-				"Name": {
+				"deviceToken": {
 					"type": "string"
 				},
-				"SubscriptionARN": {
-					"type": "string"
-				}
-			},
-			"additionalProperties": false,
-			"type": "object"
-		},
-		"SurveyResponses": {
-			"required": [
-				"email"
-			],
-			"properties": {
-				"email": {
-					"type": "string"
-				},
-				"respondentID": {
-					"type": "integer"
-				},
-				"startTimestamp": {
-					"type": "string",
-					"format": "date-time"
-				},
-				"endTimestamp": {
-					"type": "string",
-					"format": "date-time"
-				},
-				"importTimestamp": {
-					"type": "string",
-					"format": "date-time"
-				},
-				"birthYear": {
-					"type": "integer"
-				},
-				"gender": {
-					"type": "string"
-				},
-				"relationshipStatus": {
-					"type": "string"
-				},
-				"employmentStatus": {
-					"type": "string"
-				},
-				"location": {
-					"type": "string"
-				},
-				"numberOfChildrenUnder18": {
-					"type": "integer"
-				},
-				"householdIncomeAmount": {
-					"type": "integer"
-				},
-				"netWorthAmount": {
-					"type": "integer"
-				},
-				"taxFilingStatus": {
-					"type": "string"
-				},
-				"marginalTaxBracket": {
-					"type": "integer"
-				},
-				"emergencySavingsAmount": {
-					"type": "integer"
-				},
-				"savingForEducation": {
-					"type": "boolean"
-				},
-				"educationSavingsGoal": {
-					"type": "integer"
-				},
-				"educationSavingsAmount": {
-					"type": "integer"
-				},
-				"retirementSavingsGoal": {
-					"type": "integer"
-				},
-				"retirementSavingsAmount": {
-					"type": "integer"
-				},
-				"lifeInsuranceAmount": {
-					"type": "integer"
-				},
-				"haveWill": {
-					"type": "boolean"
+				"hives": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/HiveMembership"
+					},
+					"type": "array"
 				}
 			},
 			"additionalProperties": false,

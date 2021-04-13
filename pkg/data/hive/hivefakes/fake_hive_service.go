@@ -276,6 +276,34 @@ type FakeHiveService struct {
 	pinPostReturnsOnCall map[int]struct {
 		result1 error
 	}
+	ReportCommentStub        func(context.Context, uint64, *string, bool) error
+	reportCommentMutex       sync.RWMutex
+	reportCommentArgsForCall []struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 *string
+		arg4 bool
+	}
+	reportCommentReturns struct {
+		result1 error
+	}
+	reportCommentReturnsOnCall map[int]struct {
+		result1 error
+	}
+	ReportPostStub        func(context.Context, uint64, *string, bool) error
+	reportPostMutex       sync.RWMutex
+	reportPostArgsForCall []struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 *string
+		arg4 bool
+	}
+	reportPostReturns struct {
+		result1 error
+	}
+	reportPostReturnsOnCall map[int]struct {
+		result1 error
+	}
 	TakeDownVoteStub        func(context.Context, data.ContentInput) error
 	takeDownVoteMutex       sync.RWMutex
 	takeDownVoteArgsForCall []struct {
@@ -1535,6 +1563,134 @@ func (fake *FakeHiveService) PinPostReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeHiveService) ReportComment(arg1 context.Context, arg2 uint64, arg3 *string, arg4 bool) error {
+	fake.reportCommentMutex.Lock()
+	ret, specificReturn := fake.reportCommentReturnsOnCall[len(fake.reportCommentArgsForCall)]
+	fake.reportCommentArgsForCall = append(fake.reportCommentArgsForCall, struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 *string
+		arg4 bool
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.ReportCommentStub
+	fakeReturns := fake.reportCommentReturns
+	fake.recordInvocation("ReportComment", []interface{}{arg1, arg2, arg3, arg4})
+	fake.reportCommentMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeHiveService) ReportCommentCallCount() int {
+	fake.reportCommentMutex.RLock()
+	defer fake.reportCommentMutex.RUnlock()
+	return len(fake.reportCommentArgsForCall)
+}
+
+func (fake *FakeHiveService) ReportCommentCalls(stub func(context.Context, uint64, *string, bool) error) {
+	fake.reportCommentMutex.Lock()
+	defer fake.reportCommentMutex.Unlock()
+	fake.ReportCommentStub = stub
+}
+
+func (fake *FakeHiveService) ReportCommentArgsForCall(i int) (context.Context, uint64, *string, bool) {
+	fake.reportCommentMutex.RLock()
+	defer fake.reportCommentMutex.RUnlock()
+	argsForCall := fake.reportCommentArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeHiveService) ReportCommentReturns(result1 error) {
+	fake.reportCommentMutex.Lock()
+	defer fake.reportCommentMutex.Unlock()
+	fake.ReportCommentStub = nil
+	fake.reportCommentReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) ReportCommentReturnsOnCall(i int, result1 error) {
+	fake.reportCommentMutex.Lock()
+	defer fake.reportCommentMutex.Unlock()
+	fake.ReportCommentStub = nil
+	if fake.reportCommentReturnsOnCall == nil {
+		fake.reportCommentReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.reportCommentReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) ReportPost(arg1 context.Context, arg2 uint64, arg3 *string, arg4 bool) error {
+	fake.reportPostMutex.Lock()
+	ret, specificReturn := fake.reportPostReturnsOnCall[len(fake.reportPostArgsForCall)]
+	fake.reportPostArgsForCall = append(fake.reportPostArgsForCall, struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 *string
+		arg4 bool
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.ReportPostStub
+	fakeReturns := fake.reportPostReturns
+	fake.recordInvocation("ReportPost", []interface{}{arg1, arg2, arg3, arg4})
+	fake.reportPostMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeHiveService) ReportPostCallCount() int {
+	fake.reportPostMutex.RLock()
+	defer fake.reportPostMutex.RUnlock()
+	return len(fake.reportPostArgsForCall)
+}
+
+func (fake *FakeHiveService) ReportPostCalls(stub func(context.Context, uint64, *string, bool) error) {
+	fake.reportPostMutex.Lock()
+	defer fake.reportPostMutex.Unlock()
+	fake.ReportPostStub = stub
+}
+
+func (fake *FakeHiveService) ReportPostArgsForCall(i int) (context.Context, uint64, *string, bool) {
+	fake.reportPostMutex.RLock()
+	defer fake.reportPostMutex.RUnlock()
+	argsForCall := fake.reportPostArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeHiveService) ReportPostReturns(result1 error) {
+	fake.reportPostMutex.Lock()
+	defer fake.reportPostMutex.Unlock()
+	fake.ReportPostStub = nil
+	fake.reportPostReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) ReportPostReturnsOnCall(i int, result1 error) {
+	fake.reportPostMutex.Lock()
+	defer fake.reportPostMutex.Unlock()
+	fake.ReportPostStub = nil
+	if fake.reportPostReturnsOnCall == nil {
+		fake.reportPostReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.reportPostReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeHiveService) TakeDownVote(arg1 context.Context, arg2 data.ContentInput) error {
 	fake.takeDownVoteMutex.Lock()
 	ret, specificReturn := fake.takeDownVoteReturnsOnCall[len(fake.takeDownVoteArgsForCall)]
@@ -1700,6 +1856,10 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.newPostMutex.RUnlock()
 	fake.pinPostMutex.RLock()
 	defer fake.pinPostMutex.RUnlock()
+	fake.reportCommentMutex.RLock()
+	defer fake.reportCommentMutex.RUnlock()
+	fake.reportPostMutex.RLock()
+	defer fake.reportPostMutex.RUnlock()
 	fake.takeDownVoteMutex.RLock()
 	defer fake.takeDownVoteMutex.RUnlock()
 	fake.takeUpVoteMutex.RLock()

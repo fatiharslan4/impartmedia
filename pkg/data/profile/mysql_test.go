@@ -14,6 +14,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/suite"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"go.uber.org/zap"
 	"testing"
 	"time"
@@ -79,16 +80,15 @@ func (s *ProfileDBTestSuite) TestCreateProfile() {
 		AuthenticationID: fmt.Sprintf("auth0|%s", ksuid.New().String()),
 		Email:            "test@test.com",
 		ScreenName:       "testScreenName",
-		CreatedTS:        time.Now().Truncate(time.Millisecond).UTC(),
-		UpdatedTS:        time.Now().Truncate(time.Millisecond).UTC(),
+		CreatedAt:        time.Now().Truncate(time.Millisecond).UTC(),
+		UpdatedAt:        time.Now().Truncate(time.Millisecond).UTC(),
 		DeviceToken:      "device",
 		AwsSNSAppArn:     "somearn",
 	}
 	p := &dbmodels.Profile{
-		ImpartWealthID:  id,
-		UpdatedTS:       time.Now().Truncate(time.Millisecond).UTC(),
-		Attributes:      nil,
-		SurveyResponses: nil,
+		ImpartWealthID: id,
+		UpdatedAt:      time.Now().Truncate(time.Millisecond).UTC(),
+		Attributes:     nil,
 	}
 
 	attr := &models.Attributes{
@@ -97,14 +97,8 @@ func (s *ProfileDBTestSuite) TestCreateProfile() {
 	err := p.Attributes.Marshal(attr)
 	s.Require().NoError(err)
 
-	survResp := &models.SurveyResponses{
-		BirthYear: 2000,
-	}
-	err = p.SurveyResponses.Marshal(survResp)
-	s.Require().NoError(err)
-
 	err = s.store.CreateUserProfile(ctx, u, p)
-	s.Require().NoError(err, "updated ts %v", u.UpdatedTS)
+	s.Require().NoError(err, "updated ts %v", u.UpdatedAt)
 
 	retU, err := s.store.GetUser(ctx, u.ImpartWealthID)
 	s.Require().NoError(err)
@@ -112,8 +106,8 @@ func (s *ProfileDBTestSuite) TestCreateProfile() {
 	s.Equal(u.AuthenticationID, retU.AuthenticationID)
 	s.Equal(u.Email, retU.Email)
 	s.Equal(u.ScreenName, retU.ScreenName)
-	s.Equal(u.CreatedTS, retU.CreatedTS)
-	s.Equal(u.UpdatedTS, retU.UpdatedTS)
+	s.Equal(u.CreatedAt, retU.CreatedAt)
+	s.Equal(u.UpdatedAt, retU.UpdatedAt)
 	s.Equal(u.DeviceToken, retU.DeviceToken)
 	s.Equal(u.AwsSNSAppArn, retU.AwsSNSAppArn)
 
@@ -123,12 +117,7 @@ func (s *ProfileDBTestSuite) TestCreateProfile() {
 	err = retU.R.ImpartWealthProfile.Attributes.Unmarshal(&retAttributes)
 	s.Require().NoError(err)
 
-	var retSurvey models.SurveyResponses
-	err = retU.R.ImpartWealthProfile.SurveyResponses.Unmarshal(&retSurvey)
-	s.Require().NoError(err)
-
 	s.Equal(*attr, retAttributes)
-	s.Equal(*survResp, retSurvey)
 
 }
 
@@ -140,23 +129,18 @@ func (s *ProfileDBTestSuite) TestFetches() {
 		AuthenticationID: fmt.Sprintf("auth0|%s", id),
 		Email:            "test@test.com",
 		ScreenName:       "testScreenName",
-		CreatedTS:        time.Now().Truncate(time.Millisecond).UTC(),
-		UpdatedTS:        time.Now().Truncate(time.Millisecond).UTC(),
+		CreatedAt:        time.Now().Truncate(time.Millisecond).UTC(),
+		UpdatedAt:        time.Now().Truncate(time.Millisecond).UTC(),
 	}
 	p := &dbmodels.Profile{
-		ImpartWealthID:  id,
-		UpdatedTS:       time.Now().Truncate(time.Millisecond).UTC(),
-		Attributes:      nil,
-		SurveyResponses: nil,
+		ImpartWealthID: id,
+		UpdatedAt:      time.Now().Truncate(time.Millisecond).UTC(),
+		Attributes:     nil,
+		//SurveyResponses: nil,
 	}
 
 	err := p.Attributes.Marshal(&models.Attributes{
 		Name: "Philis",
-	})
-	s.Require().NoError(err)
-
-	err = p.SurveyResponses.Marshal(&models.SurveyResponses{
-		BirthYear: 2000,
 	})
 	s.Require().NoError(err)
 
@@ -176,7 +160,7 @@ func (s *ProfileDBTestSuite) TestFetches() {
 	s.Require().NoError(err)
 
 	s.Equal(u.ImpartWealthID, authUser.ImpartWealthID)
-	s.Equal(u.UpdatedTS, authUser.UpdatedTS)
+	s.Equal(u.UpdatedAt, authUser.UpdatedAt)
 
 	s.Equal(u.ImpartWealthID, authUser.R.ImpartWealthProfile.ImpartWealthID)
 
@@ -190,26 +174,19 @@ func (s *ProfileDBTestSuite) TestUpdate() {
 		AuthenticationID: fmt.Sprintf("auth0|%s", ksuid.New().String()),
 		Email:            "test@test.com",
 		ScreenName:       "testScreenName",
-		CreatedTS:        time.Now().Truncate(time.Millisecond).UTC(),
-		UpdatedTS:        time.Now().Truncate(time.Millisecond).UTC(),
+		CreatedAt:        time.Now().Truncate(time.Millisecond).UTC(),
+		UpdatedAt:        time.Now().Truncate(time.Millisecond).UTC(),
 	}
 
 	p := &dbmodels.Profile{
-		ImpartWealthID:  id,
-		UpdatedTS:       time.Now().Truncate(time.Millisecond).UTC(),
-		Attributes:      nil,
-		SurveyResponses: nil,
+		ImpartWealthID: id,
+		UpdatedAt:      time.Now().Truncate(time.Millisecond).UTC(),
+		Attributes:     nil,
 	}
 	attr := &models.Attributes{
 		Name: "Philis",
 	}
 	err := p.Attributes.Marshal(attr)
-	s.Require().NoError(err)
-
-	survResp := &models.SurveyResponses{
-		BirthYear: 2000,
-	}
-	err = p.SurveyResponses.Marshal(survResp)
 	s.Require().NoError(err)
 
 	err = s.store.CreateUserProfile(ctx, u, p)
@@ -246,26 +223,19 @@ func (s *ProfileDBTestSuite) TestDelete() {
 		AuthenticationID: fmt.Sprintf("auth0|%s", ksuid.New().String()),
 		Email:            "test@test.com",
 		ScreenName:       "testScreenName",
-		CreatedTS:        time.Now().Truncate(time.Millisecond).UTC(),
-		UpdatedTS:        time.Now().Truncate(time.Millisecond).UTC(),
+		CreatedAt:        time.Now().Truncate(time.Millisecond).UTC(),
+		UpdatedAt:        time.Now().Truncate(time.Millisecond).UTC(),
 	}
 	p := &dbmodels.Profile{
-		ImpartWealthID:  id,
-		UpdatedTS:       time.Now().Truncate(time.Millisecond).UTC(),
-		Attributes:      nil,
-		SurveyResponses: nil,
+		ImpartWealthID: id,
+		UpdatedAt:      time.Now().Truncate(time.Millisecond).UTC(),
+		Attributes:     nil,
 	}
 
 	attr := &models.Attributes{
 		Name: "Philis",
 	}
 	err := p.Attributes.Marshal(attr)
-	s.Require().NoError(err)
-
-	survResp := &models.SurveyResponses{
-		BirthYear: 2000,
-	}
-	err = p.SurveyResponses.Marshal(survResp)
 	s.Require().NoError(err)
 
 	err = s.store.CreateUserProfile(ctx, u, p)
@@ -279,4 +249,173 @@ func (s *ProfileDBTestSuite) TestDelete() {
 
 	_, err = s.store.GetUser(ctx, u.ImpartWealthID)
 	s.Require().Equal(impart.ErrNotFound, err)
+}
+
+func (s *ProfileDBTestSuite) TestQuestionnaireNull() {
+	ctx := context.Background()
+
+	q, err := s.store.GetQuestionnaire(ctx, impart.OnBoardingQuestionnaireKeyName, nil)
+	s.Require().NoError(err)
+	s.Require().NotNil(q)
+
+	//Ensure all relationships have loaded
+	s.NotEmpty(q.Name)
+	s.NotNil(q.R)
+	s.NotEmpty(q.R.Questions)
+	s.NotEmpty(q.R.Questions[0].QuestionName)
+
+	s.NotNil(q.R.Questions[0].R)
+
+	s.NotEmpty(q.R.Questions[0].R.Type.Text)
+
+	s.NotEmpty(q.R.Questions[0].R.Answers)
+	s.NotEmpty(q.R.Questions[0].R.Answers[0].Text)
+
+}
+
+func (s *ProfileDBTestSuite) TestQuestionnaire() {
+	ctx := context.Background()
+	v := uint(1)
+	q, err := s.store.GetQuestionnaire(ctx, impart.OnBoardingQuestionnaireKeyName, &v)
+	s.Require().NoError(err)
+	s.Require().NotNil(q)
+
+	//Ensure all relationships have loaded
+	s.NotEmpty(q.Name)
+	s.NotNil(q.R)
+	s.NotEmpty(q.R.Questions)
+	s.NotEmpty(q.R.Questions[0].QuestionName)
+
+	s.NotNil(q.R.Questions[0].R)
+
+	s.NotEmpty(q.R.Questions[0].R.Type.Text)
+
+	s.NotEmpty(q.R.Questions[0].R.Answers)
+	s.NotEmpty(q.R.Questions[0].R.Answers[0].Text)
+
+}
+
+func (s *ProfileDBTestSuite) TestAllQuestionnaire() {
+	ctx := context.Background()
+
+	qs, err := s.store.GetAllCurrentQuestionnaires(ctx)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(qs)
+	q := qs[0]
+
+	//Ensure all relationships have loaded
+	s.NotEmpty(q.Name)
+	s.NotNil(q.R)
+	s.NotEmpty(q.R.Questions)
+	s.NotEmpty(q.R.Questions[0].QuestionName)
+
+	s.NotNil(q.R.Questions[0].R)
+
+	s.NotEmpty(q.R.Questions[0].R.Type.Text)
+
+	s.NotEmpty(q.R.Questions[0].R.Answers)
+	s.NotEmpty(q.R.Questions[0].R.Answers[0].Text)
+
+}
+
+func (s *ProfileDBTestSuite) contextWithImpartAdmin() context.Context {
+	id := ksuid.New().String()
+	user := &dbmodels.User{
+		ImpartWealthID:   id,
+		AuthenticationID: id,
+		Email:            id,
+		ScreenName:       id,
+		CreatedAt:        impart.CurrentUTC(),
+		UpdatedAt:        impart.CurrentUTC(),
+		DeviceToken:      "d",
+		AwsSNSAppArn:     "f",
+		Admin:            true,
+	}
+	err := user.Insert(context.TODO(), s.db, boil.Infer())
+	s.NoError(err)
+
+	return context.WithValue(context.Background(), impart.UserRequestContextKey, user)
+}
+
+func (s *ProfileDBTestSuite) TestInsertQuestionnaire() {
+	ctx := s.contextWithImpartAdmin()
+	ctxUser := impart.GetCtxUser(ctx)
+
+	onboardingQuestionnaire, err := s.store.GetQuestionnaire(ctx, impart.OnBoardingQuestionnaireKeyName, nil)
+	s.Require().NoError(err)
+
+	in := dbmodels.UserAnswerSlice{}
+
+	for _, q := range onboardingQuestionnaire.R.Questions {
+		for i, a := range q.R.Answers {
+			if i == 2 {
+				in = append(in, &dbmodels.UserAnswer{
+					ImpartWealthID: ctxUser.ImpartWealthID,
+					AnswerID:       a.AnswerID,
+					CreatedAt:      time.Time{},
+					UpdatedAt:      time.Time{},
+				})
+			}
+		}
+	}
+	err = s.store.SaveUserQuestionnaire(ctx, in)
+	s.Require().NoError(err)
+}
+
+func (s *ProfileDBTestSuite) bootstrapUserQuestionnaire(ctx context.Context) {
+	ctxUser := impart.GetCtxUser(ctx)
+
+	onboardingQuestionnaire, err := s.store.GetQuestionnaire(ctx, impart.OnBoardingQuestionnaireKeyName, nil)
+	s.Require().NoError(err)
+
+	in := dbmodels.UserAnswerSlice{}
+
+	for _, q := range onboardingQuestionnaire.R.Questions {
+		for i, a := range q.R.Answers {
+			if i == 2 {
+				in = append(in, &dbmodels.UserAnswer{
+					ImpartWealthID: ctxUser.ImpartWealthID,
+					AnswerID:       a.AnswerID,
+					CreatedAt:      time.Time{},
+					UpdatedAt:      time.Time{},
+				})
+			}
+		}
+	}
+	err = s.store.SaveUserQuestionnaire(ctx, in)
+	s.Require().NoError(err)
+}
+
+func (s *ProfileDBTestSuite) TestGetUserQuestionnaire() {
+	ctx := s.contextWithImpartAdmin()
+	s.bootstrapUserQuestionnaire(ctx)
+
+	ctxUser := impart.GetCtxUser(ctx)
+
+	q, err := s.store.GetUserQuestionnaires(ctx, ctxUser.ImpartWealthID, nil)
+	s.Require().NoError(err)
+	s.Len(q, 1)
+}
+
+func (s *ProfileDBTestSuite) TestGetUserQuestionnaireByName() {
+	ctx := s.contextWithImpartAdmin()
+	s.bootstrapUserQuestionnaire(ctx)
+
+	ctxUser := impart.GetCtxUser(ctx)
+	x := impart.OnBoardingQuestionnaireKeyName
+	q, err := s.store.GetUserQuestionnaires(ctx, ctxUser.ImpartWealthID, &x)
+	s.Require().NoError(err)
+	s.Len(q, 1)
+}
+
+func (s *ProfileDBTestSuite) TestGetUserQuestionnaireByNameMissing() {
+	ctx := s.contextWithImpartAdmin()
+	s.bootstrapUserQuestionnaire(ctx)
+
+	ctxUser := impart.GetCtxUser(ctx)
+	x := impart.OnBoardingQuestionnaireKeyName + "abc"
+	q, err := s.store.GetUserQuestionnaires(ctx, ctxUser.ImpartWealthID, &x)
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, impart.ErrNotFound)
+	s.Len(q, 0)
 }

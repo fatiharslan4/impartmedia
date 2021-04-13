@@ -2,6 +2,7 @@ package hive
 
 import (
 	"context"
+	"fmt"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"strings"
 	"time"
@@ -35,7 +36,7 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	}
 	post.ImpartWealthID = ctxUser.ImpartWealthID
 	dbPost := post.ToDBModel()
-	dbPost.CreatedTS = impart.CurrentUTC()
+	dbPost.CreatedAt = impart.CurrentUTC()
 	dbPost.LastCommentTS = impart.CurrentUTC()
 	tagsSlice := make(dbmodels.TagSlice, len(post.TagIDs), len(post.TagIDs))
 	for i, t := range post.TagIDs {
@@ -216,4 +217,36 @@ func (s *service) DeletePost(ctx context.Context, postID uint64) impart.Error {
 	}
 
 	return nil
+}
+
+func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error) {
+	var dbReason *string
+	var empty models.PostCommentTrack
+	if !remove && reason == "" {
+		return empty, impart.NewError(impart.ErrBadRequest, "must provide a reason for reporting")
+	}
+	if reason != "" {
+		dbReason = &reason
+	}
+	err := s.reactionData.ReportPost(ctx, postId, dbReason, remove)
+	if err != nil {
+		s.logger.Error("couldn't report post", zap.Error(err), zap.Uint64("postId", postId))
+		switch err {
+		case impart.ErrNoOp:
+			return empty, impart.NewError(impart.ErrNoOp, "post is already in the input reported state")
+		case impart.ErrNotFound:
+			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to report", postId))
+		default:
+			return empty, impart.UnknownError
+		}
+	}
+	out, err := s.reactionData.GetUserTrack(ctx, data.ContentInput{
+		Type: data.Post,
+		Id:   postId,
+	})
+	if err != nil {
+		s.logger.Error("couldn't get updated user track object", zap.Error(err))
+		return empty, impart.UnknownError
+	}
+	return out, nil
 }

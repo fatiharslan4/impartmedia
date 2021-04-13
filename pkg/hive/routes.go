@@ -42,7 +42,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	postRoutes.POST("", handler.CreatePostFunc())
 	postRoutes.GET("/:postId", handler.GetPostFunc())
 	postRoutes.PUT("/:postId", handler.EditPostFunc())
-	postRoutes.POST("/:postId", handler.PostCommentCounterFunc())
+	postRoutes.POST("/:postId", handler.PostCommentReactionFunc())
 	postRoutes.DELETE("/:postId", handler.DeletePostFunc())
 
 	//comments
@@ -52,7 +52,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 
 	commentRoutes.GET(":commentId", handler.GetCommentsFunc())
 	commentRoutes.PUT(":commentId", handler.EditCommentFunc())
-	commentRoutes.POST(":commentId", handler.PostCommentCounterFunc())
+	commentRoutes.POST(":commentId", handler.PostCommentReactionFunc())
 	commentRoutes.DELETE(":commentId", handler.DeleteCommentFunc())
 
 }
@@ -405,7 +405,7 @@ func (hh *hiveHandler) EditPostFunc() gin.HandlerFunc {
 	}
 }
 
-func (hh *hiveHandler) PostCommentCounterFunc() gin.HandlerFunc {
+func (hh *hiveHandler) PostCommentReactionFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
 		var postId, commentId uint64
@@ -423,44 +423,72 @@ func (hh *hiveHandler) PostCommentCounterFunc() gin.HandlerFunc {
 
 		upVoteParam := strings.TrimSpace(ctx.Query("upVote"))
 		downVoteParm := strings.TrimSpace(ctx.Query("downVote"))
+		reportParam := strings.TrimSpace(ctx.Query("report"))
 
-		if upVoteParam != "" && downVoteParm != "" {
-			impartErr := impart.NewError(impart.ErrBadRequest, "Cannot specify both upVote and downVote query parameters")
-			ctx.JSON(impartErr.HttpStatus(), impartErr)
+		//we're voting
+		if upVoteParam != "" || downVoteParm != "" {
+			if upVoteParam != "" && downVoteParm != "" {
+				impartErr := impart.NewError(impart.ErrBadRequest, "Cannot specify both upVote and downVote query parameters")
+				ctx.JSON(impartErr.HttpStatus(), impartErr)
+				return
+			}
+
+			v := VoteInput{
+				PostID:    postId,
+				CommentID: commentId,
+			}
+
+			if upVoteParam != "" {
+				var err error
+				v.Upvote = true
+				v.Increment, err = strconv.ParseBool(upVoteParam)
+				if err != nil {
+					ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "unable to parse bool from upVotes Query param"))
+					return
+				}
+			} else {
+				// Otherwise, it's a downvote
+				var err error
+				v.Upvote = false
+				v.Increment, err = strconv.ParseBool(downVoteParm)
+				if err != nil {
+					ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "unable to parse bool from downVotes Query param"))
+					return
+				}
+			}
+
+			userTrack, impartErr := hh.hiveService.Votes(ctx, v)
+			if impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impartErr)
+				return
+			}
+
+			ctx.JSON(http.StatusOK, userTrack)
 			return
 		}
 
-		v := VoteInput{
-			PostID:    postId,
-			CommentID: commentId,
-		}
-
-		if upVoteParam != "" {
-			var err error
-			v.Upvote = true
-			v.Increment, err = strconv.ParseBool(upVoteParam)
+		//we're reporting
+		if reportParam != "" {
+			reason := strings.TrimSpace(ctx.Query("reason"))
+			report, err := strconv.ParseBool(reportParam)
 			if err != nil {
-				ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "unable to parse bool from upVotes Query param"))
+				impartErr := impart.NewError(impart.ErrBadRequest, "could not parse 'report' query param to bool")
+				ctx.JSON(impartErr.HttpStatus(), impartErr)
+			}
+			var impartErr impart.Error
+			var userTrack models.PostCommentTrack
+			if commentId > 0 {
+				userTrack, impartErr = hh.hiveService.ReportComment(ctx, commentId, reason, !report)
+			} else {
+				userTrack, impartErr = hh.hiveService.ReportPost(ctx, postId, reason, !report)
+			}
+			if impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impartErr)
 				return
 			}
-		} else {
-			// Otherwise, it's a downvote
-			var err error
-			v.Upvote = false
-			v.Increment, err = strconv.ParseBool(downVoteParm)
-			if err != nil {
-				ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "unable to parse bool from downVotes Query param"))
-				return
-			}
+			ctx.JSON(http.StatusOK, userTrack)
 		}
 
-		userTrack, impartErr := hh.hiveService.Votes(ctx, v)
-		if impartErr != nil {
-			ctx.JSON(impartErr.HttpStatus(), impartErr)
-			return
-		}
-
-		ctx.JSON(http.StatusOK, userTrack)
 	}
 }
 

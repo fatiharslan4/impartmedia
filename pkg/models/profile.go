@@ -20,23 +20,24 @@ type NextProfilePage struct {
 func (p *Profile) RedactSensitiveFields() {
 	p.AuthenticationID = ""
 	p.DeviceToken = ""
-	p.SurveyResponses = SurveyResponses{}
+	//p.SurveyResponses = SurveyResponses{}
 	p.Attributes = Attributes{}
 }
 
 // Profile for Impart Wealth
 type Profile struct {
-	ImpartWealthID   string          `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27"`
-	AuthenticationID string          `json:"authenticationId" conform:"trim"`
-	Email            string          `json:"email" conform:"email,lowercase" jsonschema:"format=email"`
-	ScreenName       string          `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=4,maxLength=35"`
-	Admin            bool            `json:"admin,omitempty"`
-	Attributes       Attributes      `json:"attributes,omitempty"`
-	CreatedDate      time.Time       `json:"createdDate,omitempty"`
-	UpdatedDate      time.Time       `json:"updatedDate,omitempty"`
-	DeviceToken      string          `json:"notificationProfile,omitempty"`
-	SurveyResponses  SurveyResponses `json:"surveyResponses,omitempty"`
-	HiveMemberships  HiveMemberships `json:"hives,omitempty"`
+	ImpartWealthID   string     `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27"`
+	AuthenticationID string     `json:"authenticationId" conform:"trim"`
+	Email            string     `json:"email" conform:"email,lowercase" jsonschema:"format=email"`
+	ScreenName       string     `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=4,maxLength=35"`
+	Admin            bool       `json:"admin,omitempty"`
+	Attributes       Attributes `json:"attributes,omitempty"`
+	CreatedDate      time.Time  `json:"createdDate,omitempty"`
+	UpdatedDate      time.Time  `json:"updatedDate,omitempty"`
+	DeviceToken      string     `json:"deviceToken,omitempty"`
+	//SurveyResponses  SurveyResponses `json:"surveyResponses,omitempty"`
+	HiveMemberships HiveMemberships `json:"hives,omitempty"`
+	IsMember        bool            `json:"isMember"`
 }
 
 // Attributes for Impart Wealth
@@ -120,7 +121,6 @@ func RandomProfile() Profile {
 				Zip:         r.PostalCode("US"),
 			},
 		},
-		SurveyResponses: RandomSurveyResponses(),
 	}
 	conform.Strings(&p)
 	return p
@@ -142,20 +142,15 @@ func (p Profile) DBProfile() (*dbmodels.Profile, error) {
 	out := &dbmodels.Profile{
 		ImpartWealthID: p.ImpartWealthID,
 		//Attributes:      ,
-		//SurveyResponses: nil,
 	}
 	if err := out.Attributes.Marshal(p.Attributes); err != nil {
 		return nil, err
 	}
-	if err := out.SurveyResponses.Marshal(p.SurveyResponses); err != nil {
-		return nil, err
-	}
-
 	return out, nil
 }
 func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error) {
-	if u == nil || p == nil {
-		return nil, errors.New("nil db user or db profile")
+	if u == nil {
+		return nil, errors.New("nil db user")
 	}
 	out := &Profile{
 		ImpartWealthID:   u.ImpartWealthID,
@@ -164,31 +159,34 @@ func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error)
 		ScreenName:       u.ScreenName,
 		Admin:            u.Admin,
 		//Attributes:       Attributes{},
-		CreatedDate: u.CreatedTS,
+		CreatedDate: u.CreatedAt,
 		DeviceToken: u.DeviceToken,
 		//SurveyResponses:  SurveyResponses{},
 		HiveMemberships: make(HiveMemberships, len(u.R.MemberHiveHives), len(u.R.MemberHiveHives)),
-	}
-	if u.UpdatedTS.After(p.UpdatedTS) {
-		out.UpdatedDate = u.UpdatedTS
-	} else {
-		out.UpdatedDate = p.UpdatedTS
-	}
-	if p.Attributes != nil {
-		if err := p.Attributes.Unmarshal(&out.Attributes); err != nil {
-			return nil, err
-		}
-	}
-	if p.SurveyResponses != nil {
-		if err := p.SurveyResponses.Unmarshal(&out.SurveyResponses); err != nil {
-			return nil, err
-		}
+		UpdatedDate:     u.UpdatedAt,
 	}
 
 	for i, hive := range u.R.MemberHiveHives {
 		out.HiveMemberships[i] = HiveMembership{
 			HiveID:   hive.HiveID,
 			HiveName: hive.Name,
+		}
+		if !out.IsMember && hive.HiveID > 1 {
+			out.IsMember = true
+		}
+	}
+
+	if p != nil {
+		if u.UpdatedAt.After(p.UpdatedAt) {
+			out.UpdatedDate = u.UpdatedAt
+		} else {
+			out.UpdatedDate = p.UpdatedAt
+		}
+
+		if p.Attributes != nil {
+			if err := p.Attributes.Unmarshal(&out.Attributes); err != nil {
+				return nil, err
+			}
 		}
 	}
 

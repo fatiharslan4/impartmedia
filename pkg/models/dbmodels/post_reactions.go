@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/friendsofgo/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -23,11 +24,15 @@ import (
 
 // PostReaction is an object representing the database table.
 type PostReaction struct {
-	PostID         uint64    `boil:"post_id" json:"post_id" toml:"post_id" yaml:"post_id"`
-	ImpartWealthID string    `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	Upvoted        bool      `boil:"upvoted" json:"upvoted" toml:"upvoted" yaml:"upvoted"`
-	Downvoted      bool      `boil:"downvoted" json:"downvoted" toml:"downvoted" yaml:"downvoted"`
-	UpdatedTS      time.Time `boil:"updated_ts" json:"updated_ts" toml:"updated_ts" yaml:"updated_ts"`
+	PostID         uint64      `boil:"post_id" json:"post_id" toml:"post_id" yaml:"post_id"`
+	ImpartWealthID string      `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
+	Upvoted        bool        `boil:"upvoted" json:"upvoted" toml:"upvoted" yaml:"upvoted"`
+	Downvoted      bool        `boil:"downvoted" json:"downvoted" toml:"downvoted" yaml:"downvoted"`
+	Reported       bool        `boil:"reported" json:"reported" toml:"reported" yaml:"reported"`
+	ReportedReason null.String `boil:"reported_reason" json:"reported_reason,omitempty" toml:"reported_reason" yaml:"reported_reason,omitempty"`
+	CreatedAt      time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt      time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt      null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 
 	R *postReactionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L postReactionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -38,13 +43,21 @@ var PostReactionColumns = struct {
 	ImpartWealthID string
 	Upvoted        string
 	Downvoted      string
-	UpdatedTS      string
+	Reported       string
+	ReportedReason string
+	CreatedAt      string
+	UpdatedAt      string
+	DeletedAt      string
 }{
 	PostID:         "post_id",
 	ImpartWealthID: "impart_wealth_id",
 	Upvoted:        "upvoted",
 	Downvoted:      "downvoted",
-	UpdatedTS:      "updated_ts",
+	Reported:       "reported",
+	ReportedReason: "reported_reason",
+	CreatedAt:      "created_at",
+	UpdatedAt:      "updated_at",
+	DeletedAt:      "deleted_at",
 }
 
 // Generated where
@@ -54,13 +67,21 @@ var PostReactionWhere = struct {
 	ImpartWealthID whereHelperstring
 	Upvoted        whereHelperbool
 	Downvoted      whereHelperbool
-	UpdatedTS      whereHelpertime_Time
+	Reported       whereHelperbool
+	ReportedReason whereHelpernull_String
+	CreatedAt      whereHelpertime_Time
+	UpdatedAt      whereHelpertime_Time
+	DeletedAt      whereHelpernull_Time
 }{
 	PostID:         whereHelperuint64{field: "`post_reactions`.`post_id`"},
 	ImpartWealthID: whereHelperstring{field: "`post_reactions`.`impart_wealth_id`"},
 	Upvoted:        whereHelperbool{field: "`post_reactions`.`upvoted`"},
 	Downvoted:      whereHelperbool{field: "`post_reactions`.`downvoted`"},
-	UpdatedTS:      whereHelpertime_Time{field: "`post_reactions`.`updated_ts`"},
+	Reported:       whereHelperbool{field: "`post_reactions`.`reported`"},
+	ReportedReason: whereHelpernull_String{field: "`post_reactions`.`reported_reason`"},
+	CreatedAt:      whereHelpertime_Time{field: "`post_reactions`.`created_at`"},
+	UpdatedAt:      whereHelpertime_Time{field: "`post_reactions`.`updated_at`"},
+	DeletedAt:      whereHelpernull_Time{field: "`post_reactions`.`deleted_at`"},
 }
 
 // PostReactionRels is where relationship names are stored.
@@ -87,9 +108,9 @@ func (*postReactionR) NewStruct() *postReactionR {
 type postReactionL struct{}
 
 var (
-	postReactionAllColumns            = []string{"post_id", "impart_wealth_id", "upvoted", "downvoted", "updated_ts"}
-	postReactionColumnsWithoutDefault = []string{"post_id", "impart_wealth_id", "updated_ts"}
-	postReactionColumnsWithDefault    = []string{"upvoted", "downvoted"}
+	postReactionAllColumns            = []string{"post_id", "impart_wealth_id", "upvoted", "downvoted", "reported", "reported_reason", "created_at", "updated_at", "deleted_at"}
+	postReactionColumnsWithoutDefault = []string{"post_id", "impart_wealth_id", "reported_reason", "created_at", "updated_at", "deleted_at"}
+	postReactionColumnsWithDefault    = []string{"upvoted", "downvoted", "reported"}
 	postReactionPrimaryKeyColumns     = []string{"post_id", "impart_wealth_id"}
 )
 
@@ -372,6 +393,7 @@ func (q postReactionQuery) Exists(ctx context.Context, exec boil.ContextExecutor
 func (o *PostReaction) ImpartWealth(mods ...qm.QueryMod) userQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`impart_wealth_id` = ?", o.ImpartWealthID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -386,6 +408,7 @@ func (o *PostReaction) ImpartWealth(mods ...qm.QueryMod) userQuery {
 func (o *PostReaction) Post(mods ...qm.QueryMod) postQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`post_id` = ?", o.PostID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -440,6 +463,7 @@ func (postReactionL) LoadImpartWealth(ctx context.Context, e boil.ContextExecuto
 	query := NewQuery(
 		qm.From(`user`),
 		qm.WhereIn(`user.impart_wealth_id in ?`, args...),
+		qmhelper.WhereIsNull(`user.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -544,6 +568,7 @@ func (postReactionL) LoadPost(ctx context.Context, e boil.ContextExecutor, singu
 	query := NewQuery(
 		qm.From(`post`),
 		qm.WhereIn(`post.post_id in ?`, args...),
+		qmhelper.WhereIsNull(`post.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -700,7 +725,7 @@ func (o *PostReaction) SetPost(ctx context.Context, exec boil.ContextExecutor, i
 
 // PostReactions retrieves all the records using an executor.
 func PostReactions(mods ...qm.QueryMod) postReactionQuery {
-	mods = append(mods, qm.From("`post_reactions`"))
+	mods = append(mods, qm.From("`post_reactions`"), qmhelper.WhereIsNull("`post_reactions`.`deleted_at`"))
 	return postReactionQuery{NewQuery(mods...)}
 }
 
@@ -714,7 +739,7 @@ func FindPostReaction(ctx context.Context, exec boil.ContextExecutor, postID uin
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from `post_reactions` where `post_id`=? AND `impart_wealth_id`=?", sel,
+		"select %s from `post_reactions` where `post_id`=? AND `impart_wealth_id`=? and `deleted_at` is null", sel,
 	)
 
 	q := queries.Raw(query, postID, impartWealthID)
@@ -738,6 +763,16 @@ func (o *PostReaction) Insert(ctx context.Context, exec boil.ContextExecutor, co
 	}
 
 	var err error
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		if o.UpdatedAt.IsZero() {
+			o.UpdatedAt = currTime
+		}
+	}
 
 	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
 		return err
@@ -830,6 +865,12 @@ CacheNoHooks:
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
 func (o *PostReaction) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		o.UpdatedAt = currTime
+	}
+
 	var err error
 	if err = o.doBeforeUpdateHooks(ctx, exec); err != nil {
 		return 0, err
@@ -962,6 +1003,14 @@ func (o *PostReaction) Upsert(ctx context.Context, exec boil.ContextExecutor, up
 	if o == nil {
 		return errors.New("dbmodels: no post_reactions provided for upsert")
 	}
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		o.UpdatedAt = currTime
+	}
 
 	if err := o.doBeforeUpsertHooks(ctx, exec); err != nil {
 		return err
@@ -1091,7 +1140,7 @@ CacheNoHooks:
 
 // Delete deletes a single PostReaction record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *PostReaction) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o *PostReaction) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
 		return 0, errors.New("dbmodels: no PostReaction provided for delete")
 	}
@@ -1100,8 +1149,26 @@ func (o *PostReaction) Delete(ctx context.Context, exec boil.ContextExecutor) (i
 		return 0, err
 	}
 
-	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), postReactionPrimaryKeyMapping)
-	sql := "DELETE FROM `post_reactions` WHERE `post_id`=? AND `impart_wealth_id`=?"
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), postReactionPrimaryKeyMapping)
+		sql = "DELETE FROM `post_reactions` WHERE `post_id`=? AND `impart_wealth_id`=?"
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		o.DeletedAt = null.TimeFrom(currTime)
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE `post_reactions` SET %s WHERE `post_id`=? AND `impart_wealth_id`=?",
+			strmangle.SetParamNames("`", "`", 0, wl),
+		)
+		valueMapping, err := queries.BindMapping(postReactionType, postReactionMapping, append(wl, postReactionPrimaryKeyColumns...))
+		if err != nil {
+			return 0, err
+		}
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), valueMapping)
+	}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1126,12 +1193,17 @@ func (o *PostReaction) Delete(ctx context.Context, exec boil.ContextExecutor) (i
 }
 
 // DeleteAll deletes all matching rows.
-func (q postReactionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (q postReactionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if q.Query == nil {
 		return 0, errors.New("dbmodels: no postReactionQuery provided for delete all")
 	}
 
-	queries.SetDelete(q.Query)
+	if hardDelete {
+		queries.SetDelete(q.Query)
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		queries.SetUpdate(q.Query, M{"deleted_at": currTime})
+	}
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
@@ -1147,7 +1219,7 @@ func (q postReactionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecu
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o PostReactionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o PostReactionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if len(o) == 0 {
 		return 0, nil
 	}
@@ -1160,14 +1232,31 @@ func (o PostReactionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecu
 		}
 	}
 
-	var args []interface{}
-	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), postReactionPrimaryKeyMapping)
-		args = append(args, pkeyArgs...)
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), postReactionPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+		}
+		sql = "DELETE FROM `post_reactions` WHERE " +
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, postReactionPrimaryKeyColumns, len(o))
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), postReactionPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+			obj.DeletedAt = null.TimeFrom(currTime)
+		}
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE `post_reactions` SET %s WHERE "+
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, postReactionPrimaryKeyColumns, len(o)),
+			strmangle.SetParamNames("`", "`", 0, wl),
+		)
+		args = append([]interface{}{currTime}, args...)
 	}
-
-	sql := "DELETE FROM `post_reactions` WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, postReactionPrimaryKeyColumns, len(o))
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1222,7 +1311,8 @@ func (o *PostReactionSlice) ReloadAll(ctx context.Context, exec boil.ContextExec
 	}
 
 	sql := "SELECT `post_reactions`.* FROM `post_reactions` WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, postReactionPrimaryKeyColumns, len(*o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, postReactionPrimaryKeyColumns, len(*o)) +
+		"and `deleted_at` is null"
 
 	q := queries.Raw(sql, args...)
 
@@ -1239,7 +1329,7 @@ func (o *PostReactionSlice) ReloadAll(ctx context.Context, exec boil.ContextExec
 // PostReactionExists checks if the PostReaction row exists.
 func PostReactionExists(ctx context.Context, exec boil.ContextExecutor, postID uint64, impartWealthID string) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from `post_reactions` where `post_id`=? AND `impart_wealth_id`=? limit 1)"
+	sql := "select exists(select 1 from `post_reactions` where `post_id`=? AND `impart_wealth_id`=? and `deleted_at` is null limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)

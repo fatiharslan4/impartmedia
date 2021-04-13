@@ -32,6 +32,9 @@ type Comment struct {
 	UpVotes          int              `json:"upVotes,"`
 	DownVotes        int              `json:"downVotes"`
 	PostCommentTrack PostCommentTrack `json:"postCommentTrack,omitempty"`
+	ReportedCount    int              `json:"reportedCount"`
+	Obfuscated       bool             `json:"obfuscated"`
+	ReviewedDatetime time.Time        `json:"reviewedDatetime,omitempty"`
 }
 
 func (comments Comments) Latest() time.Time {
@@ -89,7 +92,7 @@ func (c *Comment) Random() {
 //	return &dbmodels.Comment{
 //		PostID:          c.PostID,
 //		ImpartWealthID:  "",
-//		CreatedTS:       time.Time{},
+//		CreatedAt:       time.Time{},
 //		Content:         "",
 //		LastReplyTS:     time.Time{},
 //		ParentCommentID: null.Uint64{},
@@ -112,7 +115,7 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 	out := Comment{
 		PostID:          c.PostID,
 		CommentID:       c.CommentID,
-		CommentDatetime: c.CreatedTS,
+		CommentDatetime: c.CreatedAt,
 		ImpartWealthID:  c.ImpartWealthID,
 		Content: Content{
 			Markdown: c.Content,
@@ -121,25 +124,17 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 		UpVotes:          c.UpVoteCount,
 		DownVotes:        c.DownVoteCount,
 		PostCommentTrack: PostCommentTrack{},
+		ReportedCount:    c.ReportedCount,
+		Obfuscated:       c.Obfuscated,
+	}
+	if c.ReviewedAt.Valid {
+		out.ReviewedDatetime = c.ReviewedAt.Time
 	}
 	if c.R.ImpartWealth != nil {
 		out.ScreenName = c.R.ImpartWealth.ScreenName
 	}
 	if len(c.R.CommentReactions) > 0 {
-		out.PostCommentTrack = PostCommentTrackFromCommentReaction(c.R.CommentReactions[0])
+		out.PostCommentTrack = PostCommentTrackFromDB(nil, c.R.CommentReactions[0])
 	}
-	return out
-}
-
-func PostCommentTrackFromCommentReaction(r *dbmodels.CommentReaction) PostCommentTrack {
-	out := PostCommentTrack{
-		ImpartWealthID: r.ImpartWealthID,
-		ContentID:      r.PostID,
-		PostID:         r.PostID,
-		UpVoted:        r.Upvoted,
-		DownVoted:      r.Downvoted,
-		VotedDatetime:  r.UpdatedTS,
-	}
-
 	return out
 }

@@ -98,29 +98,41 @@ type PostCommentTrack struct {
 	UpVoted        bool      `json:"upVoted"`
 	DownVoted      bool      `json:"downVoted"`
 	VotedDatetime  time.Time `json:"votedDatetime,omitempty"`
+	Reported       bool      `json:"reported"`
+	ReportedReason string    `json:"reportedReason"`
 }
 
 func PostCommentTrackFromDB(p *dbmodels.PostReaction, c *dbmodels.CommentReaction) PostCommentTrack {
+	var out PostCommentTrack
 	if p == nil {
-		return PostCommentTrack{
+		out = PostCommentTrack{
 			ImpartWealthID: c.ImpartWealthID,
 			ContentID:      c.CommentID,
 			PostID:         c.PostID,
 			UpVoted:        c.Upvoted,
 			DownVoted:      c.Downvoted,
-			VotedDatetime:  c.UpdatedTS,
+			VotedDatetime:  c.UpdatedAt,
+			Reported:       c.Reported,
+		}
+		if c.ReportedReason.Valid {
+			out.ReportedReason = c.ReportedReason.String
+		}
+	} else {
+		//is a post
+		out = PostCommentTrack{
+			ImpartWealthID: p.ImpartWealthID,
+			ContentID:      p.PostID,
+			PostID:         p.PostID,
+			UpVoted:        p.Upvoted,
+			DownVoted:      p.Downvoted,
+			VotedDatetime:  p.UpdatedAt,
+			Reported:       p.Reported,
+		}
+		if p.ReportedReason.Valid {
+			out.ReportedReason = p.ReportedReason.String
 		}
 	}
-	//is a post
-	return PostCommentTrack{
-		ImpartWealthID: p.ImpartWealthID,
-		ContentID:      p.PostID,
-		PostID:         p.PostID,
-		UpVoted:        p.Upvoted,
-		DownVoted:      p.Downvoted,
-		VotedDatetime:  p.UpdatedTS,
-	}
-
+	return out
 }
 
 // Latest returns the

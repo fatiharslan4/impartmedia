@@ -6,10 +6,12 @@ import (
 	"context"
 	"database/sql"
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"go.uber.org/zap"
+	"time"
 )
 
 var _ Hives = &mysqlHiveData{}
@@ -42,6 +44,11 @@ type Hives interface {
 	NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error)
 	EditHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error)
 	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) error
+
+	GetReviewedPosts(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error)
+	GetUnreviewedReportedPosts(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
+	GetPostsWithUnreviewedComments(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
+	GetPostsWithReviewedComments(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error)
 }
 
 func (d *mysqlHiveData) GetHives(ctx context.Context) (dbmodels.HiveSlice, error) {

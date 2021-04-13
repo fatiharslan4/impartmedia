@@ -93,7 +93,7 @@ func (d *mysqlHiveData) NewComment(ctx context.Context, comment *dbmodels.Commen
 	}
 
 	post.CommentCount++
-	post.LastCommentTS = comment.CreatedTS
+	post.LastCommentTS = comment.CreatedAt
 	_, err = post.Update(ctx, tx, boil.Whitelist(dbmodels.PostColumns.CommentCount, dbmodels.PostColumns.LastCommentTS))
 	if err != nil {
 		return nil, err
@@ -130,13 +130,18 @@ func (d *mysqlHiveData) DeleteComment(ctx context.Context, commentID uint64) err
 	}
 	defer impart.CommitRollbackLogger(tx, err, d.logger)
 
-	_, err = existingComment.Delete(ctx, tx)
+	_, err = existingComment.Delete(ctx, tx, false)
 	if err != nil {
-		return err
+		if err == sql.ErrNoRows {
+			return impart.ErrNotFound
+		}
 	}
 
 	post, err := dbmodels.FindPost(ctx, tx, existingComment.PostID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return impart.ErrNotFound
+		}
 		return err
 	}
 	post.CommentCount--

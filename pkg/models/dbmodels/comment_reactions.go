@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/friendsofgo/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -23,12 +24,16 @@ import (
 
 // CommentReaction is an object representing the database table.
 type CommentReaction struct {
-	CommentID      uint64    `boil:"comment_id" json:"comment_id" toml:"comment_id" yaml:"comment_id"`
-	PostID         uint64    `boil:"post_id" json:"post_id" toml:"post_id" yaml:"post_id"`
-	ImpartWealthID string    `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	Upvoted        bool      `boil:"upvoted" json:"upvoted" toml:"upvoted" yaml:"upvoted"`
-	Downvoted      bool      `boil:"downvoted" json:"downvoted" toml:"downvoted" yaml:"downvoted"`
-	UpdatedTS      time.Time `boil:"updated_ts" json:"updated_ts" toml:"updated_ts" yaml:"updated_ts"`
+	CommentID      uint64      `boil:"comment_id" json:"comment_id" toml:"comment_id" yaml:"comment_id"`
+	PostID         uint64      `boil:"post_id" json:"post_id" toml:"post_id" yaml:"post_id"`
+	ImpartWealthID string      `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
+	Upvoted        bool        `boil:"upvoted" json:"upvoted" toml:"upvoted" yaml:"upvoted"`
+	Downvoted      bool        `boil:"downvoted" json:"downvoted" toml:"downvoted" yaml:"downvoted"`
+	Reported       bool        `boil:"reported" json:"reported" toml:"reported" yaml:"reported"`
+	ReportedReason null.String `boil:"reported_reason" json:"reported_reason,omitempty" toml:"reported_reason" yaml:"reported_reason,omitempty"`
+	CreatedAt      time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt      time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt      null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 
 	R *commentReactionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L commentReactionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -40,14 +45,22 @@ var CommentReactionColumns = struct {
 	ImpartWealthID string
 	Upvoted        string
 	Downvoted      string
-	UpdatedTS      string
+	Reported       string
+	ReportedReason string
+	CreatedAt      string
+	UpdatedAt      string
+	DeletedAt      string
 }{
 	CommentID:      "comment_id",
 	PostID:         "post_id",
 	ImpartWealthID: "impart_wealth_id",
 	Upvoted:        "upvoted",
 	Downvoted:      "downvoted",
-	UpdatedTS:      "updated_ts",
+	Reported:       "reported",
+	ReportedReason: "reported_reason",
+	CreatedAt:      "created_at",
+	UpdatedAt:      "updated_at",
+	DeletedAt:      "deleted_at",
 }
 
 // Generated where
@@ -58,14 +71,22 @@ var CommentReactionWhere = struct {
 	ImpartWealthID whereHelperstring
 	Upvoted        whereHelperbool
 	Downvoted      whereHelperbool
-	UpdatedTS      whereHelpertime_Time
+	Reported       whereHelperbool
+	ReportedReason whereHelpernull_String
+	CreatedAt      whereHelpertime_Time
+	UpdatedAt      whereHelpertime_Time
+	DeletedAt      whereHelpernull_Time
 }{
 	CommentID:      whereHelperuint64{field: "`comment_reactions`.`comment_id`"},
 	PostID:         whereHelperuint64{field: "`comment_reactions`.`post_id`"},
 	ImpartWealthID: whereHelperstring{field: "`comment_reactions`.`impart_wealth_id`"},
 	Upvoted:        whereHelperbool{field: "`comment_reactions`.`upvoted`"},
 	Downvoted:      whereHelperbool{field: "`comment_reactions`.`downvoted`"},
-	UpdatedTS:      whereHelpertime_Time{field: "`comment_reactions`.`updated_ts`"},
+	Reported:       whereHelperbool{field: "`comment_reactions`.`reported`"},
+	ReportedReason: whereHelpernull_String{field: "`comment_reactions`.`reported_reason`"},
+	CreatedAt:      whereHelpertime_Time{field: "`comment_reactions`.`created_at`"},
+	UpdatedAt:      whereHelpertime_Time{field: "`comment_reactions`.`updated_at`"},
+	DeletedAt:      whereHelpernull_Time{field: "`comment_reactions`.`deleted_at`"},
 }
 
 // CommentReactionRels is where relationship names are stored.
@@ -92,9 +113,9 @@ func (*commentReactionR) NewStruct() *commentReactionR {
 type commentReactionL struct{}
 
 var (
-	commentReactionAllColumns            = []string{"comment_id", "post_id", "impart_wealth_id", "upvoted", "downvoted", "updated_ts"}
-	commentReactionColumnsWithoutDefault = []string{"comment_id", "post_id", "impart_wealth_id", "updated_ts"}
-	commentReactionColumnsWithDefault    = []string{"upvoted", "downvoted"}
+	commentReactionAllColumns            = []string{"comment_id", "post_id", "impart_wealth_id", "upvoted", "downvoted", "reported", "reported_reason", "created_at", "updated_at", "deleted_at"}
+	commentReactionColumnsWithoutDefault = []string{"comment_id", "post_id", "impart_wealth_id", "reported_reason", "created_at", "updated_at", "deleted_at"}
+	commentReactionColumnsWithDefault    = []string{"upvoted", "downvoted", "reported"}
 	commentReactionPrimaryKeyColumns     = []string{"comment_id", "impart_wealth_id"}
 )
 
@@ -377,6 +398,7 @@ func (q commentReactionQuery) Exists(ctx context.Context, exec boil.ContextExecu
 func (o *CommentReaction) ImpartWealth(mods ...qm.QueryMod) userQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`impart_wealth_id` = ?", o.ImpartWealthID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -391,6 +413,7 @@ func (o *CommentReaction) ImpartWealth(mods ...qm.QueryMod) userQuery {
 func (o *CommentReaction) Comment(mods ...qm.QueryMod) commentQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`comment_id` = ?", o.CommentID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -445,6 +468,7 @@ func (commentReactionL) LoadImpartWealth(ctx context.Context, e boil.ContextExec
 	query := NewQuery(
 		qm.From(`user`),
 		qm.WhereIn(`user.impart_wealth_id in ?`, args...),
+		qmhelper.WhereIsNull(`user.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -549,6 +573,7 @@ func (commentReactionL) LoadComment(ctx context.Context, e boil.ContextExecutor,
 	query := NewQuery(
 		qm.From(`comment`),
 		qm.WhereIn(`comment.comment_id in ?`, args...),
+		qmhelper.WhereIsNull(`comment.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -705,7 +730,7 @@ func (o *CommentReaction) SetComment(ctx context.Context, exec boil.ContextExecu
 
 // CommentReactions retrieves all the records using an executor.
 func CommentReactions(mods ...qm.QueryMod) commentReactionQuery {
-	mods = append(mods, qm.From("`comment_reactions`"))
+	mods = append(mods, qm.From("`comment_reactions`"), qmhelper.WhereIsNull("`comment_reactions`.`deleted_at`"))
 	return commentReactionQuery{NewQuery(mods...)}
 }
 
@@ -719,7 +744,7 @@ func FindCommentReaction(ctx context.Context, exec boil.ContextExecutor, comment
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from `comment_reactions` where `comment_id`=? AND `impart_wealth_id`=?", sel,
+		"select %s from `comment_reactions` where `comment_id`=? AND `impart_wealth_id`=? and `deleted_at` is null", sel,
 	)
 
 	q := queries.Raw(query, commentID, impartWealthID)
@@ -743,6 +768,16 @@ func (o *CommentReaction) Insert(ctx context.Context, exec boil.ContextExecutor,
 	}
 
 	var err error
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		if o.UpdatedAt.IsZero() {
+			o.UpdatedAt = currTime
+		}
+	}
 
 	if err := o.doBeforeInsertHooks(ctx, exec); err != nil {
 		return err
@@ -835,6 +870,12 @@ CacheNoHooks:
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
 func (o *CommentReaction) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		o.UpdatedAt = currTime
+	}
+
 	var err error
 	if err = o.doBeforeUpdateHooks(ctx, exec); err != nil {
 		return 0, err
@@ -967,6 +1008,14 @@ func (o *CommentReaction) Upsert(ctx context.Context, exec boil.ContextExecutor,
 	if o == nil {
 		return errors.New("dbmodels: no comment_reactions provided for upsert")
 	}
+	if !boil.TimestampsAreSkipped(ctx) {
+		currTime := time.Now().In(boil.GetLocation())
+
+		if o.CreatedAt.IsZero() {
+			o.CreatedAt = currTime
+		}
+		o.UpdatedAt = currTime
+	}
 
 	if err := o.doBeforeUpsertHooks(ctx, exec); err != nil {
 		return err
@@ -1096,7 +1145,7 @@ CacheNoHooks:
 
 // Delete deletes a single CommentReaction record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *CommentReaction) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o *CommentReaction) Delete(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if o == nil {
 		return 0, errors.New("dbmodels: no CommentReaction provided for delete")
 	}
@@ -1105,8 +1154,26 @@ func (o *CommentReaction) Delete(ctx context.Context, exec boil.ContextExecutor)
 		return 0, err
 	}
 
-	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), commentReactionPrimaryKeyMapping)
-	sql := "DELETE FROM `comment_reactions` WHERE `comment_id`=? AND `impart_wealth_id`=?"
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), commentReactionPrimaryKeyMapping)
+		sql = "DELETE FROM `comment_reactions` WHERE `comment_id`=? AND `impart_wealth_id`=?"
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		o.DeletedAt = null.TimeFrom(currTime)
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE `comment_reactions` SET %s WHERE `comment_id`=? AND `impart_wealth_id`=?",
+			strmangle.SetParamNames("`", "`", 0, wl),
+		)
+		valueMapping, err := queries.BindMapping(commentReactionType, commentReactionMapping, append(wl, commentReactionPrimaryKeyColumns...))
+		if err != nil {
+			return 0, err
+		}
+		args = queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), valueMapping)
+	}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1131,12 +1198,17 @@ func (o *CommentReaction) Delete(ctx context.Context, exec boil.ContextExecutor)
 }
 
 // DeleteAll deletes all matching rows.
-func (q commentReactionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (q commentReactionQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if q.Query == nil {
 		return 0, errors.New("dbmodels: no commentReactionQuery provided for delete all")
 	}
 
-	queries.SetDelete(q.Query)
+	if hardDelete {
+		queries.SetDelete(q.Query)
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		queries.SetUpdate(q.Query, M{"deleted_at": currTime})
+	}
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
@@ -1152,7 +1224,7 @@ func (q commentReactionQuery) DeleteAll(ctx context.Context, exec boil.ContextEx
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o CommentReactionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o CommentReactionSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor, hardDelete bool) (int64, error) {
 	if len(o) == 0 {
 		return 0, nil
 	}
@@ -1165,14 +1237,31 @@ func (o CommentReactionSlice) DeleteAll(ctx context.Context, exec boil.ContextEx
 		}
 	}
 
-	var args []interface{}
-	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), commentReactionPrimaryKeyMapping)
-		args = append(args, pkeyArgs...)
+	var (
+		sql  string
+		args []interface{}
+	)
+	if hardDelete {
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), commentReactionPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+		}
+		sql = "DELETE FROM `comment_reactions` WHERE " +
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, commentReactionPrimaryKeyColumns, len(o))
+	} else {
+		currTime := time.Now().In(boil.GetLocation())
+		for _, obj := range o {
+			pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), commentReactionPrimaryKeyMapping)
+			args = append(args, pkeyArgs...)
+			obj.DeletedAt = null.TimeFrom(currTime)
+		}
+		wl := []string{"deleted_at"}
+		sql = fmt.Sprintf("UPDATE `comment_reactions` SET %s WHERE "+
+			strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, commentReactionPrimaryKeyColumns, len(o)),
+			strmangle.SetParamNames("`", "`", 0, wl),
+		)
+		args = append([]interface{}{currTime}, args...)
 	}
-
-	sql := "DELETE FROM `comment_reactions` WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, commentReactionPrimaryKeyColumns, len(o))
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1227,7 +1316,8 @@ func (o *CommentReactionSlice) ReloadAll(ctx context.Context, exec boil.ContextE
 	}
 
 	sql := "SELECT `comment_reactions`.* FROM `comment_reactions` WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, commentReactionPrimaryKeyColumns, len(*o))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 0, commentReactionPrimaryKeyColumns, len(*o)) +
+		"and `deleted_at` is null"
 
 	q := queries.Raw(sql, args...)
 
@@ -1244,7 +1334,7 @@ func (o *CommentReactionSlice) ReloadAll(ctx context.Context, exec boil.ContextE
 // CommentReactionExists checks if the CommentReaction row exists.
 func CommentReactionExists(ctx context.Context, exec boil.ContextExecutor, commentID uint64, impartWealthID string) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from `comment_reactions` where `comment_id`=? AND `impart_wealth_id`=? limit 1)"
+	sql := "select exists(select 1 from `comment_reactions` where `comment_id`=? AND `impart_wealth_id`=? and `deleted_at` is null limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)

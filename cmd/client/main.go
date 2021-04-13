@@ -14,8 +14,8 @@ var zapConfig = &zap.Config{
 	Level:       zap.NewAtomicLevelAt(zap.InfoLevel),
 	Development: false,
 	Sampling: &zap.SamplingConfig{
-		Initial:    100,
-		Thereafter: 100,
+		Initial:    1000,
+		Thereafter: 1000,
 	},
 	Encoding: "console",
 	EncoderConfig: zapcore.EncoderConfig{
@@ -116,21 +116,23 @@ func main() {
 }
 
 type CreateUserCmd struct {
-	Email      string `short:"e" required:""`
-	Password   string `short:"p" required:""`
-	ScreenName string `short:"s" optional:"" help:"Create the user under an explicit screenName, otherwise it will be set to the email"`
-	Admin      bool   `optional:"" help:"whether the user should be created as an administrator or not"`
+	Email         string `short:"e" required:""`
+	Password      string `short:"p" required:""`
+	ScreenName    string `short:"s" optional:"" help:"Create the user under an explicit screenName, otherwise it will be set to the email"`
+	AdminUsername string `short:"U" required:"" help:"impart wealth administrator account username"`
+	AdminPassword string `short:"P" required:"" help:"impart wealth administrator account password"`
 }
 
 func (c *CreateUserCmd) Run(cfg *Config, managementclient client.ImpartMangementClient, logger *zap.Logger) error {
 	fmt.Printf("creating a new user in %s with email %s\n", cfg.Environment, c.Email)
 
 	resp, err := managementclient.CreateUser(client.CreateUserRequest{
-		Environment: cfg.Environment,
-		Email:       c.Email,
-		Password:    c.Password,
-		ScreenName:  c.ScreenName,
-		Admin:       c.Admin,
+		Environment:   cfg.Environment,
+		Email:         c.Email,
+		Password:      c.Password,
+		ScreenName:    c.ScreenName,
+		AdminUsername: c.AdminUsername,
+		AdminPassword: c.AdminPassword,
 	})
 	if err != nil {
 		return err
@@ -142,8 +144,8 @@ func (c *CreateUserCmd) Run(cfg *Config, managementclient client.ImpartMangement
 type DeleteUserCmd struct {
 	Email          string `short:"e" help:"the email address of the auth0 user to delete; ignored if impartWealthId is set"`
 	ImpartWealthID string `name:"id" short:"i" help:"the impartWealthId of the user to delete; do not pass both"`
-	AdminUsername  string `short:"u" required:"" help:"impart wealth administrator account username"`
-	AdminPassword  string `short:"p" required:"" help:"impart wealth administrator account password"`
+	AdminUsername  string `short:"U" required:"" help:"impart wealth administrator account username"`
+	AdminPassword  string `short:"P" required:"" help:"impart wealth administrator account password"`
 }
 
 func (c *DeleteUserCmd) Run(cfg *Config, managementClient client.ImpartMangementClient, logger *zap.Logger) error {

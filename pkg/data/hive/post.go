@@ -3,14 +3,13 @@ package data
 import (
 	"context"
 	"database/sql"
+	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
-
-	"github.com/impartwealthapp/backend/pkg/impart"
-	"github.com/impartwealthapp/backend/pkg/models"
 )
 
 var _ Posts = &mysqlHiveData{}
@@ -115,7 +114,7 @@ func (d *mysqlHiveData) GetPosts(ctx context.Context, gpi GetPostsInput) (dbmode
 		gpi.Limit = maxPostLimit
 	}
 
-	orderByMod := qm.OrderBy("created_ts desc, post_id desc")
+	orderByMod := qm.OrderBy("created_at desc, post_id desc")
 	if gpi.IsLastCommentSorted {
 		orderByMod = qm.OrderBy("last_comment_ts desc, post_id desc")
 	}
@@ -163,7 +162,10 @@ func (d *mysqlHiveData) DeletePost(ctx context.Context, postID uint64) error {
 		}
 		return err
 	}
-	if _, err = p.Delete(ctx, d.db); err != nil {
+	if _, err = p.Delete(ctx, d.db, false); err != nil {
+		if err == sql.ErrNoRows {
+			return impart.ErrNotFound
+		}
 		return err
 	}
 	if p.Pinned {

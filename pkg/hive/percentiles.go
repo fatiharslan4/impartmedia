@@ -42,24 +42,24 @@ func (s *service) HiveProfilePercentiles(ctx context.Context, hiveID uint64) (ta
 }
 
 func profileCompare(p models.Profile, comparisons tags.TagComparisons) tags.TagComparisons {
-	for i, c := range comparisons {
-		switch c.TagID {
-		case tags.NetWorthID:
-			c = compare(p.SurveyResponses.NetWorthAmount, c)
-		case tags.EducationSavingsID:
-			c = compare(p.SurveyResponses.EducationSavingsAmount, c)
-		case tags.EmergencySavingsID:
-			c = compare(p.SurveyResponses.EmergencySavingsAmount, c)
-		case tags.RetirementSavingsID:
-			c = compare(p.SurveyResponses.RetirementSavingsAmount, c)
-		case tags.LifeInsuranceCoverageID:
-			c = compare(p.SurveyResponses.LifeInsuranceAmount, c)
-		case tags.IncomeID:
-			c = compare(p.SurveyResponses.HouseholdIncomeAmount, c)
-		default:
-		}
-		comparisons[i] = c
-	}
+	//for i, c := range comparisons {
+	//	switch c.TagID {
+	//	case tags.NetWorthID:
+	//		c = compare(p.SurveyResponses.NetWorthAmount, c)
+	//	case tags.EducationSavingsID:
+	//		c = compare(p.SurveyResponses.EducationSavingsAmount, c)
+	//	case tags.EmergencySavingsID:
+	//		c = compare(p.SurveyResponses.EmergencySavingsAmount, c)
+	//	case tags.RetirementSavingsID:
+	//		c = compare(p.SurveyResponses.RetirementSavingsAmount, c)
+	//	case tags.LifeInsuranceCoverageID:
+	//		c = compare(p.SurveyResponses.LifeInsuranceAmount, c)
+	//	case tags.IncomeID:
+	//		c = compare(p.SurveyResponses.HouseholdIncomeAmount, c)
+	//	default:
+	//	}
+	//	comparisons[i] = c
+	//}
 	return comparisons
 }
 

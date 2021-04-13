@@ -125,8 +125,8 @@ type hiveL struct{}
 
 var (
 	hiveAllColumns            = []string{"hive_id", "name", "description", "pinned_post_id", "tag_comparisons", "notification_topic_arn", "hive_distributions"}
-	hiveColumnsWithoutDefault = []string{"name", "description", "pinned_post_id", "tag_comparisons", "notification_topic_arn", "hive_distributions"}
-	hiveColumnsWithDefault    = []string{"hive_id"}
+	hiveColumnsWithoutDefault = []string{"hive_id", "name", "description", "pinned_post_id", "tag_comparisons", "notification_topic_arn", "hive_distributions"}
+	hiveColumnsWithDefault    = []string{}
 	hivePrimaryKeyColumns     = []string{"hive_id"}
 )
 
@@ -458,6 +458,7 @@ func (o *Hive) Posts(mods ...qm.QueryMod) postQuery {
 
 	queryMods = append(queryMods,
 		qm.Where("`post`.`hive_id`=?", o.HiveID),
+		qmhelper.WhereIsNull("`post`.`deleted_at`"),
 	)
 
 	query := Posts(queryMods...)
@@ -510,10 +511,11 @@ func (hiveL) LoadAdminImpartWealthUsers(ctx context.Context, e boil.ContextExecu
 	}
 
 	query := NewQuery(
-		qm.Select("`user`.impart_wealth_id, `user`.authentication_id, `user`.email, `user`.screen_name, `user`.created_ts, `user`.updated_ts, `user`.device_token, `user`.aws_sns_app_arn, `user`.admin, `a`.`admin_hive_id`"),
+		qm.Select("`user`.impart_wealth_id, `user`.authentication_id, `user`.email, `user`.screen_name, `user`.created_at, `user`.updated_at, `user`.deleted_at, `user`.device_token, `user`.aws_sns_app_arn, `user`.admin, `user`.email_verified, `a`.`admin_hive_id`"),
 		qm.From("`user`"),
 		qm.InnerJoin("`hive_admins` as `a` on `user`.`impart_wealth_id` = `a`.`admin_impart_wealth_id`"),
 		qm.WhereIn("`a`.`admin_hive_id` in ?", args...),
+		qmhelper.WhereIsNull("`user`.`deleted_at`"),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -531,7 +533,7 @@ func (hiveL) LoadAdminImpartWealthUsers(ctx context.Context, e boil.ContextExecu
 		one := new(User)
 		var localJoinCol uint64
 
-		err = results.Scan(&one.ImpartWealthID, &one.AuthenticationID, &one.Email, &one.ScreenName, &one.CreatedTS, &one.UpdatedTS, &one.DeviceToken, &one.AwsSNSAppArn, &one.Admin, &localJoinCol)
+		err = results.Scan(&one.ImpartWealthID, &one.AuthenticationID, &one.Email, &one.ScreenName, &one.CreatedAt, &one.UpdatedAt, &one.DeletedAt, &one.DeviceToken, &one.AwsSNSAppArn, &one.Admin, &one.EmailVerified, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for user")
 		}
@@ -625,10 +627,11 @@ func (hiveL) LoadMemberImpartWealthUsers(ctx context.Context, e boil.ContextExec
 	}
 
 	query := NewQuery(
-		qm.Select("`user`.impart_wealth_id, `user`.authentication_id, `user`.email, `user`.screen_name, `user`.created_ts, `user`.updated_ts, `user`.device_token, `user`.aws_sns_app_arn, `user`.admin, `a`.`member_hive_id`"),
+		qm.Select("`user`.impart_wealth_id, `user`.authentication_id, `user`.email, `user`.screen_name, `user`.created_at, `user`.updated_at, `user`.deleted_at, `user`.device_token, `user`.aws_sns_app_arn, `user`.admin, `user`.email_verified, `a`.`member_hive_id`"),
 		qm.From("`user`"),
 		qm.InnerJoin("`hive_members` as `a` on `user`.`impart_wealth_id` = `a`.`member_impart_wealth_id`"),
 		qm.WhereIn("`a`.`member_hive_id` in ?", args...),
+		qmhelper.WhereIsNull("`user`.`deleted_at`"),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -646,7 +649,7 @@ func (hiveL) LoadMemberImpartWealthUsers(ctx context.Context, e boil.ContextExec
 		one := new(User)
 		var localJoinCol uint64
 
-		err = results.Scan(&one.ImpartWealthID, &one.AuthenticationID, &one.Email, &one.ScreenName, &one.CreatedTS, &one.UpdatedTS, &one.DeviceToken, &one.AwsSNSAppArn, &one.Admin, &localJoinCol)
+		err = results.Scan(&one.ImpartWealthID, &one.AuthenticationID, &one.Email, &one.ScreenName, &one.CreatedAt, &one.UpdatedAt, &one.DeletedAt, &one.DeviceToken, &one.AwsSNSAppArn, &one.Admin, &one.EmailVerified, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for user")
 		}
@@ -742,6 +745,7 @@ func (hiveL) LoadPosts(ctx context.Context, e boil.ContextExecutor, singular boo
 	query := NewQuery(
 		qm.From(`post`),
 		qm.WhereIn(`post.hive_id in ?`, args...),
+		qmhelper.WhereIsNull(`post.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -1222,26 +1226,15 @@ func (o *Hive) Insert(ctx context.Context, exec boil.ContextExecutor, columns bo
 		fmt.Fprintln(writer, cache.query)
 		fmt.Fprintln(writer, vals)
 	}
-	result, err := exec.ExecContext(ctx, cache.query, vals...)
+	_, err = exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "dbmodels: unable to insert into hive")
 	}
 
-	var lastID int64
 	var identifierCols []interface{}
 
 	if len(cache.retMapping) == 0 {
-		goto CacheNoHooks
-	}
-
-	lastID, err = result.LastInsertId()
-	if err != nil {
-		return ErrSyncFail
-	}
-
-	o.HiveID = uint64(lastID)
-	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == hiveMapping["hive_id"] {
 		goto CacheNoHooks
 	}
 
@@ -1495,27 +1488,16 @@ func (o *Hive) Upsert(ctx context.Context, exec boil.ContextExecutor, updateColu
 		fmt.Fprintln(writer, cache.query)
 		fmt.Fprintln(writer, vals)
 	}
-	result, err := exec.ExecContext(ctx, cache.query, vals...)
+	_, err = exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "dbmodels: unable to upsert for hive")
 	}
 
-	var lastID int64
 	var uniqueMap []uint64
 	var nzUniqueCols []interface{}
 
 	if len(cache.retMapping) == 0 {
-		goto CacheNoHooks
-	}
-
-	lastID, err = result.LastInsertId()
-	if err != nil {
-		return ErrSyncFail
-	}
-
-	o.HiveID = uint64(lastID)
-	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == hiveMapping["hive_id"] {
 		goto CacheNoHooks
 	}
 

@@ -8,12 +8,12 @@ resource "aws_lb_target_group" "map" {
   target_type = "instance"
   health_check {
     enabled = true
-    interval = 20
+    interval = 60
     port = "traffic-port"
     path = "/ping"
     protocol = "HTTP"
     timeout = 5
-    healthy_threshold = 3
+    healthy_threshold = 2
     unhealthy_threshold = 3
     matcher = "200"
   }

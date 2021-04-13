@@ -15,7 +15,7 @@ func (s *HiveTestSuite) bootstrapComment(ctx context.Context, postId uint64) uin
 	newComment := &dbmodels.Comment{
 		PostID:          postId,
 		ImpartWealthID:  ctxUser.ImpartWealthID,
-		CreatedTS:       impart.CurrentUTC(),
+		CreatedAt:       impart.CurrentUTC(),
 		Content:         "moleh moleh moleh",
 		LastReplyTS:     impart.CurrentUTC(),
 		ParentCommentID: null.Uint64{},
@@ -35,7 +35,7 @@ func (s *HiveTestSuite) TestGetNewComment() {
 	newComment := dbmodels.Comment{
 		PostID:          postID,
 		ImpartWealthID:  ctxUser.ImpartWealthID,
-		CreatedTS:       impart.CurrentUTC(),
+		CreatedAt:       impart.CurrentUTC(),
 		Content:         "moleh moleh moleh",
 		LastReplyTS:     impart.CurrentUTC(),
 		ParentCommentID: null.Uint64{},
@@ -46,7 +46,7 @@ func (s *HiveTestSuite) TestGetNewComment() {
 	s.NotZero(createdComment.CommentID)
 	s.Equal(newComment.PostID, createdComment.PostID)
 	s.Equal(newComment.ImpartWealthID, createdComment.ImpartWealthID)
-	s.Equal(newComment.CreatedTS, createdComment.CreatedTS)
+	s.Equal(newComment.CreatedAt, createdComment.CreatedAt)
 	s.Equal(newComment.Content, createdComment.Content)
 	s.Equal(newComment.LastReplyTS, createdComment.LastReplyTS)
 

@@ -1,4 +1,4 @@
-## Git wirkflow Strategy
+## Git workflow Strategy
 
 ### Master
 This we will kept as development branch. Every new feature or fix branch should be base from the tip f master branch.
@@ -8,9 +8,9 @@ This we will kept as development branch. Every new feature or fix branch should 
 | - | - |
 
 ### Feature/Fix
-Each new feature should reside in its own branch, which can be pushed to the **master** branch. But, instead of branching off of master, feature branches use develop as their parent branch. When a feature is complete, it gets merged back into master.
+Each new feature should reside in its own branch, which can be merged into the **master** branch. But, instead of branching off of master, feature branches use develop as their parent branch. When a feature is complete, it gets merged back into master.
 
-When complete the development should create a merge request into master. Every new feature or fix should create with **branch name** and should add the **jira** tickete number. 
+When complete the development should create a merge request into master. Every new feature or fix should create with **branch name** and should add the **jira** ticket number. 
 
 | Create From  | Merge Back into |
 | ------------ | ------------- |
@@ -19,10 +19,10 @@ When complete the development should create a merge request into master. Every n
 Steps to follow
 - Before creating a new branch, pull all the latest update from master branch
 - Create a new branch from the tip of master
-- If you are still working on the feature branch and new updates are merged with master, then user *Merge* or *Rebase* get fetch latest updates into the feature branch
+- If you are still working on the feature branch and new updates are merged with master, then user **Merge** or **Rebase** get fetch latest updates into the feature branch
 - Once the development completed, push the codes and open an MR for review
 - Once your MR is passed the pipline, should merge the code.
-*No review or merge if the MR is not passed the pipline* - Pipline will be implmented soon
+**No review or merge if the MR is not passed the pipline** - Pipline will be implmented soon
 
 ### ios-dev
     This branch is for ios-dev.
@@ -31,6 +31,9 @@ Steps to follow
     Staging 
 
 ### Pre Production
+This will have the code for pre production. Once the staging env is fix, pull the changes from stag.
+- All the pre-production checking are done with this branch
+
 | Create From  | Merge Back into |
 | ------------ | ------------- |
 | Staging | - |
@@ -38,7 +41,7 @@ Steps to follow
 
 ### Production
 
-Is the production branch.
+Is the production branch. No direct push is not allowed here
 
 | Create From  | Merge Back into |
 | ------------ | ------------- |

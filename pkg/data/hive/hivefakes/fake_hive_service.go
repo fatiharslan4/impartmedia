@@ -4,6 +4,7 @@ package hivefakes
 import (
 	"context"
 	"sync"
+	"time"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -189,6 +190,76 @@ type FakeHiveService struct {
 	getPostsReturnsOnCall map[int]struct {
 		result1 dbmodels.PostSlice
 		result2 *models.NextPage
+		result3 error
+	}
+	GetPostsWithReviewedCommentsStub        func(context.Context, uint64, time.Time, int) (dbmodels.PostSlice, models.NextPage, error)
+	getPostsWithReviewedCommentsMutex       sync.RWMutex
+	getPostsWithReviewedCommentsArgsForCall []struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 time.Time
+		arg4 int
+	}
+	getPostsWithReviewedCommentsReturns struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}
+	getPostsWithReviewedCommentsReturnsOnCall map[int]struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}
+	GetPostsWithUnreviewedCommentsStub        func(context.Context, uint64, int) (dbmodels.PostSlice, models.NextPage, error)
+	getPostsWithUnreviewedCommentsMutex       sync.RWMutex
+	getPostsWithUnreviewedCommentsArgsForCall []struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 int
+	}
+	getPostsWithUnreviewedCommentsReturns struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}
+	getPostsWithUnreviewedCommentsReturnsOnCall map[int]struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}
+	GetReviewedPostsStub        func(context.Context, uint64, time.Time, int) (dbmodels.PostSlice, models.NextPage, error)
+	getReviewedPostsMutex       sync.RWMutex
+	getReviewedPostsArgsForCall []struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 time.Time
+		arg4 int
+	}
+	getReviewedPostsReturns struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}
+	getReviewedPostsReturnsOnCall map[int]struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}
+	GetUnreviewedReportedPostsStub        func(context.Context, uint64, int) (dbmodels.PostSlice, models.NextPage, error)
+	getUnreviewedReportedPostsMutex       sync.RWMutex
+	getUnreviewedReportedPostsArgsForCall []struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 int
+	}
+	getUnreviewedReportedPostsReturns struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}
+	getUnreviewedReportedPostsReturnsOnCall map[int]struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
 		result3 error
 	}
 	GetUserTrackStub        func(context.Context, data.ContentInput) (models.PostCommentTrack, error)
@@ -1173,6 +1244,284 @@ func (fake *FakeHiveService) GetPostsReturnsOnCall(i int, result1 dbmodels.PostS
 	}{result1, result2, result3}
 }
 
+func (fake *FakeHiveService) GetPostsWithReviewedComments(arg1 context.Context, arg2 uint64, arg3 time.Time, arg4 int) (dbmodels.PostSlice, models.NextPage, error) {
+	fake.getPostsWithReviewedCommentsMutex.Lock()
+	ret, specificReturn := fake.getPostsWithReviewedCommentsReturnsOnCall[len(fake.getPostsWithReviewedCommentsArgsForCall)]
+	fake.getPostsWithReviewedCommentsArgsForCall = append(fake.getPostsWithReviewedCommentsArgsForCall, struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 time.Time
+		arg4 int
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.GetPostsWithReviewedCommentsStub
+	fakeReturns := fake.getPostsWithReviewedCommentsReturns
+	fake.recordInvocation("GetPostsWithReviewedComments", []interface{}{arg1, arg2, arg3, arg4})
+	fake.getPostsWithReviewedCommentsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2, ret.result3
+	}
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
+}
+
+func (fake *FakeHiveService) GetPostsWithReviewedCommentsCallCount() int {
+	fake.getPostsWithReviewedCommentsMutex.RLock()
+	defer fake.getPostsWithReviewedCommentsMutex.RUnlock()
+	return len(fake.getPostsWithReviewedCommentsArgsForCall)
+}
+
+func (fake *FakeHiveService) GetPostsWithReviewedCommentsCalls(stub func(context.Context, uint64, time.Time, int) (dbmodels.PostSlice, models.NextPage, error)) {
+	fake.getPostsWithReviewedCommentsMutex.Lock()
+	defer fake.getPostsWithReviewedCommentsMutex.Unlock()
+	fake.GetPostsWithReviewedCommentsStub = stub
+}
+
+func (fake *FakeHiveService) GetPostsWithReviewedCommentsArgsForCall(i int) (context.Context, uint64, time.Time, int) {
+	fake.getPostsWithReviewedCommentsMutex.RLock()
+	defer fake.getPostsWithReviewedCommentsMutex.RUnlock()
+	argsForCall := fake.getPostsWithReviewedCommentsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeHiveService) GetPostsWithReviewedCommentsReturns(result1 dbmodels.PostSlice, result2 models.NextPage, result3 error) {
+	fake.getPostsWithReviewedCommentsMutex.Lock()
+	defer fake.getPostsWithReviewedCommentsMutex.Unlock()
+	fake.GetPostsWithReviewedCommentsStub = nil
+	fake.getPostsWithReviewedCommentsReturns = struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *FakeHiveService) GetPostsWithReviewedCommentsReturnsOnCall(i int, result1 dbmodels.PostSlice, result2 models.NextPage, result3 error) {
+	fake.getPostsWithReviewedCommentsMutex.Lock()
+	defer fake.getPostsWithReviewedCommentsMutex.Unlock()
+	fake.GetPostsWithReviewedCommentsStub = nil
+	if fake.getPostsWithReviewedCommentsReturnsOnCall == nil {
+		fake.getPostsWithReviewedCommentsReturnsOnCall = make(map[int]struct {
+			result1 dbmodels.PostSlice
+			result2 models.NextPage
+			result3 error
+		})
+	}
+	fake.getPostsWithReviewedCommentsReturnsOnCall[i] = struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *FakeHiveService) GetPostsWithUnreviewedComments(arg1 context.Context, arg2 uint64, arg3 int) (dbmodels.PostSlice, models.NextPage, error) {
+	fake.getPostsWithUnreviewedCommentsMutex.Lock()
+	ret, specificReturn := fake.getPostsWithUnreviewedCommentsReturnsOnCall[len(fake.getPostsWithUnreviewedCommentsArgsForCall)]
+	fake.getPostsWithUnreviewedCommentsArgsForCall = append(fake.getPostsWithUnreviewedCommentsArgsForCall, struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 int
+	}{arg1, arg2, arg3})
+	stub := fake.GetPostsWithUnreviewedCommentsStub
+	fakeReturns := fake.getPostsWithUnreviewedCommentsReturns
+	fake.recordInvocation("GetPostsWithUnreviewedComments", []interface{}{arg1, arg2, arg3})
+	fake.getPostsWithUnreviewedCommentsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2, ret.result3
+	}
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
+}
+
+func (fake *FakeHiveService) GetPostsWithUnreviewedCommentsCallCount() int {
+	fake.getPostsWithUnreviewedCommentsMutex.RLock()
+	defer fake.getPostsWithUnreviewedCommentsMutex.RUnlock()
+	return len(fake.getPostsWithUnreviewedCommentsArgsForCall)
+}
+
+func (fake *FakeHiveService) GetPostsWithUnreviewedCommentsCalls(stub func(context.Context, uint64, int) (dbmodels.PostSlice, models.NextPage, error)) {
+	fake.getPostsWithUnreviewedCommentsMutex.Lock()
+	defer fake.getPostsWithUnreviewedCommentsMutex.Unlock()
+	fake.GetPostsWithUnreviewedCommentsStub = stub
+}
+
+func (fake *FakeHiveService) GetPostsWithUnreviewedCommentsArgsForCall(i int) (context.Context, uint64, int) {
+	fake.getPostsWithUnreviewedCommentsMutex.RLock()
+	defer fake.getPostsWithUnreviewedCommentsMutex.RUnlock()
+	argsForCall := fake.getPostsWithUnreviewedCommentsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeHiveService) GetPostsWithUnreviewedCommentsReturns(result1 dbmodels.PostSlice, result2 models.NextPage, result3 error) {
+	fake.getPostsWithUnreviewedCommentsMutex.Lock()
+	defer fake.getPostsWithUnreviewedCommentsMutex.Unlock()
+	fake.GetPostsWithUnreviewedCommentsStub = nil
+	fake.getPostsWithUnreviewedCommentsReturns = struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *FakeHiveService) GetPostsWithUnreviewedCommentsReturnsOnCall(i int, result1 dbmodels.PostSlice, result2 models.NextPage, result3 error) {
+	fake.getPostsWithUnreviewedCommentsMutex.Lock()
+	defer fake.getPostsWithUnreviewedCommentsMutex.Unlock()
+	fake.GetPostsWithUnreviewedCommentsStub = nil
+	if fake.getPostsWithUnreviewedCommentsReturnsOnCall == nil {
+		fake.getPostsWithUnreviewedCommentsReturnsOnCall = make(map[int]struct {
+			result1 dbmodels.PostSlice
+			result2 models.NextPage
+			result3 error
+		})
+	}
+	fake.getPostsWithUnreviewedCommentsReturnsOnCall[i] = struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *FakeHiveService) GetReviewedPosts(arg1 context.Context, arg2 uint64, arg3 time.Time, arg4 int) (dbmodels.PostSlice, models.NextPage, error) {
+	fake.getReviewedPostsMutex.Lock()
+	ret, specificReturn := fake.getReviewedPostsReturnsOnCall[len(fake.getReviewedPostsArgsForCall)]
+	fake.getReviewedPostsArgsForCall = append(fake.getReviewedPostsArgsForCall, struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 time.Time
+		arg4 int
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.GetReviewedPostsStub
+	fakeReturns := fake.getReviewedPostsReturns
+	fake.recordInvocation("GetReviewedPosts", []interface{}{arg1, arg2, arg3, arg4})
+	fake.getReviewedPostsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2, ret.result3
+	}
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
+}
+
+func (fake *FakeHiveService) GetReviewedPostsCallCount() int {
+	fake.getReviewedPostsMutex.RLock()
+	defer fake.getReviewedPostsMutex.RUnlock()
+	return len(fake.getReviewedPostsArgsForCall)
+}
+
+func (fake *FakeHiveService) GetReviewedPostsCalls(stub func(context.Context, uint64, time.Time, int) (dbmodels.PostSlice, models.NextPage, error)) {
+	fake.getReviewedPostsMutex.Lock()
+	defer fake.getReviewedPostsMutex.Unlock()
+	fake.GetReviewedPostsStub = stub
+}
+
+func (fake *FakeHiveService) GetReviewedPostsArgsForCall(i int) (context.Context, uint64, time.Time, int) {
+	fake.getReviewedPostsMutex.RLock()
+	defer fake.getReviewedPostsMutex.RUnlock()
+	argsForCall := fake.getReviewedPostsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeHiveService) GetReviewedPostsReturns(result1 dbmodels.PostSlice, result2 models.NextPage, result3 error) {
+	fake.getReviewedPostsMutex.Lock()
+	defer fake.getReviewedPostsMutex.Unlock()
+	fake.GetReviewedPostsStub = nil
+	fake.getReviewedPostsReturns = struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *FakeHiveService) GetReviewedPostsReturnsOnCall(i int, result1 dbmodels.PostSlice, result2 models.NextPage, result3 error) {
+	fake.getReviewedPostsMutex.Lock()
+	defer fake.getReviewedPostsMutex.Unlock()
+	fake.GetReviewedPostsStub = nil
+	if fake.getReviewedPostsReturnsOnCall == nil {
+		fake.getReviewedPostsReturnsOnCall = make(map[int]struct {
+			result1 dbmodels.PostSlice
+			result2 models.NextPage
+			result3 error
+		})
+	}
+	fake.getReviewedPostsReturnsOnCall[i] = struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *FakeHiveService) GetUnreviewedReportedPosts(arg1 context.Context, arg2 uint64, arg3 int) (dbmodels.PostSlice, models.NextPage, error) {
+	fake.getUnreviewedReportedPostsMutex.Lock()
+	ret, specificReturn := fake.getUnreviewedReportedPostsReturnsOnCall[len(fake.getUnreviewedReportedPostsArgsForCall)]
+	fake.getUnreviewedReportedPostsArgsForCall = append(fake.getUnreviewedReportedPostsArgsForCall, struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 int
+	}{arg1, arg2, arg3})
+	stub := fake.GetUnreviewedReportedPostsStub
+	fakeReturns := fake.getUnreviewedReportedPostsReturns
+	fake.recordInvocation("GetUnreviewedReportedPosts", []interface{}{arg1, arg2, arg3})
+	fake.getUnreviewedReportedPostsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2, ret.result3
+	}
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
+}
+
+func (fake *FakeHiveService) GetUnreviewedReportedPostsCallCount() int {
+	fake.getUnreviewedReportedPostsMutex.RLock()
+	defer fake.getUnreviewedReportedPostsMutex.RUnlock()
+	return len(fake.getUnreviewedReportedPostsArgsForCall)
+}
+
+func (fake *FakeHiveService) GetUnreviewedReportedPostsCalls(stub func(context.Context, uint64, int) (dbmodels.PostSlice, models.NextPage, error)) {
+	fake.getUnreviewedReportedPostsMutex.Lock()
+	defer fake.getUnreviewedReportedPostsMutex.Unlock()
+	fake.GetUnreviewedReportedPostsStub = stub
+}
+
+func (fake *FakeHiveService) GetUnreviewedReportedPostsArgsForCall(i int) (context.Context, uint64, int) {
+	fake.getUnreviewedReportedPostsMutex.RLock()
+	defer fake.getUnreviewedReportedPostsMutex.RUnlock()
+	argsForCall := fake.getUnreviewedReportedPostsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeHiveService) GetUnreviewedReportedPostsReturns(result1 dbmodels.PostSlice, result2 models.NextPage, result3 error) {
+	fake.getUnreviewedReportedPostsMutex.Lock()
+	defer fake.getUnreviewedReportedPostsMutex.Unlock()
+	fake.GetUnreviewedReportedPostsStub = nil
+	fake.getUnreviewedReportedPostsReturns = struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *FakeHiveService) GetUnreviewedReportedPostsReturnsOnCall(i int, result1 dbmodels.PostSlice, result2 models.NextPage, result3 error) {
+	fake.getUnreviewedReportedPostsMutex.Lock()
+	defer fake.getUnreviewedReportedPostsMutex.Unlock()
+	fake.GetUnreviewedReportedPostsStub = nil
+	if fake.getUnreviewedReportedPostsReturnsOnCall == nil {
+		fake.getUnreviewedReportedPostsReturnsOnCall = make(map[int]struct {
+			result1 dbmodels.PostSlice
+			result2 models.NextPage
+			result3 error
+		})
+	}
+	fake.getUnreviewedReportedPostsReturnsOnCall[i] = struct {
+		result1 dbmodels.PostSlice
+		result2 models.NextPage
+		result3 error
+	}{result1, result2, result3}
+}
+
 func (fake *FakeHiveService) GetUserTrack(arg1 context.Context, arg2 data.ContentInput) (models.PostCommentTrack, error) {
 	fake.getUserTrackMutex.Lock()
 	ret, specificReturn := fake.getUserTrackReturnsOnCall[len(fake.getUserTrackArgsForCall)]
@@ -1844,6 +2193,14 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.getPostMutex.RUnlock()
 	fake.getPostsMutex.RLock()
 	defer fake.getPostsMutex.RUnlock()
+	fake.getPostsWithReviewedCommentsMutex.RLock()
+	defer fake.getPostsWithReviewedCommentsMutex.RUnlock()
+	fake.getPostsWithUnreviewedCommentsMutex.RLock()
+	defer fake.getPostsWithUnreviewedCommentsMutex.RUnlock()
+	fake.getReviewedPostsMutex.RLock()
+	defer fake.getReviewedPostsMutex.RUnlock()
+	fake.getUnreviewedReportedPostsMutex.RLock()
+	defer fake.getUnreviewedReportedPostsMutex.RUnlock()
 	fake.getUserTrackMutex.RLock()
 	defer fake.getUserTrackMutex.RUnlock()
 	fake.getUserTrackForContentMutex.RLock()

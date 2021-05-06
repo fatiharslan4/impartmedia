@@ -60,3 +60,26 @@ What happens a bug exists in the staging,pre-production or production
 - Should create a new feature branch for the bug
 - Work with the fix , push and open a merge request.
 - Once it was merged with master ( the development branch ) it should be merged to staging, pre-production and finally production
+
+
+
+## Pipline Workflow
+
+We have implemented a pipline process. When a new push comes into the branches, then it will check all teh unit tests are working fine.
+
+work flow file **dev.workflow.yml** is the workflow for unit tests
+
+And we have implemented another workflow action with **deployment.workflow.yml**. 
+This will initiate a docker build image and push into the aws ECR. For this workflow we have to setup repository secrets from following url **<repository url>/settings/secrets/actions**
+
+Create new variables as follow
+- AWS_ACCESS_KEY_ID : access key
+- AWS_SECRET_ACCESS_KEY : secret key
+- AWS_ECR_REPO  : ECR repository name
+- AWS_ECS_CLUSTER  : ECS cluster name
+
+Once you configure this, the pipline will create a docker image and pushed into ecr when each and every merge happens on the following branches.
+- staging
+- ios-dev
+- pre-production
+- production 

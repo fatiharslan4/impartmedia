@@ -25,46 +25,92 @@
 
 name: Dep Workflow - Build and deploy to ECS
 
-# on:
-#   pull_request:
-#     types: [closed]
-#     branches: 
-#       - staging
-#       - ios-dev
-#       - pre-production
-#       - production
 on:
-  workflow_run:
-      workflows:
-        - Dev Workflow - Test and check thing
-      branches: 
-        - staging
-        - ios-dev
-        - pre-production
-        - production
-      types:
-        - completed
+  push:
+    branches: 
+      - staging
+      - ios-dev
+      - pre-production
+      - production
+  pull_request:
+    types: [closed]
+    branches: 
+      - staging
+      - ios-dev
+      - pre-production
+      - production
+
+# on:
+#   workflow_run:
+#       workflows:
+#         - Dev Workflow - Test and check thing
+#       branches: 
+#         - test-branch
+#         - staging
+#         - ios-dev
+#         - pre-production
+#         - production
+#       types:
+#         - completed
 
 
 jobs:
-  which_branch:
-      runs-on: ubuntu-latest
-      steps:
-      - name: Prints the current branch name
-        run: echo "${GITHUB_BRANCH##*/}"
-        env:
-          GITHUB_BRANCH: ${{ github.ref }}
-        id: action_branch
-
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     environment: production
 
     steps:
+     # extract branch name
+    - name: Extract branch - Push
+      if: github.event_name != 'pull_request'
+      shell: bash
+      run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+      id: extract_branch
+
+    # extract branch name on pull request
+    - name: Extract branch - Pull Request
+      if: github.event_name == 'pull_request'
+      run: echo "BRANCH_NAME=${GITHUB_BASE_REF}" >> $GITHUB_ENV
+
+    # print branch name
+    - name: Print branch name
+      run: echo 'The branch name is' $BRANCH_NAME
+
+    - name: Set environment variables
+      run: |
+        case $BRANCH_NAME in
+          staging)
+            echo "ENVTAG=dev" >> $GITHUB_ENV
+            ;;
+          test-branch)
+            echo "ENVTAG=dev" >> $GITHUB_ENV
+            ;;
+          ios-dev)
+            echo "ENVTAG=iosdev" >> $GITHUB_ENV
+            ;;
+          pre-production)
+            echo "ENVTAG=preprod" >> $GITHUB_ENV
+            ;;
+          production)
+            echo "ENVTAG=prod" >> $GITHUB_ENV
+            ;;
+          *)
+            echo "ENVTAG=unknown" >> $GITHUB_ENV
+            ;;
+        esac
+      id: deployment_env
+    
+    # print branch name
+    - name: Rendering On
+      run: |
+        echo 'The tag is' ${{ env.ENVTAG }}
+
+    # Action checkout
     - name: Checkout
       uses: actions/checkout@v2
 
+    # Configure aws
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
@@ -72,10 +118,12 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-2
 
+    #Login to amazon    
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
-
+    
+    # Build image
     - name: Build, tag, and push image to Amazon ECR
       id: build-image
       env:
@@ -89,3 +137,27 @@ jobs:
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+    
+    # Donwload existing task defenition
+    - name: Download task definition
+      run: |
+        aws ecs describe-task-definition --task-definition service-${{ env.ENVTAG }} --query taskDefinition > task-definition.json
+
+    # Fill
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: task-definition.json
+        container-name: api
+        image: ${{ steps.build-image.outputs.image }}
+
+    # Deploy
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: backend-${{ env.ENVTAG }}
+        cluster: ${{ secrets.AWS_ECS_CLUSTER }}
+        wait-for-service-stability: true
+

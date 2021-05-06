@@ -76,6 +76,7 @@ Create new variables as follow
 - AWS_ACCESS_KEY_ID : access key
 - AWS_SECRET_ACCESS_KEY : secret key
 - AWS_ECR_REPO  : ECR repository name
+- AWS_ECS_CLUSTER  : ECS cluster name
 
 Once you configure this, the pipline will create a docker image and pushed into ecr when each and every merge happens on the following branches.
 - staging

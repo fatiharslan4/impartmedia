@@ -1,0 +1,27 @@
+#!/bin/bash
+
+echo "this script is not executable, it is simply an example of running migrations directly in the AWS dbs"
+exit 1
+
+## to do the steps, you must have ssh agent forwarding running, with the ECS bastion host private key available
+# e.g., ssh-add -K ~/.ssh/ecs_rsa.key
+#
+# HEre is an example ~/.ssh/config shortcut used below
+#Host ecs_ssh_shortcut
+#    HostName 10.0.148.230
+#    User ec2-user
+#    Port 22
+#    ForwardAgent yes
+#    ProxyCommand ssh -A ubuntu@bastion.impartwealth.com -W %h:%p
+#
+
+
+# SSH to bastion in one window
+export env="dev"
+ssh -A -L 3306:impart-${dev}-mysql.cluster-cnto08jmowe9.us-east-2.rds.amazonaws.com:3306 ecs_ssh_shortcut
+
+# in a separate window, run...
+export password="1pjj82aRrkyFMYnmUZgRfBdLrhb1pjj7gqIJe" && \
+export conn="mysql://impart_db_admin:${password}@tcp(localhost:3306)/impart?tls=skip-verify&autocommit=true" && \
+migrate -database $conn -path ./schemas/migrations down && \
+migrate -database $conn -path ./schemas/migrations up

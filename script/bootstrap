@@ -10,7 +10,7 @@ EOF
 docker-compose -f docker-compose.yml pull --ignore-pull-failures  || true
 
 echo "building local image"
-./script/builddocker.sh
+./script/build_publish_image.sh
 
 echo "building migrate container"
 docker build -t impartwealth/migrate:latest -f script/misc/Migrate_Dockerfile ./script/misc

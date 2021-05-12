@@ -31,7 +31,11 @@ var ErrExists = errors.New("resource already exists")
 // ErrNoOp is returned when attempting to update something to a state that is already in the proper state.
 var ErrNoOp = errors.New("resource already matches exactly as request")
 
+// no api key provided
 var ErrNoAPIKey = errors.New("no api key provided")
+
+// Invalid api key
+var ErrInvalidAPIKey = errors.New("invalid api key")
 
 type Error interface {
 	error

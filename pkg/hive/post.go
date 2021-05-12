@@ -3,9 +3,10 @@ package hive
 import (
 	"context"
 	"fmt"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"strings"
 	"time"
+
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -121,7 +122,7 @@ func (s *service) GetPost(ctx context.Context, postID uint64, includeComments bo
 	}
 
 	if err := eg.Wait(); err != nil {
-		return out, impart.NewError(err, "error getting post")
+		return out, impart.NewError(err, "error getting post", impart.PostID)
 	}
 
 	out = models.PostFromDB(dbPost)

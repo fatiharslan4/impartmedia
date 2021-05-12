@@ -4,9 +4,10 @@ type ErrorKey string
 
 var (
 	EmptyString ErrorKey = ""
-	HiveID      ErrorKey = "hiveID"
+	HiveID      ErrorKey = "hive_id"
 	FirstName   ErrorKey = "first_name"
 	ScreenName  ErrorKey = "screen_name"
+	PostID      ErrorKey = "post_id"
 )
 
 // From the arguments, first index should be key

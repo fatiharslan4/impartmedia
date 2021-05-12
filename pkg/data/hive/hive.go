@@ -5,13 +5,14 @@ package data
 import (
 	"context"
 	"database/sql"
+	"time"
+
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"go.uber.org/zap"
-	"time"
 )
 
 var _ Hives = &mysqlHiveData{}
@@ -72,7 +73,7 @@ func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmo
 		return nil, impart.ErrUnauthorized
 	}
 
-	hive.HiveID = 0
+	// hive.HiveID = 0
 	if err := hive.Insert(ctx, d.db, boil.Infer()); err != nil {
 		return nil, err
 	}
@@ -135,14 +136,15 @@ func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin 
 
 	if hive.PinnedPostID.Valid {
 		if !pin && postID == hive.PinnedPostID.Uint64 || pin {
-
-			existingPinnedPost, err := dbmodels.FindPost(ctx, d.db, hive.PinnedPostID.Uint64)
-			if err != nil {
-				return err
-			}
-			existingPinnedPost.Pinned = false
-			if _, err := existingPinnedPost.Update(ctx, d.db, boil.Whitelist(dbmodels.PostColumns.Pinned)); err != nil {
-				return err
+			if hive.PinnedPostID.Uint64 > 0 {
+				existingPinnedPost, err := dbmodels.FindPost(ctx, d.db, hive.PinnedPostID.Uint64)
+				if err != nil {
+					return err
+				}
+				existingPinnedPost.Pinned = false
+				if _, err := existingPinnedPost.Update(ctx, d.db, boil.Whitelist(dbmodels.PostColumns.Pinned)); err != nil {
+					return err
+				}
 			}
 		}
 	}

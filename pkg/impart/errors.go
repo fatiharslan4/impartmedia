@@ -46,6 +46,7 @@ var _ error = &impartError{}
 type impartError struct {
 	err error
 	msg string
+	key ErrorKey
 }
 
 func (e impartError) Error() string {
@@ -60,8 +61,13 @@ func (e impartError) Msg() string {
 	return e.msg
 }
 
-func NewError(err error, msg string) Error {
-	return impartError{err: err, msg: msg}
+func NewError(err error, msg string, args ...interface{}) Error {
+	key := GetErrorKey(args...)
+	return impartError{
+		err: err,
+		msg: msg,
+		key: key,
+	}
 }
 
 var UnknownError = NewError(ErrUnknown, "Internal Server Error")
@@ -94,11 +100,12 @@ func (e impartError) HttpStatus() int {
 }
 func (e impartError) ToJson() string {
 	type S struct {
-		Err string `json:"error"`
-		Msg string `json:"msg"`
+		Err string   `json:"error"`
+		Msg string   `json:"msg"`
+		Key ErrorKey `json:"key"`
 	}
 
-	b, _ := json.Marshal(S{e.err.Error(), e.msg})
+	b, _ := json.Marshal(S{e.err.Error(), e.msg, e.key})
 	return string(b)
 }
 

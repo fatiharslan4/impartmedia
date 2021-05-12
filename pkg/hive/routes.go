@@ -117,7 +117,7 @@ func (hh *hiveHandler) GetHivesFunc() gin.HandlerFunc {
 
 		hiveId, err := strconv.ParseUint(hiveIDstr, 10, 64)
 		if err != nil {
-			iErr := impart.NewError(impart.ErrBadRequest, "hiveId must be an integer")
+			iErr := impart.NewError(impart.ErrBadRequest, "hiveId must be an integer", impart.HiveID)
 			ctx.JSON(iErr.HttpStatus(), iErr)
 			return
 		}

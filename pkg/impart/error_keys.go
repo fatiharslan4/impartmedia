@@ -7,6 +7,7 @@ var (
 	HiveID      ErrorKey = "hiveID"
 	FirstName   ErrorKey = "first_name"
 	ScreenName  ErrorKey = "screen_name"
+	Email       ErrorKey = "email"
 )
 
 // From the arguments, first index should be key

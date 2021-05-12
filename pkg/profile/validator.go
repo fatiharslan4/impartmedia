@@ -3,10 +3,11 @@ package profile
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"net/mail"
 	"regexp"
 	"strings"
+
+	"go.uber.org/zap"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -42,7 +43,7 @@ func (ps *profileService) validateNewProfile(ctx context.Context, p models.Profi
 
 	_, err = mail.ParseAddress(p.Email)
 	if err != nil {
-		return impart.NewError(impart.ErrBadRequest, "invalid email address")
+		return impart.NewError(impart.ErrBadRequest, "invalid email address", impart.Email)
 	}
 
 	user, err = ps.profileStore.GetUserFromAuthId(ctx, p.AuthenticationID)
@@ -60,31 +61,31 @@ func (ps *profileService) validateNewProfile(ctx context.Context, p models.Profi
 	user, err = ps.profileStore.GetUserFromEmail(ctx, p.Email)
 	if err != nil {
 		if err != impart.ErrNotFound {
-			return impart.NewError(err, "error checking email")
+			return impart.NewError(err, "error checking email", impart.Email)
 		} else {
 			err = nil
 		}
 	}
 	if user != nil {
-		return impart.NewError(impart.ErrExists, "email already exists!")
+		return impart.NewError(impart.ErrExists, "email already exists!", impart.Email)
 	}
 
 	if screenNameRegexp.FindString(p.ScreenName) != p.ScreenName {
 		{
 			ps.Logger().Error("invalid screen name", zap.String("screenName", p.ScreenName))
-			return impart.NewError(impart.ErrBadRequest, "invalid screen name, must be alphanumeric characters only")
+			return impart.NewError(impart.ErrBadRequest, "invalid screen name, must be alphanumeric characters only", impart.ScreenName)
 		}
 	}
 	user, err = ps.profileStore.GetUserFromScreenName(ctx, p.ScreenName)
 	if err != nil {
 		if err != impart.ErrNotFound {
-			return impart.NewError(err, "error checking screenName")
+			return impart.NewError(err, "error checking screenName", impart.ScreenName)
 		} else {
 			err = nil
 		}
 	}
 	if user != nil {
-		return impart.NewError(impart.ErrExists, "screenName already exists")
+		return impart.NewError(impart.ErrExists, "screenName already exists", impart.ScreenName)
 	}
 
 	return nil
@@ -100,7 +101,6 @@ func (ps *profileService) ValidateSchema(document gojsonschema.JSONLoader) impar
 	if result.Valid() {
 		return nil
 	}
-
 	msg := fmt.Sprintf("%v validations errors.\n", len(result.Errors()))
 	for i, desc := range result.Errors() {
 		msg += fmt.Sprintf("%v: %s\n", i, desc)

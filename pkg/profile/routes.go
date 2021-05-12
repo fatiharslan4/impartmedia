@@ -2,11 +2,12 @@ package profile
 
 import (
 	"encoding/json"
-	"github.com/segmentio/ksuid"
-	"github.com/xeipuuv/gojsonschema"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/segmentio/ksuid"
+	"github.com/xeipuuv/gojsonschema"
 
 	"github.com/gin-gonic/gin"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
@@ -127,7 +128,7 @@ func (ph *profileHandler) CreateProfileFunc() gin.HandlerFunc {
 		p, impartErr = ph.profileService.NewProfile(ctx, p)
 		if impartErr != nil {
 			ph.logger.Error(impartErr.Error())
-			ctx.AbortWithError(impartErr.HttpStatus(), impartErr)
+			ctx.JSON(impartErr.HttpStatus(), impartErr)
 			return
 		}
 

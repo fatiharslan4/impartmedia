@@ -107,28 +107,29 @@ func (ph *profileHandler) CreateProfileFunc() gin.HandlerFunc {
 		b, err := ctx.GetRawData()
 		if err != nil && err != io.EOF {
 			ph.logger.Error("error deserializing", zap.Error(err))
-			ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
 		}
 
-		impartErr := ph.profileService.ValidateSchema(gojsonschema.NewStringLoader(string(b)))
-		if impartErr != nil {
-			ph.logger.Error(impartErr.Error())
-			ctx.JSON(http.StatusBadRequest, impartErr)
+		impartErrl := ph.profileService.ValidateSchema(gojsonschema.NewStringLoader(string(b)))
+		if impartErrl != nil {
+			ctx.JSON(http.StatusBadRequest, impartErrl)
 			return
 		}
 		p := models.Profile{}
 		stdErr := json.Unmarshal(b, &p)
 		if stdErr != nil {
-			impartErr = impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Profile")
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Profile")
 			ph.logger.Error(impartErr.Error())
-			ctx.JSON(impartErr.HttpStatus(), impartErr)
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 
-		p, impartErr = ph.profileService.NewProfile(ctx, p)
+		p, impartErr := ph.profileService.NewProfile(ctx, p)
 		if impartErr != nil {
 			ph.logger.Error(impartErr.Error())
-			ctx.JSON(impartErr.HttpStatus(), impartErr)
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 
@@ -145,24 +146,24 @@ func (ph *profileHandler) EditProfileFunc() gin.HandlerFunc {
 
 		ph.logger.Debug("received raw update payload", zap.String("json", string(b)))
 
-		impartErr := ph.profileService.ValidateSchema(gojsonschema.NewStringLoader(string(b)))
-		if impartErr != nil {
-			ctx.JSON(http.StatusBadRequest, impartErr)
+		impartErrL := ph.profileService.ValidateSchema(gojsonschema.NewStringLoader(string(b)))
+		if impartErrL != nil {
+			ctx.JSON(http.StatusBadRequest, impartErrL)
 			return
 		}
 		p := models.Profile{}
 		stdErr := json.Unmarshal(b, &p)
 		if stdErr != nil {
-			impartErr = impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Profile")
-			ctx.JSON(impartErr.HttpStatus(), impartErr)
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Profile")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 
 		ph.profileService.Logger().Debug("received ")
-		p, impartErr = ph.profileService.UpdateProfile(ctx, p)
+		p, impartErr := ph.profileService.UpdateProfile(ctx, p)
 		if impartErr != nil {
 
-			ctx.JSON(impartErr.HttpStatus(), impartErr)
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 

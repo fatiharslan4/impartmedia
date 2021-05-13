@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/volatiletech/sqlboiler/v4/boil"
 	"reflect"
 	"strings"
+
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	profile_data "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -24,7 +25,7 @@ type Service interface {
 	DeleteProfile(ctx context.Context, impartWealthID string) impart.Error
 	ScreenNameExists(ctx context.Context, screenName string) bool
 
-	ValidateSchema(document gojsonschema.JSONLoader) impart.Error
+	ValidateSchema(document gojsonschema.JSONLoader) []impart.Error
 	Logger() *zap.Logger
 }
 

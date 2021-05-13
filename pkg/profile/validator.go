@@ -91,22 +91,24 @@ func (ps *profileService) validateNewProfile(ctx context.Context, p models.Profi
 	return nil
 }
 
-func (ps *profileService) ValidateSchema(document gojsonschema.JSONLoader) impart.Error {
+func (ps *profileService) ValidateSchema(document gojsonschema.JSONLoader) (errors []impart.Error) {
 	result, err := gojsonschema.Validate(ps.schemaValidator, document)
 	if err != nil {
 		ps.SugaredLogger.Error(err.Error())
-		return impart.NewError(impart.ErrBadRequest, "unable to validate schema")
+		return impart.ErrorResponse(
+			impart.NewError(impart.ErrBadRequest, "unable to validate schema"),
+		)
 	}
 
 	if result.Valid() {
 		return nil
 	}
-	msg := fmt.Sprintf("%v validations errors.\n", len(result.Errors()))
-	var validationFields []string
+	// msg := fmt.Sprintf("%v validations errors.\n", len(result.Errors()))
+	msg := "validations errors"
 	for i, desc := range result.Errors() {
 		msg += fmt.Sprintf("%v: %s\n", i, desc)
-		validationFields = append(validationFields, desc.Field())
+		er := impart.NewError(impart.ErrValidationError, fmt.Sprintf("%s ", desc), impart.ErrorKey(desc.Field()))
+		errors = append(errors, er)
 	}
-	msgKeys := strings.Join(validationFields, ",")
-	return impart.NewError(impart.ErrBadRequest, msg, impart.ErrorKey(msgKeys))
+	return errors
 }

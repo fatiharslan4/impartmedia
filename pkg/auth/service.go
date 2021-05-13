@@ -67,14 +67,14 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 		if len(parts) != 2 || parts[0] != AuthorizationHeaderBearerType || len(parts[0]) == 0 || len(parts[1]) == 0 {
 			a.logger.Info("invalid authorization header", zap.Strings("split_authz_header", parts))
 			err := impart.NewError(impart.ErrUnauthorized, "invalid authorization header")
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, err)
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, impart.ErrorResponse(err))
 			return
 		}
 		claims, err := ValidateAuth0Token(parts[1], a.Auth0Certs, a.logger.Sugar())
 		if err != nil {
 			a.logger.Error("couldn't validate token", zap.Error(err))
 			err := impart.NewError(impart.ErrUnauthorized, "couldn't validate token")
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, err)
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, impart.ErrorResponse(err))
 			return
 		}
 		authID := claims.Subject
@@ -90,7 +90,7 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 			}
 
 			err := impart.NewError(impart.ErrUnauthorized, "authentication profile has no impart user")
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, err)
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, impart.ErrorResponse(err))
 			return
 		}
 		//always set this value because it should always be present, minus account creation.
@@ -106,7 +106,7 @@ func (a *authService) APIKeyHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if ctx.GetHeader(ImpartAPIKeyHeaderName) != a.APIKey {
 			iErr := impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("%v", impart.ErrInvalidAPIKey))
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, iErr)
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, impart.ErrorResponse(iErr))
 			return
 		}
 		ctx.Next()

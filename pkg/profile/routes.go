@@ -64,14 +64,18 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 			dbp, err := ph.profileData.GetProfile(ctx, ctxUser.ImpartWealthID)
 			if err != nil {
 				if ctxUser == nil {
-					ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "query parameters missing"))
+					ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+						impart.NewError(impart.ErrBadRequest, "query parameters missing"),
+					))
 					return
 				}
 			}
 			p, err := models.ProfileFromDBModel(ctxUser, dbp)
 			if err != nil {
 				if ctxUser == nil {
-					ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "query parameters missing"))
+					ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+						impart.NewError(impart.ErrBadRequest, "query parameters missing"),
+					))
 					return
 				}
 			}
@@ -85,7 +89,9 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 		}
 		if gpi.ImpartWealthID == "" && gpi.SearchEmail == "" && gpi.SearchScreenName == "" {
 			if ctxUser == nil {
-				ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "query parameters missing"))
+				ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+					impart.NewError(impart.ErrBadRequest, "query parameters missing"),
+				))
 				return
 			}
 			gpi = GetProfileInput{ImpartWealthID: ctxUser.ImpartWealthID}
@@ -95,7 +101,7 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 
 		p, impartErr = ph.profileService.GetProfile(ctx, gpi)
 		if impartErr != nil {
-			ctx.JSON(impartErr.HttpStatus(), impartErr)
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 		ctx.JSON(http.StatusOK, p)
@@ -114,7 +120,7 @@ func (ph *profileHandler) CreateProfileFunc() gin.HandlerFunc {
 
 		impartErrl := ph.profileService.ValidateSchema(gojsonschema.NewStringLoader(string(b)))
 		if impartErrl != nil {
-			ctx.JSON(http.StatusBadRequest, impartErrl)
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
 			return
 		}
 		p := models.Profile{}
@@ -148,7 +154,7 @@ func (ph *profileHandler) EditProfileFunc() gin.HandlerFunc {
 
 		impartErrL := ph.profileService.ValidateSchema(gojsonschema.NewStringLoader(string(b)))
 		if impartErrL != nil {
-			ctx.JSON(http.StatusBadRequest, impartErrL)
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrL))
 			return
 		}
 		p := models.Profile{}

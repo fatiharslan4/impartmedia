@@ -102,9 +102,11 @@ func (ps *profileService) ValidateSchema(document gojsonschema.JSONLoader) impar
 		return nil
 	}
 	msg := fmt.Sprintf("%v validations errors.\n", len(result.Errors()))
+	var validationFields []string
 	for i, desc := range result.Errors() {
 		msg += fmt.Sprintf("%v: %s\n", i, desc)
+		validationFields = append(validationFields, desc.Field())
 	}
-
-	return impart.NewError(impart.ErrBadRequest, msg)
+	msgKeys := strings.Join(validationFields, ",")
+	return impart.NewError(impart.ErrBadRequest, msg, impart.ErrorKey(msgKeys))
 }

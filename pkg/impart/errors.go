@@ -37,6 +37,9 @@ var ErrNoAPIKey = errors.New("no api key provided")
 // Invalid api key
 var ErrInvalidAPIKey = errors.New("invalid api key")
 
+//Error validation Error
+var ErrValidationError = errors.New("validation error")
+
 type Error interface {
 	error
 	HttpStatus() int
@@ -115,4 +118,8 @@ func (e impartError) ToJson() string {
 
 func (e impartError) MarshalJSON() ([]byte, error) {
 	return []byte(e.ToJson()), nil
+}
+
+func ErrorResponse(err Error) []Error {
+	return []Error{err}
 }

@@ -8,6 +8,7 @@ var (
 	FirstName   ErrorKey = "first_name"
 	ScreenName  ErrorKey = "screen_name"
 	PostID      ErrorKey = "post_id"
+	Email       ErrorKey = "email"
 )
 
 // From the arguments, first index should be key

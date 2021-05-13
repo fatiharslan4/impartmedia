@@ -62,8 +62,8 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 	ctxUser := impart.GetCtxUser(ctx)
 	existingPost, err := s.postData.GetPost(ctx, inPost.PostID)
 	if err != nil {
-		s.logger.Error("error fetcing post trying to edit", zap.Error(err))
-		return models.Post{}, impart.UnknownError
+		s.logger.Error("error fetching post trying to edit", zap.Error(err))
+		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "error fetching post trying to edit")
 	}
 	if !ctxUser.Admin && existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
 		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours")

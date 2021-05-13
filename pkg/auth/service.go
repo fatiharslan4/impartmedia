@@ -66,19 +66,21 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 		parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
 		if len(parts) != 2 || parts[0] != AuthorizationHeaderBearerType || len(parts[0]) == 0 || len(parts[1]) == 0 {
 			a.logger.Info("invalid authorization header", zap.Strings("split_authz_header", parts))
-			ctx.AbortWithError(http.StatusUnauthorized, impart.ErrUnauthorized)
+			err := impart.NewError(impart.ErrUnauthorized, "invalid authorization header")
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, err)
 			return
 		}
 		claims, err := ValidateAuth0Token(parts[1], a.Auth0Certs, a.logger.Sugar())
 		if err != nil {
 			a.logger.Error("couldn't validate token", zap.Error(err))
-			ctx.AbortWithError(http.StatusUnauthorized, impart.ErrUnauthorized)
+			err := impart.NewError(impart.ErrUnauthorized, "couldn't validate token")
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, err)
 			return
 		}
 		authID := claims.Subject
 		a.logger.Debug("request authentication context", zap.String("authId", authID))
 		ctx.Set(impart.AuthIDRequestContextKey, authID)
-		u, err := a.profileData.GetUserFromAuthId(ctx, authID)
+		u, _ := a.profileData.GetUserFromAuthId(ctx, authID)
 		if u == nil {
 			//only one route is allowed to not have a user, and that's when one is being created.
 			//so if this is null on that route alone, that's okay - but otherwise, abort.
@@ -86,7 +88,9 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 				ctx.Next()
 				return
 			}
-			ctx.AbortWithError(http.StatusUnauthorized, fmt.Errorf("authentication profile has no impart user"))
+
+			err := impart.NewError(impart.ErrUnauthorized, "authentication profile has no impart user")
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, err)
 			return
 		}
 		//always set this value because it should always be present, minus account creation.
@@ -101,7 +105,8 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 func (a *authService) APIKeyHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if ctx.GetHeader(ImpartAPIKeyHeaderName) != a.APIKey {
-			ctx.AbortWithError(http.StatusUnauthorized, impart.ErrNoAPIKey)
+			iErr := impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("%v", impart.ErrInvalidAPIKey))
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, iErr)
 			return
 		}
 		ctx.Next()

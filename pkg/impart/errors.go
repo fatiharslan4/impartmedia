@@ -120,17 +120,32 @@ func (e impartError) MarshalJSON() ([]byte, error) {
 	return []byte(e.ToJson()), nil
 }
 
-func ErrorResponse(err interface{}) []Error {
-	var errorResponse []Error
-	switch err.(type) {
+// func ErrorResponse(err interface{}) []Error {
+// 	var errorResponse []Error
+// 	switch err.(type) {
+// 	case Error:
+// 		errorResponse = []Error{err.(Error)}
+// 	case []Error:
+// 		errorResponse = err.([]Error)
+// 	default:
+// 		errorResponse = []Error{
+// 			NewError(ErrUnknown, fmt.Sprintf("%v", err)),
+// 		}
+// 	}
+// 	return errorResponse
+// }
+
+func ErrorResponse(err interface{}) map[int]Error {
+	errorResponse := map[int]Error{}
+	switch e := err.(type) {
 	case Error:
-		errorResponse = []Error{err.(Error)}
+		errorResponse[0] = e
 	case []Error:
-		errorResponse = err.([]Error)
-	default:
-		errorResponse = []Error{
-			NewError(ErrUnknown, fmt.Sprintf("%v", err)),
+		for i, k := range e {
+			errorResponse[i] = k
 		}
+	default:
+		errorResponse[0] = NewError(ErrUnknown, fmt.Sprintf("%v", err))
 	}
 	return errorResponse
 }

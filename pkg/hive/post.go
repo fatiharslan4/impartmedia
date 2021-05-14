@@ -25,7 +25,7 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	}
 
 	if len(strings.TrimSpace(post.Content.Markdown)) < 10 {
-		return models.Post{}, impart.NewError(impart.ErrBadRequest, "post is less than 10 characters", Impart.Content)
+		return models.Post{}, impart.NewError(impart.ErrBadRequest, "post is less than 10 characters", impart.Content)
 	}
 	shouldPin := false
 	if post.IsPinnedPost {

@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 	"fmt"
+
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -179,10 +180,19 @@ const (
 
 func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Questionnaire) *uint64 {
 	out := MillennialGenXWithChildrenHiveId
-	var isMillenialOrGenx, hasChildren bool
+	var isMillenialOrGenx, hasChildren, hasHousehold, hasGender, hasRace, hasFinancialGoals bool
 	for _, q := range questionnaire.Questions {
 		switch q.Name {
 		case "Household":
+			for _, a := range q.Answers {
+				switch a.Name {
+				case "Partner", "Married", "SharedCustody":
+					hasHousehold = true
+				}
+				if hasHousehold {
+					break
+				}
+			}
 		case "Dependents":
 			for _, a := range q.Answers {
 				switch a.Name {
@@ -204,8 +214,35 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 				}
 			}
 		case "Gender":
+			for _, a := range q.Answers {
+				switch a.Name {
+				case "Woman", "Man", "NonBinary", "NotListed":
+					hasGender = true
+				}
+				if hasGender {
+					break
+				}
+			}
 		case "Race":
+			for _, a := range q.Answers {
+				switch a.Name {
+				case "AmIndianAlNative", "AsianPacIslander", "Black", "Hispanic", "SWAsianNAfrican", "White":
+					hasRace = true
+				}
+				if hasRace {
+					break
+				}
+			}
 		case "FinancialGoals":
+			for _, a := range q.Answers {
+				switch a.Name {
+				case "Retirement", "SaveCollege", "House", "WealthDivestment", "GenerationalWealth":
+					hasFinancialGoals = true
+				}
+				if hasFinancialGoals {
+					break
+				}
+			}
 		default:
 			ps.Logger().Error("unknown onboarding question name", zap.String("questionName", q.Name))
 			return nil
@@ -213,7 +250,7 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 		}
 	}
 
-	if isMillenialOrGenx && hasChildren {
+	if isMillenialOrGenx && hasChildren && hasHousehold && hasGender && hasRace && hasFinancialGoals {
 		return &out
 	}
 	return nil

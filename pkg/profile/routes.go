@@ -39,10 +39,13 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	profileRoutes.GET("/:impartWealthId", handler.GetProfileFunc())
 	profileRoutes.DELETE("/:impartWealthId", handler.DeleteProfileFunc())
 
+	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
+
 	questionnaireRoutes := version.Group("/questionnaires")
 	questionnaireRoutes.GET("", handler.AllQuestionnaireHandler())                     //returns a list of questionnaire; filter by `name` query param
 	questionnaireRoutes.GET("/:impartWealthId", handler.GetUserQuestionnaireHandler()) //returns a list of past questionnaires taken by this impart wealth id; filter by `name` query param
 	questionnaireRoutes.POST("/:impartWealthId", handler.SaveUserQuestionnaire())      //posts a new questionnaire for this impart wealth id
+
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -236,5 +239,46 @@ func (ph *profileHandler) SaveUserQuestionnaire() gin.HandlerFunc {
 
 		ctx.Status(http.StatusCreated)
 		return
+	}
+}
+
+func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		// validate the inputs
+		impartErrl := ph.profileService.ValidateScreenName(gojsonschema.NewStringLoader(string(b)))
+		if impartErrl != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
+			return
+		}
+
+		p := models.ScreenNameValidator{}
+		err = json.Unmarshal(b, &p)
+
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to validate screen name")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		valid := ph.profileService.ScreenNameExists(ctx, p.ScreenName)
+		if !valid {
+			impartErr := impart.NewError(impart.ErrBadRequest, "validation error : screen name already exists")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"status": "success",
+		})
 	}
 }

@@ -138,7 +138,7 @@ func (hh *hiveHandler) GetHivesFunc() gin.HandlerFunc {
 
 		// check the hive found or not
 		if h.HiveID == 0 {
-			iErr := impart.NewError(impart.ErrNotFound, "unable to find hive for given id")
+			iErr := impart.NewError(impart.ErrNotFound, "unable to find hive for given id", impart.HiveID)
 			hh.logger.Error("no hive found for id", zap.Error(err))
 			ctx.JSON(iErr.HttpStatus(), impart.ErrorResponse(iErr))
 			return

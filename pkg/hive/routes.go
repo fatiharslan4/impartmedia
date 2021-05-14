@@ -151,7 +151,7 @@ func (hh *hiveHandler) CreateHiveFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
 		h := models.Hive{}
-		stdErr := ctx.BindJSON(&h)
+		stdErr := ctx.ShouldBindJSON(&h)
 		if stdErr != nil {
 			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Hive")
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
@@ -172,7 +172,7 @@ func (hh *hiveHandler) EditHiveFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
 		h := models.Hive{}
-		stdErr := ctx.BindJSON(&h)
+		stdErr := ctx.ShouldBindJSON(&h)
 		if stdErr != nil {
 			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Hive")
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
@@ -335,7 +335,7 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 		}
 
 		p := models.Post{}
-		err := ctx.BindJSON(&p)
+		err := ctx.ShouldBindJSON(&p)
 		if err != nil {
 			impartErr = impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Post")
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
@@ -401,7 +401,7 @@ func (hh *hiveHandler) EditPostFunc() gin.HandlerFunc {
 		}
 
 		p := models.Post{}
-		err := ctx.BindJSON(&p)
+		err := ctx.ShouldBindJSON(&p)
 		if err != nil {
 			hh.logger.Error("deserialization error", zap.Error(err))
 			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Post")
@@ -596,7 +596,7 @@ func (hh *hiveHandler) CreateCommentFunc() gin.HandlerFunc {
 		}
 
 		c := models.Comment{}
-		stdErr := ctx.BindJSON(&c)
+		stdErr := ctx.ShouldBindJSON(&c)
 		if stdErr != nil {
 			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Comment")
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
@@ -639,7 +639,7 @@ func (hh *hiveHandler) EditCommentFunc() gin.HandlerFunc {
 			}
 		}
 
-		err := ctx.BindJSON(&c)
+		err := ctx.ShouldBindJSON(&c)
 		if err != nil {
 			hh.logger.Error("error binding json", zap.Error(err))
 			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Comment")

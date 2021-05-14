@@ -147,7 +147,8 @@ func (ph *profileHandler) EditProfileFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		b, err := ctx.GetRawData()
 		if err != nil {
-			ctx.JSON(http.StatusBadRequest, impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body")))
+			return
 		}
 
 		ph.logger.Debug("received raw update payload", zap.String("json", string(b)))
@@ -183,7 +184,7 @@ func (ph *profileHandler) DeleteProfileFunc() gin.HandlerFunc {
 
 		impartErr := ph.profileService.DeleteProfile(ctx, impartWealthID)
 		if impartErr != nil {
-			ctx.JSON(impartErr.HttpStatus(), impartErr)
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			//ctx.AbortWithError(err.HttpStatus(), err)
 			return
 		}
@@ -198,7 +199,7 @@ func (ph *profileHandler) AllQuestionnaireHandler() gin.HandlerFunc {
 
 		qs, err := ph.profileService.GetQuestionnaires(ctx, nameParam)
 		if err != nil {
-			ctx.JSON(err.HttpStatus(), err)
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
 		ctx.JSON(http.StatusOK, qs)
@@ -211,7 +212,7 @@ func (ph *profileHandler) GetUserQuestionnaireHandler() gin.HandlerFunc {
 		name := ctx.Query("name")
 		qs, err := ph.profileService.GetUserQuestionnaires(ctx, impartWealthId, name)
 		if err != nil {
-			ctx.JSON(err.HttpStatus(), err)
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
 		ctx.JSON(http.StatusOK, qs)
@@ -221,15 +222,15 @@ func (ph *profileHandler) GetUserQuestionnaireHandler() gin.HandlerFunc {
 func (ph *profileHandler) SaveUserQuestionnaire() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		q := models.Questionnaire{}
-		if err := ctx.BindJSON(&q); err != nil {
+		if err := ctx.ShouldBindJSON(&q); err != nil {
 			ph.logger.Error("invalid json payload", zap.Error(err))
 			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Questionnaire")
-			ctx.JSON(err.HttpStatus(), err)
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
 
 		if err := ph.profileService.SaveQuestionnaire(ctx, q); err != nil {
-			ctx.JSON(err.HttpStatus(), err)
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
 

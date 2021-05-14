@@ -222,7 +222,7 @@ func (ph *profileHandler) GetUserQuestionnaireHandler() gin.HandlerFunc {
 func (ph *profileHandler) SaveUserQuestionnaire() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		q := models.Questionnaire{}
-		if err := ctx.BindJSON(&q); err != nil {
+		if err := ctx.ShouldBindJSON(&q); err != nil {
 			ph.logger.Error("invalid json payload", zap.Error(err))
 			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Questionnaire")
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))

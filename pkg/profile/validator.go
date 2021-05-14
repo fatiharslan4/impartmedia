@@ -95,9 +95,9 @@ func (ps *profileService) ValidateSchema(document gojsonschema.JSONLoader) (erro
 	result, err := gojsonschema.Validate(ps.schemaValidator, document)
 	if err != nil {
 		ps.SugaredLogger.Error(err.Error())
-		return impart.ErrorResponse(
+		return []impart.Error{
 			impart.NewError(impart.ErrBadRequest, "unable to validate schema"),
-		)
+		}
 	}
 
 	if result.Valid() {

@@ -531,7 +531,7 @@ func (hh *hiveHandler) DeletePostFunc() gin.HandlerFunc {
 			return
 		}
 
-		ctx.Status(http.StatusOK)
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "post deleted"})
 	}
 }
 
@@ -689,6 +689,6 @@ func (hh *hiveHandler) DeleteCommentFunc() gin.HandlerFunc {
 			return
 		}
 
-		ctx.Status(http.StatusOK)
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "comment deleted"})
 	}
 }

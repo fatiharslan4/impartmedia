@@ -189,7 +189,7 @@ func (ph *profileHandler) DeleteProfileFunc() gin.HandlerFunc {
 			return
 		}
 
-		ctx.Status(http.StatusOK)
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "profile deleted"})
 	}
 }
 

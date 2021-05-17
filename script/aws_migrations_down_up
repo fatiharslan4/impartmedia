@@ -20,6 +20,12 @@ exit 1
 export env="dev"
 ssh -A -L 3306:impart-${dev}-mysql.cluster-cnto08jmowe9.us-east-2.rds.amazonaws.com:3306 ecs_ssh_shortcut
 
+# 
+# If you wanna connect the mysql locally
+#
+# Read : https://aws.amazon.com/premiumsupport/knowledge-center/rds-connect-using-bastion-host-linux/
+# mysql -h 127.0.0.1 -u impart_db_admin -p  
+
 # in a separate window, run...
 export password="1pjj82aRrkyFMYnmUZgRfBdLrhb1pjj7gqIJe" && \
 export conn="mysql://impart_db_admin:${password}@tcp(localhost:3306)/impart?tls=skip-verify&autocommit=true" && \

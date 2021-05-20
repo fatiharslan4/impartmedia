@@ -74,8 +74,6 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 		var impartErr impart.Error
 		var p models.Profile
 
-		ctxUser := impart.GetCtxUser(ctx)
-
 		// m, err := management.New("impartwealth.auth0.com", management.WithClientCredentials("uRHuNlRNiDKcbHcKtt0L08T0GkY8jtxe", "YL8Srtt1t3PgTCvSrVC51mXez7KYxG-iC2E0FBQNFlFO0bGu229Kn_BF7lQVko03"))
 		// // fmt.Println(*m.User)
 		// res2B, _ := json.Marshal(m)
@@ -87,6 +85,16 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 		// if err != nil {
 		// 	// handle err
 		// }
+		impartWealthId := ctx.Param("impartWealthId")
+		if impartWealthId == "new" {
+			p := models.Profile{
+				ImpartWealthID: ksuid.New().String(),
+			}
+			ctx.JSON(200, p)
+			return
+		}
+
+		ctxUser := impart.GetCtxUser(ctx)
 
 		const AuthorizationHeader = "Authorization"
 		const AuthorizationHeaderBearerType = "Bearer"
@@ -149,15 +157,6 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 		// 		return
 		// 	}
 		// }
-
-		impartWealthId := ctx.Param("impartWealthId")
-		if impartWealthId == "new" {
-			p := models.Profile{
-				ImpartWealthID: ksuid.New().String(),
-			}
-			ctx.JSON(200, p)
-			return
-		}
 
 		// ctxUser := impart.GetCtxUser(ctx)
 		if strings.TrimSpace(impartWealthId) == "" {

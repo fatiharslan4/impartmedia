@@ -180,7 +180,7 @@ const (
 
 func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Questionnaire) *uint64 {
 	out := MillennialGenXWithChildrenHiveId
-	var isMillenialOrGenx, hasChildren, hasHousehold, hasGender, hasRace, hasFinancialGoals bool
+	var isMillenialOrGenx, hasChildren, hasHousehold bool
 	for _, q := range questionnaire.Questions {
 		switch q.Name {
 		case "Household":
@@ -214,35 +214,8 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 				}
 			}
 		case "Gender":
-			for _, a := range q.Answers {
-				switch a.Name {
-				case "Woman", "Man", "NonBinary", "NotListed":
-					hasGender = true
-				}
-				if hasGender {
-					break
-				}
-			}
 		case "Race":
-			for _, a := range q.Answers {
-				switch a.Name {
-				case "AmIndianAlNative", "AsianPacIslander", "Black", "Hispanic", "SWAsianNAfrican", "White":
-					hasRace = true
-				}
-				if hasRace {
-					break
-				}
-			}
 		case "FinancialGoals":
-			for _, a := range q.Answers {
-				switch a.Name {
-				case "Retirement", "SaveCollege", "House", "WealthDivestment", "GenerationalWealth":
-					hasFinancialGoals = true
-				}
-				if hasFinancialGoals {
-					break
-				}
-			}
 		default:
 			ps.Logger().Error("unknown onboarding question name", zap.String("questionName", q.Name))
 			return nil
@@ -250,7 +223,7 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 		}
 	}
 
-	if isMillenialOrGenx && hasChildren && hasHousehold && hasGender && hasRace && hasFinancialGoals {
+	if isMillenialOrGenx && hasChildren && hasHousehold {
 		return &out
 	}
 	return nil
@@ -263,7 +236,10 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 	ctxUser := impart.GetCtxUser(ctx)
 	//call all the hive assignment funcs
 	if id := ps.isAssignedMillenialWithChildren(questionnaire); id != nil {
-		hives = append(hives, &dbmodels.Hive{HiveID: *id})
+		// hives = append(hives, &dbmodels.Hive{HiveID: *id})
+		hives = dbmodels.HiveSlice{
+			&dbmodels.Hive{HiveID: *id},
+		}
 	}
 	err := ctxUser.SetMemberHiveHives(ctx, ps.db, false, hives...)
 	if err != nil {

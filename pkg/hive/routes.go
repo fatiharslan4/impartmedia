@@ -341,6 +341,7 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
+		p = ValidationPost(p)
 		hh.logger.Debug("creating", zap.Any("post", p))
 
 		if p.HiveID != hiveId {
@@ -402,6 +403,7 @@ func (hh *hiveHandler) EditPostFunc() gin.HandlerFunc {
 
 		p := models.Post{}
 		err := ctx.ShouldBindJSON(&p)
+		p = ValidationPost(p)
 		if err != nil {
 			hh.logger.Error("deserialization error", zap.Error(err))
 			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Post")

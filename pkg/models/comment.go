@@ -2,11 +2,12 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"math"
 	"reflect"
 	"sort"
 	"time"
+
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 
 	r "github.com/Pallinder/go-randomdata"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -25,8 +26,8 @@ type Comment struct {
 	PostID           uint64           `json:"postId" jsonschema:"minLength=27,maxLength=27"`
 	CommentID        uint64           `json:"commentId,omitempty"`
 	CommentDatetime  time.Time        `json:"commentDatetime,omitempty"`
-	ImpartWealthID   string           `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27"`
-	ScreenName       string           `json:"screenName"`
+	ImpartWealthID   string           `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27" conform:"trim"`
+	ScreenName       string           `json:"screenName" conform:"trim"`
 	Content          Content          `json:"content"`
 	Edits            Edits            `json:"edits,omitempty"`
 	UpVotes          int              `json:"upVotes,"`

@@ -236,10 +236,10 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 	ctxUser := impart.GetCtxUser(ctx)
 	//call all the hive assignment funcs
 	if id := ps.isAssignedMillenialWithChildren(questionnaire); id != nil {
-		// hives = append(hives, &dbmodels.Hive{HiveID: *id})
-		hives = dbmodels.HiveSlice{
-			&dbmodels.Hive{HiveID: *id},
-		}
+		hives = append(hives, &dbmodels.Hive{HiveID: *id})
+		// hives = dbmodels.HiveSlice{
+		// 	&dbmodels.Hive{HiveID: *id},
+		// }
 	}
 	err := ctxUser.SetMemberHiveHives(ctx, ps.db, false, hives...)
 	if err != nil {

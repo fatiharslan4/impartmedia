@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 	"fmt"
+
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -179,10 +180,19 @@ const (
 
 func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Questionnaire) *uint64 {
 	out := MillennialGenXWithChildrenHiveId
-	var isMillenialOrGenx, hasChildren bool
+	var isMillenialOrGenx, hasChildren, hasHousehold bool
 	for _, q := range questionnaire.Questions {
 		switch q.Name {
 		case "Household":
+			for _, a := range q.Answers {
+				switch a.Name {
+				case "Partner", "Married", "SharedCustody":
+					hasHousehold = true
+				}
+				if hasHousehold {
+					break
+				}
+			}
 		case "Dependents":
 			for _, a := range q.Answers {
 				switch a.Name {
@@ -213,7 +223,7 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 		}
 	}
 
-	if isMillenialOrGenx && hasChildren {
+	if isMillenialOrGenx && hasChildren && hasHousehold {
 		return &out
 	}
 	return nil
@@ -226,7 +236,10 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 	ctxUser := impart.GetCtxUser(ctx)
 	//call all the hive assignment funcs
 	if id := ps.isAssignedMillenialWithChildren(questionnaire); id != nil {
-		hives = append(hives, &dbmodels.Hive{HiveID: *id})
+		// hives = append(hives, &dbmodels.Hive{HiveID: *id})
+		hives = dbmodels.HiveSlice{
+			&dbmodels.Hive{HiveID: *id},
+		}
 	}
 	err := ctxUser.SetMemberHiveHives(ctx, ps.db, false, hives...)
 	if err != nil {

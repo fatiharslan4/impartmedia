@@ -32,13 +32,13 @@ on:
       - ios-dev
       - pre-production
       - production
-  pull_request:
-    types: [closed]
-    branches: 
-      - dev
-      - ios-dev
-      - pre-production
-      - production
+  # pull_request:
+  #   types: [closed]
+  #   branches: 
+  #     - dev
+  #     - ios-dev
+  #     - pre-production
+  #     - production
 
 # on:
 #   workflow_run:

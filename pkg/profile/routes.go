@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 
 	"github.com/segmentio/ksuid"
 	"github.com/xeipuuv/gojsonschema"
-	"gopkg.in/auth0.v5/management"
 
 	"github.com/gin-gonic/gin"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
@@ -75,70 +76,79 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 
 		ctxUser := impart.GetCtxUser(ctx)
 
-		m, err := management.New("impartwealth.auth0.com", management.WithClientCredentials("uRHuNlRNiDKcbHcKtt0L08T0GkY8jtxe", "YL8Srtt1t3PgTCvSrVC51mXez7KYxG-iC2E0FBQNFlFO0bGu229Kn_BF7lQVko03"))
-		// fmt.Println(*m.User)
-		res2B, _ := json.Marshal(m)
-		fmt.Println(string(res2B))
+		// m, err := management.New("impartwealth.auth0.com", management.WithClientCredentials("uRHuNlRNiDKcbHcKtt0L08T0GkY8jtxe", "YL8Srtt1t3PgTCvSrVC51mXez7KYxG-iC2E0FBQNFlFO0bGu229Kn_BF7lQVko03"))
+		// // fmt.Println(*m.User)
+		// res2B, _ := json.Marshal(m)
+		// fmt.Println(string(res2B))
+		// if err != nil {
+		// 	// handle err
+		// }
+		// existingUsers, err := m.User.ListByEmail(ctxUser.Email)
+		// if err != nil {
+		// 	// handle err
+		// }
+
+		const AuthorizationHeader = "Authorization"
+		const AuthorizationHeaderBearerType = "Bearer"
+		// parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
+
+		fmt.Println(ctxUser.Email)
+
+		url := "https://impartwealth.auth0.com" + "/api/v2/users-by-email?email=" + ctxUser.Email
+		// url := "https://impartwealth.auth0.com" + "/api/v2/users"
+
+		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			// handle err
+			log.Fatal(err)
 		}
-		existingUsers, err := m.User.ListByEmail(ctxUser.Email)
+
+		req.Header.Add("Authorization", "Bearer "+"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ik56VTVOVU5DTmpORU4wUTFOekl5TlVOR1JUSkdNekV5TlVGRU1qSXpSVUZHTkVFMlJqZENPQSJ9.eyJpc3MiOiJodHRwczovL2ltcGFydHdlYWx0aC5hdXRoMC5jb20vIiwic3ViIjoiZlBaSmlEQUplZHpNNW94aGREN3J3TzJkYTVybGo3QlJAY2xpZW50cyIsImF1ZCI6Imh0dHBzOi8vaW1wYXJ0d2VhbHRoLmF1dGgwLmNvbS9hcGkvdjIvIiwiaWF0IjoxNjIwNzE2MzM5LCJleHAiOjE2MjMzMDgzMzksImF6cCI6ImZQWkppREFKZWR6TTVveGhkRDdyd08yZGE1cmxqN0JSIiwic2NvcGUiOiJyZWFkOmNsaWVudF9ncmFudHMgY3JlYXRlOmNsaWVudF9ncmFudHMgZGVsZXRlOmNsaWVudF9ncmFudHMgdXBkYXRlOmNsaWVudF9ncmFudHMgcmVhZDp1c2VycyB1cGRhdGU6dXNlcnMgZGVsZXRlOnVzZXJzIGNyZWF0ZTp1c2VycyByZWFkOnVzZXJzX2FwcF9tZXRhZGF0YSB1cGRhdGU6dXNlcnNfYXBwX21ldGFkYXRhIGRlbGV0ZTp1c2Vyc19hcHBfbWV0YWRhdGEgY3JlYXRlOnVzZXJzX2FwcF9tZXRhZGF0YSByZWFkOnVzZXJfY3VzdG9tX2Jsb2NrcyBjcmVhdGU6dXNlcl9jdXN0b21fYmxvY2tzIGRlbGV0ZTp1c2VyX2N1c3RvbV9ibG9ja3MgY3JlYXRlOnVzZXJfdGlja2V0cyByZWFkOmNsaWVudHMgdXBkYXRlOmNsaWVudHMgZGVsZXRlOmNsaWVudHMgY3JlYXRlOmNsaWVudHMgcmVhZDpjbGllbnRfa2V5cyB1cGRhdGU6Y2xpZW50X2tleXMgZGVsZXRlOmNsaWVudF9rZXlzIGNyZWF0ZTpjbGllbnRfa2V5cyByZWFkOmNvbm5lY3Rpb25zIHVwZGF0ZTpjb25uZWN0aW9ucyBkZWxldGU6Y29ubmVjdGlvbnMgY3JlYXRlOmNvbm5lY3Rpb25zIHJlYWQ6cmVzb3VyY2Vfc2VydmVycyB1cGRhdGU6cmVzb3VyY2Vfc2VydmVycyBkZWxldGU6cmVzb3VyY2Vfc2VydmVycyBjcmVhdGU6cmVzb3VyY2Vfc2VydmVycyByZWFkOmRldmljZV9jcmVkZW50aWFscyB1cGRhdGU6ZGV2aWNlX2NyZWRlbnRpYWxzIGRlbGV0ZTpkZXZpY2VfY3JlZGVudGlhbHMgY3JlYXRlOmRldmljZV9jcmVkZW50aWFscyByZWFkOnJ1bGVzIHVwZGF0ZTpydWxlcyBkZWxldGU6cnVsZXMgY3JlYXRlOnJ1bGVzIHJlYWQ6cnVsZXNfY29uZmlncyB1cGRhdGU6cnVsZXNfY29uZmlncyBkZWxldGU6cnVsZXNfY29uZmlncyByZWFkOmhvb2tzIHVwZGF0ZTpob29rcyBkZWxldGU6aG9va3MgY3JlYXRlOmhvb2tzIHJlYWQ6YWN0aW9ucyB1cGRhdGU6YWN0aW9ucyBkZWxldGU6YWN0aW9ucyBjcmVhdGU6YWN0aW9ucyByZWFkOmVtYWlsX3Byb3ZpZGVyIHVwZGF0ZTplbWFpbF9wcm92aWRlciBkZWxldGU6ZW1haWxfcHJvdmlkZXIgY3JlYXRlOmVtYWlsX3Byb3ZpZGVyIGJsYWNrbGlzdDp0b2tlbnMgcmVhZDpzdGF0cyByZWFkOnRlbmFudF9zZXR0aW5ncyB1cGRhdGU6dGVuYW50X3NldHRpbmdzIHJlYWQ6bG9ncyByZWFkOmxvZ3NfdXNlcnMgcmVhZDpzaGllbGRzIGNyZWF0ZTpzaGllbGRzIHVwZGF0ZTpzaGllbGRzIGRlbGV0ZTpzaGllbGRzIHJlYWQ6YW5vbWFseV9ibG9ja3MgZGVsZXRlOmFub21hbHlfYmxvY2tzIHVwZGF0ZTp0cmlnZ2VycyByZWFkOnRyaWdnZXJzIHJlYWQ6Z3JhbnRzIGRlbGV0ZTpncmFudHMgcmVhZDpndWFyZGlhbl9mYWN0b3JzIHVwZGF0ZTpndWFyZGlhbl9mYWN0b3JzIHJlYWQ6Z3VhcmRpYW5fZW5yb2xsbWVudHMgZGVsZXRlOmd1YXJkaWFuX2Vucm9sbG1lbnRzIGNyZWF0ZTpndWFyZGlhbl9lbnJvbGxtZW50X3RpY2tldHMgcmVhZDp1c2VyX2lkcF90b2tlbnMgY3JlYXRlOnBhc3N3b3Jkc19jaGVja2luZ19qb2IgZGVsZXRlOnBhc3N3b3Jkc19jaGVja2luZ19qb2IgcmVhZDpjdXN0b21fZG9tYWlucyBkZWxldGU6Y3VzdG9tX2RvbWFpbnMgY3JlYXRlOmN1c3RvbV9kb21haW5zIHVwZGF0ZTpjdXN0b21fZG9tYWlucyByZWFkOmVtYWlsX3RlbXBsYXRlcyBjcmVhdGU6ZW1haWxfdGVtcGxhdGVzIHVwZGF0ZTplbWFpbF90ZW1wbGF0ZXMgcmVhZDptZmFfcG9saWNpZXMgdXBkYXRlOm1mYV9wb2xpY2llcyByZWFkOnJvbGVzIGNyZWF0ZTpyb2xlcyBkZWxldGU6cm9sZXMgdXBkYXRlOnJvbGVzIHJlYWQ6cHJvbXB0cyB1cGRhdGU6cHJvbXB0cyByZWFkOmJyYW5kaW5nIHVwZGF0ZTpicmFuZGluZyBkZWxldGU6YnJhbmRpbmcgcmVhZDpsb2dfc3RyZWFtcyBjcmVhdGU6bG9nX3N0cmVhbXMgZGVsZXRlOmxvZ19zdHJlYW1zIHVwZGF0ZTpsb2dfc3RyZWFtcyBjcmVhdGU6c2lnbmluZ19rZXlzIHJlYWQ6c2lnbmluZ19rZXlzIHVwZGF0ZTpzaWduaW5nX2tleXMgcmVhZDpsaW1pdHMgdXBkYXRlOmxpbWl0cyBjcmVhdGU6cm9sZV9tZW1iZXJzIHJlYWQ6cm9sZV9tZW1iZXJzIGRlbGV0ZTpyb2xlX21lbWJlcnMgcmVhZDplbnRpdGxlbWVudHMgcmVhZDpvcmdhbml6YXRpb25zIHVwZGF0ZTpvcmdhbml6YXRpb25zIGNyZWF0ZTpvcmdhbml6YXRpb25zIGRlbGV0ZTpvcmdhbml6YXRpb25zIGNyZWF0ZTpvcmdhbml6YXRpb25fbWVtYmVycyByZWFkOm9yZ2FuaXphdGlvbl9tZW1iZXJzIGRlbGV0ZTpvcmdhbml6YXRpb25fbWVtYmVycyBjcmVhdGU6b3JnYW5pemF0aW9uX2Nvbm5lY3Rpb25zIHJlYWQ6b3JnYW5pemF0aW9uX2Nvbm5lY3Rpb25zIHVwZGF0ZTpvcmdhbml6YXRpb25fY29ubmVjdGlvbnMgZGVsZXRlOm9yZ2FuaXphdGlvbl9jb25uZWN0aW9ucyBjcmVhdGU6b3JnYW5pemF0aW9uX21lbWJlcl9yb2xlcyByZWFkOm9yZ2FuaXphdGlvbl9tZW1iZXJfcm9sZXMgZGVsZXRlOm9yZ2FuaXphdGlvbl9tZW1iZXJfcm9sZXMgY3JlYXRlOm9yZ2FuaXphdGlvbl9pbnZpdGF0aW9ucyByZWFkOm9yZ2FuaXphdGlvbl9pbnZpdGF0aW9ucyBkZWxldGU6b3JnYW5pemF0aW9uX2ludml0YXRpb25zIiwiZ3R5IjoiY2xpZW50LWNyZWRlbnRpYWxzIn0.cO7vWHJgfTKbG_FA3onflnoX0VPymO-9lmOxg4QLqCKY2XJkyRjmWTuj7PTYUYBMqfWzfb7JkpnEYSfpKS5TbKV-9TUQKphJJnquzW9X8rFVTT1Qa4zW9SyLDvPhvzh_SnGYcMQTuDxkIL6oZlDyx_EqukrhzVksBIMTcISIZo9jbMs1nyRAjgzhBdXWGX0Jxrf8QWY0y54w9ppLMVI36lxnRLqjV_1ozAvDiNpdK5wRkLHxGrdc9nGKRaRmo2gUaKw3cbG-0lhvtDENtm2Eik_GXzcDok2qh-hSAtZd47hezSyk4yD9pVPlJSaN_LL7dioEU7pKv6S1Ie1mDlC6ZQ")
+		// req.Header.Add("Authorization", "Bearer "+parts[1])
+
+		res, err := http.DefaultClient.Do(req)
 		if err != nil {
-			// handle err
+			log.Fatal(err)
 		}
 
-		// const AuthorizationHeader = "Authorization"
-		// const AuthorizationHeaderBearerType = "Bearer"
-		// // parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
-
-		// fmt.Println(ctxUser.Email)
-
-		// url := "https://impartwealth.auth0.com" + "/api/v2/users-by-email?email=" + ctxUser.Email
-		// // url := "https://impartwealth.auth0.com" + "/api/v2/users"
-
-		// req, err := http.NewRequest("GET", url, nil)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		// req.Header.Add("Authorization", "Bearer "+"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ik56VTVOVU5DTmpORU4wUTFOekl5TlVOR1JUSkdNekV5TlVGRU1qSXpSVUZHTkVFMlJqZENPQSJ9.eyJpc3MiOiJodHRwczovL2ltcGFydHdlYWx0aC5hdXRoMC5jb20vIiwic3ViIjoiZlBaSmlEQUplZHpNNW94aGREN3J3TzJkYTVybGo3QlJAY2xpZW50cyIsImF1ZCI6Imh0dHBzOi8vaW1wYXJ0d2VhbHRoLmF1dGgwLmNvbS9hcGkvdjIvIiwiaWF0IjoxNjIwNzE2MzM5LCJleHAiOjE2MjMzMDgzMzksImF6cCI6ImZQWkppREFKZWR6TTVveGhkRDdyd08yZGE1cmxqN0JSIiwic2NvcGUiOiJyZWFkOmNsaWVudF9ncmFudHMgY3JlYXRlOmNsaWVudF9ncmFudHMgZGVsZXRlOmNsaWVudF9ncmFudHMgdXBkYXRlOmNsaWVudF9ncmFudHMgcmVhZDp1c2VycyB1cGRhdGU6dXNlcnMgZGVsZXRlOnVzZXJzIGNyZWF0ZTp1c2VycyByZWFkOnVzZXJzX2FwcF9tZXRhZGF0YSB1cGRhdGU6dXNlcnNfYXBwX21ldGFkYXRhIGRlbGV0ZTp1c2Vyc19hcHBfbWV0YWRhdGEgY3JlYXRlOnVzZXJzX2FwcF9tZXRhZGF0YSByZWFkOnVzZXJfY3VzdG9tX2Jsb2NrcyBjcmVhdGU6dXNlcl9jdXN0b21fYmxvY2tzIGRlbGV0ZTp1c2VyX2N1c3RvbV9ibG9ja3MgY3JlYXRlOnVzZXJfdGlja2V0cyByZWFkOmNsaWVudHMgdXBkYXRlOmNsaWVudHMgZGVsZXRlOmNsaWVudHMgY3JlYXRlOmNsaWVudHMgcmVhZDpjbGllbnRfa2V5cyB1cGRhdGU6Y2xpZW50X2tleXMgZGVsZXRlOmNsaWVudF9rZXlzIGNyZWF0ZTpjbGllbnRfa2V5cyByZWFkOmNvbm5lY3Rpb25zIHVwZGF0ZTpjb25uZWN0aW9ucyBkZWxldGU6Y29ubmVjdGlvbnMgY3JlYXRlOmNvbm5lY3Rpb25zIHJlYWQ6cmVzb3VyY2Vfc2VydmVycyB1cGRhdGU6cmVzb3VyY2Vfc2VydmVycyBkZWxldGU6cmVzb3VyY2Vfc2VydmVycyBjcmVhdGU6cmVzb3VyY2Vfc2VydmVycyByZWFkOmRldmljZV9jcmVkZW50aWFscyB1cGRhdGU6ZGV2aWNlX2NyZWRlbnRpYWxzIGRlbGV0ZTpkZXZpY2VfY3JlZGVudGlhbHMgY3JlYXRlOmRldmljZV9jcmVkZW50aWFscyByZWFkOnJ1bGVzIHVwZGF0ZTpydWxlcyBkZWxldGU6cnVsZXMgY3JlYXRlOnJ1bGVzIHJlYWQ6cnVsZXNfY29uZmlncyB1cGRhdGU6cnVsZXNfY29uZmlncyBkZWxldGU6cnVsZXNfY29uZmlncyByZWFkOmhvb2tzIHVwZGF0ZTpob29rcyBkZWxldGU6aG9va3MgY3JlYXRlOmhvb2tzIHJlYWQ6YWN0aW9ucyB1cGRhdGU6YWN0aW9ucyBkZWxldGU6YWN0aW9ucyBjcmVhdGU6YWN0aW9ucyByZWFkOmVtYWlsX3Byb3ZpZGVyIHVwZGF0ZTplbWFpbF9wcm92aWRlciBkZWxldGU6ZW1haWxfcHJvdmlkZXIgY3JlYXRlOmVtYWlsX3Byb3ZpZGVyIGJsYWNrbGlzdDp0b2tlbnMgcmVhZDpzdGF0cyByZWFkOnRlbmFudF9zZXR0aW5ncyB1cGRhdGU6dGVuYW50X3NldHRpbmdzIHJlYWQ6bG9ncyByZWFkOmxvZ3NfdXNlcnMgcmVhZDpzaGllbGRzIGNyZWF0ZTpzaGllbGRzIHVwZGF0ZTpzaGllbGRzIGRlbGV0ZTpzaGllbGRzIHJlYWQ6YW5vbWFseV9ibG9ja3MgZGVsZXRlOmFub21hbHlfYmxvY2tzIHVwZGF0ZTp0cmlnZ2VycyByZWFkOnRyaWdnZXJzIHJlYWQ6Z3JhbnRzIGRlbGV0ZTpncmFudHMgcmVhZDpndWFyZGlhbl9mYWN0b3JzIHVwZGF0ZTpndWFyZGlhbl9mYWN0b3JzIHJlYWQ6Z3VhcmRpYW5fZW5yb2xsbWVudHMgZGVsZXRlOmd1YXJkaWFuX2Vucm9sbG1lbnRzIGNyZWF0ZTpndWFyZGlhbl9lbnJvbGxtZW50X3RpY2tldHMgcmVhZDp1c2VyX2lkcF90b2tlbnMgY3JlYXRlOnBhc3N3b3Jkc19jaGVja2luZ19qb2IgZGVsZXRlOnBhc3N3b3Jkc19jaGVja2luZ19qb2IgcmVhZDpjdXN0b21fZG9tYWlucyBkZWxldGU6Y3VzdG9tX2RvbWFpbnMgY3JlYXRlOmN1c3RvbV9kb21haW5zIHVwZGF0ZTpjdXN0b21fZG9tYWlucyByZWFkOmVtYWlsX3RlbXBsYXRlcyBjcmVhdGU6ZW1haWxfdGVtcGxhdGVzIHVwZGF0ZTplbWFpbF90ZW1wbGF0ZXMgcmVhZDptZmFfcG9saWNpZXMgdXBkYXRlOm1mYV9wb2xpY2llcyByZWFkOnJvbGVzIGNyZWF0ZTpyb2xlcyBkZWxldGU6cm9sZXMgdXBkYXRlOnJvbGVzIHJlYWQ6cHJvbXB0cyB1cGRhdGU6cHJvbXB0cyByZWFkOmJyYW5kaW5nIHVwZGF0ZTpicmFuZGluZyBkZWxldGU6YnJhbmRpbmcgcmVhZDpsb2dfc3RyZWFtcyBjcmVhdGU6bG9nX3N0cmVhbXMgZGVsZXRlOmxvZ19zdHJlYW1zIHVwZGF0ZTpsb2dfc3RyZWFtcyBjcmVhdGU6c2lnbmluZ19rZXlzIHJlYWQ6c2lnbmluZ19rZXlzIHVwZGF0ZTpzaWduaW5nX2tleXMgcmVhZDpsaW1pdHMgdXBkYXRlOmxpbWl0cyBjcmVhdGU6cm9sZV9tZW1iZXJzIHJlYWQ6cm9sZV9tZW1iZXJzIGRlbGV0ZTpyb2xlX21lbWJlcnMgcmVhZDplbnRpdGxlbWVudHMgcmVhZDpvcmdhbml6YXRpb25zIHVwZGF0ZTpvcmdhbml6YXRpb25zIGNyZWF0ZTpvcmdhbml6YXRpb25zIGRlbGV0ZTpvcmdhbml6YXRpb25zIGNyZWF0ZTpvcmdhbml6YXRpb25fbWVtYmVycyByZWFkOm9yZ2FuaXphdGlvbl9tZW1iZXJzIGRlbGV0ZTpvcmdhbml6YXRpb25fbWVtYmVycyBjcmVhdGU6b3JnYW5pemF0aW9uX2Nvbm5lY3Rpb25zIHJlYWQ6b3JnYW5pemF0aW9uX2Nvbm5lY3Rpb25zIHVwZGF0ZTpvcmdhbml6YXRpb25fY29ubmVjdGlvbnMgZGVsZXRlOm9yZ2FuaXphdGlvbl9jb25uZWN0aW9ucyBjcmVhdGU6b3JnYW5pemF0aW9uX21lbWJlcl9yb2xlcyByZWFkOm9yZ2FuaXphdGlvbl9tZW1iZXJfcm9sZXMgZGVsZXRlOm9yZ2FuaXphdGlvbl9tZW1iZXJfcm9sZXMgY3JlYXRlOm9yZ2FuaXphdGlvbl9pbnZpdGF0aW9ucyByZWFkOm9yZ2FuaXphdGlvbl9pbnZpdGF0aW9ucyBkZWxldGU6b3JnYW5pemF0aW9uX2ludml0YXRpb25zIiwiZ3R5IjoiY2xpZW50LWNyZWRlbnRpYWxzIn0.cO7vWHJgfTKbG_FA3onflnoX0VPymO-9lmOxg4QLqCKY2XJkyRjmWTuj7PTYUYBMqfWzfb7JkpnEYSfpKS5TbKV-9TUQKphJJnquzW9X8rFVTT1Qa4zW9SyLDvPhvzh_SnGYcMQTuDxkIL6oZlDyx_EqukrhzVksBIMTcISIZo9jbMs1nyRAjgzhBdXWGX0Jxrf8QWY0y54w9ppLMVI36lxnRLqjV_1ozAvDiNpdK5wRkLHxGrdc9nGKRaRmo2gUaKw3cbG-0lhvtDENtm2Eik_GXzcDok2qh-hSAtZd47hezSyk4yD9pVPlJSaN_LL7dioEU7pKv6S1Ie1mDlC6ZQ")
-		// // req.Header.Add("Authorization", "Bearer "+parts[1])
-
-		// res, err := http.DefaultClient.Do(req)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		// defer res.Body.Close()
-		// body, err := ioutil.ReadAll(res.Body)
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		// fmt.Println(res)
-		// fmt.Println(string(body))
-
-		// var userList []AuthZeroUser
-		// if len(body) > 0 {
-		// 	if err := json.Unmarshal(body, &userList); err != nil {
-		// 		panic(err)
-		// 	}
-		// }
-
-		if len(existingUsers) == 0 {
-			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
-				impart.NewError(impart.ErrBadRequest, "User Not Exist"),
-			))
-			return
+		defer res.Body.Close()
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Fatal(err)
 		}
-		for _, users := range existingUsers {
-			if false == *users.EmailVerified {
+
+		fmt.Println(res)
+		fmt.Println(string(body))
+
+		var userList []AuthZeroUser
+		if len(body) > 0 {
+			if err := json.Unmarshal(body, &userList); err != nil {
+				panic(err)
+			}
+		}
+
+		for _, users := range userList {
+			if false == users.EmailVerified {
 				ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
 					impart.NewError(impart.ErrBadRequest, "Email not verified"),
 				))
 				return
 			}
 		}
+
+		// if len(existingUsers) == 0 {
+		// 	ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+		// 		impart.NewError(impart.ErrBadRequest, "User Not Exist"),
+		// 	))
+		// 	return
+		// }
+		// for _, users := range existingUsers {
+		// 	if false == *users.EmailVerified {
+		// 		ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+		// 			impart.NewError(impart.ErrBadRequest, "Email not verified"),
+		// 		))
+		// 		return
+		// 	}
+		// }
 
 		impartWealthId := ctx.Param("impartWealthId")
 		if impartWealthId == "new" {

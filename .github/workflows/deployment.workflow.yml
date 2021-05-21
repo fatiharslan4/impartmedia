@@ -28,17 +28,17 @@ name: Dep Workflow - Build and deploy to ECS
 on:
   push:
     branches: 
-      - staging
+      - dev
       - ios-dev
       - pre-production
       - production
-  pull_request:
-    types: [closed]
-    branches: 
-      - staging
-      - ios-dev
-      - pre-production
-      - production
+  # pull_request:
+  #   types: [closed]
+  #   branches: 
+  #     - dev
+  #     - ios-dev
+  #     - pre-production
+  #     - production
 
 # on:
 #   workflow_run:
@@ -79,7 +79,7 @@ jobs:
     - name: Set environment variables
       run: |
         case $BRANCH_NAME in
-          staging)
+          dev)
             echo "ENVTAG=dev" >> $GITHUB_ENV
             ;;
           test-branch)

@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/impartwealthapp/backend/pkg/data/migrater"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/volatiletech/sqlboiler/v4/boil"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -14,7 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-contrib/zap"
+	"github.com/impartwealthapp/backend/pkg/data/migrater"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+
+	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/auth"
@@ -112,6 +114,31 @@ func main() {
 			ctx.AbortWithStatus(http.StatusInternalServerError)
 		}
 		ctx.String(http.StatusOK, "pong")
+	})
+	r.GET("/checking", func(ctx *gin.Context) {
+		home := os.Getenv("HOME")
+		content, err := ioutil.ReadFile(home + "/.aws/config")
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"err": err,
+			})
+		}
+		text := string(content)
+
+		content, err = ioutil.ReadFile(home + "/.aws/credentials")
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"err": err,
+			})
+		}
+		credtext := string(content)
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"Config content": text,
+			"Cred content":   credtext,
+			"home":           home,
+		})
+
 	})
 
 	var v1Route string

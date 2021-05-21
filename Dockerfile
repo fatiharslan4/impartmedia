@@ -4,7 +4,12 @@ COPY . /app
 RUN go build -mod=vendor -o /app/impart-backend /app/cmd/server/main.go
 
 
+
 FROM debian:buster-slim
+
+ARG AWS_ACCESS_KEY
+ARG AWS_SECRET_KEY
+
 RUN apt-get -y update && \
   apt-get install -y curl wget ca-certificates iputils-ping netcat dnsutils mariadb-client jq && \
   apt-get clean && \
@@ -18,8 +23,8 @@ RUN mkdir -p ~/.aws && \
    echo "region=us-east-2" >> ~/.aws/config && \
    echo "output=json" >> ~/.aws/config && \
    echo "[local]" >  ~/.aws/credentials && \
-   echo "aws_access_key_id = dummy" >>  ~/.aws/credentials && \
-   echo "aws_secret_access_key = dummy" >>  ~/.aws/credentials
+   echo "aws_access_key_id = ${AWS_ACCESS_KEY} " >>  ~/.aws/credentials && \
+   echo "aws_secret_access_key = ${AWS_SECRET_KEY}" >>  ~/.aws/credentials
 
 RUN cat ~/.aws/config && cat ~/.aws/credentials
 

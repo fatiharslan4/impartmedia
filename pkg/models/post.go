@@ -47,7 +47,7 @@ type Post struct {
 	ReportedCount       int              `json:"reportedCount"`
 	Obfuscated          bool             `json:"obfuscated"`
 	ReviewedDatetime    time.Time        `json:"reviewedDatetime,omitempty"`
-	ReportedUsers       []ReportedUser
+	ReportedUsers       []ReportedUser   `json:"reportedUsers"`
 }
 
 func (posts Posts) Latest() time.Time {

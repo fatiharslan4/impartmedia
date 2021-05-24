@@ -227,6 +227,20 @@ type FakeHiveService struct {
 		result2 models.NextPage
 		result3 error
 	}
+	GetReportedUserStub        func(context.Context, models.Posts) (models.Posts, error)
+	getReportedUserMutex       sync.RWMutex
+	getReportedUserArgsForCall []struct {
+		arg1 context.Context
+		arg2 models.Posts
+	}
+	getReportedUserReturns struct {
+		result1 models.Posts
+		result2 error
+	}
+	getReportedUserReturnsOnCall map[int]struct {
+		result1 models.Posts
+		result2 error
+	}
 	GetReviewedPostsStub        func(context.Context, uint64, time.Time, int) (dbmodels.PostSlice, models.NextPage, error)
 	getReviewedPostsMutex       sync.RWMutex
 	getReviewedPostsArgsForCall []struct {
@@ -1383,6 +1397,71 @@ func (fake *FakeHiveService) GetPostsWithUnreviewedCommentsReturnsOnCall(i int, 
 	}{result1, result2, result3}
 }
 
+func (fake *FakeHiveService) GetReportedUser(arg1 context.Context, arg2 models.Posts) (models.Posts, error) {
+	fake.getReportedUserMutex.Lock()
+	ret, specificReturn := fake.getReportedUserReturnsOnCall[len(fake.getReportedUserArgsForCall)]
+	fake.getReportedUserArgsForCall = append(fake.getReportedUserArgsForCall, struct {
+		arg1 context.Context
+		arg2 models.Posts
+	}{arg1, arg2})
+	stub := fake.GetReportedUserStub
+	fakeReturns := fake.getReportedUserReturns
+	fake.recordInvocation("GetReportedUser", []interface{}{arg1, arg2})
+	fake.getReportedUserMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeHiveService) GetReportedUserCallCount() int {
+	fake.getReportedUserMutex.RLock()
+	defer fake.getReportedUserMutex.RUnlock()
+	return len(fake.getReportedUserArgsForCall)
+}
+
+func (fake *FakeHiveService) GetReportedUserCalls(stub func(context.Context, models.Posts) (models.Posts, error)) {
+	fake.getReportedUserMutex.Lock()
+	defer fake.getReportedUserMutex.Unlock()
+	fake.GetReportedUserStub = stub
+}
+
+func (fake *FakeHiveService) GetReportedUserArgsForCall(i int) (context.Context, models.Posts) {
+	fake.getReportedUserMutex.RLock()
+	defer fake.getReportedUserMutex.RUnlock()
+	argsForCall := fake.getReportedUserArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeHiveService) GetReportedUserReturns(result1 models.Posts, result2 error) {
+	fake.getReportedUserMutex.Lock()
+	defer fake.getReportedUserMutex.Unlock()
+	fake.GetReportedUserStub = nil
+	fake.getReportedUserReturns = struct {
+		result1 models.Posts
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeHiveService) GetReportedUserReturnsOnCall(i int, result1 models.Posts, result2 error) {
+	fake.getReportedUserMutex.Lock()
+	defer fake.getReportedUserMutex.Unlock()
+	fake.GetReportedUserStub = nil
+	if fake.getReportedUserReturnsOnCall == nil {
+		fake.getReportedUserReturnsOnCall = make(map[int]struct {
+			result1 models.Posts
+			result2 error
+		})
+	}
+	fake.getReportedUserReturnsOnCall[i] = struct {
+		result1 models.Posts
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeHiveService) GetReviewedPosts(arg1 context.Context, arg2 uint64, arg3 time.Time, arg4 int) (dbmodels.PostSlice, models.NextPage, error) {
 	fake.getReviewedPostsMutex.Lock()
 	ret, specificReturn := fake.getReviewedPostsReturnsOnCall[len(fake.getReviewedPostsArgsForCall)]
@@ -2197,6 +2276,8 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.getPostsWithReviewedCommentsMutex.RUnlock()
 	fake.getPostsWithUnreviewedCommentsMutex.RLock()
 	defer fake.getPostsWithUnreviewedCommentsMutex.RUnlock()
+	fake.getReportedUserMutex.RLock()
+	defer fake.getReportedUserMutex.RUnlock()
 	fake.getReviewedPostsMutex.RLock()
 	defer fake.getReviewedPostsMutex.RUnlock()
 	fake.getUnreviewedReportedPostsMutex.RLock()

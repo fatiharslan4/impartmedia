@@ -48,7 +48,7 @@ func AvailableTags() Tags {
 		RetirementSavings(),
 		LifeInsuranceCoverage(),
 		NetWorth(),
-		Other(),
+		// Other(),
 	}
 	t.SortAscending()
 	return t

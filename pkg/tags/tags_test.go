@@ -36,21 +36,21 @@ func TestFromID(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 6, tag.ID)
 
-	tag, err = FromID(7)
-	assert.NoError(t, err)
-	assert.Equal(t, 7, tag.ID)
+	// tag, err = FromID(7)
+	// assert.NoError(t, err)
+	// assert.Equal(t, 7, tag.ID)
 
 }
 
 func TestAvailableTags(t *testing.T) {
 
 	allTags := AvailableTags()
-	assert.Len(t, allTags, 7)
+	assert.Len(t, allTags, 6)
 	assert.Equal(t, allTags[0], Income())
 	assert.Equal(t, allTags[1], EmergencySavings())
 	assert.Equal(t, allTags[2], EducationSavings())
 	assert.Equal(t, allTags[3], RetirementSavings())
 	assert.Equal(t, allTags[4], LifeInsuranceCoverage())
 	assert.Equal(t, allTags[5], NetWorth())
-	assert.Equal(t, allTags[6], Other())
+	// assert.Equal(t, allTags[6], Other())
 }

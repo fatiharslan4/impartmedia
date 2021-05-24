@@ -20,6 +20,11 @@ type PagedPostsResponse struct {
 	NextPage *NextPage `json:"nextPage"`
 }
 
+type ReportedUser struct {
+	ImpartWealthID string `json:"impartWealthId"`
+	ScreenName     string `json:"screenName"`
+}
+
 type Posts []Post
 type Post struct {
 	HiveID              uint64           `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
@@ -42,6 +47,7 @@ type Post struct {
 	ReportedCount       int              `json:"reportedCount"`
 	Obfuscated          bool             `json:"obfuscated"`
 	ReviewedDatetime    time.Time        `json:"reviewedDatetime,omitempty"`
+	ReportedUsers       []ReportedUser
 }
 
 func (posts Posts) Latest() time.Time {

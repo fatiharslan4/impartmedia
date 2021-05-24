@@ -150,7 +150,6 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 		}
 		return postsError
 	})
-
 	eg.Go(func() error {
 		//if we're filtering on tags, or this is a secondary page request, return early.
 		if len(gpi.TagIDs) > 0 || gpi.Offset > 0 {
@@ -197,7 +196,10 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 	}
 
 	out := models.PostsFromDB(dbPosts)
-
+	out, err = s.postData.GetReportedUser(ctx, out)
+	if err != nil {
+		s.logger.Error("error fetching data", zap.Error(err))
+	}
 	return out, nextPage, nil
 }
 
@@ -223,6 +225,7 @@ func (s *service) DeletePost(ctx context.Context, postID uint64) impart.Error {
 func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error) {
 	var dbReason *string
 	var empty models.PostCommentTrack
+
 	if !remove && reason == "" {
 		return empty, impart.NewError(impart.ErrBadRequest, "must provide a reason for reporting")
 	}

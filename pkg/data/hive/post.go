@@ -3,7 +3,6 @@ package data
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -121,7 +120,6 @@ func (d *mysqlHiveData) GetPosts(ctx context.Context, gpi GetPostsInput) (dbmode
 	if gpi.IsLastCommentSorted {
 		orderByMod = qm.OrderBy("last_comment_ts desc, post_id desc")
 	}
-	fmt.Println("the data are", dbmodels.PostRels.PostReactions)
 	queryMods := []qm.QueryMod{
 		dbmodels.PostWhere.HiveID.EQ(gpi.HiveID),
 		qm.Offset(gpi.Offset),
@@ -141,7 +139,6 @@ func (d *mysqlHiveData) GetPosts(ctx context.Context, gpi GetPostsInput) (dbmode
 	}
 
 	posts, err := dbmodels.Posts(queryMods...).All(ctx, d.db)
-	println("the post are", len(posts), posts[0].ReportedCount)
 
 	if err != nil {
 		if err == sql.ErrNoRows {

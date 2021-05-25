@@ -236,7 +236,7 @@ func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 
 		for _, users := range existingUsers {
 			if false == *users.EmailVerified {
-				ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(
 					impart.NewError(impart.ErrBadRequest, "Email not verified"),
 				))
 				return

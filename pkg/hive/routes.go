@@ -509,7 +509,7 @@ func (hh *hiveHandler) PostCommentReactionFunc() gin.HandlerFunc {
 				userTrack, impartErr = hh.hiveService.ReportPost(ctx, postId, reason, !report)
 			}
 			if impartErr != nil {
-				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+				ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
 				return
 			}
 			ctx.JSON(http.StatusOK, userTrack)

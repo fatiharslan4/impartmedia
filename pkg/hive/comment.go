@@ -3,9 +3,10 @@ package hive
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -155,12 +156,18 @@ func (s *service) ReportComment(ctx context.Context, commentID uint64, reason st
 		s.logger.Error("couldn't report comment", zap.Error(err), zap.Uint64("commentId", commentID))
 		switch err {
 		case impart.ErrNoOp:
-			return empty, impart.NewError(impart.ErrNoOp, "comment is already in the input reported state")
+			return empty, impart.NewError(impart.ErrNoOp, "comment is already in the input reported state", impart.Report)
 		case impart.ErrNotFound:
-			return empty, impart.NewError(err, fmt.Sprintf("could not find comment %v to report", commentID))
+			return empty, impart.NewError(err, fmt.Sprintf("could not find comment %v to report", commentID), impart.Report)
 		default:
 			return empty, impart.UnknownError
 		}
+	}
+
+	//send comment report notification
+	err = s.SendCommentReportNotification(ctx, commentID, reason)
+	if err != nil {
+		s.logger.Error("error happened on notify reaction", zap.Error(err))
 	}
 	out, err := s.reactionData.GetUserTrack(ctx, data.ContentInput{
 		Type: data.Comment,
@@ -171,4 +178,69 @@ func (s *service) ReportComment(ctx context.Context, commentID uint64, reason st
 		return empty, impart.UnknownError
 	}
 	return out, nil
+}
+
+/**
+ * SendCommentReportNotification
+ *
+ * Send notification when a comment reported
+ * Notifying to :
+ *		post owner
+ *		comment owner
+ */
+func (s *service) SendCommentReportNotification(ctx context.Context, commentID uint64, reason string) impart.Error {
+
+	dbComment, err := s.commentData.GetComment(ctx, commentID)
+	if err != nil {
+		return impart.NewError(err, "unable to fetch comment for send notification")
+	}
+
+	ctxUser := impart.GetCtxUser(ctx)
+	notificationData := impart.NotificationData{
+		EventDatetime: impart.CurrentUTC(),
+		PostID:        0,
+	}
+
+	previewEnd := maxNotificationLength
+	if len(reason) < maxNotificationLength {
+		previewEnd = len(reason)
+	}
+	previewText := reason[0:previewEnd]
+
+	alert := impart.Alert{
+		Title: aws.String("Comment has been reported"),
+		Body:  aws.String(fmt.Sprintf("%s wrote %s", ctxUser.ScreenName, previewText)),
+	}
+
+	s.logger.Debug("sending comment report notification", zap.Any("impartWealthId", dbComment.R.ImpartWealth.ImpartWealthID), zap.Any("alert", alert))
+
+	// send to comment owner
+	go func() {
+		if strings.TrimSpace(dbComment.R.ImpartWealth.ImpartWealthID) != "" {
+			err = s.sendNotification(notificationData, alert, dbComment.R.ImpartWealth.ImpartWealthID)
+			if err != nil {
+				s.logger.Error("error attempting to send post comment report notification ", zap.Error(err))
+			}
+		}
+	}()
+
+	// send to post owner
+	dbPost, err := s.postData.GetPost(ctx, dbComment.PostID)
+	alert = impart.Alert{
+		Title: aws.String("A post comment has been reported"),
+		Body:  aws.String(fmt.Sprintf("%s on post %s wrote %s", ctxUser.ScreenName, dbPost.Subject, previewText)),
+	}
+	if err != nil {
+		return impart.NewError(err, "unable to fetch comment post for send notification")
+	}
+
+	go func() {
+		if strings.TrimSpace(dbPost.R.ImpartWealth.ImpartWealthID) != "" {
+			err = s.sendNotification(notificationData, alert, dbPost.R.ImpartWealth.ImpartWealthID)
+			if err != nil {
+				s.logger.Error("error attempting to send post comment report notification post owner ", zap.Error(err))
+			}
+		}
+	}()
+	return nil
 }

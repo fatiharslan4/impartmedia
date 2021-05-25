@@ -2,6 +2,8 @@ package hive
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -17,6 +19,7 @@ func (s *service) PinPost(ctx context.Context, hiveID, postID uint64, pin bool) 
 	if !ctxUser.Admin {
 		return impart.NewError(impart.ErrUnauthorized, "cannot pin a post unless you are a hive admin")
 	}
+	fmt.Println("the post pin are")
 	err := s.hiveData.PinPost(ctx, hiveID, postID, pin)
 	if err != nil {
 		if err == impart.ErrNoOp {
@@ -35,7 +38,7 @@ func (s *service) PinPost(ctx context.Context, hiveID, postID uint64, pin bool) 
 		s.logger.Error("error pining post", zap.Error(err))
 		return impart.NewError(impart.ErrUnknown, "unable to pin post")
 	}
-
+	fmt.Println("the pin", pin, dbHive.PinnedPostID.Uint64, dbPost.PostID)
 	if pin && dbHive.PinnedPostID.Uint64 == dbPost.PostID {
 		pushNotification := impart.Alert{
 			Title: aws.String(adminPostNotification),
@@ -46,6 +49,8 @@ func (s *service) PinPost(ctx context.Context, hiveID, postID uint64, pin bool) 
 			EventDatetime: impart.CurrentUTC(),
 			PostID:        dbPost.PostID,
 		}
+
+		fmt.Println("the topic are", dbHive.NotificationTopicArn.String)
 
 		err = s.notificationService.NotifyTopic(ctx, additionalData, pushNotification, dbHive.NotificationTopicArn.String)
 		if err != nil {

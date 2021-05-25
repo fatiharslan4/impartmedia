@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/volatiletech/sqlboiler/v4/boil"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -142,6 +144,7 @@ func NewImpartNotificationService(db *sql.DB, stage, region, platformApplication
 func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data NotificationData, alert Alert, topicARN string) error {
 	var b []byte
 	var err error
+	fmt.Println("the topic are  111", ns.platformApplicationARN)
 
 	if strings.TrimSpace(topicARN) == "" {
 		return nil

@@ -3,14 +3,21 @@ package data
 import (
 	"context"
 	"database/sql"
+
+	// "fmt"
+	"time"
+
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
-	"time"
 )
+
+// type reportedUser struct {
+// 	reportedUsers []string
+// }
 
 func (d *mysqlHiveData) GetReviewedPosts(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error) {
 	ctxUser := impart.GetCtxUser(ctx)
@@ -33,6 +40,33 @@ func (d *mysqlHiveData) GetReviewedPosts(ctx context.Context, hiveId uint64, rev
 	}
 	nextPage.Offset = offset + len(posts)
 	return posts, nextPage, nil
+}
+
+func (d *mysqlHiveData) GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error) {
+	var postIds []uint64
+	var indexes map[uint64]int
+	indexes = make(map[uint64]int)
+	for index, value := range posts {
+		if value.ReportedCount > 0 {
+			postIds = append(postIds, (value.PostID))
+			indexes[value.PostID] = index
+		}
+	}
+	PostReactions, err := dbmodels.PostReactions(qm.Select("impart_wealth_id", "post_id"), dbmodels.PostReactionWhere.PostID.IN(postIds)).All(ctx, d.db)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return posts, nil
+		}
+		return models.Posts{}, err
+	}
+	for _, value := range PostReactions {
+		if postID, ok := indexes[value.PostID]; ok {
+			posts[postID].ReportedUsers = append(posts[postID].ReportedUsers, models.ReportedUser{
+				ImpartWealthID: value.ImpartWealthID})
+
+		}
+	}
+	return posts, nil
 }
 
 func (d *mysqlHiveData) GetUnreviewedReportedPosts(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error) {

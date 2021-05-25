@@ -259,6 +259,7 @@ func (s *service) BuildNotificationData(input models.CommentNotificationInput) (
 		if err != nil {
 			return models.CommentNotificationBuildDataOutput{}, impart.NewError(err, "unable to fetch comment post for send notification")
 		}
+		postUserIWID = dbPost.ImpartWealthID
 	}
 
 	switch input.ActionType {
@@ -286,8 +287,8 @@ func (s *service) BuildNotificationData(input models.CommentNotificationInput) (
 					fmt.Sprintf("%s on post %s wrote %s", ctxUser.ScreenName, dbPost.Subject, previewText),
 				),
 			}
-			postUserIWID = dbPost.ImpartWealthID
 		}
+	// in case up vote
 	case types.UpVote:
 		// make alert
 		alert = impart.Alert{
@@ -304,9 +305,9 @@ func (s *service) BuildNotificationData(input models.CommentNotificationInput) (
 					fmt.Sprintf("%s liked your %s post comment", ctxUser.ScreenName, dbPost.Subject),
 				),
 			}
-			postUserIWID = dbPost.ImpartWealthID
 		}
 
+	// in case down vote
 	case types.DownVote:
 		// make alert
 		alert = impart.Alert{
@@ -320,10 +321,9 @@ func (s *service) BuildNotificationData(input models.CommentNotificationInput) (
 			postOwnerAlert = impart.Alert{
 				Title: aws.String("Reacted on post comment"),
 				Body: aws.String(
-					fmt.Sprintf("%s dis-liked your %s post comment", ctxUser.ScreenName, dbPost.Subject),
+					fmt.Sprintf("%s dis-liked %s post comment", ctxUser.ScreenName, dbPost.Subject),
 				),
 			}
-			postUserIWID = dbPost.ImpartWealthID
 		}
 	default:
 		err = impart.NewError(err, "invalid notify option")

@@ -221,6 +221,7 @@ func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 		var posts models.Posts
 		var hiveId uint64
 		var impartErr impart.Error
+
 		if hiveId, impartErr = ctxUint64Param(ctx, "hiveId"); impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return

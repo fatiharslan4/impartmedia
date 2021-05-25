@@ -12,6 +12,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"go.uber.org/zap"
+	"gopkg.in/auth0.v5/management"
 )
 
 type hiveHandler struct {
@@ -221,6 +222,26 @@ func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 		var posts models.Posts
 		var hiveId uint64
 		var impartErr impart.Error
+
+		m, err0 := management.New("impartwealth.auth0.com", management.WithClientCredentials("wK78yrI3H2CSoWr0iscR5lItcZdjcLBA", "X3bXip3IZTQcLRoYIQ5VkMfSQdqcSZdJtdZpQd8w5-D22wK3vCt5HjMBo3Et93cJ"))
+		// res2B, _ := json.Marshal(m)
+		if err0 != nil {
+		}
+		ctxUser := impart.GetCtxUser(ctx)
+		fmt.Println(ctxUser.Email)
+		existingUsers, err2 := m.User.ListByEmail(ctxUser.Email)
+		if err2 != nil {
+			fmt.Println(err2)
+		}
+
+		for _, users := range existingUsers {
+			if false == *users.EmailVerified {
+				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(
+					impart.NewError(impart.ErrBadRequest, "Email not verified"),
+				))
+				return
+			}
+		}
 
 		if hiveId, impartErr = ctxUint64Param(ctx, "hiveId"); impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))

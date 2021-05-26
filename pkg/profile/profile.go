@@ -145,6 +145,9 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	dbUser.UpdatedAt = impart.CurrentUTC()
 	dbProfile.UpdatedAt = impart.CurrentUTC()
 	endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
+	if err != nil {
+		ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
+	}
 	dbUser.AwsSNSAppArn = endpointARN
 
 	err = ps.profileStore.CreateUserProfile(ctx, dbUser, dbProfile)

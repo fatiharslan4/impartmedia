@@ -2,11 +2,12 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"math"
 	"reflect"
 	"sort"
 	"time"
+
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 
 	r "github.com/Pallinder/go-randomdata"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -19,6 +20,11 @@ type PagedPostsResponse struct {
 	NextPage *NextPage `json:"nextPage"`
 }
 
+type ReportedUser struct {
+	ImpartWealthID string `json:"impartWealthId"`
+	ScreenName     string `json:"screenName"`
+}
+
 type Posts []Post
 type Post struct {
 	HiveID              uint64           `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
@@ -27,9 +33,9 @@ type Post struct {
 	PostDatetime        time.Time        `json:"postDatetime"`
 	LastCommentDatetime time.Time        `json:"lastCommentDatetime"`
 	Edits               Edits            `json:"edits,omitempty"`
-	ImpartWealthID      string           `json:"impartWealthId"`
-	ScreenName          string           `json:"screenName"`
-	Subject             string           `json:"subject"`
+	ImpartWealthID      string           `json:"impartWealthId" conform:"trim"`
+	ScreenName          string           `json:"screenName" conform:"trim"`
+	Subject             string           `json:"subject" conform:"trim"`
 	Content             Content          `json:"content"`
 	CommentCount        int              `json:"commentCount"`
 	TagIDs              tags.TagIDs      `json:"tags"`
@@ -41,6 +47,7 @@ type Post struct {
 	ReportedCount       int              `json:"reportedCount"`
 	Obfuscated          bool             `json:"obfuscated"`
 	ReviewedDatetime    time.Time        `json:"reviewedDatetime,omitempty"`
+	ReportedUsers       []ReportedUser   `json:"reportedUsers"`
 }
 
 func (posts Posts) Latest() time.Time {

@@ -17,8 +17,8 @@ const (
 	EducationSavingsID
 	RetirementSavingsID
 	LifeInsuranceCoverageID
-	OtherID
 	NetWorthID
+	OtherID
 )
 
 var ErrInvalidTagID = errors.New("unknown Tag ID")
@@ -48,7 +48,7 @@ func AvailableTags() Tags {
 		RetirementSavings(),
 		LifeInsuranceCoverage(),
 		NetWorth(),
-		Other(),
+		// Other(),
 	}
 	t.SortAscending()
 	return t

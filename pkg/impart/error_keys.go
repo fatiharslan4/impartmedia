@@ -12,6 +12,7 @@ var (
 	Subject        ErrorKey = "subject"
 	Content        ErrorKey = "content"
 	ImpartWealthID ErrorKey = "ImpartWealthID"
+	Report         ErrorKey = "report"
 )
 
 // From the arguments, first index should be key

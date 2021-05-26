@@ -134,7 +134,6 @@ func (ph *profileHandler) CreateProfileFunc() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-
 		p, impartErr := ph.profileService.NewProfile(ctx, p)
 		if impartErr != nil {
 			ph.logger.Error(impartErr.Error())
@@ -192,7 +191,7 @@ func (ph *profileHandler) DeleteProfileFunc() gin.HandlerFunc {
 			return
 		}
 
-		ctx.Status(http.StatusOK)
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "profile deleted"})
 	}
 }
 
@@ -232,13 +231,16 @@ func (ph *profileHandler) SaveUserQuestionnaire() gin.HandlerFunc {
 			return
 		}
 
-		if err := ph.profileService.SaveQuestionnaire(ctx, q); err != nil {
+		if hivedtype, err := ph.profileService.SaveQuestionnaire(ctx, q); err != nil {
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		} else {
+			ctx.JSON(http.StatusCreated, gin.H{"newhive": hivedtype})
 			return
 		}
 
-		ctx.Status(http.StatusCreated)
-		return
+		// ctx.Status(http.StatusCreated)
+		// return
 	}
 }
 

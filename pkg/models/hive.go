@@ -2,13 +2,14 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/volatiletech/null/v8"
 	"math"
 	"reflect"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 
 	r "github.com/Pallinder/go-randomdata"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -99,7 +100,7 @@ type PostCommentTrack struct {
 	DownVoted      bool      `json:"downVoted"`
 	VotedDatetime  time.Time `json:"votedDatetime,omitempty"`
 	Reported       bool      `json:"reported"`
-	ReportedReason string    `json:"reportedReason"`
+	ReportedReason string    `json:"reportedReason" conform:"trim"`
 }
 
 func PostCommentTrackFromDB(p *dbmodels.PostReaction, c *dbmodels.CommentReaction) PostCommentTrack {
@@ -182,13 +183,13 @@ func RandomHive() Hive {
 }
 
 type Content struct {
-	Markdown string `json:"markdown" jsonschema:"maxLength=300000"`
+	Markdown string `json:"markdown" jsonschema:"maxLength=300000" conform:"trim"`
 }
 
 type Edits []Edit
 type Edit struct {
-	ImpartWealthID string    `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27"`
-	ScreenName     string    `json:"screenName"`
+	ImpartWealthID string    `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27" conform:"trim"`
+	ScreenName     string    `json:"screenName" conform:"trim"`
 	Datetime       time.Time `json:"datetime"`
 	Notes          string    `json:"notes,omitempty" conform:"trim"`
 	Deleted        bool      `json:"deleted"`

@@ -272,7 +272,7 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
 		}
 
 		valid := ph.profileService.ScreenNameExists(ctx, p.ScreenName)
-		if !valid {
+		if valid {
 			impartErr := impart.NewError(impart.ErrBadRequest, "validation error : screen name already exists")
 			ph.logger.Error(impartErr.Error())
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))

@@ -114,8 +114,9 @@ func (a *authService) APIKeyHandler() gin.HandlerFunc {
 }
 
 var allowedRoutesBase = map[string]string{
-	"%s/profiles/new":   http.MethodGet,
-	"%s/questionnaires": http.MethodGet,
+	"%s/profiles/new":                  http.MethodGet,
+	"%s/questionnaires":                http.MethodGet,
+	"%s/profiles/validate/screen-name": http.MethodGet,
 }
 
 func (a *authService) SetUnauthenticatedRoutes(cfg *config.Impart) {

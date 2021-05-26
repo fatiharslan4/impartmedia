@@ -1,12 +1,14 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
 	"math"
 	"reflect"
 	"sort"
 	"time"
 
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 
 	r "github.com/Pallinder/go-randomdata"
@@ -188,4 +190,17 @@ func PostCommentTrackFromPostReaction(r *dbmodels.PostReaction) PostCommentTrack
 	}
 
 	return out
+}
+
+type PostNotificationInput struct {
+	Ctx        context.Context
+	CommentID  uint64
+	ActionType types.Type // Report,upvote,downvote, take vote
+	ActionData string
+	PostID     uint64
+}
+
+type PostNotificationBuildDataOutput struct {
+	Alert             impart.Alert
+	PostOwnerWealthID string
 }

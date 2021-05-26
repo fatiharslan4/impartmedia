@@ -69,32 +69,17 @@ func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comm
 		s.logger.Error("error getting post from newly created comment")
 		return out, nil
 	}
-	previewEnd := maxNotificationLength
-	if len(dbPost.Subject) < maxNotificationLength {
-		previewEnd = len(dbPost.Subject)
+
+	// send post
+	err = s.SendPostNotification(models.PostNotificationInput{
+		Ctx:        ctx,
+		PostID:     dbPost.PostID,
+		CommentID:  out.CommentID,
+		ActionType: types.NewPostComment,
+	})
+	if err != nil {
+		s.logger.Error("error happened on notify reaction", zap.Error(err))
 	}
-
-	previewText := dbPost.Subject[0:previewEnd]
-	notificationData := impart.NotificationData{
-		EventDatetime: impart.CurrentUTC(),
-		PostID:        dbPost.PostID,
-	}
-
-	alert := impart.Alert{
-		Title: aws.String(fmt.Sprintf("New Comment on Your Post: %s", dbPost.Subject)),
-		Body:  aws.String(fmt.Sprintf("%s wrote %s", ctxUser.ScreenName, previewText)),
-	}
-
-	s.logger.Debug("sending notification", zap.Any("impartWealthId", dbPost.R.ImpartWealth.ImpartWealthID), zap.Any("alert", alert))
-
-	go func() {
-		if strings.TrimSpace(dbPost.R.ImpartWealth.ImpartWealthID) != "" {
-			err = s.sendNotification(notificationData, alert, dbPost.R.ImpartWealth.ImpartWealthID)
-			if err != nil {
-				s.logger.Error("error attempting to send post reply ", zap.Error(err))
-			}
-		}
-	}()
 
 	return out, nil
 }
@@ -189,7 +174,7 @@ func (s *service) ReportComment(ctx context.Context, commentID uint64, reason st
 }
 
 /**
- * SendCommentReportNotification
+ * SendCommentNotification
  *
  * Send notification when a comment reported
  * Notifying to :
@@ -210,7 +195,7 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 	}
 
 	// generate notification context
-	out, err := s.BuildNotificationData(input)
+	out, err := s.BuildCommentNotificationData(input)
 	if err != nil {
 		return impart.NewError(err, "build comment notification params")
 	}
@@ -245,8 +230,8 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 //
 // From here , all the notification action workflow
 //
-func (s *service) BuildNotificationData(input models.CommentNotificationInput) (models.CommentNotificationBuildDataOutput, error) {
-	var previewText, postUserIWID string
+func (s *service) BuildCommentNotificationData(input models.CommentNotificationInput) (models.CommentNotificationBuildDataOutput, error) {
+	var _, postUserIWID string
 	var alert, postOwnerAlert impart.Alert
 	var err error
 	var dbPost *dbmodels.Post
@@ -263,70 +248,46 @@ func (s *service) BuildNotificationData(input models.CommentNotificationInput) (
 	}
 
 	switch input.ActionType {
-	//in case of report
-	case types.Report:
-		previewEnd := maxNotificationLength
-		if len(input.ActionData) < maxNotificationLength {
-			previewEnd = len(input.ActionData)
-		}
-		previewText = input.ActionData[0:previewEnd]
-
-		// make alert
-		alert = impart.Alert{
-			Title: aws.String("Comment has been reported"),
-			Body: aws.String(
-				fmt.Sprintf("%s wrote %s", ctxUser.ScreenName, previewText),
-			),
-		}
-
-		// make post owner alert
-		if input.NotifyPostOwner {
-			postOwnerAlert = impart.Alert{
-				Title: aws.String("A post comment has been reported"),
-				Body: aws.String(
-					fmt.Sprintf("%s on post %s wrote %s", ctxUser.ScreenName, dbPost.Subject, previewText),
-				),
-			}
-		}
+	//in case of report, dislike,take like dislike
+	case types.Report, types.DownVote, types.TakeDownVote, types.TakeUpVote:
 	// in case up vote
 	case types.UpVote:
 		// make alert
 		alert = impart.Alert{
-			Title: aws.String("Reacted on comment"),
+			Title: aws.String("New Comment Like"),
 			Body: aws.String(
-				fmt.Sprintf("%s liked your comment", ctxUser.ScreenName),
+				fmt.Sprintf("%s has liked your Comment", ctxUser.ScreenName),
 			),
 		}
 		// make post owner alert
 		if input.NotifyPostOwner {
 			postOwnerAlert = impart.Alert{
-				Title: aws.String("Reacted on post comment"),
+				Title: aws.String("New Comment Like"),
 				Body: aws.String(
-					fmt.Sprintf("%s liked your %s post comment", ctxUser.ScreenName, dbPost.Subject),
+					fmt.Sprintf("%s has liked %s post comment", ctxUser.ScreenName, dbPost.Subject),
 				),
 			}
 		}
-
 	// in case down vote
-	case types.DownVote:
+	case types.NewComment:
 		// make alert
 		alert = impart.Alert{
-			Title: aws.String("Reacted on comment"),
+			Title: aws.String("New Reply"),
 			Body: aws.String(
-				fmt.Sprintf("%s dis-liked your comment", ctxUser.ScreenName),
+				fmt.Sprintf("%s has replied to your comment", ctxUser.ScreenName),
 			),
 		}
 		// make post owner alert
 		if input.NotifyPostOwner {
 			postOwnerAlert = impart.Alert{
-				Title: aws.String("Reacted on post comment"),
+				Title: aws.String("New Reply"),
 				Body: aws.String(
-					fmt.Sprintf("%s dis-liked %s post comment", ctxUser.ScreenName, dbPost.Subject),
+					fmt.Sprintf("%s has replied to %s post comment", ctxUser.ScreenName, dbPost.Subject),
 				),
 			}
 		}
 	default:
-		err = impart.NewError(err, "invalid notify option")
+		err = impart.NewError(err, fmt.Sprintf("invalid notify option %s", input.ActionType))
 	}
 
 	return models.CommentNotificationBuildDataOutput{

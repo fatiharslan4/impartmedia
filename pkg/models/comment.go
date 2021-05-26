@@ -1,16 +1,17 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
 	"math"
 	"reflect"
 	"sort"
 	"time"
 
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-
 	r "github.com/Pallinder/go-randomdata"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/leebenson/conform"
 	"github.com/segmentio/ksuid"
 )
@@ -138,4 +139,19 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 		out.PostCommentTrack = PostCommentTrackFromDB(nil, c.R.CommentReactions[0])
 	}
 	return out
+}
+
+type CommentNotificationInput struct {
+	Ctx             context.Context
+	CommentID       uint64
+	ActionType      types.Type // Report,upvote,downvote, take vote
+	ActionData      string
+	PostID          uint64
+	NotifyPostOwner bool
+}
+
+type CommentNotificationBuildDataOutput struct {
+	Alert             impart.Alert
+	PostOwnerAlert    impart.Alert
+	PostOwnerWealthID string
 }

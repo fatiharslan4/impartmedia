@@ -139,7 +139,7 @@ func (hh *hiveHandler) GetHivesFunc() gin.HandlerFunc {
 
 		// check the hive found or not
 		if h.HiveID == 0 {
-			iErr := impart.NewError(impart.ErrNotFound, "unable to find hive for given id")
+			iErr := impart.NewError(impart.ErrNotFound, "unable to find hive for given id", impart.HiveID)
 			hh.logger.Error("no hive found for id", zap.Error(err))
 			ctx.JSON(iErr.HttpStatus(), impart.ErrorResponse(iErr))
 			return
@@ -530,7 +530,7 @@ func (hh *hiveHandler) PostCommentReactionFunc() gin.HandlerFunc {
 				userTrack, impartErr = hh.hiveService.ReportPost(ctx, postId, reason, !report)
 			}
 			if impartErr != nil {
-				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+				ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
 				return
 			}
 			ctx.JSON(http.StatusOK, userTrack)

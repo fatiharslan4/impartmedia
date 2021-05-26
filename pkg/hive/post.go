@@ -21,11 +21,11 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	ctxUser := impart.GetCtxUser(ctx)
 
 	if len(strings.TrimSpace(post.Subject)) < 2 {
-		return models.Post{}, impart.NewError(impart.ErrBadRequest, "subject is less than 2 characters")
+		return models.Post{}, impart.NewError(impart.ErrBadRequest, "subject is less than 2 characters", impart.Subject)
 	}
 
 	if len(strings.TrimSpace(post.Content.Markdown)) < 10 {
-		return models.Post{}, impart.NewError(impart.ErrBadRequest, "post is less than 10 characters")
+		return models.Post{}, impart.NewError(impart.ErrBadRequest, "post is less than 10 characters", impart.Content)
 	}
 	shouldPin := false
 	if post.IsPinnedPost {
@@ -66,7 +66,7 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "error fetching post trying to edit")
 	}
 	if !ctxUser.Admin && existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
-		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours")
+		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours", impart.ImpartWealthID)
 	}
 	tagsSlice := make(dbmodels.TagSlice, len(inPost.TagIDs), len(inPost.TagIDs))
 	for i, t := range inPost.TagIDs {

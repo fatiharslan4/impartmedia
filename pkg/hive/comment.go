@@ -8,6 +8,7 @@ import (
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -53,9 +54,12 @@ func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comm
 		CreatedAt:      impart.CurrentUTC(),
 		Content:        c.Content.Markdown,
 		LastReplyTS:    impart.CurrentUTC(),
-		//ParentCommentID: c.p, //no threading for now
-		UpVoteCount:   0,
-		DownVoteCount: 0,
+		UpVoteCount:    0,
+		DownVoteCount:  0,
+	}
+	// check a parent is exists
+	if c.ParentCommentID > 0 {
+		newComment.ParentCommentID = null.Uint64From(c.ParentCommentID)
 	}
 
 	comment, err := s.commentData.NewComment(ctx, newComment)
@@ -70,15 +74,30 @@ func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comm
 		return out, nil
 	}
 
-	// send post
-	err = s.SendPostNotification(models.PostNotificationInput{
-		Ctx:        ctx,
-		PostID:     dbPost.PostID,
-		CommentID:  out.CommentID,
-		ActionType: types.NewPostComment,
-	})
-	if err != nil {
-		s.logger.Error("error happened on notify reaction", zap.Error(err))
+	// check parent comment exists, then call
+	if c.ParentCommentID > 0 {
+		// send post
+		err = s.SendCommentNotification(models.CommentNotificationInput{
+			Ctx:        ctx,
+			PostID:     dbPost.PostID,
+			CommentID:  out.CommentID,
+			ActionType: types.NewComment,
+		})
+		if err != nil {
+			s.logger.Error("error happened on notify reaction", zap.Error(err))
+		}
+	} else {
+		// send post
+		err = s.SendPostNotification(models.PostNotificationInput{
+			Ctx:        ctx,
+			PostID:     dbPost.PostID,
+			CommentID:  out.CommentID,
+			ActionType: types.NewPostComment,
+		})
+		if err != nil {
+			s.logger.Error("error happened on notify reaction", zap.Error(err))
+		}
+
 	}
 
 	return out, nil
@@ -207,7 +226,7 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 		if strings.TrimSpace(dbComment.R.ImpartWealth.ImpartWealthID) != "" {
 			err = s.sendNotification(notificationData, out.Alert, dbComment.R.ImpartWealth.ImpartWealthID)
 			if err != nil {
-				s.logger.Error("error attempting to send post comment notification ", zap.Error(err))
+				s.logger.Error("error attempting to send post comment notification ", zap.Any("postData", out), zap.Error(err))
 			}
 		}
 	}()
@@ -218,7 +237,7 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 			if strings.TrimSpace(out.PostOwnerWealthID) != "" {
 				err = s.sendNotification(notificationData, out.PostOwnerAlert, out.PostOwnerWealthID)
 				if err != nil {
-					s.logger.Error("error attempting to send post comment notification post owner ", zap.Error(err))
+					s.logger.Error("error attempting to send post comment notification post owner ", zap.Any("postData", out), zap.Any("postData", out), zap.Error(err))
 				}
 			}
 		}()

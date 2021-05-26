@@ -53,9 +53,8 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 
 	commentRoutes.GET(":commentId", handler.GetCommentsFunc())
 	commentRoutes.PUT(":commentId", handler.EditCommentFunc())
-	commentRoutes.POST(":commentId", handler.PostCommentReactionFunc())
+	commentRoutes.POST(":commentId", handler.CreateCommentFunc())
 	commentRoutes.DELETE(":commentId", handler.DeleteCommentFunc())
-
 }
 
 // RequestAuthorizationHandler Validates the bearer
@@ -611,10 +610,17 @@ func (hh *hiveHandler) GetCommentsFunc() gin.HandlerFunc {
 func (hh *hiveHandler) CreateCommentFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
-		var postId uint64
+		var postId, commentId uint64
 		var impartErr impart.Error
 		if _, ok := ctx.Params.Get("postId"); ok {
 			if postId, impartErr = ctxUint64Param(ctx, "postId"); impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			}
+		}
+
+		// check  comment id
+		if _, ok := ctx.Params.Get("commentId"); ok {
+			if commentId, impartErr = ctxUint64Param(ctx, "commentId"); impartErr != nil {
 				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			}
 		}
@@ -633,6 +639,11 @@ func (hh *hiveHandler) CreateCommentFunc() gin.HandlerFunc {
 			hh.logger.Error("bad request - mismatch postID", zap.Any("comment", c), zap.Error(err.Err()))
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
+		}
+
+		// check the comment id exists
+		if commentId > 0 {
+			c.ParentCommentID = commentId
 		}
 
 		c, err := hh.hiveService.NewComment(ctx, c)

@@ -176,12 +176,16 @@ func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data Not
 		return err
 	}
 
+	println("the message are", topicARN, aws.String(string(b)))
+
 	input := &sns.PublishInput{
 		Message:          aws.String(string(b)),
 		MessageStructure: aws.String("json"),
 		TopicArn:         aws.String(topicARN),
 	}
+	// print()
 	_, err = ns.Publish(input)
+	fmt.Println("the data is")
 	return err
 }
 

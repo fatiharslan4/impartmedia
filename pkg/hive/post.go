@@ -21,11 +21,11 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	ctxUser := impart.GetCtxUser(ctx)
 
 	if len(strings.TrimSpace(post.Subject)) < 2 {
-		return models.Post{}, impart.NewError(impart.ErrBadRequest, "subject is less than 2 characters")
+		return models.Post{}, impart.NewError(impart.ErrBadRequest, "subject is less than 2 characters", impart.Subject)
 	}
 
 	if len(strings.TrimSpace(post.Content.Markdown)) < 10 {
-		return models.Post{}, impart.NewError(impart.ErrBadRequest, "post is less than 10 characters")
+		return models.Post{}, impart.NewError(impart.ErrBadRequest, "post is less than 10 characters", impart.Content)
 	}
 	shouldPin := false
 	if post.IsPinnedPost {
@@ -66,7 +66,7 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "error fetching post trying to edit")
 	}
 	if !ctxUser.Admin && existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
-		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours")
+		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours", impart.ImpartWealthID)
 	}
 	tagsSlice := make(dbmodels.TagSlice, len(inPost.TagIDs), len(inPost.TagIDs))
 	for i, t := range inPost.TagIDs {
@@ -150,7 +150,6 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 		}
 		return postsError
 	})
-
 	eg.Go(func() error {
 		//if we're filtering on tags, or this is a secondary page request, return early.
 		if len(gpi.TagIDs) > 0 || gpi.Offset > 0 {
@@ -197,7 +196,10 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 	}
 
 	out := models.PostsFromDB(dbPosts)
-
+	out, err = s.postData.GetReportedUser(ctx, out)
+	if err != nil {
+		s.logger.Error("error fetching data", zap.Error(err))
+	}
 	return out, nextPage, nil
 }
 
@@ -223,6 +225,7 @@ func (s *service) DeletePost(ctx context.Context, postID uint64) impart.Error {
 func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error) {
 	var dbReason *string
 	var empty models.PostCommentTrack
+
 	if !remove && reason == "" {
 		return empty, impart.NewError(impart.ErrBadRequest, "must provide a reason for reporting")
 	}

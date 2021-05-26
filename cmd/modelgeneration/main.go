@@ -23,6 +23,7 @@ var topLevelModels = map[string]interface{}{
 	"PagedCommentsResponse": models.PagedCommentsResponse{},
 	"Tags":                  tags.Tags{},
 	"TagComparisons":        tags.TagComparisons{},
+	"ScreenNameValidator":   models.ScreenNameValidator{},
 }
 
 func main() {

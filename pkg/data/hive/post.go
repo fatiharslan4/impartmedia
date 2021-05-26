@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"database/sql"
+
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -27,6 +28,7 @@ type Posts interface {
 	NewPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice) (*dbmodels.Post, error)
 	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice) (*dbmodels.Post, error)
 	DeletePost(ctx context.Context, postID uint64) error
+	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 }
 
 // GetPost gets a single post and it's associated content
@@ -137,6 +139,7 @@ func (d *mysqlHiveData) GetPosts(ctx context.Context, gpi GetPostsInput) (dbmode
 	}
 
 	posts, err := dbmodels.Posts(queryMods...).All(ctx, d.db)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return empty, nil, nil

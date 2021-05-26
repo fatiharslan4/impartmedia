@@ -8,7 +8,9 @@
 				"impartWealthId",
 				"contentId",
 				"upVoted",
-				"downVoted"
+				"downVoted",
+				"reported",
+				"reportedReason"
 			],
 			"properties": {
 				"impartWealthId": {
@@ -31,6 +33,12 @@
 				"votedDatetime": {
 					"type": "string",
 					"format": "date-time"
+				},
+				"reported": {
+					"type": "boolean"
+				},
+				"reportedReason": {
+					"type": "string"
 				}
 			},
 			"additionalProperties": false,

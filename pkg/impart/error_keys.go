@@ -3,13 +3,16 @@ package impart
 type ErrorKey string
 
 var (
-	EmptyString ErrorKey = ""
-	HiveID      ErrorKey = "hive_id"
-	FirstName   ErrorKey = "first_name"
-	ScreenName  ErrorKey = "screen_name"
-	PostID      ErrorKey = "post_id"
-	Email       ErrorKey = "email"
-	Report      ErrorKey = "report"
+	EmptyString    ErrorKey = ""
+	HiveID         ErrorKey = "HiveID"
+	FirstName      ErrorKey = "FirstName"
+	ScreenName     ErrorKey = "ScreenName"
+	PostID         ErrorKey = "PostID"
+	Email          ErrorKey = "email"
+	Subject        ErrorKey = "subject"
+	Content        ErrorKey = "content"
+	ImpartWealthID ErrorKey = "ImpartWealthID"
+	Report         ErrorKey = "report"
 )
 
 // From the arguments, first index should be key

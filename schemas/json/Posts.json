@@ -13,7 +13,9 @@
 				"screenName",
 				"content",
 				"upVotes",
-				"downVotes"
+				"downVotes",
+				"reportedCount",
+				"obfuscated"
 			],
 			"properties": {
 				"postId": {
@@ -51,6 +53,16 @@
 				},
 				"postCommentTrack": {
 					"$ref": "#/definitions/PostCommentTrack"
+				},
+				"reportedCount": {
+					"type": "integer"
+				},
+				"obfuscated": {
+					"type": "boolean"
+				},
+				"reviewedDatetime": {
+					"type": "string",
+					"format": "date-time"
 				}
 			},
 			"additionalProperties": false,
@@ -126,7 +138,9 @@
 				"tags",
 				"upVotes",
 				"downVotes",
-				"nextCommentPage"
+				"nextCommentPage",
+				"reportedCount",
+				"obfuscated"
 			],
 			"properties": {
 				"hiveId": {
@@ -195,6 +209,16 @@
 				"nextCommentPage": {
 					"$schema": "http://json-schema.org/draft-04/schema#",
 					"$ref": "#/definitions/NextPage"
+				},
+				"reportedCount": {
+					"type": "integer"
+				},
+				"obfuscated": {
+					"type": "boolean"
+				},
+				"reviewedDatetime": {
+					"type": "string",
+					"format": "date-time"
 				}
 			},
 			"additionalProperties": false,
@@ -205,7 +229,9 @@
 				"impartWealthId",
 				"contentId",
 				"upVoted",
-				"downVoted"
+				"downVoted",
+				"reported",
+				"reportedReason"
 			],
 			"properties": {
 				"impartWealthId": {
@@ -228,6 +254,12 @@
 				"votedDatetime": {
 					"type": "string",
 					"format": "date-time"
+				},
+				"reported": {
+					"type": "boolean"
+				},
+				"reportedReason": {
+					"type": "string"
 				}
 			},
 			"additionalProperties": false,

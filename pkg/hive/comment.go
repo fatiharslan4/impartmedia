@@ -44,7 +44,7 @@ func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comm
 	var err error
 
 	if len(strings.TrimSpace(c.Content.Markdown)) < 1 {
-		return empty, impart.NewError(impart.ErrBadRequest, "post is less than 1 character1")
+		return empty, impart.NewError(impart.ErrBadRequest, "post is less than 1 character1", impart.Content)
 	}
 	ctxUser := impart.GetCtxUser(ctx)
 	newComment := &dbmodels.Comment{
@@ -108,7 +108,7 @@ func (s *service) EditComment(ctx context.Context, editedComment models.Comment)
 		return empty, impart.UnknownError
 	}
 	if !ctxUser.Admin && existingComment.ImpartWealthID != ctxUser.ImpartWealthID {
-		return empty, impart.NewError(impart.ErrUnauthorized, "unable to edit a comment that's not yours")
+		return empty, impart.NewError(impart.ErrUnauthorized, "unable to edit a comment that's not yours", impart.ImpartWealthID)
 	}
 	existingComment.Content = editedComment.Content.Markdown
 	c, err := s.commentData.EditComment(ctx, existingComment)

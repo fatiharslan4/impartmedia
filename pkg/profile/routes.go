@@ -39,23 +39,13 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	profileRoutes.GET("/:impartWealthId", handler.GetProfileFunc())
 	profileRoutes.DELETE("/:impartWealthId", handler.DeleteProfileFunc())
 
+	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
+
 	questionnaireRoutes := version.Group("/questionnaires")
 	questionnaireRoutes.GET("", handler.AllQuestionnaireHandler())                     //returns a list of questionnaire; filter by `name` query param
 	questionnaireRoutes.GET("/:impartWealthId", handler.GetUserQuestionnaireHandler()) //returns a list of past questionnaires taken by this impart wealth id; filter by `name` query param
 	questionnaireRoutes.POST("/:impartWealthId", handler.SaveUserQuestionnaire())      //posts a new questionnaire for this impart wealth id
 
-}
-
-func SetupOpenRoutes(version *gin.RouterGroup, profileData profiledata.Store,
-	profileService Service, logger *zap.Logger) {
-	handler := profileHandler{
-		profileData:    profileData,
-		profileService: profileService,
-		logger:         logger,
-	}
-
-	profileRoutes := version.Group("/profiles")
-	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	hivedata "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -228,16 +229,14 @@ func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 		if err0 != nil {
 		}
 		ctxUser := impart.GetCtxUser(ctx)
-		fmt.Println(ctxUser.Email)
 		existingUsers, err2 := m.User.ListByEmail(ctxUser.Email)
 		if err2 != nil {
-			fmt.Println(err2)
 		}
-
+		cfg, err2 := config.GetImpart()
 		for _, users := range existingUsers {
-			if false == *users.EmailVerified {
+			if false == *users.EmailVerified && *users.Identities[0].Connection == fmt.Sprintf("impart-%s", string(cfg.Env)) {
 				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(
-					impart.NewError(impart.ErrBadRequest, "Email not verified"),
+					impart.NewError(impart.ErrUnauthorized, "Email not verified"),
 				))
 				return
 			}

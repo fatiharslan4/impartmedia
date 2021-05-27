@@ -38,7 +38,7 @@ type Profile struct {
 	DeviceToken      string     `json:"deviceToken,omitempty"`
 	//SurveyResponses  SurveyResponses `json:"surveyResponses,omitempty"`
 	HiveMemberships HiveMemberships `json:"hives,omitempty"`
-	IsMember        bool            `json:"isMember"`
+	IsMember        bool            `json:"isMember,omitempty"`
 }
 
 // Attributes for Impart Wealth

@@ -200,5 +200,16 @@ func (s *service) SendNotificationOnVote(ctx context.Context, actionType types.T
 			NotifyPostOwner: true,
 		})
 	}
+
+	// check the type is post
+	if in.Type == data.Post {
+		err = s.SendPostNotification(models.PostNotificationInput{
+			Ctx:        ctx,
+			PostID:     in.Id,
+			ActionType: actionType,
+			ActionData: "",
+		})
+	}
+
 	return err
 }

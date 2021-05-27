@@ -236,6 +236,13 @@
 				"reviewedDatetime": {
 					"type": "string",
 					"format": "date-time"
+				},
+				"reportedUsers": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/ReportedUser"
+					},
+					"type": "array"
 				}
 			},
 			"additionalProperties": false,
@@ -276,6 +283,22 @@
 					"type": "boolean"
 				},
 				"reportedReason": {
+					"type": "string"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"ReportedUser": {
+			"required": [
+				"impartWealthId",
+				"screenName"
+			],
+			"properties": {
+				"impartWealthId": {
+					"type": "string"
+				},
+				"screenName": {
 					"type": "string"
 				}
 			},

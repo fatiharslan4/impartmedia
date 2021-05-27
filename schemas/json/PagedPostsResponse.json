@@ -157,7 +157,8 @@
 				"downVotes",
 				"nextCommentPage",
 				"reportedCount",
-				"obfuscated"
+				"obfuscated",
+				"reportedUsers"
 			],
 			"properties": {
 				"hiveId": {

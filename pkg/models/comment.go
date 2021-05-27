@@ -37,6 +37,7 @@ type Comment struct {
 	ReportedCount    int              `json:"reportedCount"`
 	Obfuscated       bool             `json:"obfuscated"`
 	ReviewedDatetime time.Time        `json:"reviewedDatetime,omitempty"`
+	ParentCommentID  uint64           `json:"parentCommentId"`
 }
 
 func (comments Comments) Latest() time.Time {

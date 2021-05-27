@@ -66,8 +66,7 @@
 			"required": [
 				"impartWealthId",
 				"authenticationId",
-				"email",
-				"isMember"
+				"email"
 			],
 			"properties": {
 				"impartWealthId": {

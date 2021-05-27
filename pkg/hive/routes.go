@@ -340,6 +340,14 @@ func (hh *hiveHandler) GetPostFunc() gin.HandlerFunc {
 			return
 		}
 
+		// append reported users with post response
+		out, err := hh.hiveService.GetReportedUser(ctx, models.Posts{post})
+		if err != nil {
+			hh.logger.Error("error fetching reported users", zap.Error(err))
+		} else if len(out) > 0 {
+			post = out[0]
+		}
+
 		ctx.JSON(http.StatusOK, post)
 	}
 }

@@ -39,6 +39,7 @@ type Service interface {
 	DeleteComment(ctx context.Context, commentID uint64) impart.Error
 	ReportComment(ctx context.Context, commentID uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
 	SendCommentNotification(input models.CommentNotificationInput) impart.Error
+	SendPostNotification(input models.PostNotificationInput) impart.Error
 }
 
 const maxNotificationLength = 512

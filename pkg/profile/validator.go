@@ -85,7 +85,7 @@ func (ps *profileService) validateNewProfile(ctx context.Context, p models.Profi
 		}
 	}
 	if user != nil {
-		return impart.NewError(impart.ErrExists, "screenName already exists", impart.ScreenName)
+		return impart.NewError(impart.ErrExists, "Screen name is already taken", impart.ScreenName)
 	}
 
 	return nil

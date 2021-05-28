@@ -54,7 +54,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 
 	commentRoutes.GET(":commentId", handler.GetCommentsFunc())
 	commentRoutes.PUT(":commentId", handler.EditCommentFunc())
-	commentRoutes.POST(":commentId", handler.CreateCommentFunc())
+	commentRoutes.POST(":commentId", handler.PostCommentReactionFunc())
 	commentRoutes.DELETE(":commentId", handler.DeleteCommentFunc())
 }
 

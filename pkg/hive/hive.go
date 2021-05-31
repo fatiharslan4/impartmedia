@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"go.uber.org/zap"
@@ -31,20 +32,34 @@ func (s *service) Votes(ctx context.Context, v VoteInput) (models.PostCommentTra
 		in.Type = data.Post
 	}
 	var err error
+	var actionType types.Type
 	if v.Upvote {
 		if v.Increment {
 			err = s.reactionData.AddUpVote(ctx, in)
+			actionType = types.UpVote
 		} else {
 			err = s.reactionData.TakeUpVote(ctx, in)
+			actionType = types.TakeUpVote
 		}
 	} else { //Downvote
 		if v.Increment {
 			err = s.reactionData.AddDownVote(ctx, in)
+			actionType = types.DownVote
 		} else {
 			err = s.reactionData.TakeDownVote(ctx, in)
+			actionType = types.TakeDownVote
 		}
 	}
 
+	if err != nil {
+		s.logger.Error("error on vote", zap.Error(err), zap.Any("vote", v))
+	}
+
+	// send notification on up,down,take votes
+	err = s.SendNotificationOnVote(ctx, actionType, v, in)
+	if err != nil {
+		s.logger.Error("error on vote notification", zap.Error(err), zap.Any("vote", v))
+	}
 	out, err = s.reactionData.GetUserTrack(ctx, in)
 	if err != nil {
 		s.logger.Error("error getting updated tracked item track store", zap.Error(err), zap.Any("vote", v))
@@ -166,4 +181,35 @@ func (s *service) EditHive(ctx context.Context, hive models.Hive) (models.Hive, 
 	}
 
 	return out, nil
+}
+
+/**
+ * SendNotificationOnVote
+ *
+ * vote may be to post or comment under post
+ */
+func (s *service) SendNotificationOnVote(ctx context.Context, actionType types.Type, v VoteInput, in data.ContentInput) error {
+	var err error
+	// check the type is comment
+	if in.Type == data.Comment {
+		err = s.SendCommentNotification(models.CommentNotificationInput{
+			Ctx:             ctx,
+			CommentID:       in.Id,
+			ActionType:      actionType,
+			ActionData:      "",
+			NotifyPostOwner: true,
+		})
+	}
+
+	// check the type is post
+	if in.Type == data.Post {
+		err = s.SendPostNotification(models.PostNotificationInput{
+			Ctx:        ctx,
+			PostID:     in.Id,
+			ActionType: actionType,
+			ActionData: "",
+		})
+	}
+
+	return err
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	hivedata "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -55,7 +56,6 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	commentRoutes.PUT(":commentId", handler.EditCommentFunc())
 	commentRoutes.POST(":commentId", handler.PostCommentReactionFunc())
 	commentRoutes.DELETE(":commentId", handler.DeleteCommentFunc())
-
 }
 
 // RequestAuthorizationHandler Validates the bearer
@@ -139,7 +139,7 @@ func (hh *hiveHandler) GetHivesFunc() gin.HandlerFunc {
 
 		// check the hive found or not
 		if h.HiveID == 0 {
-			iErr := impart.NewError(impart.ErrNotFound, "unable to find hive for given id")
+			iErr := impart.NewError(impart.ErrNotFound, "unable to find hive for given id", impart.HiveID)
 			hh.logger.Error("no hive found for id", zap.Error(err))
 			ctx.JSON(iErr.HttpStatus(), impart.ErrorResponse(iErr))
 			return
@@ -228,16 +228,14 @@ func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 		if err0 != nil {
 		}
 		ctxUser := impart.GetCtxUser(ctx)
-		fmt.Println(ctxUser.Email)
 		existingUsers, err2 := m.User.ListByEmail(ctxUser.Email)
 		if err2 != nil {
-			fmt.Println(err2)
 		}
-
+		cfg, err2 := config.GetImpart()
 		for _, users := range existingUsers {
-			if false == *users.EmailVerified {
-				ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
-					impart.NewError(impart.ErrBadRequest, "Email not verified"),
+			if false == *users.EmailVerified && *users.Identities[0].Connection == fmt.Sprintf("impart-%s", string(cfg.Env)) {
+				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(
+					impart.NewError(impart.ErrUnauthorized, "Email not verified"),
 				))
 				return
 			}
@@ -530,7 +528,7 @@ func (hh *hiveHandler) PostCommentReactionFunc() gin.HandlerFunc {
 				userTrack, impartErr = hh.hiveService.ReportPost(ctx, postId, reason, !report)
 			}
 			if impartErr != nil {
-				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+				ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
 				return
 			}
 			ctx.JSON(http.StatusOK, userTrack)
@@ -611,10 +609,17 @@ func (hh *hiveHandler) GetCommentsFunc() gin.HandlerFunc {
 func (hh *hiveHandler) CreateCommentFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
-		var postId uint64
+		var postId, commentId uint64
 		var impartErr impart.Error
 		if _, ok := ctx.Params.Get("postId"); ok {
 			if postId, impartErr = ctxUint64Param(ctx, "postId"); impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			}
+		}
+
+		// check  comment id
+		if _, ok := ctx.Params.Get("commentId"); ok {
+			if commentId, impartErr = ctxUint64Param(ctx, "commentId"); impartErr != nil {
 				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			}
 		}
@@ -633,6 +638,11 @@ func (hh *hiveHandler) CreateCommentFunc() gin.HandlerFunc {
 			hh.logger.Error("bad request - mismatch postID", zap.Any("comment", c), zap.Error(err.Err()))
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
+		}
+
+		// check the comment id exists
+		if commentId > 0 {
+			c.ParentCommentID = commentId
 		}
 
 		c, err := hh.hiveService.NewComment(ctx, c)

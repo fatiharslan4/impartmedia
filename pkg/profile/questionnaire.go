@@ -13,7 +13,7 @@ import (
 type QuestionnaireService interface {
 	GetQuestionnaires(ctx context.Context, name string) ([]models.Questionnaire, impart.Error)
 	GetUserQuestionnaires(ctx context.Context, impartWealthId string, name string) ([]models.Questionnaire, impart.Error)
-	SaveQuestionnaire(ctx context.Context, questionnaire models.Questionnaire) impart.Error
+	SaveQuestionnaire(ctx context.Context, questionnaire models.Questionnaire) (bool, impart.Error)
 }
 
 func (ps *profileService) GetQuestionnaires(ctx context.Context, name string) ([]models.Questionnaire, impart.Error) {
@@ -59,11 +59,11 @@ func (ps *profileService) GetUserQuestionnaires(ctx context.Context, impartWealt
 	return out, nil
 }
 
-func (ps *profileService) SaveQuestionnaire(ctx context.Context, questionnaire models.Questionnaire) impart.Error {
+func (ps *profileService) SaveQuestionnaire(ctx context.Context, questionnaire models.Questionnaire) (bool, impart.Error) {
 	ctxUser := impart.GetCtxUser(ctx)
 	var answers dbmodels.UserAnswerSlice
 	if questionnaire.Name == "" || questionnaire.Version == 0 {
-		return impart.NewError(impart.ErrBadRequest, "invalid input - questionnaire name and version are required")
+		return false, impart.NewError(impart.ErrBadRequest, "invalid input - questionnaire name and version are required")
 	}
 
 	ps.Logger().Debug("attempting to save a questionnaire", zap.Any("questionnaire", questionnaire))
@@ -71,26 +71,26 @@ func (ps *profileService) SaveQuestionnaire(ctx context.Context, questionnaire m
 	currentQuestionnaire, err := ps.profileStore.GetQuestionnaire(ctx, questionnaire.Name, nil)
 	if err != nil {
 		ps.Logger().Error("unable to fetch current questionnaire", zap.Error(err), zap.String("questionnaire", questionnaire.Name))
-		return impart.UnknownError
+		return false, impart.UnknownError
 	}
 	if currentQuestionnaire == nil {
-		return impart.NewError(impart.ErrNotFound, fmt.Sprintf("no existing questionnaire exists for questionnaire '%s'", questionnaire.Name))
+		return false, impart.NewError(impart.ErrNotFound, fmt.Sprintf("no existing questionnaire exists for questionnaire '%s'", questionnaire.Name))
 	}
 	if currentQuestionnaire.Version != questionnaire.Version {
-		return impart.NewError(impart.ErrBadRequest, "questionnaire submit was not the current enabled versions")
+		return false, impart.NewError(impart.ErrBadRequest, "questionnaire submit was not the current enabled versions")
 	}
 
 	answeredQuestions := make(map[uint]struct{})
 	//validate the questionnaire
 	for _, q := range questionnaire.Questions {
 		if err := validateQuestionType(q); err != nil {
-			return err
+			return false, err
 		}
 		if len(q.Answers) == 0 {
-			return impart.NewError(impart.ErrBadRequest, fmt.Sprintf("no answers for question %v", q.Id))
+			return false, impart.NewError(impart.ErrBadRequest, fmt.Sprintf("no answers for question %v", q.Id))
 		}
 		if cnt, err := validateAnswersForQuestions(models.QuestionnaireFromDBModel(currentQuestionnaire), q); err != nil {
-			return err
+			return false, err
 		} else if cnt > 0 {
 			answeredQuestions[q.Id] = struct{}{}
 		}
@@ -108,22 +108,23 @@ func (ps *profileService) SaveQuestionnaire(ctx context.Context, questionnaire m
 		ps.Logger().Error("invalid request - number of questions answered did not match the number of questions in the questionnaire",
 			zap.Int("expectedCount", len(currentQuestionnaire.R.Questions)), zap.Int("actualCount", len(answeredQuestions)), zap.String("questionnaireName", currentQuestionnaire.Name))
 
-		return impart.NewError(impart.ErrBadRequest, "not all questions were answered")
+		return false, impart.NewError(impart.ErrBadRequest, "not all questions were answered")
 	}
 
 	if err := ps.profileStore.SaveUserQuestionnaire(ctx, answers); err != nil {
 		ps.Logger().Error("unable to save user questionnaire", zap.Error(err))
-		return impart.UnknownError
+		return false, impart.UnknownError
 	}
 
 	if questionnaire.Name == "onboarding" {
-		err := ps.AssignHives(ctx, questionnaire)
+		hivetype, err := ps.AssignHives(ctx, questionnaire)
 		if err != nil {
-			return err
+			return false, err
+		} else {
+			return hivetype, nil
 		}
 	}
-
-	return nil
+	return false, nil
 }
 
 func validateQuestionType(q models.Question) impart.Error {
@@ -229,14 +230,17 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 	return nil
 }
 
-func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.Questionnaire) impart.Error {
+func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.Questionnaire) (bool, impart.Error) {
 	hives := dbmodels.HiveSlice{
 		&dbmodels.Hive{HiveID: DefaultHiveId},
 	}
+	var isnewhive bool
 	ctxUser := impart.GetCtxUser(ctx)
 	//call all the hive assignment funcs
 	if id := ps.isAssignedMillenialWithChildren(questionnaire); id != nil {
+		fmt.Println("---newhive created---")
 		hives = append(hives, &dbmodels.Hive{HiveID: *id})
+		isnewhive = true
 		// hives = dbmodels.HiveSlice{
 		// 	&dbmodels.Hive{HiveID: *id},
 		// }
@@ -244,7 +248,7 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 	err := ctxUser.SetMemberHiveHives(ctx, ps.db, false, hives...)
 	if err != nil {
 		ps.Logger().Error("error setting member hives", zap.Error(err))
-		return impart.NewError(impart.ErrUnknown, "unable to set the member hive")
+		return isnewhive, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
 	}
-	return nil
+	return isnewhive, nil
 }

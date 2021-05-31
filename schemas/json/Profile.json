@@ -110,6 +110,9 @@
 						"$ref": "#/definitions/HiveMembership"
 					},
 					"type": "array"
+				},
+				"isMember": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

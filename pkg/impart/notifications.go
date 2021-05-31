@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/volatiletech/sqlboiler/v4/boil"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -186,6 +188,12 @@ func (ns *snsAppleNotificationService) Notify(ctx context.Context, data Notifica
 	u, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthID)).One(ctx, ns.db)
 	if err != nil {
 		return err
+	}
+	if u.DeviceToken == "" {
+		return fmt.Errorf("empty device token found")
+	}
+	if u.AwsSNSAppArn == "" {
+		return fmt.Errorf("empty sns ARN found")
 	}
 	snsAppARN, err := ns.NotifyAppleDevice(ctx, data, alert, u.DeviceToken, u.AwsSNSAppArn)
 	if err != nil {

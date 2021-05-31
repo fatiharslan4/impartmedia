@@ -3,9 +3,10 @@ package models
 import (
 	"encoding/json"
 	"errors"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"reflect"
 	"time"
+
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 
 	r "github.com/Pallinder/go-randomdata"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -37,7 +38,7 @@ type Profile struct {
 	DeviceToken      string     `json:"deviceToken,omitempty"`
 	//SurveyResponses  SurveyResponses `json:"surveyResponses,omitempty"`
 	HiveMemberships HiveMemberships `json:"hives,omitempty"`
-	IsMember        bool            `json:"isMember"`
+	IsMember        bool            `json:"isMember,omitempty"`
 }
 
 // Attributes for Impart Wealth
@@ -67,6 +68,10 @@ type Subscriptions []Subscription
 type Subscription struct {
 	Name            string `json: name`
 	SubscriptionARN string
+}
+
+type ScreenNameValidator struct {
+	ScreenName string `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=4,maxLength=35"`
 }
 
 func UnmarshallJson(profileJson string) (Profile, error) {

@@ -96,44 +96,53 @@ var UserWhere = struct {
 
 // UserRels is where relationship names are stored.
 var UserRels = struct {
-	ImpartWealthProfile                   string
-	ImpartWealthComments                  string
-	ImpartWealthCommentEdits              string
-	ImpartWealthCommentReactions          string
-	AdminHiveHives                        string
-	MemberHiveHives                       string
-	ImpartWealthNotificationSubscriptions string
-	ImpartWealthPosts                     string
-	ImpartWealthPostEdits                 string
-	ImpartWealthPostReactions             string
-	ImpartWealthUserAnswers               string
+	ImpartWealthProfile                    string
+	ImpartWealthComments                   string
+	ImpartWealthCommentEdits               string
+	ImpartWealthCommentReactions           string
+	AdminHiveHives                         string
+	MemberHiveHives                        string
+	ImpartWealthNotificationDeviceMappings string
+	ImpartWealthNotificationSubscriptions  string
+	ImpartWealthPosts                      string
+	ImpartWealthPostEdits                  string
+	ImpartWealthPostReactions              string
+	ImpartWealthUserAnswers                string
+	ImpartWealthUserConfigurations         string
+	ImpartWealthUserDevices                string
 }{
-	ImpartWealthProfile:                   "ImpartWealthProfile",
-	ImpartWealthComments:                  "ImpartWealthComments",
-	ImpartWealthCommentEdits:              "ImpartWealthCommentEdits",
-	ImpartWealthCommentReactions:          "ImpartWealthCommentReactions",
-	AdminHiveHives:                        "AdminHiveHives",
-	MemberHiveHives:                       "MemberHiveHives",
-	ImpartWealthNotificationSubscriptions: "ImpartWealthNotificationSubscriptions",
-	ImpartWealthPosts:                     "ImpartWealthPosts",
-	ImpartWealthPostEdits:                 "ImpartWealthPostEdits",
-	ImpartWealthPostReactions:             "ImpartWealthPostReactions",
-	ImpartWealthUserAnswers:               "ImpartWealthUserAnswers",
+	ImpartWealthProfile:                    "ImpartWealthProfile",
+	ImpartWealthComments:                   "ImpartWealthComments",
+	ImpartWealthCommentEdits:               "ImpartWealthCommentEdits",
+	ImpartWealthCommentReactions:           "ImpartWealthCommentReactions",
+	AdminHiveHives:                         "AdminHiveHives",
+	MemberHiveHives:                        "MemberHiveHives",
+	ImpartWealthNotificationDeviceMappings: "ImpartWealthNotificationDeviceMappings",
+	ImpartWealthNotificationSubscriptions:  "ImpartWealthNotificationSubscriptions",
+	ImpartWealthPosts:                      "ImpartWealthPosts",
+	ImpartWealthPostEdits:                  "ImpartWealthPostEdits",
+	ImpartWealthPostReactions:              "ImpartWealthPostReactions",
+	ImpartWealthUserAnswers:                "ImpartWealthUserAnswers",
+	ImpartWealthUserConfigurations:         "ImpartWealthUserConfigurations",
+	ImpartWealthUserDevices:                "ImpartWealthUserDevices",
 }
 
 // userR is where relationships are stored.
 type userR struct {
-	ImpartWealthProfile                   *Profile                      `boil:"ImpartWealthProfile" json:"ImpartWealthProfile" toml:"ImpartWealthProfile" yaml:"ImpartWealthProfile"`
-	ImpartWealthComments                  CommentSlice                  `boil:"ImpartWealthComments" json:"ImpartWealthComments" toml:"ImpartWealthComments" yaml:"ImpartWealthComments"`
-	ImpartWealthCommentEdits              CommentEditSlice              `boil:"ImpartWealthCommentEdits" json:"ImpartWealthCommentEdits" toml:"ImpartWealthCommentEdits" yaml:"ImpartWealthCommentEdits"`
-	ImpartWealthCommentReactions          CommentReactionSlice          `boil:"ImpartWealthCommentReactions" json:"ImpartWealthCommentReactions" toml:"ImpartWealthCommentReactions" yaml:"ImpartWealthCommentReactions"`
-	AdminHiveHives                        HiveSlice                     `boil:"AdminHiveHives" json:"AdminHiveHives" toml:"AdminHiveHives" yaml:"AdminHiveHives"`
-	MemberHiveHives                       HiveSlice                     `boil:"MemberHiveHives" json:"MemberHiveHives" toml:"MemberHiveHives" yaml:"MemberHiveHives"`
-	ImpartWealthNotificationSubscriptions NotificationSubscriptionSlice `boil:"ImpartWealthNotificationSubscriptions" json:"ImpartWealthNotificationSubscriptions" toml:"ImpartWealthNotificationSubscriptions" yaml:"ImpartWealthNotificationSubscriptions"`
-	ImpartWealthPosts                     PostSlice                     `boil:"ImpartWealthPosts" json:"ImpartWealthPosts" toml:"ImpartWealthPosts" yaml:"ImpartWealthPosts"`
-	ImpartWealthPostEdits                 PostEditSlice                 `boil:"ImpartWealthPostEdits" json:"ImpartWealthPostEdits" toml:"ImpartWealthPostEdits" yaml:"ImpartWealthPostEdits"`
-	ImpartWealthPostReactions             PostReactionSlice             `boil:"ImpartWealthPostReactions" json:"ImpartWealthPostReactions" toml:"ImpartWealthPostReactions" yaml:"ImpartWealthPostReactions"`
-	ImpartWealthUserAnswers               UserAnswerSlice               `boil:"ImpartWealthUserAnswers" json:"ImpartWealthUserAnswers" toml:"ImpartWealthUserAnswers" yaml:"ImpartWealthUserAnswers"`
+	ImpartWealthProfile                    *Profile                       `boil:"ImpartWealthProfile" json:"ImpartWealthProfile" toml:"ImpartWealthProfile" yaml:"ImpartWealthProfile"`
+	ImpartWealthComments                   CommentSlice                   `boil:"ImpartWealthComments" json:"ImpartWealthComments" toml:"ImpartWealthComments" yaml:"ImpartWealthComments"`
+	ImpartWealthCommentEdits               CommentEditSlice               `boil:"ImpartWealthCommentEdits" json:"ImpartWealthCommentEdits" toml:"ImpartWealthCommentEdits" yaml:"ImpartWealthCommentEdits"`
+	ImpartWealthCommentReactions           CommentReactionSlice           `boil:"ImpartWealthCommentReactions" json:"ImpartWealthCommentReactions" toml:"ImpartWealthCommentReactions" yaml:"ImpartWealthCommentReactions"`
+	AdminHiveHives                         HiveSlice                      `boil:"AdminHiveHives" json:"AdminHiveHives" toml:"AdminHiveHives" yaml:"AdminHiveHives"`
+	MemberHiveHives                        HiveSlice                      `boil:"MemberHiveHives" json:"MemberHiveHives" toml:"MemberHiveHives" yaml:"MemberHiveHives"`
+	ImpartWealthNotificationDeviceMappings NotificationDeviceMappingSlice `boil:"ImpartWealthNotificationDeviceMappings" json:"ImpartWealthNotificationDeviceMappings" toml:"ImpartWealthNotificationDeviceMappings" yaml:"ImpartWealthNotificationDeviceMappings"`
+	ImpartWealthNotificationSubscriptions  NotificationSubscriptionSlice  `boil:"ImpartWealthNotificationSubscriptions" json:"ImpartWealthNotificationSubscriptions" toml:"ImpartWealthNotificationSubscriptions" yaml:"ImpartWealthNotificationSubscriptions"`
+	ImpartWealthPosts                      PostSlice                      `boil:"ImpartWealthPosts" json:"ImpartWealthPosts" toml:"ImpartWealthPosts" yaml:"ImpartWealthPosts"`
+	ImpartWealthPostEdits                  PostEditSlice                  `boil:"ImpartWealthPostEdits" json:"ImpartWealthPostEdits" toml:"ImpartWealthPostEdits" yaml:"ImpartWealthPostEdits"`
+	ImpartWealthPostReactions              PostReactionSlice              `boil:"ImpartWealthPostReactions" json:"ImpartWealthPostReactions" toml:"ImpartWealthPostReactions" yaml:"ImpartWealthPostReactions"`
+	ImpartWealthUserAnswers                UserAnswerSlice                `boil:"ImpartWealthUserAnswers" json:"ImpartWealthUserAnswers" toml:"ImpartWealthUserAnswers" yaml:"ImpartWealthUserAnswers"`
+	ImpartWealthUserConfigurations         UserConfigurationSlice         `boil:"ImpartWealthUserConfigurations" json:"ImpartWealthUserConfigurations" toml:"ImpartWealthUserConfigurations" yaml:"ImpartWealthUserConfigurations"`
+	ImpartWealthUserDevices                UserDeviceSlice                `boil:"ImpartWealthUserDevices" json:"ImpartWealthUserDevices" toml:"ImpartWealthUserDevices" yaml:"ImpartWealthUserDevices"`
 }
 
 // NewStruct creates a new relationship struct
@@ -550,6 +559,27 @@ func (o *User) MemberHiveHives(mods ...qm.QueryMod) hiveQuery {
 	return query
 }
 
+// ImpartWealthNotificationDeviceMappings retrieves all the notification_device_mapping's NotificationDeviceMappings with an executor via impart_wealth_id column.
+func (o *User) ImpartWealthNotificationDeviceMappings(mods ...qm.QueryMod) notificationDeviceMappingQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`notification_device_mapping`.`impart_wealth_id`=?", o.ImpartWealthID),
+	)
+
+	query := NotificationDeviceMappings(queryMods...)
+	queries.SetFrom(query.Query, "`notification_device_mapping`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`notification_device_mapping`.*"})
+	}
+
+	return query
+}
+
 // ImpartWealthNotificationSubscriptions retrieves all the notification_subscription's NotificationSubscriptions with an executor via impart_wealth_id column.
 func (o *User) ImpartWealthNotificationSubscriptions(mods ...qm.QueryMod) notificationSubscriptionQuery {
 	var queryMods []qm.QueryMod
@@ -654,6 +684,49 @@ func (o *User) ImpartWealthUserAnswers(mods ...qm.QueryMod) userAnswerQuery {
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"`user_answers`.*"})
+	}
+
+	return query
+}
+
+// ImpartWealthUserConfigurations retrieves all the user_configuration's UserConfigurations with an executor via impart_wealth_id column.
+func (o *User) ImpartWealthUserConfigurations(mods ...qm.QueryMod) userConfigurationQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`user_configurations`.`impart_wealth_id`=?", o.ImpartWealthID),
+	)
+
+	query := UserConfigurations(queryMods...)
+	queries.SetFrom(query.Query, "`user_configurations`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`user_configurations`.*"})
+	}
+
+	return query
+}
+
+// ImpartWealthUserDevices retrieves all the user_device's UserDevices with an executor via impart_wealth_id column.
+func (o *User) ImpartWealthUserDevices(mods ...qm.QueryMod) userDeviceQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`user_devices`.`impart_wealth_id`=?", o.ImpartWealthID),
+		qmhelper.WhereIsNull("`user_devices`.`deleted_at`"),
+	)
+
+	query := UserDevices(queryMods...)
+	queries.SetFrom(query.Query, "`user_devices`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`user_devices`.*"})
 	}
 
 	return query
@@ -1287,6 +1360,104 @@ func (userL) LoadMemberHiveHives(ctx context.Context, e boil.ContextExecutor, si
 	return nil
 }
 
+// LoadImpartWealthNotificationDeviceMappings allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (userL) LoadImpartWealthNotificationDeviceMappings(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUser interface{}, mods queries.Applicator) error {
+	var slice []*User
+	var object *User
+
+	if singular {
+		object = maybeUser.(*User)
+	} else {
+		slice = *maybeUser.(*[]*User)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userR{}
+		}
+		args = append(args, object.ImpartWealthID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ImpartWealthID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ImpartWealthID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`notification_device_mapping`),
+		qm.WhereIn(`notification_device_mapping.impart_wealth_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load notification_device_mapping")
+	}
+
+	var resultSlice []*NotificationDeviceMapping
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice notification_device_mapping")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on notification_device_mapping")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for notification_device_mapping")
+	}
+
+	if len(notificationDeviceMappingAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.ImpartWealthNotificationDeviceMappings = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &notificationDeviceMappingR{}
+			}
+			foreign.R.ImpartWealth = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ImpartWealthID == foreign.ImpartWealthID {
+				local.R.ImpartWealthNotificationDeviceMappings = append(local.R.ImpartWealthNotificationDeviceMappings, foreign)
+				if foreign.R == nil {
+					foreign.R = &notificationDeviceMappingR{}
+				}
+				foreign.R.ImpartWealth = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // LoadImpartWealthNotificationSubscriptions allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
 func (userL) LoadImpartWealthNotificationSubscriptions(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUser interface{}, mods queries.Applicator) error {
@@ -1771,6 +1942,203 @@ func (userL) LoadImpartWealthUserAnswers(ctx context.Context, e boil.ContextExec
 				local.R.ImpartWealthUserAnswers = append(local.R.ImpartWealthUserAnswers, foreign)
 				if foreign.R == nil {
 					foreign.R = &userAnswerR{}
+				}
+				foreign.R.ImpartWealth = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadImpartWealthUserConfigurations allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (userL) LoadImpartWealthUserConfigurations(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUser interface{}, mods queries.Applicator) error {
+	var slice []*User
+	var object *User
+
+	if singular {
+		object = maybeUser.(*User)
+	} else {
+		slice = *maybeUser.(*[]*User)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userR{}
+		}
+		args = append(args, object.ImpartWealthID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ImpartWealthID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ImpartWealthID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`user_configurations`),
+		qm.WhereIn(`user_configurations.impart_wealth_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load user_configurations")
+	}
+
+	var resultSlice []*UserConfiguration
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice user_configurations")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on user_configurations")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_configurations")
+	}
+
+	if len(userConfigurationAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.ImpartWealthUserConfigurations = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &userConfigurationR{}
+			}
+			foreign.R.ImpartWealth = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ImpartWealthID == foreign.ImpartWealthID {
+				local.R.ImpartWealthUserConfigurations = append(local.R.ImpartWealthUserConfigurations, foreign)
+				if foreign.R == nil {
+					foreign.R = &userConfigurationR{}
+				}
+				foreign.R.ImpartWealth = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadImpartWealthUserDevices allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (userL) LoadImpartWealthUserDevices(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUser interface{}, mods queries.Applicator) error {
+	var slice []*User
+	var object *User
+
+	if singular {
+		object = maybeUser.(*User)
+	} else {
+		slice = *maybeUser.(*[]*User)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userR{}
+		}
+		args = append(args, object.ImpartWealthID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ImpartWealthID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ImpartWealthID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`user_devices`),
+		qm.WhereIn(`user_devices.impart_wealth_id in ?`, args...),
+		qmhelper.WhereIsNull(`user_devices.deleted_at`),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load user_devices")
+	}
+
+	var resultSlice []*UserDevice
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice user_devices")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on user_devices")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_devices")
+	}
+
+	if len(userDeviceAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.ImpartWealthUserDevices = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &userDeviceR{}
+			}
+			foreign.R.ImpartWealth = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ImpartWealthID == foreign.ImpartWealthID {
+				local.R.ImpartWealthUserDevices = append(local.R.ImpartWealthUserDevices, foreign)
+				if foreign.R == nil {
+					foreign.R = &userDeviceR{}
 				}
 				foreign.R.ImpartWealth = local
 				break
@@ -2271,6 +2639,59 @@ func removeMemberHiveHivesFromMemberImpartWealthUsersSlice(o *User, related []*H
 	}
 }
 
+// AddImpartWealthNotificationDeviceMappings adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.ImpartWealthNotificationDeviceMappings.
+// Sets related.R.ImpartWealth appropriately.
+func (o *User) AddImpartWealthNotificationDeviceMappings(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*NotificationDeviceMapping) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ImpartWealthID = o.ImpartWealthID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `notification_device_mapping` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"impart_wealth_id"}),
+				strmangle.WhereClause("`", "`", 0, notificationDeviceMappingPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ImpartWealthID, rel.MapID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ImpartWealthID = o.ImpartWealthID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userR{
+			ImpartWealthNotificationDeviceMappings: related,
+		}
+	} else {
+		o.R.ImpartWealthNotificationDeviceMappings = append(o.R.ImpartWealthNotificationDeviceMappings, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &notificationDeviceMappingR{
+				ImpartWealth: o,
+			}
+		} else {
+			rel.R.ImpartWealth = o
+		}
+	}
+	return nil
+}
+
 // AddImpartWealthNotificationSubscriptions adds the given related objects to the existing relationships
 // of the user, optionally inserting them as new records.
 // Appends related to o.R.ImpartWealthNotificationSubscriptions.
@@ -2527,6 +2948,112 @@ func (o *User) AddImpartWealthUserAnswers(ctx context.Context, exec boil.Context
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &userAnswerR{
+				ImpartWealth: o,
+			}
+		} else {
+			rel.R.ImpartWealth = o
+		}
+	}
+	return nil
+}
+
+// AddImpartWealthUserConfigurations adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.ImpartWealthUserConfigurations.
+// Sets related.R.ImpartWealth appropriately.
+func (o *User) AddImpartWealthUserConfigurations(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserConfiguration) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ImpartWealthID = o.ImpartWealthID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `user_configurations` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"impart_wealth_id"}),
+				strmangle.WhereClause("`", "`", 0, userConfigurationPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ImpartWealthID, rel.ConfigID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ImpartWealthID = o.ImpartWealthID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userR{
+			ImpartWealthUserConfigurations: related,
+		}
+	} else {
+		o.R.ImpartWealthUserConfigurations = append(o.R.ImpartWealthUserConfigurations, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &userConfigurationR{
+				ImpartWealth: o,
+			}
+		} else {
+			rel.R.ImpartWealth = o
+		}
+	}
+	return nil
+}
+
+// AddImpartWealthUserDevices adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.ImpartWealthUserDevices.
+// Sets related.R.ImpartWealth appropriately.
+func (o *User) AddImpartWealthUserDevices(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDevice) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ImpartWealthID = o.ImpartWealthID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `user_devices` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"impart_wealth_id"}),
+				strmangle.WhereClause("`", "`", 0, userDevicePrimaryKeyColumns),
+			)
+			values := []interface{}{o.ImpartWealthID, rel.Token}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ImpartWealthID = o.ImpartWealthID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userR{
+			ImpartWealthUserDevices: related,
+		}
+	} else {
+		o.R.ImpartWealthUserDevices = append(o.R.ImpartWealthUserDevices, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &userDeviceR{
 				ImpartWealth: o,
 			}
 		} else {

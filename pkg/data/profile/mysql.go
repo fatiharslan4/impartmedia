@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/google/uuid"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -248,4 +250,52 @@ func (m *mysqlStore) GetUserQuestionnaires(ctx context.Context, impartWealthId s
 	}
 
 	return out, nil
+}
+
+/**
+ *
+ * GetUserDevice : Get the user device
+ *
+ */
+func (m *mysqlStore) GetUserDevice(ctx context.Context, token []byte, impartID string) (*dbmodels.UserDevice, error) {
+	var clause QueryMod
+	if impartID != "" {
+		clause = Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.ImpartWealthID), impartID)
+	} else {
+		clause = Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.Token), token)
+	}
+	where := []QueryMod{
+		clause,
+		Load(dbmodels.UserDeviceRels.ImpartWealth),
+	}
+
+	device, err := dbmodels.UserDevices(where...).One(ctx, m.db)
+	if err == sql.ErrNoRows {
+		return nil, impart.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return device, err
+}
+
+/**
+ *
+ * CreateUserDevice
+ *
+ */
+
+func (m *mysqlStore) CreateUserDevice(ctx context.Context, device *dbmodels.UserDevice) (*dbmodels.UserDevice, error) {
+	if device == nil {
+		m.logger.Error("device is nil")
+		return nil, impart.ErrBadRequest
+	}
+	uuid := uuid.New()
+	device.Token = []byte(uuid.String())
+
+	err := device.Insert(ctx, m.db, boil.Infer())
+	if err != nil {
+		return nil, err
+	}
+	return m.GetUserDevice(ctx, device.Token, "")
 }

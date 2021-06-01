@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"go.uber.org/zap"
@@ -40,6 +41,8 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	profileRoutes.DELETE("/:impartWealthId", handler.DeleteProfileFunc())
 
 	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
+
+	profileRoutes.POST("/userdevice", handler.CreateUserDevice())
 
 	questionnaireRoutes := version.Group("/questionnaires")
 	questionnaireRoutes.GET("", handler.AllQuestionnaireHandler())                     //returns a list of questionnaire; filter by `name` query param
@@ -282,5 +285,48 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
 		ctx.JSON(http.StatusOK, gin.H{
 			"status": "success",
 		})
+	}
+}
+
+/**
+ *
+ * CreateUserDevice
+ *
+ */
+func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		// validate the inputs
+		impartErrl := ph.profileService.ValidateInput(gojsonschema.NewStringLoader(string(b)), types.UserDeviceValidationModel)
+		if impartErrl != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
+			return
+		}
+
+		device := models.UserDevice{}
+		err = json.Unmarshal(b, &device)
+		dbModel := device.ToDBModel()
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a UserDevice")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		if userDevice, err := ph.profileService.AddUserDevice(ctx, dbModel); err != nil {
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		} else {
+			ctx.JSON(http.StatusOK, userDevice)
+			return
+		}
 	}
 }

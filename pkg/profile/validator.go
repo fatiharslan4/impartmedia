@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/segmentio/ksuid"
@@ -115,6 +116,39 @@ func (ps *profileService) ValidateSchema(document gojsonschema.JSONLoader) (erro
 
 func (ps *profileService) ValidateScreenName(document gojsonschema.JSONLoader) (errors []impart.Error) {
 	v := gojsonschema.NewReferenceLoader(fmt.Sprintf("file://%s", "./schemas/json/ScreenNameValidator.json"))
+	_, err := v.LoadJSON()
+	if err != nil {
+		ps.SugaredLogger.Error(err.Error())
+		return []impart.Error{
+			impart.NewError(impart.ErrBadRequest, "unable to load validation schema"),
+		}
+	}
+	result, err := gojsonschema.Validate(v, document)
+	if err != nil {
+		ps.SugaredLogger.Error(err.Error())
+		return []impart.Error{
+			impart.NewError(impart.ErrBadRequest, "unable to validate schema"),
+		}
+	}
+
+	if result.Valid() {
+		return nil
+	}
+	// msg := fmt.Sprintf("%v validations errors.\n", len(result.Errors()))
+	msg := "validations errors"
+	for i, desc := range result.Errors() {
+		msg += fmt.Sprintf("%v: %s\n", i, desc)
+		er := impart.NewError(impart.ErrValidationError, fmt.Sprintf("%s ", desc), impart.ErrorKey(desc.Field()))
+		errors = append(errors, er)
+	}
+	return errors
+}
+
+func (ps *profileService) ValidateInput(document gojsonschema.JSONLoader, validationModel types.Type) (errors []impart.Error) {
+
+	v := gojsonschema.NewReferenceLoader(
+		fmt.Sprintf("file://%s", "./schemas/json/"+validationModel+".json"),
+	)
 	_, err := v.LoadJSON()
 	if err != nil {
 		ps.SugaredLogger.Error(err.Error())

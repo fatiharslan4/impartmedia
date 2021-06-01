@@ -8,9 +8,11 @@ import (
 	"strings"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+
 	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	profile_data "github.com/impartwealthapp/backend/pkg/data/profile"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/xeipuuv/gojsonschema"
@@ -27,7 +29,10 @@ type Service interface {
 
 	ValidateSchema(document gojsonschema.JSONLoader) []impart.Error
 	ValidateScreenName(document gojsonschema.JSONLoader) []impart.Error
+	ValidateInput(document gojsonschema.JSONLoader, validationModel types.Type) []impart.Error
 	Logger() *zap.Logger
+
+	AddUserDevice(ctx context.Context, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error)
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {

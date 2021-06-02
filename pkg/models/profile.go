@@ -75,7 +75,7 @@ type ScreenNameValidator struct {
 }
 
 type AuthenticationIDValidation struct {
-	AuthenticationID string `json:"user_id,omitempty" conform:"trim"`
+	AuthenticationID string `json:"authId,omitempty" conform:"trim"`
 }
 
 func UnmarshallJson(profileJson string) (Profile, error) {

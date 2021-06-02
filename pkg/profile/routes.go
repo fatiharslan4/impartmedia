@@ -46,7 +46,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	profileRoutes.DELETE("/:impartWealthId", handler.DeleteProfileFunc())
 
 	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
-	profileRoutes.POST("/resentemail", handler.ResentEmail())
+	profileRoutes.POST("/send-email", handler.ResentEmail())
 
 	questionnaireRoutes := version.Group("/questionnaires")
 	questionnaireRoutes.GET("", handler.AllQuestionnaireHandler())                     //returns a list of questionnaire; filter by `name` query param
@@ -346,7 +346,7 @@ func (ph *profileHandler) ResentEmail() gin.HandlerFunc {
 		}
 
 		ctx.JSON(http.StatusOK, gin.H{
-			"status": "Resent mail sent successfully.",
+			"message": "Email is send to the User.",
 		})
 
 	}

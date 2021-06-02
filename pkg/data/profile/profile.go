@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"go.uber.org/zap"
 )
@@ -22,8 +23,14 @@ type Store interface {
 	GetUserQuestionnaires(ctx context.Context, impartWealthId string, questionnaireName *string) (dbmodels.QuestionnaireSlice, error)
 	SaveUserQuestionnaire(ctx context.Context, answer dbmodels.UserAnswerSlice) error
 
-	GetUserDevice(ctx context.Context, token []byte, impartWealthID string) (*dbmodels.UserDevice, error)
+	GetUserConfigurations(ctx context.Context, impartWealthID string) (*dbmodels.UserConfiguration, error)
+	GetUserDevice(ctx context.Context, token string, impartWealthID string, deviceID string) (*dbmodels.UserDevice, error)
 	CreateUserDevice(ctx context.Context, device *dbmodels.UserDevice) (*dbmodels.UserDevice, error)
+
+	GetUserNotificationMappData(input models.MapArgumentInput) (*dbmodels.NotificationDeviceMapping, error)
+	CreateUserNotificationMappData(ctx context.Context, data *dbmodels.NotificationDeviceMapping) (*dbmodels.NotificationDeviceMapping, error)
+	DeleteUserNotificationMappData(input models.MapArgumentInput) error
+	UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) error
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

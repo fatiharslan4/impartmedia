@@ -25,9 +25,9 @@ CREATE TABLE IF NOT EXISTS user_devices (
 -- Which will store user configurations
 
 CREATE TABLE IF NOT EXISTS user_configurations (
-    config_id           INT           NOT NULL DEFAULT 0,
+    config_id           INT UNSIGNED  AUTO_INCREMENT  NOT NULL,
     impart_wealth_id    CHAR(27)      NOT NULL,
-    notification_status INT           NOT NULL default 0,
+    notification_status BOOL           NOT NULL,
     PRIMARY KEY (config_id),
     FOREIGN KEY (impart_wealth_id) REFERENCES user (impart_wealth_id) ON DELETE CASCADE
 ) DEFAULT CHARACTER SET utf8mb4
@@ -41,10 +41,11 @@ CREATE TABLE IF NOT EXISTS user_configurations (
 -- Which will map the device and notification
 
 CREATE TABLE IF NOT EXISTS notification_device_mapping (
-    map_id              INT           NOT NULL DEFAULT 0,
+    map_id              INT UNSIGNED  AUTO_INCREMENT  NOT NULL,
     impart_wealth_id    CHAR(27)      NOT NULL,
-    user_device_id      NVARCHAR(250)    NOT NULL,
-    notify_status       INT           NOT NULL default 0,
+    user_device_id      NVARCHAR(250) NOT NULL,
+    notify_arn          NVARCHAR(250)          NOT NULL,
+    notify_status       BOOL          NOT NULL,
     PRIMARY KEY (map_id),
     FOREIGN KEY (impart_wealth_id) REFERENCES user (impart_wealth_id) ON DELETE CASCADE,
     FOREIGN KEY (user_device_id) REFERENCES user_devices (token) ON DELETE CASCADE

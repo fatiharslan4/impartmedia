@@ -7,8 +7,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
@@ -257,17 +259,19 @@ func (m *mysqlStore) GetUserQuestionnaires(ctx context.Context, impartWealthId s
  * GetUserDevice : Get the user device
  *
  */
-func (m *mysqlStore) GetUserDevice(ctx context.Context, token []byte, impartID string) (*dbmodels.UserDevice, error) {
-	var clause QueryMod
+func (m *mysqlStore) GetUserDevice(ctx context.Context, token string, impartID string, deviceID string) (*dbmodels.UserDevice, error) {
+	where := []QueryMod{}
 	if impartID != "" {
-		clause = Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.ImpartWealthID), impartID)
-	} else {
-		clause = Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.Token), token)
+		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.ImpartWealthID), impartID))
 	}
-	where := []QueryMod{
-		clause,
-		Load(dbmodels.UserDeviceRels.ImpartWealth),
+	if token != "" {
+		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.Token), token))
 	}
+	if deviceID != "" {
+		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceID), deviceID))
+	}
+
+	where = append(where, Load(dbmodels.UserDeviceRels.ImpartWealth))
 
 	device, err := dbmodels.UserDevices(where...).One(ctx, m.db)
 	if err == sql.ErrNoRows {
@@ -284,18 +288,151 @@ func (m *mysqlStore) GetUserDevice(ctx context.Context, token []byte, impartID s
  * CreateUserDevice
  *
  */
-
 func (m *mysqlStore) CreateUserDevice(ctx context.Context, device *dbmodels.UserDevice) (*dbmodels.UserDevice, error) {
 	if device == nil {
 		m.logger.Error("device is nil")
 		return nil, impart.ErrBadRequest
 	}
 	uuid := uuid.New()
-	device.Token = []byte(uuid.String())
+	device.Token = uuid.String()
 
 	err := device.Insert(ctx, m.db, boil.Infer())
 	if err != nil {
 		return nil, err
 	}
-	return m.GetUserDevice(ctx, device.Token, "")
+	return m.GetUserDevice(ctx, device.Token, "", "")
+}
+
+/**
+ *
+ * GetUserConfigurations
+ *
+ */
+func (m *mysqlStore) GetUserConfigurations(ctx context.Context, impartWealthID string) (*dbmodels.UserConfiguration, error) {
+	if impartWealthID == "" {
+		m.logger.Error("impartWealthID is nil")
+		return nil, impart.ErrBadRequest
+	}
+	where := []QueryMod{
+		Where(fmt.Sprintf("%s = ?", dbmodels.UserConfigurationColumns.ImpartWealthID), impartWealthID),
+		Load(dbmodels.UserConfigurationRels.ImpartWealth),
+	}
+
+	configurations, err := dbmodels.UserConfigurations(where...).One(ctx, m.db)
+	if err == sql.ErrNoRows {
+		return nil, impart.ErrNotFound
+	}
+	return configurations, nil
+}
+
+/**
+ *
+ *  GetUserNotificationMappData
+ *
+ */
+
+func (m *mysqlStore) GetUserNotificationMappData(input models.MapArgumentInput) (*dbmodels.NotificationDeviceMapping, error) {
+	where := []QueryMod{}
+	if input.ImpartWealthID != "" {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.EQ(input.ImpartWealthID))
+	}
+	if input.DeviceToken != "" {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.DeviceToken))
+	}
+	if input.DeviceID != "" {
+		where = append(where, qm.InnerJoin("user_devices ON user_devices.token = notification_device_mapping.user_device_id"))
+		where = append(where, qm.Where("user_devices.device_id=?", input.DeviceID))
+	}
+
+	mapData, err := dbmodels.NotificationDeviceMappings(where...).One(input.Ctx, m.db)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	return mapData, nil
+}
+
+/**
+ *
+ *  DeleteUserNotificationMappData
+ *
+ * Delete the user notification map details
+ */
+
+func (m *mysqlStore) DeleteUserNotificationMappData(input models.MapArgumentInput) error {
+	where := []QueryMod{}
+	if input.ImpartWealthID != "" {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.EQ(input.ImpartWealthID))
+	}
+	if input.DeviceToken != "" {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.DeviceToken))
+	}
+	if input.DeviceID != "" {
+		where = append(where, qm.Where("user_device_id IN (select token from user_devices where device_id = ?)", input.DeviceID))
+	}
+
+	_, err := dbmodels.NotificationDeviceMappings(where...).DeleteAll(input.Ctx, m.db)
+	if err != nil {
+		return err
+	}
+	if err == sql.ErrNoRows {
+		return impart.ErrNotFound
+	}
+
+	return nil
+}
+
+/**
+ *
+ *  DeleteUserNotificationMappData
+ *
+ * Delete the user notification map details
+ */
+
+func (m *mysqlStore) UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) error {
+	where := []QueryMod{}
+	// where impart id provided and negate is false
+	if input.ImpartWealthID != "" && input.Negate == false {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.EQ(input.ImpartWealthID))
+	}
+	// where impart id provided and required negate
+	if input.ImpartWealthID != "" && input.Negate {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.NEQ(input.ImpartWealthID))
+	}
+	if input.DeviceToken != "" {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.DeviceToken))
+	}
+	if input.DeviceID != "" {
+		where = append(where, qm.Where("user_device_id IN (select token from user_devices where device_id = ?)", input.DeviceID))
+	}
+
+	_, err := dbmodels.NotificationDeviceMappings(where...).UpdateAll(input.Ctx, m.db, dbmodels.M{
+		"notify_status": notifyStatus,
+	})
+	if err != nil {
+		return err
+	}
+	if err == sql.ErrNoRows {
+		return impart.ErrNotFound
+	}
+
+	return nil
+}
+
+/**
+ *
+ * CreateUserNotificationMappData
+ *
+ * create user notificatoin map data
+ */
+func (m *mysqlStore) CreateUserNotificationMappData(ctx context.Context, data *dbmodels.NotificationDeviceMapping) (*dbmodels.NotificationDeviceMapping, error) {
+	if data == nil {
+		m.logger.Error("maping data is nil")
+		return nil, impart.ErrBadRequest
+	}
+
+	err := data.Insert(ctx, m.db, boil.Infer())
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }

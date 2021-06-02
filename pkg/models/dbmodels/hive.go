@@ -125,8 +125,8 @@ type hiveL struct{}
 
 var (
 	hiveAllColumns            = []string{"hive_id", "name", "description", "pinned_post_id", "tag_comparisons", "notification_topic_arn", "hive_distributions"}
-	hiveColumnsWithoutDefault = []string{"name", "description", "pinned_post_id", "tag_comparisons", "notification_topic_arn", "hive_distributions"}
-	hiveColumnsWithDefault    = []string{"hive_id"}
+	hiveColumnsWithoutDefault = []string{"hive_id", "name", "description", "pinned_post_id", "tag_comparisons", "notification_topic_arn", "hive_distributions"}
+	hiveColumnsWithDefault    = []string{}
 	hivePrimaryKeyColumns     = []string{"hive_id"}
 )
 
@@ -1226,26 +1226,15 @@ func (o *Hive) Insert(ctx context.Context, exec boil.ContextExecutor, columns bo
 		fmt.Fprintln(writer, cache.query)
 		fmt.Fprintln(writer, vals)
 	}
-	result, err := exec.ExecContext(ctx, cache.query, vals...)
+	_, err = exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "dbmodels: unable to insert into hive")
 	}
 
-	var lastID int64
 	var identifierCols []interface{}
 
 	if len(cache.retMapping) == 0 {
-		goto CacheNoHooks
-	}
-
-	lastID, err = result.LastInsertId()
-	if err != nil {
-		return ErrSyncFail
-	}
-
-	o.HiveID = uint64(lastID)
-	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == hiveMapping["hive_id"] {
 		goto CacheNoHooks
 	}
 
@@ -1499,27 +1488,16 @@ func (o *Hive) Upsert(ctx context.Context, exec boil.ContextExecutor, updateColu
 		fmt.Fprintln(writer, cache.query)
 		fmt.Fprintln(writer, vals)
 	}
-	result, err := exec.ExecContext(ctx, cache.query, vals...)
+	_, err = exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "dbmodels: unable to upsert for hive")
 	}
 
-	var lastID int64
 	var uniqueMap []uint64
 	var nzUniqueCols []interface{}
 
 	if len(cache.retMapping) == 0 {
-		goto CacheNoHooks
-	}
-
-	lastID, err = result.LastInsertId()
-	if err != nil {
-		return ErrSyncFail
-	}
-
-	o.HiveID = uint64(lastID)
-	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == hiveMapping["hive_id"] {
 		goto CacheNoHooks
 	}
 

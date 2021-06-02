@@ -23,9 +23,9 @@ import (
 
 // UserConfiguration is an object representing the database table.
 type UserConfiguration struct {
-	ConfigID           int    `boil:"config_id" json:"config_id" toml:"config_id" yaml:"config_id"`
+	ConfigID           uint   `boil:"config_id" json:"config_id" toml:"config_id" yaml:"config_id"`
 	ImpartWealthID     string `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	NotificationStatus int    `boil:"notification_status" json:"notification_status" toml:"notification_status" yaml:"notification_status"`
+	NotificationStatus bool   `boil:"notification_status" json:"notification_status" toml:"notification_status" yaml:"notification_status"`
 
 	R *userConfigurationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userConfigurationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -44,13 +44,13 @@ var UserConfigurationColumns = struct {
 // Generated where
 
 var UserConfigurationWhere = struct {
-	ConfigID           whereHelperint
+	ConfigID           whereHelperuint
 	ImpartWealthID     whereHelperstring
-	NotificationStatus whereHelperint
+	NotificationStatus whereHelperbool
 }{
-	ConfigID:           whereHelperint{field: "`user_configurations`.`config_id`"},
+	ConfigID:           whereHelperuint{field: "`user_configurations`.`config_id`"},
 	ImpartWealthID:     whereHelperstring{field: "`user_configurations`.`impart_wealth_id`"},
-	NotificationStatus: whereHelperint{field: "`user_configurations`.`notification_status`"},
+	NotificationStatus: whereHelperbool{field: "`user_configurations`.`notification_status`"},
 }
 
 // UserConfigurationRels is where relationship names are stored.
@@ -75,8 +75,8 @@ type userConfigurationL struct{}
 
 var (
 	userConfigurationAllColumns            = []string{"config_id", "impart_wealth_id", "notification_status"}
-	userConfigurationColumnsWithoutDefault = []string{"impart_wealth_id"}
-	userConfigurationColumnsWithDefault    = []string{"config_id", "notification_status"}
+	userConfigurationColumnsWithoutDefault = []string{"impart_wealth_id", "notification_status"}
+	userConfigurationColumnsWithDefault    = []string{"config_id"}
 	userConfigurationPrimaryKeyColumns     = []string{"config_id"}
 )
 
@@ -530,7 +530,7 @@ func UserConfigurations(mods ...qm.QueryMod) userConfigurationQuery {
 
 // FindUserConfiguration retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindUserConfiguration(ctx context.Context, exec boil.ContextExecutor, configID int, selectCols ...string) (*UserConfiguration, error) {
+func FindUserConfiguration(ctx context.Context, exec boil.ContextExecutor, configID uint, selectCols ...string) (*UserConfiguration, error) {
 	userConfigurationObj := &UserConfiguration{}
 
 	sel := "*"
@@ -631,7 +631,7 @@ func (o *UserConfiguration) Insert(ctx context.Context, exec boil.ContextExecuto
 		return ErrSyncFail
 	}
 
-	o.ConfigID = int(lastID)
+	o.ConfigID = uint(lastID)
 	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == userConfigurationMapping["config_id"] {
 		goto CacheNoHooks
 	}
@@ -905,7 +905,7 @@ func (o *UserConfiguration) Upsert(ctx context.Context, exec boil.ContextExecuto
 		return ErrSyncFail
 	}
 
-	o.ConfigID = int(lastID)
+	o.ConfigID = uint(lastID)
 	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == userConfigurationMapping["config_id"] {
 		goto CacheNoHooks
 	}
@@ -1084,7 +1084,7 @@ func (o *UserConfigurationSlice) ReloadAll(ctx context.Context, exec boil.Contex
 }
 
 // UserConfigurationExists checks if the UserConfiguration row exists.
-func UserConfigurationExists(ctx context.Context, exec boil.ContextExecutor, configID int) (bool, error) {
+func UserConfigurationExists(ctx context.Context, exec boil.ContextExecutor, configID uint) (bool, error) {
 	var exists bool
 	sql := "select exists(select 1 from `user_configurations` where `config_id`=? limit 1)"
 

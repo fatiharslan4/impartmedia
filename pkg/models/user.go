@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -19,14 +20,19 @@ type UserDevice struct {
 	DeletedAt      null.Time `json:"deleted_at,omitempty"`
 }
 
-func (d UserDevice) ToDBModel() *dbmodels.UserDevice {
+type UserConfigurations struct {
+	ImpartWealthID     string `json:"impartWealthId"`
+	NotificationStatus bool   `json:"notificationStatus"`
+}
+
+func (d UserDevice) UserDeviceToDBModel() *dbmodels.UserDevice {
 	out := &dbmodels.UserDevice{
-		Token:          []byte(d.Token),
+		Token:          d.Token,
 		ImpartWealthID: d.ImpartWealthID,
 		DeviceID:       d.DeviceID,
 		AppVersion:     d.AppVersion,
 		DeviceName:     d.DeviceName,
-		DeviceVersion:  null.StringFrom(d.DeviceVersion),
+		DeviceVersion:  d.DeviceVersion,
 		CreatedAt:      d.CreatedAt,
 		UpdatedAt:      d.UpdatedAt,
 		DeletedAt:      d.DeletedAt,
@@ -42,11 +48,38 @@ func UserDeviceFromDBModel(d *dbmodels.UserDevice) UserDevice {
 		DeviceID:       d.DeviceID,
 		AppVersion:     d.AppVersion,
 		DeviceName:     d.DeviceName,
-		DeviceVersion:  d.DeviceVersion.String,
+		DeviceVersion:  d.DeviceVersion,
 		CreatedAt:      d.CreatedAt,
 		UpdatedAt:      d.UpdatedAt,
 		DeletedAt:      d.DeletedAt,
 	}
 
 	return out
+}
+
+func UserConfigurationFromDBModel(d *dbmodels.UserConfiguration) UserConfigurations {
+	out := UserConfigurations{
+		ImpartWealthID:     d.ImpartWealthID,
+		NotificationStatus: d.NotificationStatus,
+	}
+
+	return out
+}
+
+func (uc UserConfigurations) UserConfigurationTODBModel() *dbmodels.UserConfiguration {
+	out := &dbmodels.UserConfiguration{
+		ImpartWealthID:     uc.ImpartWealthID,
+		NotificationStatus: uc.NotificationStatus,
+	}
+
+	return out
+}
+
+// filter input
+type MapArgumentInput struct {
+	Ctx            context.Context
+	ImpartWealthID string
+	DeviceID       string
+	DeviceToken    string
+	Negate         bool
 }

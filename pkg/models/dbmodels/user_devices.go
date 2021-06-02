@@ -24,15 +24,15 @@ import (
 
 // UserDevice is an object representing the database table.
 type UserDevice struct {
-	Token          []byte      `boil:"token" json:"token" toml:"token" yaml:"token"`
-	ImpartWealthID string      `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	DeviceID       string      `boil:"device_id" json:"device_id" toml:"device_id" yaml:"device_id"`
-	AppVersion     string      `boil:"app_version" json:"app_version" toml:"app_version" yaml:"app_version"`
-	DeviceName     string      `boil:"device_name" json:"device_name" toml:"device_name" yaml:"device_name"`
-	DeviceVersion  null.String `boil:"device_version" json:"device_version,omitempty" toml:"device_version" yaml:"device_version,omitempty"`
-	CreatedAt      time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt      time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt      null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	Token          string    `boil:"token" json:"token" toml:"token" yaml:"token"`
+	ImpartWealthID string    `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
+	DeviceID       string    `boil:"device_id" json:"device_id" toml:"device_id" yaml:"device_id"`
+	AppVersion     string    `boil:"app_version" json:"app_version" toml:"app_version" yaml:"app_version"`
+	DeviceName     string    `boil:"device_name" json:"device_name" toml:"device_name" yaml:"device_name"`
+	DeviceVersion  string    `boil:"device_version" json:"device_version" toml:"device_version" yaml:"device_version"`
+	CreatedAt      time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt      time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt      null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
 
 	R *userDeviceR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -63,22 +63,22 @@ var UserDeviceColumns = struct {
 // Generated where
 
 var UserDeviceWhere = struct {
-	Token          whereHelper__byte
+	Token          whereHelperstring
 	ImpartWealthID whereHelperstring
 	DeviceID       whereHelperstring
 	AppVersion     whereHelperstring
 	DeviceName     whereHelperstring
-	DeviceVersion  whereHelpernull_String
+	DeviceVersion  whereHelperstring
 	CreatedAt      whereHelpertime_Time
 	UpdatedAt      whereHelpertime_Time
 	DeletedAt      whereHelpernull_Time
 }{
-	Token:          whereHelper__byte{field: "`user_devices`.`token`"},
+	Token:          whereHelperstring{field: "`user_devices`.`token`"},
 	ImpartWealthID: whereHelperstring{field: "`user_devices`.`impart_wealth_id`"},
 	DeviceID:       whereHelperstring{field: "`user_devices`.`device_id`"},
 	AppVersion:     whereHelperstring{field: "`user_devices`.`app_version`"},
 	DeviceName:     whereHelperstring{field: "`user_devices`.`device_name`"},
-	DeviceVersion:  whereHelpernull_String{field: "`user_devices`.`device_version`"},
+	DeviceVersion:  whereHelperstring{field: "`user_devices`.`device_version`"},
 	CreatedAt:      whereHelpertime_Time{field: "`user_devices`.`created_at`"},
 	UpdatedAt:      whereHelpertime_Time{field: "`user_devices`.`updated_at`"},
 	DeletedAt:      whereHelpernull_Time{field: "`user_devices`.`deleted_at`"},
@@ -109,8 +109,8 @@ type userDeviceL struct{}
 
 var (
 	userDeviceAllColumns            = []string{"token", "impart_wealth_id", "device_id", "app_version", "device_name", "device_version", "created_at", "updated_at", "deleted_at"}
-	userDeviceColumnsWithoutDefault = []string{"impart_wealth_id", "device_id", "app_version", "device_name", "device_version", "created_at", "updated_at", "deleted_at"}
-	userDeviceColumnsWithDefault    = []string{"token"}
+	userDeviceColumnsWithoutDefault = []string{"token", "impart_wealth_id", "device_id", "app_version", "device_name", "device_version", "created_at", "updated_at", "deleted_at"}
+	userDeviceColumnsWithDefault    = []string{}
 	userDevicePrimaryKeyColumns     = []string{"token"}
 )
 
@@ -556,7 +556,7 @@ func (userDeviceL) LoadNotificationDeviceMappings(ctx context.Context, e boil.Co
 			}
 
 			for _, a := range args {
-				if queries.Equal(a, obj.Token) {
+				if a == obj.Token {
 					continue Outer
 				}
 			}
@@ -614,7 +614,7 @@ func (userDeviceL) LoadNotificationDeviceMappings(ctx context.Context, e boil.Co
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if queries.Equal(local.Token, foreign.UserDeviceID) {
+			if local.Token == foreign.UserDeviceID {
 				local.R.NotificationDeviceMappings = append(local.R.NotificationDeviceMappings, foreign)
 				if foreign.R == nil {
 					foreign.R = &notificationDeviceMappingR{}
@@ -683,7 +683,7 @@ func (o *UserDevice) AddNotificationDeviceMappings(ctx context.Context, exec boi
 	var err error
 	for _, rel := range related {
 		if insert {
-			queries.Assign(&rel.UserDeviceID, o.Token)
+			rel.UserDeviceID = o.Token
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
@@ -704,7 +704,7 @@ func (o *UserDevice) AddNotificationDeviceMappings(ctx context.Context, exec boi
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			queries.Assign(&rel.UserDeviceID, o.Token)
+			rel.UserDeviceID = o.Token
 		}
 	}
 
@@ -736,7 +736,7 @@ func UserDevices(mods ...qm.QueryMod) userDeviceQuery {
 
 // FindUserDevice retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindUserDevice(ctx context.Context, exec boil.ContextExecutor, token []byte, selectCols ...string) (*UserDevice, error) {
+func FindUserDevice(ctx context.Context, exec boil.ContextExecutor, token string, selectCols ...string) (*UserDevice, error) {
 	userDeviceObj := &UserDevice{}
 
 	sel := "*"
@@ -1333,7 +1333,7 @@ func (o *UserDeviceSlice) ReloadAll(ctx context.Context, exec boil.ContextExecut
 }
 
 // UserDeviceExists checks if the UserDevice row exists.
-func UserDeviceExists(ctx context.Context, exec boil.ContextExecutor, token []byte) (bool, error) {
+func UserDeviceExists(ctx context.Context, exec boil.ContextExecutor, token string) (bool, error) {
 	var exists bool
 	sql := "select exists(select 1 from `user_devices` where `token`=? and `deleted_at` is null limit 1)"
 

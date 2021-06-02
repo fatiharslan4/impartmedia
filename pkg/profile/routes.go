@@ -2,6 +2,7 @@ package profile
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -313,7 +314,7 @@ func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 
 		device := models.UserDevice{}
 		err = json.Unmarshal(b, &device)
-		dbModel := device.ToDBModel()
+		dbModel := device.UserDeviceToDBModel()
 		if err != nil {
 			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a UserDevice")
 			ph.logger.Error(impartErr.Error())
@@ -321,12 +322,24 @@ func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 			return
 		}
 
-		if userDevice, err := ph.profileService.AddUserDevice(ctx, dbModel); err != nil {
-			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
-			return
-		} else {
-			ctx.JSON(http.StatusOK, userDevice)
+		userDevice, err := ph.profileService.CreateUserDevice(ctx, dbModel)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
+		// map for notification
+		err = ph.profileService.MapDeviceForNotification(ctx, userDevice)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, userDevice)
+		return
+
 	}
 }

@@ -32,7 +32,9 @@ type Service interface {
 	ValidateInput(document gojsonschema.JSONLoader, validationModel types.Type) []impart.Error
 	Logger() *zap.Logger
 
-	AddUserDevice(ctx context.Context, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error)
+	GetUserConfigurations(ctx context.Context, impartWealthID string) (models.UserConfigurations, impart.Error)
+	CreateUserDevice(ctx context.Context, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error)
+	MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {

@@ -23,10 +23,11 @@ import (
 
 // NotificationDeviceMapping is an object representing the database table.
 type NotificationDeviceMapping struct {
-	MapID          int    `boil:"map_id" json:"map_id" toml:"map_id" yaml:"map_id"`
+	MapID          uint   `boil:"map_id" json:"map_id" toml:"map_id" yaml:"map_id"`
 	ImpartWealthID string `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	UserDeviceID   []byte `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
-	NotifyStatus   int    `boil:"notify_status" json:"notify_status" toml:"notify_status" yaml:"notify_status"`
+	UserDeviceID   string `boil:"user_device_id" json:"user_device_id" toml:"user_device_id" yaml:"user_device_id"`
+	NotifyArn      string `boil:"notify_arn" json:"notify_arn" toml:"notify_arn" yaml:"notify_arn"`
+	NotifyStatus   bool   `boil:"notify_status" json:"notify_status" toml:"notify_status" yaml:"notify_status"`
 
 	R *notificationDeviceMappingR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L notificationDeviceMappingL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -36,35 +37,30 @@ var NotificationDeviceMappingColumns = struct {
 	MapID          string
 	ImpartWealthID string
 	UserDeviceID   string
+	NotifyArn      string
 	NotifyStatus   string
 }{
 	MapID:          "map_id",
 	ImpartWealthID: "impart_wealth_id",
 	UserDeviceID:   "user_device_id",
+	NotifyArn:      "notify_arn",
 	NotifyStatus:   "notify_status",
 }
 
 // Generated where
 
-type whereHelper__byte struct{ field string }
-
-func (w whereHelper__byte) EQ(x []byte) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
-func (w whereHelper__byte) NEQ(x []byte) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
-func (w whereHelper__byte) LT(x []byte) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
-func (w whereHelper__byte) LTE(x []byte) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
-func (w whereHelper__byte) GT(x []byte) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
-func (w whereHelper__byte) GTE(x []byte) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
-
 var NotificationDeviceMappingWhere = struct {
-	MapID          whereHelperint
+	MapID          whereHelperuint
 	ImpartWealthID whereHelperstring
-	UserDeviceID   whereHelper__byte
-	NotifyStatus   whereHelperint
+	UserDeviceID   whereHelperstring
+	NotifyArn      whereHelperstring
+	NotifyStatus   whereHelperbool
 }{
-	MapID:          whereHelperint{field: "`notification_device_mapping`.`map_id`"},
+	MapID:          whereHelperuint{field: "`notification_device_mapping`.`map_id`"},
 	ImpartWealthID: whereHelperstring{field: "`notification_device_mapping`.`impart_wealth_id`"},
-	UserDeviceID:   whereHelper__byte{field: "`notification_device_mapping`.`user_device_id`"},
-	NotifyStatus:   whereHelperint{field: "`notification_device_mapping`.`notify_status`"},
+	UserDeviceID:   whereHelperstring{field: "`notification_device_mapping`.`user_device_id`"},
+	NotifyArn:      whereHelperstring{field: "`notification_device_mapping`.`notify_arn`"},
+	NotifyStatus:   whereHelperbool{field: "`notification_device_mapping`.`notify_status`"},
 }
 
 // NotificationDeviceMappingRels is where relationship names are stored.
@@ -91,9 +87,9 @@ func (*notificationDeviceMappingR) NewStruct() *notificationDeviceMappingR {
 type notificationDeviceMappingL struct{}
 
 var (
-	notificationDeviceMappingAllColumns            = []string{"map_id", "impart_wealth_id", "user_device_id", "notify_status"}
-	notificationDeviceMappingColumnsWithoutDefault = []string{"impart_wealth_id", "user_device_id"}
-	notificationDeviceMappingColumnsWithDefault    = []string{"map_id", "notify_status"}
+	notificationDeviceMappingAllColumns            = []string{"map_id", "impart_wealth_id", "user_device_id", "notify_arn", "notify_status"}
+	notificationDeviceMappingColumnsWithoutDefault = []string{"impart_wealth_id", "user_device_id", "notify_arn", "notify_status"}
+	notificationDeviceMappingColumnsWithDefault    = []string{"map_id"}
 	notificationDeviceMappingPrimaryKeyColumns     = []string{"map_id"}
 )
 
@@ -524,9 +520,7 @@ func (notificationDeviceMappingL) LoadUserDevice(ctx context.Context, e boil.Con
 		if object.R == nil {
 			object.R = &notificationDeviceMappingR{}
 		}
-		if !queries.IsNil(object.UserDeviceID) {
-			args = append(args, object.UserDeviceID)
-		}
+		args = append(args, object.UserDeviceID)
 
 	} else {
 	Outer:
@@ -536,14 +530,12 @@ func (notificationDeviceMappingL) LoadUserDevice(ctx context.Context, e boil.Con
 			}
 
 			for _, a := range args {
-				if queries.Equal(a, obj.UserDeviceID) {
+				if a == obj.UserDeviceID {
 					continue Outer
 				}
 			}
 
-			if !queries.IsNil(obj.UserDeviceID) {
-				args = append(args, obj.UserDeviceID)
-			}
+			args = append(args, obj.UserDeviceID)
 
 		}
 	}
@@ -602,7 +594,7 @@ func (notificationDeviceMappingL) LoadUserDevice(ctx context.Context, e boil.Con
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if queries.Equal(local.UserDeviceID, foreign.Token) {
+			if local.UserDeviceID == foreign.Token {
 				local.R.UserDevice = foreign
 				if foreign.R == nil {
 					foreign.R = &userDeviceR{}
@@ -690,7 +682,7 @@ func (o *NotificationDeviceMapping) SetUserDevice(ctx context.Context, exec boil
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	queries.Assign(&o.UserDeviceID, related.Token)
+	o.UserDeviceID = related.Token
 	if o.R == nil {
 		o.R = &notificationDeviceMappingR{
 			UserDevice: related,
@@ -718,7 +710,7 @@ func NotificationDeviceMappings(mods ...qm.QueryMod) notificationDeviceMappingQu
 
 // FindNotificationDeviceMapping retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindNotificationDeviceMapping(ctx context.Context, exec boil.ContextExecutor, mapID int, selectCols ...string) (*NotificationDeviceMapping, error) {
+func FindNotificationDeviceMapping(ctx context.Context, exec boil.ContextExecutor, mapID uint, selectCols ...string) (*NotificationDeviceMapping, error) {
 	notificationDeviceMappingObj := &NotificationDeviceMapping{}
 
 	sel := "*"
@@ -819,7 +811,7 @@ func (o *NotificationDeviceMapping) Insert(ctx context.Context, exec boil.Contex
 		return ErrSyncFail
 	}
 
-	o.MapID = int(lastID)
+	o.MapID = uint(lastID)
 	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == notificationDeviceMappingMapping["map_id"] {
 		goto CacheNoHooks
 	}
@@ -1093,7 +1085,7 @@ func (o *NotificationDeviceMapping) Upsert(ctx context.Context, exec boil.Contex
 		return ErrSyncFail
 	}
 
-	o.MapID = int(lastID)
+	o.MapID = uint(lastID)
 	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == notificationDeviceMappingMapping["map_id"] {
 		goto CacheNoHooks
 	}
@@ -1272,7 +1264,7 @@ func (o *NotificationDeviceMappingSlice) ReloadAll(ctx context.Context, exec boi
 }
 
 // NotificationDeviceMappingExists checks if the NotificationDeviceMapping row exists.
-func NotificationDeviceMappingExists(ctx context.Context, exec boil.ContextExecutor, mapID int) (bool, error) {
+func NotificationDeviceMappingExists(ctx context.Context, exec boil.ContextExecutor, mapID uint) (bool, error) {
 	var exists bool
 	sql := "select exists(select 1 from `notification_device_mapping` where `map_id`=? limit 1)"
 

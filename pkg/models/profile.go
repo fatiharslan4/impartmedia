@@ -74,6 +74,10 @@ type ScreenNameValidator struct {
 	ScreenName string `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=4,maxLength=35"`
 }
 
+type AuthenticationIDValidation struct {
+	AuthenticationID string `json:"authId,omitempty" conform:"trim"`
+}
+
 func UnmarshallJson(profileJson string) (Profile, error) {
 	var p Profile
 	var err error

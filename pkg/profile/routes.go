@@ -50,13 +50,15 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
 	profileRoutes.POST("/send-email", handler.ResentEmail())
 
-	profileRoutes.POST("/userdevice", handler.CreateUserDevice())
-	profileRoutes.POST("/notification", handler.CreateNotificationConfiguration())
-
 	questionnaireRoutes := version.Group("/questionnaires")
 	questionnaireRoutes.GET("", handler.AllQuestionnaireHandler())                     //returns a list of questionnaire; filter by `name` query param
 	questionnaireRoutes.GET("/:impartWealthId", handler.GetUserQuestionnaireHandler()) //returns a list of past questionnaires taken by this impart wealth id; filter by `name` query param
 	questionnaireRoutes.POST("/:impartWealthId", handler.SaveUserQuestionnaire())      //posts a new questionnaire for this impart wealth id
+
+	userRoutes := version.Group("/user")
+	userRoutes.POST("/userdevice", handler.CreateUserDevice())
+	userRoutes.GET("/notification", handler.GetConfiguration())
+	userRoutes.POST("/notification", handler.CreateNotificationConfiguration())
 
 }
 
@@ -413,7 +415,7 @@ func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 
 /**
  *
- * Create User Device
+ * Add/update notification configuration
  *
  */
 func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
@@ -485,5 +487,30 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 
 		ctx.JSON(http.StatusCreated, configurations)
 		return
+	}
+}
+
+/**
+ *
+ * Get user configurations
+ *
+ */
+func (ph *profileHandler) GetConfiguration() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		context := impart.GetCtxUser(ctx)
+
+		data, err := ph.profileService.GetUserConfigurations(ctx, context.ImpartWealthID)
+		if err != nil {
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+		if (data == models.UserConfigurations{}) {
+			err := impart.NewError(impart.ErrNotFound, "no configuration data found")
+			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusCreated, data)
+
 	}
 }

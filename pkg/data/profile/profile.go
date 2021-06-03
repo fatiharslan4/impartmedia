@@ -24,6 +24,9 @@ type Store interface {
 	SaveUserQuestionnaire(ctx context.Context, answer dbmodels.UserAnswerSlice) error
 
 	GetUserConfigurations(ctx context.Context, impartWealthID string) (*dbmodels.UserConfiguration, error)
+	CreateUserConfigurations(ctx context.Context, conf *dbmodels.UserConfiguration) (*dbmodels.UserConfiguration, error)
+	EditUserConfigurations(ctx context.Context, conf *dbmodels.UserConfiguration) (*dbmodels.UserConfiguration, error)
+
 	GetUserDevice(ctx context.Context, token string, impartWealthID string, deviceID string) (*dbmodels.UserDevice, error)
 	CreateUserDevice(ctx context.Context, device *dbmodels.UserDevice) (*dbmodels.UserDevice, error)
 

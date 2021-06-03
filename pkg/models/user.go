@@ -21,6 +21,7 @@ type UserDevice struct {
 }
 
 type UserConfigurations struct {
+	ConfigID           uint
 	ImpartWealthID     string `json:"impartWealthId"`
 	NotificationStatus bool   `json:"notificationStatus"`
 }
@@ -59,6 +60,7 @@ func UserDeviceFromDBModel(d *dbmodels.UserDevice) UserDevice {
 
 func UserConfigurationFromDBModel(d *dbmodels.UserConfiguration) UserConfigurations {
 	out := UserConfigurations{
+		ConfigID:           d.ConfigID,
 		ImpartWealthID:     d.ImpartWealthID,
 		NotificationStatus: d.NotificationStatus,
 	}
@@ -68,6 +70,7 @@ func UserConfigurationFromDBModel(d *dbmodels.UserConfiguration) UserConfigurati
 
 func (uc UserConfigurations) UserConfigurationTODBModel() *dbmodels.UserConfiguration {
 	out := &dbmodels.UserConfiguration{
+		ConfigID:           uc.ConfigID,
 		ImpartWealthID:     uc.ImpartWealthID,
 		NotificationStatus: uc.NotificationStatus,
 	}
@@ -82,4 +85,12 @@ type MapArgumentInput struct {
 	DeviceID       string
 	DeviceToken    string
 	Negate         bool
+}
+
+// user Notification
+type UserGlobalConfigInput struct {
+	DeviceToken    string `json:"deviceToken,omitempty"`
+	Status         bool   `json:"status"`
+	ImpartWealthID string `json:"impartWealthID,omitempty"`
+	Type           string `json:"type"`
 }

@@ -305,6 +305,39 @@ func (m *mysqlStore) CreateUserDevice(ctx context.Context, device *dbmodels.User
 
 /**
  *
+ * AddUserConfigurations
+ *
+ */
+func (m *mysqlStore) CreateUserConfigurations(ctx context.Context, conf *dbmodels.UserConfiguration) (*dbmodels.UserConfiguration, error) {
+	if conf.ImpartWealthID == "" {
+		m.logger.Error("impartWealthID is nil")
+		return nil, impart.ErrBadRequest
+	}
+	err := conf.Insert(ctx, m.db, boil.Infer())
+	if err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+/**
+ *
+ * Edit User Configurations
+ *
+ */
+func (m *mysqlStore) EditUserConfigurations(ctx context.Context, conf *dbmodels.UserConfiguration) (*dbmodels.UserConfiguration, error) {
+	if conf.ImpartWealthID == "" {
+		m.logger.Error("impartWealthID is nil")
+		return nil, impart.ErrBadRequest
+	}
+	if _, err := conf.Update(ctx, m.db, boil.Infer()); err != nil {
+		return nil, err
+	}
+	return conf, conf.Reload(ctx, m.db)
+}
+
+/**
+ *
  * GetUserConfigurations
  *
  */
@@ -319,8 +352,8 @@ func (m *mysqlStore) GetUserConfigurations(ctx context.Context, impartWealthID s
 	}
 
 	configurations, err := dbmodels.UserConfigurations(where...).One(ctx, m.db)
-	if err == sql.ErrNoRows {
-		return nil, impart.ErrNotFound
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
 	}
 	return configurations, nil
 }

@@ -18,10 +18,12 @@ import (
 const ImpartAPIKeyHeaderName = "x-api-key"
 const AuthorizationHeader = "Authorization"
 const AuthorizationHeaderBearerType = "Bearer"
+const DeviceAuthorizationHeader = "x-device-token"
 
 type Service interface {
 	RequestAuthorizationHandler() gin.HandlerFunc
 	APIKeyHandler() gin.HandlerFunc
+	DeviceIdentificationHandler() gin.HandlerFunc
 }
 
 type authService struct {
@@ -108,6 +110,15 @@ func (a *authService) APIKeyHandler() gin.HandlerFunc {
 			iErr := impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("%v", impart.ErrInvalidAPIKey))
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, impart.ErrorResponse(iErr))
 			return
+		}
+		ctx.Next()
+	}
+}
+
+func (a *authService) DeviceIdentificationHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if ctx.GetHeader(DeviceAuthorizationHeader) != "" {
+			ctx.Set(impart.DeviceAuthorizationContextKey, ctx.GetHeader(DeviceAuthorizationHeader))
 		}
 		ctx.Next()
 	}

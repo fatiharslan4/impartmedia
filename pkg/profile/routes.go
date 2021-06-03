@@ -44,6 +44,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
 
 	profileRoutes.POST("/userdevice", handler.CreateUserDevice())
+	profileRoutes.POST("/notification", handler.CreateNotificationConfiguration())
 
 	questionnaireRoutes := version.Group("/questionnaires")
 	questionnaireRoutes.GET("", handler.AllQuestionnaireHandler())                     //returns a list of questionnaire; filter by `name` query param
@@ -296,7 +297,6 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
  */
 func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-
 		b, err := ctx.GetRawData()
 		if err != nil && err != io.EOF {
 			ph.logger.Error("error deserializing", zap.Error(err))
@@ -341,5 +341,82 @@ func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 		ctx.JSON(http.StatusOK, userDevice)
 		return
 
+	}
+}
+
+/**
+ *
+ * Create User Device
+ *
+ */
+func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		conf := models.UserGlobalConfigInput{}
+		if err := ctx.ShouldBindJSON(&conf); err != nil {
+			ph.logger.Error("invalid json payload", zap.Error(err))
+			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Questionnaire")
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+		context := impart.GetCtxUser(ctx)
+		configurations, err := ph.profileService.ModifyUserConfigurations(ctx, models.UserConfigurations{
+			ImpartWealthID:     context.ImpartWealthID,
+			NotificationStatus: conf.Status,
+		})
+		if err != nil {
+			ph.logger.Error("unable to process your request", zap.Error(err))
+			err := impart.NewError(impart.ErrBadRequest, "unable to process your request")
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+		// get user device details
+		// user can provide the device token from header / from request
+		deviceToken := ""
+		if conf.DeviceToken != "" {
+			deviceToken = conf.DeviceToken
+		} else {
+			deviceToken = impart.GetCtxDeviceToken(ctx)
+		}
+
+		if deviceToken == "" {
+			ph.logger.Error("unable to find device token to update notification", zap.Error(err))
+			err := impart.NewError(impart.ErrBadRequest, "unable to find device token")
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+
+		// if the user is requested for enable notification
+		if conf.Status {
+			// check the same device id exists for another user, then set to false
+			err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+				Ctx:            ctx,
+				ImpartWealthID: context.ImpartWealthID,
+				DeviceID:       deviceToken,
+				Negate:         true,
+			}, false)
+			if err != nil {
+				ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+				return
+			}
+		}
+
+		// if the status is for disable,
+		// then deactivate all the devices of this user
+		if !conf.Status {
+			deviceToken = ""
+		}
+		// update the notificaton status for device this user
+		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+			Ctx:            ctx,
+			ImpartWealthID: context.ImpartWealthID,
+			DeviceID:       deviceToken,
+		}, conf.Status)
+		if err != nil {
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusCreated, configurations)
+		return
 	}
 }

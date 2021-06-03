@@ -3,17 +3,19 @@ package impart
 import (
 	"context"
 	"database/sql"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"go.uber.org/zap"
 	"net"
 	"net/http"
 	"runtime"
 	"time"
+
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"go.uber.org/zap"
 )
 
 const AuthIDRequestContextKey = "AuthIDRequestContextKey{}"
 const UserRequestContextKey = "UserRequestContextKey{}"
 const HiveMembershipsContextKey = "HiveMembershipsContextKey{}"
+const DeviceAuthorizationContextKey = "DeviceAuthorizationContextKey{}"
 
 func GetCtxAuthID(ctx context.Context) string {
 	return ctx.Value(AuthIDRequestContextKey).(string)
@@ -61,4 +63,12 @@ func CommitRollbackLogger(tx *sql.Tx, err error, logger *zap.Logger) {
 	if err = tx.Commit(); err != nil && err != sql.ErrTxDone {
 		logger.Info("encountered an error attempting to commit transaction", zap.Error(err))
 	}
+}
+
+func GetCtxDeviceToken(ctx context.Context) string {
+	val := ctx.Value(DeviceAuthorizationContextKey)
+	if val != nil {
+		return val.(string)
+	}
+	return ""
 }

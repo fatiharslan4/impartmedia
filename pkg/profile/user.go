@@ -10,6 +10,17 @@ import (
 	"go.uber.org/zap"
 )
 
+func (ps *profileService) GetUserDevice(ctx context.Context, token string, impartID string, deviceID string) (models.UserDevice, error) {
+	device, err := ps.profileStore.GetUserDevice(ctx, token, impartID, deviceID)
+	if err != nil {
+		errorString := fmt.Sprintf("error occured during update existing %s device id", deviceID)
+		ps.Logger().Error(errorString, zap.Any("error", err))
+		return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, errorString)
+	}
+
+	return models.UserDeviceFromDBModel(device), nil
+}
+
 func (ps *profileService) CreateUserDevice(ctx context.Context, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error) {
 	contextUser := impart.GetCtxUser(ctx)
 	if contextUser == nil || contextUser.ImpartWealthID == "" {
@@ -143,5 +154,52 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
 
+	return nil
+}
+
+/**
+ *
+ * Save user configuration
+ *
+ */
+func (ps *profileService) ModifyUserConfigurations(ctx context.Context, conf models.UserConfigurations) (models.UserConfigurations, impart.Error) {
+	var configuration *dbmodels.UserConfiguration
+	var err error
+	// check the user config alreay exists
+	// then update, else insert
+	configuration, err = ps.profileStore.GetUserConfigurations(ctx, conf.ImpartWealthID)
+	if err != nil && err != impart.ErrNotFound {
+		errorString := "unable to get the user configuration"
+		ps.Logger().Error(errorString, zap.Any("error", err))
+		return models.UserConfigurations{}, impart.NewError(impart.ErrBadRequest, errorString)
+	}
+	// if the entry exists, then update with latest
+	if configuration != nil {
+		configuration.NotificationStatus = conf.NotificationStatus
+		configuration, err = ps.profileStore.EditUserConfigurations(ctx, configuration)
+	} else {
+		configuration, err = ps.profileStore.CreateUserConfigurations(ctx, conf.UserConfigurationTODBModel())
+	}
+	if err != nil {
+		errorString := "unable to add/update user configuration"
+		ps.Logger().Error(errorString, zap.Any("error", err))
+		return models.UserConfigurations{}, impart.NewError(impart.ErrBadRequest, errorString)
+	}
+
+	return models.UserConfigurationFromDBModel(configuration), nil
+}
+
+/**
+ *
+ * Update Existing Notification Mapp Data
+ * Which will upodate the notification mapp status into true/false
+ */
+func (ps *profileService) UpdateExistingNotificationMappData(input models.MapArgumentInput, status bool) impart.Error {
+	err := ps.profileStore.UpdateExistingNotificationMappData(input, status)
+	if err != nil {
+		errorString := "unable to update notification map status"
+		ps.Logger().Error(errorString, zap.Any("error", err))
+		return impart.NewError(impart.ErrBadRequest, errorString)
+	}
 	return nil
 }

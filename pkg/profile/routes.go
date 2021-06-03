@@ -56,7 +56,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	questionnaireRoutes.POST("/:impartWealthId", handler.SaveUserQuestionnaire())      //posts a new questionnaire for this impart wealth id
 
 	userRoutes := version.Group("/user")
-	userRoutes.POST("/userdevice", handler.CreateUserDevice())
+	userRoutes.POST("/register-device", handler.CreateUserDevice())
 	userRoutes.GET("/notification", handler.GetConfiguration())
 	userRoutes.POST("/notification", handler.CreateNotificationConfiguration())
 

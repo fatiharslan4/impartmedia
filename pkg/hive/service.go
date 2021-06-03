@@ -40,6 +40,8 @@ type Service interface {
 	ReportComment(ctx context.Context, commentID uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
 	SendCommentNotification(input models.CommentNotificationInput) impart.Error
 	SendPostNotification(input models.PostNotificationInput) impart.Error
+
+	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 }
 
 const maxNotificationLength = 512

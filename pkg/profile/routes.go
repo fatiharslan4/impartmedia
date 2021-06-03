@@ -56,6 +56,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	questionnaireRoutes.POST("/:impartWealthId", handler.SaveUserQuestionnaire())      //posts a new questionnaire for this impart wealth id
 
 	userRoutes := version.Group("/user")
+	userRoutes.POST("/logout", handler.HandlerUserLogout())
 	userRoutes.POST("/register-device", handler.CreateUserDevice())
 	userRoutes.GET("/notification", handler.GetConfiguration())
 	userRoutes.POST("/notification", handler.CreateNotificationConfiguration())
@@ -456,11 +457,18 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 
 		// if the user is requested for enable notification
 		if conf.Status {
+			deviceDetails, devErr := ph.profileService.GetUserDevice(ctx, deviceToken, "", "")
+			if devErr != nil {
+				ph.logger.Error("unable to find device", zap.Error(err))
+				err := impart.NewError(impart.ErrBadRequest, "unable to find device")
+				ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+				return
+			}
 			// check the same device id exists for another user, then set to false
 			err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
 				Ctx:            ctx,
 				ImpartWealthID: context.ImpartWealthID,
-				DeviceID:       deviceToken,
+				DeviceID:       deviceDetails.DeviceID,
 				Negate:         true,
 			}, false)
 			if err != nil {
@@ -478,7 +486,7 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
 			Ctx:            ctx,
 			ImpartWealthID: context.ImpartWealthID,
-			DeviceID:       deviceToken,
+			DeviceToken:    deviceToken,
 		}, conf.Status)
 		if err != nil {
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
@@ -511,6 +519,39 @@ func (ph *profileHandler) GetConfiguration() gin.HandlerFunc {
 		}
 
 		ctx.JSON(http.StatusCreated, data)
+
+	}
+}
+
+/**
+ * User Logout
+ *
+ * Once the user is logout,
+ * the notification status for this device should be disable
+ */
+func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		context := impart.GetCtxUser(ctx)
+		deviceToken := impart.GetCtxDeviceToken(ctx)
+		if deviceToken == "" {
+			err := impart.NewError(impart.ErrNotFound, "no device token found")
+			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
+			return
+		}
+		// update the notificaton status for device this user
+		err := ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+			Ctx:            ctx,
+			ImpartWealthID: context.ImpartWealthID,
+			DeviceToken:    deviceToken,
+		}, false)
+		if err != nil {
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusCreated, gin.H{
+			"status": "success",
+		})
 
 	}
 }

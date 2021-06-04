@@ -5,7 +5,6 @@ package data
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -103,7 +102,6 @@ func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin 
 	if !ctxUser.Admin {
 		return impart.ErrUnauthorized
 	}
-	fmt.Println("the pin post are here")
 	toPin, err := dbmodels.FindPost(ctx, d.db, postID)
 	if err != nil {
 		if err == sql.ErrNoRows {

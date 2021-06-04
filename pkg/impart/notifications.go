@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -144,7 +143,6 @@ func NewImpartNotificationService(db *sql.DB, stage, region, platformApplication
 func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data NotificationData, alert Alert, topicARN string) error {
 	var b []byte
 	var err error
-	fmt.Println("the topic are  111", ns.platformApplicationARN)
 
 	if strings.TrimSpace(topicARN) == "" {
 		return nil
@@ -176,8 +174,6 @@ func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data Not
 		return err
 	}
 
-	println("the message are", topicARN, aws.String(string(b)))
-
 	input := &sns.PublishInput{
 		Message:          aws.String(string(b)),
 		MessageStructure: aws.String("json"),
@@ -185,7 +181,6 @@ func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data Not
 	}
 	// print()
 	_, err = ns.Publish(input)
-	fmt.Println("the data is")
 	return err
 }
 

@@ -3,6 +3,7 @@ package hive
 import (
 	"context"
 	"database/sql"
+
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
@@ -37,6 +38,10 @@ type Service interface {
 	EditComment(ctx context.Context, comment models.Comment) (models.Comment, impart.Error)
 	DeleteComment(ctx context.Context, commentID uint64) impart.Error
 	ReportComment(ctx context.Context, commentID uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
+	SendCommentNotification(input models.CommentNotificationInput) impart.Error
+	SendPostNotification(input models.PostNotificationInput) impart.Error
+
+	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 }
 
 const maxNotificationLength = 512

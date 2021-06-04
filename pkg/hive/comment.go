@@ -3,9 +3,12 @@ package hive
 import (
 	"context"
 	"fmt"
-	data "github.com/impartwealthapp/backend/pkg/data/hive"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"strings"
+
+	data "github.com/impartwealthapp/backend/pkg/data/hive"
+	"github.com/impartwealthapp/backend/pkg/data/types"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -42,7 +45,7 @@ func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comm
 	var err error
 
 	if len(strings.TrimSpace(c.Content.Markdown)) < 1 {
-		return empty, impart.NewError(impart.ErrBadRequest, "post is less than 1 character1")
+		return empty, impart.NewError(impart.ErrBadRequest, "post is less than 1 character1", impart.Content)
 	}
 	ctxUser := impart.GetCtxUser(ctx)
 	newComment := &dbmodels.Comment{
@@ -51,9 +54,12 @@ func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comm
 		CreatedAt:      impart.CurrentUTC(),
 		Content:        c.Content.Markdown,
 		LastReplyTS:    impart.CurrentUTC(),
-		//ParentCommentID: c.p, //no threading for now
-		UpVoteCount:   0,
-		DownVoteCount: 0,
+		UpVoteCount:    0,
+		DownVoteCount:  0,
+	}
+	// check a parent is exists
+	if c.ParentCommentID > 0 {
+		newComment.ParentCommentID = null.Uint64From(c.ParentCommentID)
 	}
 
 	comment, err := s.commentData.NewComment(ctx, newComment)
@@ -67,32 +73,32 @@ func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comm
 		s.logger.Error("error getting post from newly created comment")
 		return out, nil
 	}
-	previewEnd := maxNotificationLength
-	if len(dbPost.Subject) < maxNotificationLength {
-		previewEnd = len(dbPost.Subject)
-	}
 
-	previewText := dbPost.Subject[0:previewEnd]
-	notificationData := impart.NotificationData{
-		EventDatetime: impart.CurrentUTC(),
-		PostID:        dbPost.PostID,
-	}
-
-	alert := impart.Alert{
-		Title: aws.String(fmt.Sprintf("New Comment on Your Post: %s", dbPost.Subject)),
-		Body:  aws.String(fmt.Sprintf("%s wrote %s", ctxUser.ScreenName, previewText)),
-	}
-
-	s.logger.Debug("sending notification", zap.Any("impartWealthId", dbPost.R.ImpartWealth.ImpartWealthID), zap.Any("alert", alert))
-
-	go func() {
-		if strings.TrimSpace(dbPost.R.ImpartWealth.ImpartWealthID) != "" {
-			err = s.sendNotification(notificationData, alert, dbPost.R.ImpartWealth.ImpartWealthID)
-			if err != nil {
-				s.logger.Error("error attempting to send post reply ", zap.Error(err))
-			}
+	// check parent comment exists, then call
+	if c.ParentCommentID > 0 {
+		// send post
+		err = s.SendCommentNotification(models.CommentNotificationInput{
+			Ctx:        ctx,
+			PostID:     dbPost.PostID,
+			CommentID:  out.CommentID,
+			ActionType: types.NewComment,
+		})
+		if err != nil {
+			s.logger.Error("error happened on notify reaction", zap.Error(err))
 		}
-	}()
+	} else {
+		// send post
+		err = s.SendPostNotification(models.PostNotificationInput{
+			Ctx:        ctx,
+			PostID:     dbPost.PostID,
+			CommentID:  out.CommentID,
+			ActionType: types.NewPostComment,
+		})
+		if err != nil {
+			s.logger.Error("error happened on notify reaction", zap.Error(err))
+		}
+
+	}
 
 	return out, nil
 }
@@ -106,7 +112,7 @@ func (s *service) EditComment(ctx context.Context, editedComment models.Comment)
 		return empty, impart.UnknownError
 	}
 	if !ctxUser.Admin && existingComment.ImpartWealthID != ctxUser.ImpartWealthID {
-		return empty, impart.NewError(impart.ErrUnauthorized, "unable to edit a comment that's not yours")
+		return empty, impart.NewError(impart.ErrUnauthorized, "unable to edit a comment that's not yours", impart.ImpartWealthID)
 	}
 	existingComment.Content = editedComment.Content.Markdown
 	c, err := s.commentData.EditComment(ctx, existingComment)
@@ -155,12 +161,25 @@ func (s *service) ReportComment(ctx context.Context, commentID uint64, reason st
 		s.logger.Error("couldn't report comment", zap.Error(err), zap.Uint64("commentId", commentID))
 		switch err {
 		case impart.ErrNoOp:
-			return empty, impart.NewError(impart.ErrNoOp, "comment is already in the input reported state")
+			return empty, impart.NewError(impart.ErrNoOp, "comment is already in the input reported state", impart.Report)
 		case impart.ErrNotFound:
-			return empty, impart.NewError(err, fmt.Sprintf("could not find comment %v to report", commentID))
+			return empty, impart.NewError(err, fmt.Sprintf("could not find comment %v to report", commentID), impart.Report)
 		default:
 			return empty, impart.UnknownError
 		}
+	}
+
+	//send comment report notification
+	err = s.SendCommentNotification(models.CommentNotificationInput{
+		Ctx:             ctx,
+		CommentID:       commentID,
+		ActionType:      types.Report,
+		ActionData:      reason,
+		NotifyPostOwner: true,
+	})
+
+	if err != nil {
+		s.logger.Error("error happened on notify reaction", zap.Error(err))
 	}
 	out, err := s.reactionData.GetUserTrack(ctx, data.ContentInput{
 		Type: data.Comment,
@@ -171,4 +190,128 @@ func (s *service) ReportComment(ctx context.Context, commentID uint64, reason st
 		return empty, impart.UnknownError
 	}
 	return out, nil
+}
+
+/**
+ * SendCommentNotification
+ *
+ * Send notification when a comment reported
+ * Notifying to :
+ *		post owner
+ *		comment owner
+ */
+func (s *service) SendCommentNotification(input models.CommentNotificationInput) impart.Error {
+	dbComment, err := s.commentData.GetComment(input.Ctx, input.CommentID)
+	if err != nil {
+		return impart.NewError(err, "unable to fetch comment for send notification")
+	}
+	// set post id in input
+	input.PostID = dbComment.PostID
+
+	notificationData := impart.NotificationData{
+		EventDatetime: impart.CurrentUTC(),
+		PostID:        0,
+	}
+
+	// generate notification context
+	out, err := s.BuildCommentNotificationData(input)
+	if err != nil {
+		return impart.NewError(err, "build comment notification params")
+	}
+
+	s.logger.Debug("sending comment notification", zap.Any("data", input), zap.Any("notificationData", out))
+
+	// send to comment owner
+	go func() {
+		if strings.TrimSpace(dbComment.R.ImpartWealth.ImpartWealthID) != "" {
+			err = s.sendNotification(notificationData, out.Alert, dbComment.R.ImpartWealth.ImpartWealthID)
+			if err != nil {
+				s.logger.Error("error attempting to send post comment notification ", zap.Any("postData", out), zap.Error(err))
+			}
+		}
+	}()
+
+	// send to post owner
+	if input.NotifyPostOwner {
+		go func() {
+			if strings.TrimSpace(out.PostOwnerWealthID) != "" {
+				err = s.sendNotification(notificationData, out.PostOwnerAlert, out.PostOwnerWealthID)
+				if err != nil {
+					s.logger.Error("error attempting to send post comment notification post owner ", zap.Any("postData", out), zap.Any("postData", out), zap.Error(err))
+				}
+			}
+		}()
+	}
+
+	return nil
+}
+
+//
+// From here , all the notification action workflow
+//
+func (s *service) BuildCommentNotificationData(input models.CommentNotificationInput) (models.CommentNotificationBuildDataOutput, error) {
+	var _, postUserIWID string
+	var alert, postOwnerAlert impart.Alert
+	var err error
+	var dbPost *dbmodels.Post
+
+	ctxUser := impart.GetCtxUser(input.Ctx)
+
+	// initialize dbPost
+	if input.NotifyPostOwner {
+		dbPost, err = s.postData.GetPost(input.Ctx, input.PostID)
+		if err != nil {
+			return models.CommentNotificationBuildDataOutput{}, impart.NewError(err, "unable to fetch comment post for send notification")
+		}
+		postUserIWID = dbPost.ImpartWealthID
+	}
+
+	switch input.ActionType {
+	//in case of report, dislike,take like dislike
+	case types.Report, types.DownVote, types.TakeDownVote, types.TakeUpVote:
+	// in case up vote
+	case types.UpVote:
+		// make alert
+		alert = impart.Alert{
+			Title: aws.String("New Comment Like"),
+			Body: aws.String(
+				fmt.Sprintf("%s has liked your Comment", ctxUser.ScreenName),
+			),
+		}
+		// make post owner alert
+		if input.NotifyPostOwner {
+			postOwnerAlert = impart.Alert{
+				Title: aws.String("New Comment Like"),
+				Body: aws.String(
+					fmt.Sprintf("%s has liked %s post comment", ctxUser.ScreenName, dbPost.Subject),
+				),
+			}
+		}
+	// in case down vote
+	case types.NewComment:
+		// make alert
+		alert = impart.Alert{
+			Title: aws.String("New Reply"),
+			Body: aws.String(
+				fmt.Sprintf("%s has replied to your comment", ctxUser.ScreenName),
+			),
+		}
+		// make post owner alert
+		if input.NotifyPostOwner {
+			postOwnerAlert = impart.Alert{
+				Title: aws.String("New Reply"),
+				Body: aws.String(
+					fmt.Sprintf("%s has replied to %s post comment", ctxUser.ScreenName, dbPost.Subject),
+				),
+			}
+		}
+	default:
+		err = impart.NewError(err, fmt.Sprintf("invalid notify option %s", input.ActionType))
+	}
+
+	return models.CommentNotificationBuildDataOutput{
+		Alert:             alert,
+		PostOwnerAlert:    postOwnerAlert,
+		PostOwnerWealthID: postUserIWID,
+	}, err
 }

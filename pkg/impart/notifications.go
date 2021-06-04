@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -188,6 +189,12 @@ func (ns *snsAppleNotificationService) Notify(ctx context.Context, data Notifica
 	u, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthID)).One(ctx, ns.db)
 	if err != nil {
 		return err
+	}
+	if u.DeviceToken == "" {
+		return fmt.Errorf("empty device token found")
+	}
+	if u.AwsSNSAppArn == "" {
+		return fmt.Errorf("empty sns ARN found")
 	}
 	snsAppARN, err := ns.NotifyAppleDevice(ctx, data, alert, u.DeviceToken, u.AwsSNSAppArn)
 	if err != nil {

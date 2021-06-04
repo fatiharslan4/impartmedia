@@ -149,6 +149,7 @@ func main() {
 	}
 
 	v1 := r.Group(v1Route)
+
 	v1.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
 	v1.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
 	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })

@@ -8,6 +8,7 @@ import (
 
 	"github.com/segmentio/ksuid"
 	"github.com/xeipuuv/gojsonschema"
+	"gopkg.in/auth0.v5/management"
 
 	"github.com/gin-gonic/gin"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
@@ -15,6 +16,11 @@ import (
 	"github.com/impartwealthapp/backend/pkg/models"
 	"go.uber.org/zap"
 )
+
+const impartDomain = "impartwealth.auth0.com"
+const integrationConnectionPrefix = "impart"
+const auth0managementClient = "wK78yrI3H2CSoWr0iscR5lItcZdjcLBA"
+const auth0managementClientSecret = "X3bXip3IZTQcLRoYIQ5VkMfSQdqcSZdJtdZpQd8w5-D22wK3vCt5HjMBo3Et93cJ"
 
 type profileHandler struct {
 	profileData          profiledata.Store
@@ -39,10 +45,14 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	profileRoutes.GET("/:impartWealthId", handler.GetProfileFunc())
 	profileRoutes.DELETE("/:impartWealthId", handler.DeleteProfileFunc())
 
+	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
+	profileRoutes.POST("/send-email", handler.ResentEmail())
+
 	questionnaireRoutes := version.Group("/questionnaires")
 	questionnaireRoutes.GET("", handler.AllQuestionnaireHandler())                     //returns a list of questionnaire; filter by `name` query param
 	questionnaireRoutes.GET("/:impartWealthId", handler.GetUserQuestionnaireHandler()) //returns a list of past questionnaires taken by this impart wealth id; filter by `name` query param
 	questionnaireRoutes.POST("/:impartWealthId", handler.SaveUserQuestionnaire())      //posts a new questionnaire for this impart wealth id
+
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -228,12 +238,116 @@ func (ph *profileHandler) SaveUserQuestionnaire() gin.HandlerFunc {
 			return
 		}
 
-		if err := ph.profileService.SaveQuestionnaire(ctx, q); err != nil {
+		if hivedtype, err := ph.profileService.SaveQuestionnaire(ctx, q); err != nil {
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		} else {
+			ctx.JSON(http.StatusCreated, gin.H{"newhive": hivedtype})
 			return
 		}
 
-		ctx.Status(http.StatusCreated)
-		return
+		// ctx.Status(http.StatusCreated)
+		// return
+	}
+}
+
+func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		// validate the inputs
+		impartErrl := ph.profileService.ValidateScreenName(gojsonschema.NewStringLoader(string(b)))
+		if impartErrl != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
+			return
+		}
+
+		p := models.ScreenNameValidator{}
+		err = json.Unmarshal(b, &p)
+
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to validate screen name")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		valid := ph.profileService.ScreenNameExists(ctx, p.ScreenName)
+		if valid {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Screen name is already taken.")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"status": "success",
+		})
+	}
+}
+
+func (ph *profileHandler) ResentEmail() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "Couldn't parse JSON request body."),
+			))
+		}
+		authdata := models.AuthenticationIDValidation{}
+		err = json.Unmarshal(b, &authdata)
+
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to Authenticationid.")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		if authdata.AuthenticationID == "" {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "Query parameters missing."),
+			))
+			return
+		}
+
+		ctxUser := impart.GetCtxUser(ctx)
+		if authdata.AuthenticationID != ctxUser.AuthenticationID {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "Invalid AuthenticationID"),
+			))
+			return
+		}
+
+		mgmnt, err := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Resent email sending failed.")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		jobs := management.Job{
+			UserID: &authdata.AuthenticationID,
+		}
+		err = mgmnt.User.Job.VerifyEmail(&jobs)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Resent email sending failed.")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Email is send to the User.",
+		})
+
 	}
 }

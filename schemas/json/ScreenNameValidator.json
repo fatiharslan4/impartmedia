@@ -1,0 +1,18 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"$ref": "#/definitions/ScreenNameValidator",
+	"title": "ScreenNameValidator",
+	"definitions": {
+		"ScreenNameValidator": {
+			"properties": {
+				"screenName": {
+					"maxLength": 35,
+					"minLength": 4,
+					"type": "string"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	}
+}

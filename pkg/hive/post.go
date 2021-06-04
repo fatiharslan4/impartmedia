@@ -6,9 +6,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"go.uber.org/zap"
@@ -21,11 +23,11 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	ctxUser := impart.GetCtxUser(ctx)
 
 	if len(strings.TrimSpace(post.Subject)) < 2 {
-		return models.Post{}, impart.NewError(impart.ErrBadRequest, "subject is less than 2 characters")
+		return models.Post{}, impart.NewError(impart.ErrBadRequest, "subject is less than 2 characters", impart.Subject)
 	}
 
 	if len(strings.TrimSpace(post.Content.Markdown)) < 10 {
-		return models.Post{}, impart.NewError(impart.ErrBadRequest, "post is less than 10 characters")
+		return models.Post{}, impart.NewError(impart.ErrBadRequest, "post is less than 10 characters", impart.Content)
 	}
 	shouldPin := false
 	if post.IsPinnedPost {
@@ -70,7 +72,7 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "error fetching post trying to edit")
 	}
 	if !ctxUser.Admin && existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
-		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours")
+		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours", impart.ImpartWealthID)
 	}
 	tagsSlice := make(dbmodels.TagSlice, len(inPost.TagIDs), len(inPost.TagIDs))
 	for i, t := range inPost.TagIDs {
@@ -257,4 +259,93 @@ func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, 
 		return empty, impart.UnknownError
 	}
 	return out, nil
+}
+
+/**
+ * SendPostNotification
+ *
+ * Send notification when a comment reported
+ * Notifying to :
+ *		post owner
+ */
+func (s *service) SendPostNotification(input models.PostNotificationInput) impart.Error {
+
+	dbPost, err := s.postData.GetPost(input.Ctx, input.PostID)
+	if err != nil {
+		return impart.NewError(err, "unable to fetch post for send notification")
+	}
+
+	notificationData := impart.NotificationData{
+		EventDatetime: impart.CurrentUTC(),
+		PostID:        input.PostID,
+	}
+
+	// generate notification context
+	out, err := s.BuildPostNotificationData(input)
+	if err != nil {
+		return impart.NewError(err, "build post notification params")
+	}
+
+	s.logger.Debug("sending post notification", zap.Any("data", input), zap.Any("notificationData", out))
+
+	// send to comment owner
+	go func() {
+		if strings.TrimSpace(dbPost.R.ImpartWealth.ImpartWealthID) != "" {
+			err = s.sendNotification(notificationData, out.Alert, dbPost.R.ImpartWealth.ImpartWealthID)
+			if err != nil {
+				s.logger.Error("error attempting to send post notification ", zap.Any("postData", out), zap.Error(err))
+			}
+		}
+	}()
+
+	return nil
+}
+
+//
+// From here , all the notification action workflow
+//
+func (s *service) BuildPostNotificationData(input models.PostNotificationInput) (models.CommentNotificationBuildDataOutput, error) {
+	var _, postUserIWID string
+	var alert, postOwnerAlert impart.Alert
+	var err error
+
+	ctxUser := impart.GetCtxUser(input.Ctx)
+
+	switch input.ActionType {
+	// in case new post
+	case types.NewPost:
+		// make alert
+		alert = impart.Alert{
+			Title: aws.String("New post"),
+			Body: aws.String(
+				fmt.Sprintf("%s added a post on Your Hive", ctxUser.ScreenName),
+			),
+		}
+	// in case up vote
+	case types.UpVote:
+		// make alert
+		alert = impart.Alert{
+			Title: aws.String("New Post Like"),
+			Body: aws.String(
+				fmt.Sprintf("%s has liked your post", ctxUser.ScreenName),
+			),
+		}
+	// in case down vote
+	case types.NewPostComment:
+		// make alert
+		alert = impart.Alert{
+			Title: aws.String("New Comment"),
+			Body: aws.String(
+				fmt.Sprintf("%s has left a comment on your post", ctxUser.ScreenName),
+			),
+		}
+	default:
+		err = impart.NewError(err, fmt.Sprintf("invalid notify option %s", input.ActionType))
+	}
+
+	return models.CommentNotificationBuildDataOutput{
+		Alert:             alert,
+		PostOwnerAlert:    postOwnerAlert,
+		PostOwnerWealthID: postUserIWID,
+	}, err
 }

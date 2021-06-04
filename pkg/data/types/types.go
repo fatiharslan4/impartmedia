@@ -12,4 +12,6 @@ var (
 	NewPost        Type = "newPost"
 	NewComment     Type = "newComment"
 	NewPostComment Type = "newPostComment"
+
+	UserDeviceValidationModel Type = "UserDevice"
 )

@@ -2,6 +2,7 @@ package profile
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"go.uber.org/zap"
@@ -52,6 +54,12 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	questionnaireRoutes.GET("", handler.AllQuestionnaireHandler())                     //returns a list of questionnaire; filter by `name` query param
 	questionnaireRoutes.GET("/:impartWealthId", handler.GetUserQuestionnaireHandler()) //returns a list of past questionnaires taken by this impart wealth id; filter by `name` query param
 	questionnaireRoutes.POST("/:impartWealthId", handler.SaveUserQuestionnaire())      //posts a new questionnaire for this impart wealth id
+
+	userRoutes := version.Group("/user")
+	userRoutes.POST("/logout", handler.HandlerUserLogout())
+	userRoutes.POST("/register-device", handler.CreateUserDevice())
+	userRoutes.GET("/notification", handler.GetConfiguration())
+	userRoutes.POST("/notification", handler.CreateNotificationConfiguration())
 
 }
 
@@ -347,6 +355,202 @@ func (ph *profileHandler) ResentEmail() gin.HandlerFunc {
 
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Email is send to the User.",
+		})
+
+	}
+}
+
+/**
+ *
+ * CreateUserDevice
+ *
+ */
+func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		// validate the inputs
+		impartErrl := ph.profileService.ValidateInput(gojsonschema.NewStringLoader(string(b)), types.UserDeviceValidationModel)
+		if impartErrl != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
+			return
+		}
+
+		device := models.UserDevice{}
+		err = json.Unmarshal(b, &device)
+		dbModel := device.UserDeviceToDBModel()
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a UserDevice")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		userDevice, err := ph.profileService.CreateUserDevice(ctx, dbModel)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		// map for notification
+		err = ph.profileService.MapDeviceForNotification(ctx, userDevice)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, userDevice)
+		return
+
+	}
+}
+
+/**
+ *
+ * Add/update notification configuration
+ *
+ */
+func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		conf := models.UserGlobalConfigInput{}
+		if err := ctx.ShouldBindJSON(&conf); err != nil {
+			ph.logger.Error("invalid json payload", zap.Error(err))
+			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Questionnaire")
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+		context := impart.GetCtxUser(ctx)
+		configurations, err := ph.profileService.ModifyUserConfigurations(ctx, models.UserConfigurations{
+			ImpartWealthID:     context.ImpartWealthID,
+			NotificationStatus: conf.Status,
+		})
+		if err != nil {
+			ph.logger.Error("unable to process your request", zap.Error(err))
+			err := impart.NewError(impart.ErrBadRequest, "unable to process your request")
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+		// get user device details
+		// user can provide the device token from header / from request
+		deviceToken := ""
+		if conf.DeviceToken != "" {
+			deviceToken = conf.DeviceToken
+		} else {
+			deviceToken = impart.GetCtxDeviceToken(ctx)
+		}
+
+		if deviceToken == "" {
+			ph.logger.Error("unable to find device token to update notification", zap.Error(err))
+			err := impart.NewError(impart.ErrBadRequest, "unable to find device token")
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+
+		// if the user is requested for enable notification
+		if conf.Status {
+			deviceDetails, devErr := ph.profileService.GetUserDevice(ctx, deviceToken, "", "")
+			if devErr != nil {
+				ph.logger.Error("unable to find device", zap.Error(err))
+				err := impart.NewError(impart.ErrBadRequest, "unable to find device")
+				ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+				return
+			}
+			// check the same device id exists for another user, then set to false
+			err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+				Ctx:            ctx,
+				ImpartWealthID: context.ImpartWealthID,
+				DeviceID:       deviceDetails.DeviceID,
+				Negate:         true,
+			}, false)
+			if err != nil {
+				ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+				return
+			}
+		}
+
+		// if the status is for disable,
+		// then deactivate all the devices of this user
+		if !conf.Status {
+			deviceToken = ""
+		}
+		// update the notificaton status for device this user
+		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+			Ctx:            ctx,
+			ImpartWealthID: context.ImpartWealthID,
+			DeviceToken:    deviceToken,
+		}, conf.Status)
+		if err != nil {
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusCreated, configurations)
+		return
+	}
+}
+
+/**
+ *
+ * Get user configurations
+ *
+ */
+func (ph *profileHandler) GetConfiguration() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		context := impart.GetCtxUser(ctx)
+
+		data, err := ph.profileService.GetUserConfigurations(ctx, context.ImpartWealthID)
+		if err != nil {
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+		if (data == models.UserConfigurations{}) {
+			err := impart.NewError(impart.ErrNotFound, "no configuration data found")
+			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusCreated, data)
+
+	}
+}
+
+/**
+ * User Logout
+ *
+ * Once the user is logout,
+ * the notification status for this device should be disable
+ */
+func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		context := impart.GetCtxUser(ctx)
+		deviceToken := impart.GetCtxDeviceToken(ctx)
+		if deviceToken == "" {
+			err := impart.NewError(impart.ErrNotFound, "no device token found")
+			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
+			return
+		}
+		// update the notificaton status for device this user
+		err := ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+			Ctx:            ctx,
+			ImpartWealthID: context.ImpartWealthID,
+			DeviceToken:    deviceToken,
+		}, false)
+		if err != nil {
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusCreated, gin.H{
+			"status": "success",
 		})
 
 	}

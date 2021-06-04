@@ -112,6 +112,9 @@ github.com/golang-migrate/migrate/v4/source/httpfs
 github.com/golang/protobuf/proto
 # github.com/google/go-cmp v0.5.4
 ## explicit
+# github.com/google/uuid v1.1.2
+## explicit
+github.com/google/uuid
 # github.com/hashicorp/errwrap v1.0.0
 github.com/hashicorp/errwrap
 # github.com/hashicorp/go-cleanhttp v0.5.2

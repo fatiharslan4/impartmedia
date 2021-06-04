@@ -8,9 +8,11 @@ import (
 	"strings"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+
 	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	profile_data "github.com/impartwealthapp/backend/pkg/data/profile"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/xeipuuv/gojsonschema"
@@ -27,7 +29,17 @@ type Service interface {
 
 	ValidateSchema(document gojsonschema.JSONLoader) []impart.Error
 	ValidateScreenName(document gojsonschema.JSONLoader) []impart.Error
+	ValidateInput(document gojsonschema.JSONLoader, validationModel types.Type) []impart.Error
 	Logger() *zap.Logger
+
+	ModifyUserConfigurations(ctx context.Context, conf models.UserConfigurations) (models.UserConfigurations, impart.Error)
+	GetUserConfigurations(ctx context.Context, impartWealthID string) (models.UserConfigurations, impart.Error)
+
+	GetUserDevice(ctx context.Context, token string, impartWealthID string, deviceID string) (models.UserDevice, error)
+	CreateUserDevice(ctx context.Context, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error)
+
+	MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error
+	UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) impart.Error
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {

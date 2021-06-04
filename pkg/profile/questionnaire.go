@@ -181,7 +181,6 @@ const (
 func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Questionnaire) *uint64 {
 	out := MillennialGenXWithChildrenHiveId
 	var isMillenialOrGenx, hasChildren, hasHousehold bool
-	fmt.Println("the question are", questionnaire)
 	for _, q := range questionnaire.Questions {
 		switch q.Name {
 		case "Household":

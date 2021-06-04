@@ -71,7 +71,7 @@ type Subscription struct {
 }
 
 type ScreenNameValidator struct {
-	ScreenName string `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=4,maxLength=35"`
+	ScreenName string `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=4,maxLength=15"`
 }
 
 type AuthenticationIDValidation struct {

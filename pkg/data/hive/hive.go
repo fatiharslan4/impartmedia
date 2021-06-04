@@ -101,7 +101,6 @@ func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin 
 	if !ctxUser.Admin {
 		return impart.ErrUnauthorized
 	}
-
 	toPin, err := dbmodels.FindPost(ctx, d.db, postID)
 	if err != nil {
 		if err == sql.ErrNoRows {

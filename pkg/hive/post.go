@@ -51,7 +51,11 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		return models.Post{}, impart.UnknownError
 	}
 	if shouldPin {
-		if err := s.hiveData.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
+		// if err := s.hiveData.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
+		// 	s.logger.Error("couldn't pin post", zap.Error(err))
+		// }
+
+		if err := s.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
 			s.logger.Error("couldn't pin post", zap.Error(err))
 		}
 

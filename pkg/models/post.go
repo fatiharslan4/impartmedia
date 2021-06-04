@@ -10,6 +10,7 @@ import (
 
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 
 	r "github.com/Pallinder/go-randomdata"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -50,6 +51,7 @@ type Post struct {
 	Obfuscated          bool             `json:"obfuscated"`
 	ReviewedDatetime    time.Time        `json:"reviewedDatetime,omitempty"`
 	ReportedUsers       []ReportedUser   `json:"reportedUsers"`
+	Deleted             bool             `json:"deleted,omitempty"`
 }
 
 func (posts Posts) Latest() time.Time {
@@ -149,6 +151,9 @@ func PostFromDB(p *dbmodels.Post) Post {
 	}
 	if len(p.R.Comments) > 0 {
 
+	}
+	if (p.DeletedAt != null.Time{}) {
+		out.Deleted = true
 	}
 	return out
 }

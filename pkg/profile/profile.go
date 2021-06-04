@@ -28,7 +28,8 @@ type Service interface {
 	ScreenNameExists(ctx context.Context, screenName string) bool
 
 	ValidateSchema(document gojsonschema.JSONLoader) []impart.Error
-	ValidateScreenName(document gojsonschema.JSONLoader) []impart.Error
+	ValidateScreenNameInput(document gojsonschema.JSONLoader) []impart.Error
+	ValidateScreenNameString(ctx context.Context, screenName string) impart.Error
 	ValidateInput(document gojsonschema.JSONLoader, validationModel types.Type) []impart.Error
 	Logger() *zap.Logger
 

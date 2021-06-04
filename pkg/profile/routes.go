@@ -418,6 +418,13 @@ func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
  *
  * Add/update notification configuration
  *
+ * Create / update user notification configuration
+ * check the header included device token / request included notification token
+ * if the status is for set true, then get device details
+ * then set all the device notification status into false, where the user is not current user
+ *
+ * check whether the configuration for disable, then deactivate all the active notification
+ * devices of this user, else enable current device only
  */
 func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 	return func(ctx *gin.Context) {

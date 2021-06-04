@@ -67,6 +67,9 @@
 				},
 				"parentCommentId": {
 					"type": "integer"
+				},
+				"deleted": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,
@@ -231,6 +234,9 @@
 						"$ref": "#/definitions/ReportedUser"
 					},
 					"type": "array"
+				},
+				"deleted": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

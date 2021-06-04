@@ -14,6 +14,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/leebenson/conform"
 	"github.com/segmentio/ksuid"
+	"github.com/volatiletech/null/v8"
 )
 
 type PagedCommentsResponse struct {
@@ -38,6 +39,7 @@ type Comment struct {
 	Obfuscated       bool             `json:"obfuscated"`
 	ReviewedDatetime time.Time        `json:"reviewedDatetime,omitempty"`
 	ParentCommentID  uint64           `json:"parentCommentId"`
+	Deleted          bool             `json:"deleted,omitempty"`
 }
 
 func (comments Comments) Latest() time.Time {
@@ -138,6 +140,10 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 	}
 	if len(c.R.CommentReactions) > 0 {
 		out.PostCommentTrack = PostCommentTrackFromDB(nil, c.R.CommentReactions[0])
+	}
+
+	if (c.DeletedAt != null.Time{}) {
+		out.Deleted = true
 	}
 	return out
 }

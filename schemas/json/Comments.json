@@ -70,6 +70,9 @@
 				},
 				"parentCommentId": {
 					"type": "integer"
+				},
+				"deleted": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

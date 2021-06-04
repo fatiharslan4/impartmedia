@@ -34,17 +34,29 @@ type Posts interface {
 // GetPost gets a single post and it's associated content
 func (d *mysqlHiveData) GetPost(ctx context.Context, postID uint64) (*dbmodels.Post, error) {
 	ctxUser := impart.GetCtxUser(ctx)
-	p, err := dbmodels.Posts(dbmodels.PostWhere.PostID.EQ(postID),
+	// p, err := dbmodels.Posts(dbmodels.PostWhere.PostID.EQ(postID),
+	// 	qm.Load(dbmodels.PostRels.Tags),
+	// 	qm.Load(dbmodels.PostRels.ImpartWealth),
+	// 	qm.Load(dbmodels.PostRels.PostReactions, dbmodels.PostReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)),
+	// ).One(ctx, d.db)
+
+	var post dbmodels.Post
+	err := dbmodels.NewQuery(
+		qm.Select("*"),
+		qm.From("post"),
+		qm.Where("post_id = ?", postID),
 		qm.Load(dbmodels.PostRels.Tags),
 		qm.Load(dbmodels.PostRels.ImpartWealth),
 		qm.Load(dbmodels.PostRels.PostReactions, dbmodels.PostReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)),
-	).One(ctx, d.db)
+	).Bind(ctx, d.db, &post)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, impart.ErrNotFound
 		}
 		return nil, err
 	}
+	p := &post
 	return p, nil
 }
 

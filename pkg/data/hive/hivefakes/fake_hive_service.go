@@ -347,6 +347,20 @@ type FakeHiveService struct {
 		result1 *dbmodels.Post
 		result2 error
 	}
+	NewPostVideoStub        func(context.Context, *dbmodels.PostVideo) (*dbmodels.PostVideo, error)
+	newPostVideoMutex       sync.RWMutex
+	newPostVideoArgsForCall []struct {
+		arg1 context.Context
+		arg2 *dbmodels.PostVideo
+	}
+	newPostVideoReturns struct {
+		result1 *dbmodels.PostVideo
+		result2 error
+	}
+	newPostVideoReturnsOnCall map[int]struct {
+		result1 *dbmodels.PostVideo
+		result2 error
+	}
 	PinPostStub        func(context.Context, uint64, uint64, bool) error
 	pinPostMutex       sync.RWMutex
 	pinPostArgsForCall []struct {
@@ -1927,6 +1941,71 @@ func (fake *FakeHiveService) NewPostReturnsOnCall(i int, result1 *dbmodels.Post,
 	}{result1, result2}
 }
 
+func (fake *FakeHiveService) NewPostVideo(arg1 context.Context, arg2 *dbmodels.PostVideo) (*dbmodels.PostVideo, error) {
+	fake.newPostVideoMutex.Lock()
+	ret, specificReturn := fake.newPostVideoReturnsOnCall[len(fake.newPostVideoArgsForCall)]
+	fake.newPostVideoArgsForCall = append(fake.newPostVideoArgsForCall, struct {
+		arg1 context.Context
+		arg2 *dbmodels.PostVideo
+	}{arg1, arg2})
+	stub := fake.NewPostVideoStub
+	fakeReturns := fake.newPostVideoReturns
+	fake.recordInvocation("NewPostVideo", []interface{}{arg1, arg2})
+	fake.newPostVideoMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeHiveService) NewPostVideoCallCount() int {
+	fake.newPostVideoMutex.RLock()
+	defer fake.newPostVideoMutex.RUnlock()
+	return len(fake.newPostVideoArgsForCall)
+}
+
+func (fake *FakeHiveService) NewPostVideoCalls(stub func(context.Context, *dbmodels.PostVideo) (*dbmodels.PostVideo, error)) {
+	fake.newPostVideoMutex.Lock()
+	defer fake.newPostVideoMutex.Unlock()
+	fake.NewPostVideoStub = stub
+}
+
+func (fake *FakeHiveService) NewPostVideoArgsForCall(i int) (context.Context, *dbmodels.PostVideo) {
+	fake.newPostVideoMutex.RLock()
+	defer fake.newPostVideoMutex.RUnlock()
+	argsForCall := fake.newPostVideoArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeHiveService) NewPostVideoReturns(result1 *dbmodels.PostVideo, result2 error) {
+	fake.newPostVideoMutex.Lock()
+	defer fake.newPostVideoMutex.Unlock()
+	fake.NewPostVideoStub = nil
+	fake.newPostVideoReturns = struct {
+		result1 *dbmodels.PostVideo
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeHiveService) NewPostVideoReturnsOnCall(i int, result1 *dbmodels.PostVideo, result2 error) {
+	fake.newPostVideoMutex.Lock()
+	defer fake.newPostVideoMutex.Unlock()
+	fake.NewPostVideoStub = nil
+	if fake.newPostVideoReturnsOnCall == nil {
+		fake.newPostVideoReturnsOnCall = make(map[int]struct {
+			result1 *dbmodels.PostVideo
+			result2 error
+		})
+	}
+	fake.newPostVideoReturnsOnCall[i] = struct {
+		result1 *dbmodels.PostVideo
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeHiveService) PinPost(arg1 context.Context, arg2 uint64, arg3 uint64, arg4 bool) error {
 	fake.pinPostMutex.Lock()
 	ret, specificReturn := fake.pinPostReturnsOnCall[len(fake.pinPostArgsForCall)]
@@ -2292,6 +2371,8 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.newHiveMutex.RUnlock()
 	fake.newPostMutex.RLock()
 	defer fake.newPostMutex.RUnlock()
+	fake.newPostVideoMutex.RLock()
+	defer fake.newPostVideoMutex.RUnlock()
 	fake.pinPostMutex.RLock()
 	defer fake.pinPostMutex.RUnlock()
 	fake.reportCommentMutex.RLock()

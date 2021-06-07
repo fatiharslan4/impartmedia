@@ -113,6 +113,9 @@
 				},
 				"isMember": {
 					"type": "boolean"
+				},
+				"isBlocked": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

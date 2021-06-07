@@ -39,6 +39,7 @@ type Profile struct {
 	//SurveyResponses  SurveyResponses `json:"surveyResponses,omitempty"`
 	HiveMemberships HiveMemberships `json:"hives,omitempty"`
 	IsMember        bool            `json:"isMember,omitempty"`
+	IsBlocked       bool            `json:"isBlocked,omitempty"`
 }
 
 // Attributes for Impart Wealth
@@ -196,6 +197,9 @@ func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error)
 			if err := p.Attributes.Unmarshal(&out.Attributes); err != nil {
 				return nil, err
 			}
+		}
+		if u.Blocked {
+			out.IsBlocked = true
 		}
 	}
 

@@ -35,6 +35,7 @@ type User struct {
 	AwsSNSAppArn     string    `boil:"aws_sns_app_arn" json:"aws_sns_app_arn" toml:"aws_sns_app_arn" yaml:"aws_sns_app_arn"`
 	Admin            bool      `boil:"admin" json:"admin" toml:"admin" yaml:"admin"`
 	EmailVerified    bool      `boil:"email_verified" json:"email_verified" toml:"email_verified" yaml:"email_verified"`
+	Blocked          bool      `boil:"blocked" json:"blocked" toml:"blocked" yaml:"blocked"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -52,6 +53,7 @@ var UserColumns = struct {
 	AwsSNSAppArn     string
 	Admin            string
 	EmailVerified    string
+	Blocked          string
 }{
 	ImpartWealthID:   "impart_wealth_id",
 	AuthenticationID: "authentication_id",
@@ -64,6 +66,7 @@ var UserColumns = struct {
 	AwsSNSAppArn:     "aws_sns_app_arn",
 	Admin:            "admin",
 	EmailVerified:    "email_verified",
+	Blocked:          "blocked",
 }
 
 // Generated where
@@ -80,6 +83,7 @@ var UserWhere = struct {
 	AwsSNSAppArn     whereHelperstring
 	Admin            whereHelperbool
 	EmailVerified    whereHelperbool
+	Blocked          whereHelperbool
 }{
 	ImpartWealthID:   whereHelperstring{field: "`user`.`impart_wealth_id`"},
 	AuthenticationID: whereHelperstring{field: "`user`.`authentication_id`"},
@@ -92,6 +96,7 @@ var UserWhere = struct {
 	AwsSNSAppArn:     whereHelperstring{field: "`user`.`aws_sns_app_arn`"},
 	Admin:            whereHelperbool{field: "`user`.`admin`"},
 	EmailVerified:    whereHelperbool{field: "`user`.`email_verified`"},
+	Blocked:          whereHelperbool{field: "`user`.`blocked`"},
 }
 
 // UserRels is where relationship names are stored.
@@ -154,9 +159,9 @@ func (*userR) NewStruct() *userR {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified"}
+	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked"}
 	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified"}
-	userColumnsWithDefault    = []string{}
+	userColumnsWithDefault    = []string{"blocked"}
 	userPrimaryKeyColumns     = []string{"impart_wealth_id"}
 )
 

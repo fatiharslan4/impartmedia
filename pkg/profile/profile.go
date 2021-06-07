@@ -40,6 +40,8 @@ type Service interface {
 
 	MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error
 	UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) impart.Error
+
+	BlockUser(ctx context.Context, impartWealthID string, screenname string, status bool) impart.Error
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {

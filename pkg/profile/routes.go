@@ -61,6 +61,8 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	userRoutes.GET("/notification", handler.GetConfiguration())
 	userRoutes.POST("/notification", handler.CreateNotificationConfiguration())
 
+	userRoutes.POST("/block", handler.BlockUser())
+
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -557,7 +559,81 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 		}
 
 		ctx.JSON(http.StatusCreated, gin.H{
-			"status": "success",
+			"status":  true,
+			"message": "successfully logout from device",
+		})
+
+	}
+}
+
+/**
+ * Block user
+ *
+ */
+func (ph *profileHandler) BlockUser() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		rawData, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		// validate the inputs
+		impartErrl := ph.profileService.ValidateInput(gojsonschema.NewStringLoader(string(rawData)), types.UserBlockValidationModel)
+		if impartErrl != nil {
+			ph.logger.Error("input validation error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
+			return
+		}
+
+		input := models.BlockUserInput{}
+		err = json.Unmarshal(rawData, &input)
+		if err != nil {
+			ph.logger.Error("input json parse error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+
+		// validate either screen Name or impartWealthID provided
+		if input.ScreenName == "" && input.ImpartWealthID == "" {
+			err := impart.NewError(impart.ErrBadRequest, "please provide user information")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+
+		// check the input type provide
+		var inputStatus string
+		inputStatus = string(types.Block)
+
+		if input.Status != "" {
+			inputStatus = input.Status
+		}
+		//check status either blocked/unblocked
+		if inputStatus != string(types.UnBlock) && inputStatus != string(types.Block) {
+			err := impart.NewError(impart.ErrBadRequest, "invalid option provided")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+
+		fmt.Println(inputStatus != string(types.UnBlock))
+		fmt.Println(inputStatus != string(types.Block))
+
+		status := true
+		if inputStatus == string(types.UnBlock) {
+			status = false
+		}
+
+		bErr := ph.profileService.BlockUser(ctx, input.ImpartWealthID, input.ScreenName, status)
+		if bErr != nil {
+			ctx.JSON(bErr.HttpStatus(), impart.ErrorResponse(bErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"status":  true,
+			"message": fmt.Sprintf("user account %ved successfully", inputStatus),
 		})
 
 	}

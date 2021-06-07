@@ -52,6 +52,13 @@ type Post struct {
 	ReviewedDatetime    time.Time        `json:"reviewedDatetime,omitempty"`
 	ReportedUsers       []ReportedUser   `json:"reportedUsers"`
 	Deleted             bool             `json:"deleted,omitempty"`
+	Video               PostVideo        `json:"video,omitempty"`
+}
+
+type PostVideo struct {
+	ReferenceId string `json:"referenceId,omitempty"`
+	Source      string `json:"source"`
+	Url         string `json:"url"`
 }
 
 func (posts Posts) Latest() time.Time {
@@ -112,6 +119,16 @@ func (p *Post) Random() {
 	}
 }
 
+func PostVideoFromDB(p *dbmodels.PostVideo) PostVideo {
+	out := PostVideo{
+		ReferenceId: p.ReferenceID.String,
+		Url:         p.URL,
+		Source:      p.Source,
+	}
+
+	return out
+}
+
 func PostFromDB(p *dbmodels.Post) Post {
 	out := Post{
 		HiveID:              p.HiveID,
@@ -154,6 +171,9 @@ func PostFromDB(p *dbmodels.Post) Post {
 	}
 	if (p.DeletedAt != null.Time{}) {
 		out.Deleted = true
+	}
+	if p.R.PostVideos != nil && len(p.R.PostVideos) > 0 {
+		out.Video = PostVideoFromDB(p.R.PostVideos[0])
 	}
 	return out
 }

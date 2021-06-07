@@ -175,6 +175,12 @@ func PostFromDB(p *dbmodels.Post) Post {
 	if p.R.PostVideos != nil && len(p.R.PostVideos) > 0 {
 		out.Video = PostVideoFromDB(p.R.PostVideos[0])
 	}
+
+	// check the user is blocked
+	if p.R.ImpartWealth != nil && p.R.ImpartWealth.Blocked {
+		out.ScreenName = "[deleted user]"
+	}
+
 	return out
 }
 

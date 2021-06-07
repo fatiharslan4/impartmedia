@@ -25,6 +25,7 @@ var topLevelModels = map[string]interface{}{
 	"TagComparisons":        tags.TagComparisons{},
 	"ScreenNameValidator":   models.ScreenNameValidator{},
 	"UserDevice":            models.UserDevice{},
+	"BlockUserInput":        models.BlockUserInput{},
 }
 
 func main() {

@@ -203,3 +203,25 @@ func (ps *profileService) UpdateExistingNotificationMappData(input models.MapArg
 	}
 	return nil
 }
+
+/**
+ *  Block user
+ *
+ *
+ */
+func (ps *profileService) BlockUser(ctx context.Context, impartID string, screenName string, status bool) impart.Error {
+	ctxUser := impart.GetCtxUser(ctx)
+	if !ctxUser.Admin {
+		errorString := "current user doesn't have the permission"
+		ps.Logger().Error(errorString, zap.Any("error", errorString))
+		return impart.NewError(impart.ErrUnauthorized, errorString)
+	}
+
+	// block the user
+	err := ps.profileStore.BlockUser(ctx, impartID, screenName, status)
+	if err != nil {
+		errorString := fmt.Sprintf("unable to block user - %v", err)
+		return impart.NewError(impart.ErrUnknown, errorString)
+	}
+	return nil
+}

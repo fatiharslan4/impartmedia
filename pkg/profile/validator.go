@@ -114,7 +114,7 @@ func (ps *profileService) ValidateSchema(document gojsonschema.JSONLoader) (erro
 	return errors
 }
 
-func (ps *profileService) ValidateScreenName(document gojsonschema.JSONLoader) (errors []impart.Error) {
+func (ps *profileService) ValidateScreenNameInput(document gojsonschema.JSONLoader) (errors []impart.Error) {
 	v := gojsonschema.NewReferenceLoader(fmt.Sprintf("file://%s", "./schemas/json/ScreenNameValidator.json"))
 	_, err := v.LoadJSON()
 	if err != nil {
@@ -175,4 +175,26 @@ func (ps *profileService) ValidateInput(document gojsonschema.JSONLoader, valida
 		errors = append(errors, er)
 	}
 	return errors
+}
+
+/**
+ *
+ * Validate the screen name
+ *	No screen names can contain Impart, Impartwealth,
+ *  mod, moderator or Admin unless they are official Impart Wealth account.
+ *
+ */
+func (ps *profileService) ValidateScreenNameString(ctx context.Context, screenName string) impart.Error {
+	var invalidStrings = []string{
+		"impart", "impartwealth", "mod", "moderator", "admin", "wealth",
+	}
+	var err impart.Error
+	for _, str := range invalidStrings {
+		if ok := strings.Index(strings.ToLower(screenName), str); ok > -1 {
+			err = impart.NewError(impart.ErrValidationError, "this screen name is not allowed.")
+			break
+		}
+	}
+
+	return err
 }

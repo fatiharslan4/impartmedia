@@ -155,6 +155,12 @@ func PostFromDB(p *dbmodels.Post) Post {
 	if (p.DeletedAt != null.Time{}) {
 		out.Deleted = true
 	}
+
+	// check the user is blocked
+	if p.R.ImpartWealth != nil && p.R.ImpartWealth.Blocked {
+		out.ScreenName = "[deleted user]"
+	}
+
 	return out
 }
 

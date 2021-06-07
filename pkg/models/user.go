@@ -94,3 +94,9 @@ type UserGlobalConfigInput struct {
 	ImpartWealthID string `json:"impartWealthID,omitempty"`
 	Type           string `json:"type"`
 }
+
+type BlockUserInput struct {
+	ImpartWealthID string `json:"impartWealthID,omitempty"`
+	ScreenName     string `json:"screenName,omitempty"`
+	Status         string `json:"status,omitempty" default:"block"`
+}

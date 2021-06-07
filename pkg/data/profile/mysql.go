@@ -424,7 +424,7 @@ func (m *mysqlStore) DeleteUserNotificationMappData(input models.MapArgumentInpu
 func (m *mysqlStore) UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) error {
 	where := []QueryMod{}
 	// where impart id provided and negate is false
-	if input.ImpartWealthID != "" && input.Negate == false {
+	if input.ImpartWealthID != "" && !input.Negate {
 		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.EQ(input.ImpartWealthID))
 	}
 	// where impart id provided and required negate
@@ -468,4 +468,39 @@ func (m *mysqlStore) CreateUserNotificationMappData(ctx context.Context, data *d
 		return nil, err
 	}
 	return data, nil
+}
+
+/**
+ *
+ * Block a user
+ */
+func (m *mysqlStore) BlockUser(ctx context.Context, impartWealthID string, screenName string, status bool) error {
+	if impartWealthID == "" && screenName == "" {
+		m.logger.Error("please provide proper values")
+		return impart.ErrBadRequest
+	}
+
+	where := []QueryMod{}
+	if impartWealthID != "" {
+		where = append(where, dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthID))
+	}
+	if screenName != "" {
+		where = append(where, dbmodels.UserWhere.ScreenName.EQ(screenName))
+	}
+
+	//find user details
+	userInfo, err := dbmodels.Users(where...).One(ctx, m.db)
+	if err != nil {
+		m.logger.Error("unable to find the user data", zap.Any("error", err))
+		return err
+	}
+
+	// set the blocked status
+	userInfo.Blocked = status
+	_, err = userInfo.Update(ctx, m.db, boil.Infer())
+	if err != nil {
+		m.logger.Error("unable to block user", zap.Any("error", err))
+		return err
+	}
+	return nil
 }

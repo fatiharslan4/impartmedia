@@ -511,7 +511,7 @@ func (hiveL) LoadAdminImpartWealthUsers(ctx context.Context, e boil.ContextExecu
 	}
 
 	query := NewQuery(
-		qm.Select("`user`.impart_wealth_id, `user`.authentication_id, `user`.email, `user`.screen_name, `user`.created_at, `user`.updated_at, `user`.deleted_at, `user`.device_token, `user`.aws_sns_app_arn, `user`.admin, `user`.email_verified, `a`.`admin_hive_id`"),
+		qm.Select("`user`.impart_wealth_id, `user`.authentication_id, `user`.email, `user`.screen_name, `user`.created_at, `user`.updated_at, `user`.deleted_at, `user`.device_token, `user`.aws_sns_app_arn, `user`.admin, `user`.email_verified, `user`.blocked, `a`.`admin_hive_id`"),
 		qm.From("`user`"),
 		qm.InnerJoin("`hive_admins` as `a` on `user`.`impart_wealth_id` = `a`.`admin_impart_wealth_id`"),
 		qm.WhereIn("`a`.`admin_hive_id` in ?", args...),
@@ -533,7 +533,7 @@ func (hiveL) LoadAdminImpartWealthUsers(ctx context.Context, e boil.ContextExecu
 		one := new(User)
 		var localJoinCol uint64
 
-		err = results.Scan(&one.ImpartWealthID, &one.AuthenticationID, &one.Email, &one.ScreenName, &one.CreatedAt, &one.UpdatedAt, &one.DeletedAt, &one.DeviceToken, &one.AwsSNSAppArn, &one.Admin, &one.EmailVerified, &localJoinCol)
+		err = results.Scan(&one.ImpartWealthID, &one.AuthenticationID, &one.Email, &one.ScreenName, &one.CreatedAt, &one.UpdatedAt, &one.DeletedAt, &one.DeviceToken, &one.AwsSNSAppArn, &one.Admin, &one.EmailVerified, &one.Blocked, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for user")
 		}
@@ -627,7 +627,7 @@ func (hiveL) LoadMemberImpartWealthUsers(ctx context.Context, e boil.ContextExec
 	}
 
 	query := NewQuery(
-		qm.Select("`user`.impart_wealth_id, `user`.authentication_id, `user`.email, `user`.screen_name, `user`.created_at, `user`.updated_at, `user`.deleted_at, `user`.device_token, `user`.aws_sns_app_arn, `user`.admin, `user`.email_verified, `a`.`member_hive_id`"),
+		qm.Select("`user`.impart_wealth_id, `user`.authentication_id, `user`.email, `user`.screen_name, `user`.created_at, `user`.updated_at, `user`.deleted_at, `user`.device_token, `user`.aws_sns_app_arn, `user`.admin, `user`.email_verified, `user`.blocked, `a`.`member_hive_id`"),
 		qm.From("`user`"),
 		qm.InnerJoin("`hive_members` as `a` on `user`.`impart_wealth_id` = `a`.`member_impart_wealth_id`"),
 		qm.WhereIn("`a`.`member_hive_id` in ?", args...),
@@ -649,7 +649,7 @@ func (hiveL) LoadMemberImpartWealthUsers(ctx context.Context, e boil.ContextExec
 		one := new(User)
 		var localJoinCol uint64
 
-		err = results.Scan(&one.ImpartWealthID, &one.AuthenticationID, &one.Email, &one.ScreenName, &one.CreatedAt, &one.UpdatedAt, &one.DeletedAt, &one.DeviceToken, &one.AwsSNSAppArn, &one.Admin, &one.EmailVerified, &localJoinCol)
+		err = results.Scan(&one.ImpartWealthID, &one.AuthenticationID, &one.Email, &one.ScreenName, &one.CreatedAt, &one.UpdatedAt, &one.DeletedAt, &one.DeviceToken, &one.AwsSNSAppArn, &one.Admin, &one.EmailVerified, &one.Blocked, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for user")
 		}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -46,17 +47,27 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		tagsSlice[i] = &dbmodels.Tag{TagID: uint(t)}
 	}
 	dbPost, err := s.postData.NewPost(ctx, dbPost, tagsSlice)
+
 	if err != nil {
 		s.logger.Error("unable to create a new post", zap.Error(err))
 		return models.Post{}, impart.UnknownError
 	}
 	if shouldPin {
-		if err := s.hiveData.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
+		// if err := s.hiveData.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
+		// 	s.logger.Error("couldn't pin post", zap.Error(err))
+		// }
+
+		if err := s.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
 			s.logger.Error("couldn't pin post", zap.Error(err))
 		}
 
 	}
 	p := models.PostFromDB(dbPost)
+	// p.Video = post.Video
+	fmt.Println("the post video", post.Video)
+	postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video)
+	p.Video = postvideo
+	// p, _ = s.AddPostVideo(ctx, p)
 	return p, nil
 }
 
@@ -344,4 +355,25 @@ func (s *service) BuildPostNotificationData(input models.PostNotificationInput) 
 		PostOwnerAlert:    postOwnerAlert,
 		PostOwnerWealthID: postUserIWID,
 	}, err
+}
+
+func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo models.PostVideo) (models.PostVideo, impart.Error) {
+	ctxUser := impart.GetCtxUser(ctx)
+	fmt.Println("the admin is 0", postVideo)
+	if ctxUser.Admin && (postVideo != models.PostVideo{}) {
+		fmt.Println("the admin is 2", postVideo)
+		input := &dbmodels.PostVideo{
+			Source:      postVideo.Source,
+			ReferenceID: null.StringFrom(postVideo.ReferenceId),
+			URL:         postVideo.Url,
+			PostID:      postID,
+		}
+		input, err := s.postData.NewPostVideo(ctx, input)
+		if err != nil {
+			s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+			return models.PostVideo{}, nil
+		}
+		postVideo = models.PostVideoFromDB(input)
+	}
+	return postVideo, nil
 }

@@ -20,3 +20,4 @@ schemas/dynamo/allow.json
 .terraform.lock.hcl
 *terraform.tfstate*
 impartcli
+.vscode

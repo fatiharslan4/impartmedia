@@ -152,6 +152,7 @@ func main() {
 
 	v1.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
 	v1.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
+	v1.Use(services.Auth.DeviceIdentificationHandler()) //context for device identification
 	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
 
 	hive.SetupRoutes(v1, db, services.HiveData, services.Hive, logger)

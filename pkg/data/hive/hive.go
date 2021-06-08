@@ -101,7 +101,6 @@ func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin 
 	if !ctxUser.Admin {
 		return impart.ErrUnauthorized
 	}
-
 	toPin, err := dbmodels.FindPost(ctx, d.db, postID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -113,18 +112,11 @@ func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin 
 	if err != nil {
 		return err
 	}
-
 	if toPin.Pinned == pin && hive.PinnedPostID.Valid && hive.PinnedPostID.Uint64 == postID {
-		return impart.ErrNoOp
+		return impart.NewError(impart.ErrBadRequest, "Resource already matches exactly as request.")
 	}
 	if toPin.HiveID != hiveID {
-		return impart.ErrBadRequest
-	}
-
-	//if this post has a pin, and doesn't match the request pin
-	// that we're removing, do nothing.
-	if hive.PinnedPostID.Uint64 == postID {
-		return impart.ErrNoOp
+		return impart.NewError(impart.ErrBadRequest, "HiveId not matching.")
 	}
 
 	tx, err := d.db.BeginTx(ctx, nil)

@@ -29,22 +29,36 @@ type Posts interface {
 	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice) (*dbmodels.Post, error)
 	DeletePost(ctx context.Context, postID uint64) error
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
+	NewPostVideo(ctx context.Context, post *dbmodels.PostVideo) (*dbmodels.PostVideo, error)
 }
 
 // GetPost gets a single post and it's associated content
 func (d *mysqlHiveData) GetPost(ctx context.Context, postID uint64) (*dbmodels.Post, error) {
 	ctxUser := impart.GetCtxUser(ctx)
-	p, err := dbmodels.Posts(dbmodels.PostWhere.PostID.EQ(postID),
+	// p, err := dbmodels.Posts(dbmodels.PostWhere.PostID.EQ(postID),
+	// 	qm.Load(dbmodels.PostRels.Tags),
+	// 	qm.Load(dbmodels.PostRels.ImpartWealth),
+	// 	qm.Load(dbmodels.PostRels.PostReactions, dbmodels.PostReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)),
+	// ).One(ctx, d.db)
+
+	var post dbmodels.Post
+	err := dbmodels.NewQuery(
+		qm.Select("*"),
+		qm.From("post"),
+		qm.Where("post_id = ?", postID),
 		qm.Load(dbmodels.PostRels.Tags),
 		qm.Load(dbmodels.PostRels.ImpartWealth),
 		qm.Load(dbmodels.PostRels.PostReactions, dbmodels.PostReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)),
-	).One(ctx, d.db)
+		qm.Load(dbmodels.PostRels.PostVideos),
+	).Bind(ctx, d.db, &post)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, impart.ErrNotFound
 		}
 		return nil, err
 	}
+	p := &post
 	return p, nil
 }
 
@@ -128,6 +142,7 @@ func (d *mysqlHiveData) GetPosts(ctx context.Context, gpi GetPostsInput) (dbmode
 		qm.Load(dbmodels.PostRels.Tags), // all the tags associated with this post
 		qm.Load(dbmodels.PostRels.PostReactions, dbmodels.PostReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)), // the callers reaction
 		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
+		qm.Load(dbmodels.PostRels.PostVideos),   // the post relation Post video
 	}
 
 	if len(gpi.TagIDs) > 0 {
@@ -182,4 +197,11 @@ WHERE pinned_post_id = ?;`
 		}
 	}
 	return nil
+}
+
+func (d *mysqlHiveData) NewPostVideo(ctx context.Context, postVideo *dbmodels.PostVideo) (*dbmodels.PostVideo, error) {
+	if err := postVideo.Insert(ctx, d.db, boil.Infer()); err != nil {
+		return nil, err
+	}
+	return postVideo, nil
 }

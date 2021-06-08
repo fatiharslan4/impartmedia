@@ -6,7 +6,7 @@
 		"ScreenNameValidator": {
 			"properties": {
 				"screenName": {
-					"maxLength": 35,
+					"maxLength": 15,
 					"minLength": 4,
 					"type": "string"
 				}

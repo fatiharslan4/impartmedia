@@ -410,7 +410,8 @@ func (hh *hiveHandler) EditPostFunc() gin.HandlerFunc {
 
 		if pinned != "" {
 			if !ctxUser.Admin {
-				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(impart.ErrUnauthorized))
+				impartErr := impart.NewError(impart.ErrUnauthorized, "cannot pin a post unless you are a hive admin")
+				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(impartErr))
 				return
 			}
 			pin, err := strconv.ParseBool(pinned)
@@ -443,7 +444,6 @@ func (hh *hiveHandler) EditPostFunc() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-		fmt.Println("withinnnnn")
 		p, impartErr = hh.hiveService.EditPost(ctx, p)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))

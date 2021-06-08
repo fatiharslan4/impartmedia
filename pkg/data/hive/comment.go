@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"database/sql"
+
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -24,17 +25,29 @@ type Comments interface {
 // GetPost gets a single post and it's associated content from dynamodb.
 func (d *mysqlHiveData) GetComment(ctx context.Context, commentID uint64) (*dbmodels.Comment, error) {
 	ctxUser := impart.GetCtxUser(ctx)
-	c, err := dbmodels.Comments(dbmodels.CommentWhere.CommentID.EQ(commentID),
+	var commment dbmodels.Comment
+
+	// c, err := dbmodels.Comments(dbmodels.CommentWhere.CommentID.EQ(commentID),
+	// 	qm.Load(dbmodels.CommentRels.ImpartWealth),
+	// 	qm.Load(dbmodels.CommentRels.CommentReactions, dbmodels.CommentReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)),
+	// ).One(ctx, d.db)
+
+	// fetch the comment if it is deleted
+	err := dbmodels.NewQuery(
+		qm.Select("*"),
+		qm.From("comment"),
+		qm.Where("comment_id = ?", commentID),
 		qm.Load(dbmodels.CommentRels.ImpartWealth),
 		qm.Load(dbmodels.CommentRels.CommentReactions, dbmodels.CommentReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)),
-	).One(ctx, d.db)
+	).Bind(ctx, d.db, &commment)
+
 	if err != nil {
-		if err == sql.ErrNoRows || c == nil {
+		if err == sql.ErrNoRows {
 			return nil, impart.ErrNotFound
 		}
 		return nil, err
 	}
-
+	c := &commment
 	return c, nil
 }
 

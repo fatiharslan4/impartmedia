@@ -12,7 +12,8 @@
 				"upVotes",
 				"downVotes",
 				"reportedCount",
-				"obfuscated"
+				"obfuscated",
+				"parentCommentId"
 			],
 			"properties": {
 				"postId": {
@@ -63,6 +64,12 @@
 				"reviewedDatetime": {
 					"type": "string",
 					"format": "date-time"
+				},
+				"parentCommentId": {
+					"type": "integer"
+				},
+				"deleted": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

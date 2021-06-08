@@ -53,6 +53,7 @@ type Post struct {
 	ReportedUsers       []ReportedUser   `json:"reportedUsers"`
 	Deleted             bool             `json:"deleted,omitempty"`
 	Video               PostVideo        `json:"video,omitempty"`
+	IsAdminPost         bool             `json:"isAdminPost,omitempty"`
 }
 
 type PostVideo struct {
@@ -150,6 +151,7 @@ func PostFromDB(p *dbmodels.Post) Post {
 		//NextCommentPage:     nil,
 		ReportedCount: p.ReportedCount,
 		Obfuscated:    p.Obfuscated,
+		IsAdminPost:   false,
 	}
 	if p.R.ImpartWealth != nil {
 		out.ScreenName = p.R.ImpartWealth.ScreenName
@@ -180,7 +182,10 @@ func PostFromDB(p *dbmodels.Post) Post {
 	if p.R.ImpartWealth != nil && p.R.ImpartWealth.Blocked {
 		out.ScreenName = "[deleted user]"
 	}
-
+	//check the user is admin
+	if p.R.ImpartWealth != nil && !p.R.ImpartWealth.Admin {
+		out.IsAdminPost = true
+	}
 	return out
 }
 

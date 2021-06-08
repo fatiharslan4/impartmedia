@@ -67,6 +67,7 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	fmt.Println("the post video", post.Video)
 	postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video)
 	p.Video = postvideo
+
 	// p, _ = s.AddPostVideo(ctx, p)
 	return p, nil
 }
@@ -137,7 +138,6 @@ func (s *service) GetPost(ctx context.Context, postID uint64, includeComments bo
 	if err := eg.Wait(); err != nil {
 		return out, impart.NewError(err, "error getting post", impart.PostID)
 	}
-
 	out = models.PostFromDB(dbPost)
 	out.Comments = models.CommentsFromDBModelSlice(comments)
 	out.NextCommentPage = nextCommentPage
@@ -359,9 +359,7 @@ func (s *service) BuildPostNotificationData(input models.PostNotificationInput) 
 
 func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo models.PostVideo) (models.PostVideo, impart.Error) {
 	ctxUser := impart.GetCtxUser(ctx)
-	fmt.Println("the admin is 0", postVideo)
 	if ctxUser.Admin && (postVideo != models.PostVideo{}) {
-		fmt.Println("the admin is 2", postVideo)
 		input := &dbmodels.PostVideo{
 			Source:      postVideo.Source,
 			ReferenceID: null.StringFrom(postVideo.ReferenceId),
@@ -374,6 +372,7 @@ func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo mod
 			return models.PostVideo{}, nil
 		}
 		postVideo = models.PostVideoFromDB(input)
+		return postVideo, nil
 	}
-	return postVideo, nil
+	return models.PostVideo{}, nil
 }

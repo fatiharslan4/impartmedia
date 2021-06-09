@@ -8,6 +8,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"go.uber.org/zap"
 )
 
@@ -221,4 +222,8 @@ func (s *service) SendNotificationOnVote(ctx context.Context, actionType types.T
  */
 func (s *service) GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error) {
 	return s.postData.GetReportedUser(ctx, posts)
+}
+
+func (s *service) GetReviewedContents(ctx context.Context, gpi data.GetPostsInput) (dbmodels.PostSlice, dbmodels.CommentSlice, *models.NextPage, error) {
+	return s.hiveData.GetReviewedContents(ctx, gpi)
 }

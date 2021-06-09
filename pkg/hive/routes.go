@@ -42,6 +42,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	hiveRoutes.POST("", handler.CreateHiveFunc())
 	hiveRoutes.PUT("", handler.EditHiveFunc())
 	hiveRoutes.GET("/:hiveId/percentiles/:impartWealthId", handler.GetHivePercentilesFunc())
+	hiveRoutes.GET("/:hiveId/reported-list", handler.GetReviewedContents())
 
 	//base is /:version/hives/:hiveId/posts"
 	postRoutes := hiveRoutes.Group("/:hiveId/posts")
@@ -228,22 +229,20 @@ func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 		var hiveId uint64
 		var impartErr impart.Error
 		ctxUser := impart.GetCtxUser(ctx)
-		if !ctxUser.Admin {
-			m, err0 := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
-			// res2B, _ := json.Marshal(m)
-			if err0 != nil {
-			}
-			existingUsers, err2 := m.User.ListByEmail(ctxUser.Email)
-			if err2 != nil {
-			}
-			cfg, err2 := config.GetImpart()
-			for _, users := range existingUsers {
-				if false == *users.EmailVerified && *users.Identities[0].Connection == fmt.Sprintf("impart-%s", string(cfg.Env)) {
-					ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(
-						impart.NewError(impart.ErrUnauthorized, "Email not verified"),
-					))
-					return
-				}
+		m, err0 := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
+		// res2B, _ := json.Marshal(m)
+		if err0 != nil {
+		}
+		existingUsers, err2 := m.User.ListByEmail(ctxUser.Email)
+		if err2 != nil {
+		}
+		cfg, err2 := config.GetImpart()
+		for _, users := range existingUsers {
+			if false == *users.EmailVerified && *users.Identities[0].Connection == fmt.Sprintf("impart-%s", string(cfg.Env)) {
+				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(
+					impart.NewError(impart.ErrUnauthorized, "Email not verified"),
+				))
+				return
 			}
 		}
 
@@ -283,34 +282,6 @@ func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 			} else {
 				gpi.IsLastCommentSorted = parsedLastCommentSort
 			}
-		}
-
-		reportedlist, inMapReported := params["reported"]
-		if inMapReported {
-			if !ctxUser.Admin {
-				impartErr := impart.NewError(impart.ErrUnauthorized, "You are a not hive admin.")
-				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(impartErr))
-				return
-			}
-			reported, err := strconv.ParseBool(reportedlist[0])
-			if err != nil {
-				impartErr := impart.NewError(impart.ErrBadRequest, "Invalid query parameter.")
-				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
-				return
-			}
-			gpi.Reported = reported
-
-			posts, nextPage, impartErr := hh.hiveService.GetAdminPosts(ctx, gpi)
-			if impartErr != nil {
-				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
-				return
-			}
-
-			ctx.JSON(http.StatusOK, models.PagedPostsResponse{
-				Posts:    posts,
-				NextPage: nextPage,
-			})
-			return
 		}
 
 		posts, nextPage, impartErr := hh.hiveService.GetPosts(ctx, gpi)
@@ -766,5 +737,50 @@ func (hh *hiveHandler) DeleteCommentFunc() gin.HandlerFunc {
 		}
 
 		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "comment deleted"})
+	}
+}
+
+func (hh *hiveHandler) GetReviewedContents() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var hiveId uint64
+		var impartErr impart.Error
+		var err error
+
+		ctxUser := impart.GetCtxUser(ctx)
+
+		if !ctxUser.Admin {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "You are a not hive admin")
+			ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(impartErr))
+			return
+		}
+
+		if _, ok := ctx.Params.Get("hiveId"); ok {
+			if hiveId, impartErr = ctxUint64Param(ctx, "hiveId"); impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			}
+		}
+		gpi := hivedata.GetPostsInput{}
+		gpi.HiveID = hiveId
+
+		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
+		if err != nil {
+			hh.logger.Error("couldn't parse limit and offset", zap.Error(err))
+			impartErr = impart.NewError(impart.ErrUnknown, "couldn't parse limit and offset")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		posts, comments, nextPage, erro := hh.hiveService.GetReviewedContents(ctx, gpi)
+		if erro != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(erro))
+			return
+		}
+		outposts := models.PostsFromDB(posts)
+		outcomments := models.CommentsFromDBModelSlice(comments)
+		ctx.JSON(http.StatusOK, models.PagedReportedContentResponse{
+			Posts:    outposts,
+			Comments: outcomments,
+			NextPage: nextPage,
+		})
 	}
 }

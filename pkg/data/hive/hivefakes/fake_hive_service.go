@@ -103,22 +103,6 @@ type FakeHiveService struct {
 		result1 *dbmodels.Post
 		result2 error
 	}
-	GetAdminPostsStub        func(context.Context, data.GetPostsInput) (dbmodels.PostSlice, *models.NextPage, error)
-	getAdminPostsMutex       sync.RWMutex
-	getAdminPostsArgsForCall []struct {
-		arg1 context.Context
-		arg2 data.GetPostsInput
-	}
-	getAdminPostsReturns struct {
-		result1 dbmodels.PostSlice
-		result2 *models.NextPage
-		result3 error
-	}
-	getAdminPostsReturnsOnCall map[int]struct {
-		result1 dbmodels.PostSlice
-		result2 *models.NextPage
-		result3 error
-	}
 	GetCommentStub        func(context.Context, uint64) (*dbmodels.Comment, error)
 	getCommentMutex       sync.RWMutex
 	getCommentArgsForCall []struct {
@@ -256,6 +240,24 @@ type FakeHiveService struct {
 	getReportedUserReturnsOnCall map[int]struct {
 		result1 models.Posts
 		result2 error
+	}
+	GetReviewedContentsStub        func(context.Context, data.GetPostsInput) (dbmodels.PostSlice, dbmodels.CommentSlice, *models.NextPage, error)
+	getReviewedContentsMutex       sync.RWMutex
+	getReviewedContentsArgsForCall []struct {
+		arg1 context.Context
+		arg2 data.GetPostsInput
+	}
+	getReviewedContentsReturns struct {
+		result1 dbmodels.PostSlice
+		result2 dbmodels.CommentSlice
+		result3 *models.NextPage
+		result4 error
+	}
+	getReviewedContentsReturnsOnCall map[int]struct {
+		result1 dbmodels.PostSlice
+		result2 dbmodels.CommentSlice
+		result3 *models.NextPage
+		result4 error
 	}
 	GetReviewedPostsStub        func(context.Context, uint64, time.Time, int) (dbmodels.PostSlice, models.NextPage, error)
 	getReviewedPostsMutex       sync.RWMutex
@@ -891,74 +893,6 @@ func (fake *FakeHiveService) EditPostReturnsOnCall(i int, result1 *dbmodels.Post
 	}{result1, result2}
 }
 
-func (fake *FakeHiveService) GetAdminPosts(arg1 context.Context, arg2 data.GetPostsInput) (dbmodels.PostSlice, *models.NextPage, error) {
-	fake.getAdminPostsMutex.Lock()
-	ret, specificReturn := fake.getAdminPostsReturnsOnCall[len(fake.getAdminPostsArgsForCall)]
-	fake.getAdminPostsArgsForCall = append(fake.getAdminPostsArgsForCall, struct {
-		arg1 context.Context
-		arg2 data.GetPostsInput
-	}{arg1, arg2})
-	stub := fake.GetAdminPostsStub
-	fakeReturns := fake.getAdminPostsReturns
-	fake.recordInvocation("GetAdminPosts", []interface{}{arg1, arg2})
-	fake.getAdminPostsMutex.Unlock()
-	if stub != nil {
-		return stub(arg1, arg2)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2, ret.result3
-	}
-	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
-}
-
-func (fake *FakeHiveService) GetAdminPostsCallCount() int {
-	fake.getAdminPostsMutex.RLock()
-	defer fake.getAdminPostsMutex.RUnlock()
-	return len(fake.getAdminPostsArgsForCall)
-}
-
-func (fake *FakeHiveService) GetAdminPostsCalls(stub func(context.Context, data.GetPostsInput) (dbmodels.PostSlice, *models.NextPage, error)) {
-	fake.getAdminPostsMutex.Lock()
-	defer fake.getAdminPostsMutex.Unlock()
-	fake.GetAdminPostsStub = stub
-}
-
-func (fake *FakeHiveService) GetAdminPostsArgsForCall(i int) (context.Context, data.GetPostsInput) {
-	fake.getAdminPostsMutex.RLock()
-	defer fake.getAdminPostsMutex.RUnlock()
-	argsForCall := fake.getAdminPostsArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
-}
-
-func (fake *FakeHiveService) GetAdminPostsReturns(result1 dbmodels.PostSlice, result2 *models.NextPage, result3 error) {
-	fake.getAdminPostsMutex.Lock()
-	defer fake.getAdminPostsMutex.Unlock()
-	fake.GetAdminPostsStub = nil
-	fake.getAdminPostsReturns = struct {
-		result1 dbmodels.PostSlice
-		result2 *models.NextPage
-		result3 error
-	}{result1, result2, result3}
-}
-
-func (fake *FakeHiveService) GetAdminPostsReturnsOnCall(i int, result1 dbmodels.PostSlice, result2 *models.NextPage, result3 error) {
-	fake.getAdminPostsMutex.Lock()
-	defer fake.getAdminPostsMutex.Unlock()
-	fake.GetAdminPostsStub = nil
-	if fake.getAdminPostsReturnsOnCall == nil {
-		fake.getAdminPostsReturnsOnCall = make(map[int]struct {
-			result1 dbmodels.PostSlice
-			result2 *models.NextPage
-			result3 error
-		})
-	}
-	fake.getAdminPostsReturnsOnCall[i] = struct {
-		result1 dbmodels.PostSlice
-		result2 *models.NextPage
-		result3 error
-	}{result1, result2, result3}
-}
-
 func (fake *FakeHiveService) GetComment(arg1 context.Context, arg2 uint64) (*dbmodels.Comment, error) {
 	fake.getCommentMutex.Lock()
 	ret, specificReturn := fake.getCommentReturnsOnCall[len(fake.getCommentArgsForCall)]
@@ -1558,6 +1492,77 @@ func (fake *FakeHiveService) GetReportedUserReturnsOnCall(i int, result1 models.
 		result1 models.Posts
 		result2 error
 	}{result1, result2}
+}
+
+func (fake *FakeHiveService) GetReviewedContents(arg1 context.Context, arg2 data.GetPostsInput) (dbmodels.PostSlice, dbmodels.CommentSlice, *models.NextPage, error) {
+	fake.getReviewedContentsMutex.Lock()
+	ret, specificReturn := fake.getReviewedContentsReturnsOnCall[len(fake.getReviewedContentsArgsForCall)]
+	fake.getReviewedContentsArgsForCall = append(fake.getReviewedContentsArgsForCall, struct {
+		arg1 context.Context
+		arg2 data.GetPostsInput
+	}{arg1, arg2})
+	stub := fake.GetReviewedContentsStub
+	fakeReturns := fake.getReviewedContentsReturns
+	fake.recordInvocation("GetReviewedContents", []interface{}{arg1, arg2})
+	fake.getReviewedContentsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2, ret.result3, ret.result4
+	}
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3, fakeReturns.result4
+}
+
+func (fake *FakeHiveService) GetReviewedContentsCallCount() int {
+	fake.getReviewedContentsMutex.RLock()
+	defer fake.getReviewedContentsMutex.RUnlock()
+	return len(fake.getReviewedContentsArgsForCall)
+}
+
+func (fake *FakeHiveService) GetReviewedContentsCalls(stub func(context.Context, data.GetPostsInput) (dbmodels.PostSlice, dbmodels.CommentSlice, *models.NextPage, error)) {
+	fake.getReviewedContentsMutex.Lock()
+	defer fake.getReviewedContentsMutex.Unlock()
+	fake.GetReviewedContentsStub = stub
+}
+
+func (fake *FakeHiveService) GetReviewedContentsArgsForCall(i int) (context.Context, data.GetPostsInput) {
+	fake.getReviewedContentsMutex.RLock()
+	defer fake.getReviewedContentsMutex.RUnlock()
+	argsForCall := fake.getReviewedContentsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeHiveService) GetReviewedContentsReturns(result1 dbmodels.PostSlice, result2 dbmodels.CommentSlice, result3 *models.NextPage, result4 error) {
+	fake.getReviewedContentsMutex.Lock()
+	defer fake.getReviewedContentsMutex.Unlock()
+	fake.GetReviewedContentsStub = nil
+	fake.getReviewedContentsReturns = struct {
+		result1 dbmodels.PostSlice
+		result2 dbmodels.CommentSlice
+		result3 *models.NextPage
+		result4 error
+	}{result1, result2, result3, result4}
+}
+
+func (fake *FakeHiveService) GetReviewedContentsReturnsOnCall(i int, result1 dbmodels.PostSlice, result2 dbmodels.CommentSlice, result3 *models.NextPage, result4 error) {
+	fake.getReviewedContentsMutex.Lock()
+	defer fake.getReviewedContentsMutex.Unlock()
+	fake.GetReviewedContentsStub = nil
+	if fake.getReviewedContentsReturnsOnCall == nil {
+		fake.getReviewedContentsReturnsOnCall = make(map[int]struct {
+			result1 dbmodels.PostSlice
+			result2 dbmodels.CommentSlice
+			result3 *models.NextPage
+			result4 error
+		})
+	}
+	fake.getReviewedContentsReturnsOnCall[i] = struct {
+		result1 dbmodels.PostSlice
+		result2 dbmodels.CommentSlice
+		result3 *models.NextPage
+		result4 error
+	}{result1, result2, result3, result4}
 }
 
 func (fake *FakeHiveService) GetReviewedPosts(arg1 context.Context, arg2 uint64, arg3 time.Time, arg4 int) (dbmodels.PostSlice, models.NextPage, error) {
@@ -2423,8 +2428,6 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.editHiveMutex.RUnlock()
 	fake.editPostMutex.RLock()
 	defer fake.editPostMutex.RUnlock()
-	fake.getAdminPostsMutex.RLock()
-	defer fake.getAdminPostsMutex.RUnlock()
 	fake.getCommentMutex.RLock()
 	defer fake.getCommentMutex.RUnlock()
 	fake.getCommentsMutex.RLock()
@@ -2443,6 +2446,8 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.getPostsWithUnreviewedCommentsMutex.RUnlock()
 	fake.getReportedUserMutex.RLock()
 	defer fake.getReportedUserMutex.RUnlock()
+	fake.getReviewedContentsMutex.RLock()
+	defer fake.getReviewedContentsMutex.RUnlock()
 	fake.getReviewedPostsMutex.RLock()
 	defer fake.getReviewedPostsMutex.RUnlock()
 	fake.getUnreviewedReportedPostsMutex.RLock()

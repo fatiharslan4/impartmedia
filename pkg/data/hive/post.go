@@ -30,7 +30,6 @@ type Posts interface {
 	DeletePost(ctx context.Context, postID uint64) error
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 	NewPostVideo(ctx context.Context, post *dbmodels.PostVideo) (*dbmodels.PostVideo, error)
-	GetAdminPosts(ctx context.Context, getPostsInput GetPostsInput) (dbmodels.PostSlice, *models.NextPage, error)
 }
 
 // GetPost gets a single post and it's associated content
@@ -115,8 +114,6 @@ type GetPostsInput struct {
 	IsLastCommentSorted bool
 	// Tags is the optional list of tags to filter on
 	TagIDs []int
-
-	Reported bool
 }
 
 // GetPosts takes a set GetPostsInput, and decides based on this input how to query DynamoDB.
@@ -207,53 +204,4 @@ func (d *mysqlHiveData) NewPostVideo(ctx context.Context, postVideo *dbmodels.Po
 		return nil, err
 	}
 	return postVideo, nil
-}
-
-// GetAdminPosts takes a set GetAdminPostsInput, and decides based on this input how to query DynamoDB.
-func (d *mysqlHiveData) GetAdminPosts(ctx context.Context, gpi GetPostsInput) (dbmodels.PostSlice, *models.NextPage, error) {
-	var empty dbmodels.PostSlice
-	outOffset := &models.NextPage{
-		Offset: gpi.Offset,
-	}
-
-	if gpi.Limit <= 0 {
-		gpi.Limit = defaultPostLimit
-	} else if gpi.Limit > maxPostLimit {
-		gpi.Limit = maxPostLimit
-	}
-
-	orderByMod := qm.OrderBy("created_at desc, post_id desc")
-	if gpi.IsLastCommentSorted {
-		orderByMod = qm.OrderBy("last_comment_ts desc, post_id desc")
-	}
-	queryMods := []qm.QueryMod{
-		dbmodels.PostWhere.HiveID.EQ(gpi.HiveID),
-		qm.Offset(gpi.Offset),
-		qm.Limit(gpi.Limit),
-		orderByMod,
-		qm.Load(dbmodels.PostRels.Tags),          // all the tags associated with this post
-		qm.Load(dbmodels.PostRels.PostReactions), // the callers reaction
-		qm.Load(dbmodels.PostRels.ImpartWealth),  // the user who posted
-		qm.Load(dbmodels.PostRels.PostVideos),    // the post relation Post video
-	}
-	if gpi.Reported {
-		queryMods = append(queryMods, qm.WhereIn("exists (select * from post_reactions pr where pr.post_id = `post`.`post_id` and `deleted_at` is null and pr.reported = ?)", 1))
-	}
-	posts, err := dbmodels.Posts(queryMods...).All(ctx, d.db)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return empty, nil, nil
-		}
-		d.logger.Error("couldn't fetch posts from db", zap.Error(err))
-		return empty, nil, err
-	}
-	boil.DebugMode = false
-	if len(posts) < gpi.Limit {
-		outOffset = nil
-	} else {
-		outOffset.Offset += len(posts)
-	}
-
-	return posts, outOffset, nil
 }

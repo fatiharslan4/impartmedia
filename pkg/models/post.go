@@ -23,6 +23,12 @@ type PagedPostsResponse struct {
 	NextPage *NextPage `json:"nextPage"`
 }
 
+type PagedReportedContentResponse struct {
+	Posts    Posts     `json:"posts"`
+	Comments Comments  `json:"comments"`
+	NextPage *NextPage `json:"nextPage"`
+}
+
 type ReportedUser struct {
 	ImpartWealthID string `json:"impartWealthId"`
 	ScreenName     string `json:"screenName"`

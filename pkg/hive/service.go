@@ -10,6 +10,7 @@ import (
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/impartwealthapp/backend/pkg/tags"
 	"go.uber.org/zap"
 )
@@ -32,7 +33,6 @@ type Service interface {
 	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) impart.Error
 	ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
 	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo) (models.PostVideo, impart.Error)
-	GetAdminPosts(ctx context.Context, getPostsInput data.GetPostsInput) (models.Posts, *models.NextPage, impart.Error)
 
 	GetComments(ctx context.Context, postID uint64, limit, offset int) (models.Comments, *models.NextPage, impart.Error)
 	GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error)
@@ -44,6 +44,7 @@ type Service interface {
 	SendPostNotification(input models.PostNotificationInput) impart.Error
 
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
+	GetReviewedContents(ctx context.Context, getInput data.GetPostsInput) (dbmodels.PostSlice, dbmodels.CommentSlice, *models.NextPage, error)
 }
 
 const maxNotificationLength = 512

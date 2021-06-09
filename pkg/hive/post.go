@@ -377,3 +377,74 @@ func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo mod
 	}
 	return postVideo, nil
 }
+
+func (s *service) GetAdminPosts(ctx context.Context, gpi data.GetPostsInput) (models.Posts, *models.NextPage, impart.Error) {
+	empty := make(models.Posts, 0, 0)
+	var nextPage *models.NextPage
+	var eg errgroup.Group
+
+	var dbPosts dbmodels.PostSlice
+	var pinnedPost *dbmodels.Post
+	eg.Go(func() error {
+		var postsError error
+		dbPosts, nextPage, postsError = s.postData.GetAdminPosts(ctx, gpi)
+		if postsError == impart.ErrNotFound {
+			return nil
+		}
+		if postsError != nil {
+			s.logger.Error("unable to fetch posts", zap.Error(postsError))
+		}
+		return postsError
+	})
+	eg.Go(func() error {
+		//if we're filtering on tags, or this is a secondary page request, return early.
+		if (gpi.Reported) || gpi.Offset > 0 {
+			return nil
+		}
+		var pinnedError error
+		hive, pinnedError := s.hiveData.GetHive(ctx, gpi.HiveID)
+		if pinnedError != nil {
+			s.logger.Error("unable to fetch hive", zap.Error(pinnedError))
+			return pinnedError
+		}
+		if hive.PinnedPostID.Valid && hive.PinnedPostID.Uint64 > 0 {
+			pinnedPost, pinnedError = s.postData.GetPost(ctx, hive.PinnedPostID.Uint64)
+			if pinnedError != nil {
+				s.logger.Error("unable to get pinned post", zap.Error(pinnedError))
+			}
+		}
+		//returns nil so we don't fail the call if the pinned post is no longer present.
+		return nil
+	})
+
+	err := eg.Wait()
+	if err != nil {
+		s.logger.Error("error fetching data", zap.Error(err))
+		return empty, nextPage, impart.NewError(err, "error getting posts")
+	}
+	if dbPosts == nil {
+		return empty, nil, nil
+	}
+
+	// If we have a pinned post, remove the pinned from from the returned post
+	// and set the pinned post to the top of the list.
+	if pinnedPost != nil {
+		for i, p := range dbPosts {
+			if p.PostID == pinnedPost.PostID {
+				dbPosts = append(dbPosts[:i], dbPosts[i+1:]...)
+			}
+		}
+		dbPosts = append(dbmodels.PostSlice{pinnedPost}, dbPosts...)
+	}
+
+	if len(dbPosts) == 0 {
+		return models.Posts{}, nextPage, nil
+	}
+
+	out := models.PostsFromDB(dbPosts)
+	out, err = s.postData.GetReportedUser(ctx, out)
+	if err != nil {
+		s.logger.Error("error fetching data", zap.Error(err))
+	}
+	return out, nextPage, nil
+}

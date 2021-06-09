@@ -2,8 +2,9 @@ package config
 
 import (
 	"fmt"
-	"go.uber.org/zap"
 	"net/http"
+
+	"go.uber.org/zap"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/ory/graceful"
@@ -46,6 +47,7 @@ type Impart struct {
 
 	DBMigrationUsername string `split_words:"true"`
 	DBMigrationPassword string `split_words:"true"`
+	SentryDSN           string `split_words:"true"`
 }
 
 func GetImpart() (*Impart, error) {

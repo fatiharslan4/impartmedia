@@ -24,22 +24,24 @@ import (
 
 // Post is an object representing the database table.
 type Post struct {
-	PostID         uint64    `boil:"post_id" json:"post_id" toml:"post_id" yaml:"post_id"`
-	HiveID         uint64    `boil:"hive_id" json:"hive_id" toml:"hive_id" yaml:"hive_id"`
-	ImpartWealthID string    `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	Pinned         bool      `boil:"pinned" json:"pinned" toml:"pinned" yaml:"pinned"`
-	CreatedAt      time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt      time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt      null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
-	Subject        string    `boil:"subject" json:"subject" toml:"subject" yaml:"subject"`
-	Content        string    `boil:"content" json:"content" toml:"content" yaml:"content"`
-	LastCommentTS  time.Time `boil:"last_comment_ts" json:"last_comment_ts" toml:"last_comment_ts" yaml:"last_comment_ts"`
-	CommentCount   int       `boil:"comment_count" json:"comment_count" toml:"comment_count" yaml:"comment_count"`
-	UpVoteCount    int       `boil:"up_vote_count" json:"up_vote_count" toml:"up_vote_count" yaml:"up_vote_count"`
-	DownVoteCount  int       `boil:"down_vote_count" json:"down_vote_count" toml:"down_vote_count" yaml:"down_vote_count"`
-	ReportedCount  int       `boil:"reported_count" json:"reported_count" toml:"reported_count" yaml:"reported_count"`
-	Obfuscated     bool      `boil:"obfuscated" json:"obfuscated" toml:"obfuscated" yaml:"obfuscated"`
-	ReviewedAt     null.Time `boil:"reviewed_at" json:"reviewed_at,omitempty" toml:"reviewed_at" yaml:"reviewed_at,omitempty"`
+	PostID         uint64      `boil:"post_id" json:"post_id" toml:"post_id" yaml:"post_id"`
+	HiveID         uint64      `boil:"hive_id" json:"hive_id" toml:"hive_id" yaml:"hive_id"`
+	ImpartWealthID string      `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
+	Pinned         bool        `boil:"pinned" json:"pinned" toml:"pinned" yaml:"pinned"`
+	CreatedAt      time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt      time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt      null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	Subject        string      `boil:"subject" json:"subject" toml:"subject" yaml:"subject"`
+	Content        string      `boil:"content" json:"content" toml:"content" yaml:"content"`
+	LastCommentTS  time.Time   `boil:"last_comment_ts" json:"last_comment_ts" toml:"last_comment_ts" yaml:"last_comment_ts"`
+	CommentCount   int         `boil:"comment_count" json:"comment_count" toml:"comment_count" yaml:"comment_count"`
+	UpVoteCount    int         `boil:"up_vote_count" json:"up_vote_count" toml:"up_vote_count" yaml:"up_vote_count"`
+	DownVoteCount  int         `boil:"down_vote_count" json:"down_vote_count" toml:"down_vote_count" yaml:"down_vote_count"`
+	ReportedCount  int         `boil:"reported_count" json:"reported_count" toml:"reported_count" yaml:"reported_count"`
+	Obfuscated     bool        `boil:"obfuscated" json:"obfuscated" toml:"obfuscated" yaml:"obfuscated"`
+	ReviewedAt     null.Time   `boil:"reviewed_at" json:"reviewed_at,omitempty" toml:"reviewed_at" yaml:"reviewed_at,omitempty"`
+	Reviewed       bool        `boil:"reviewed" json:"reviewed" toml:"reviewed" yaml:"reviewed"`
+	ReviewComment  null.String `boil:"review_comment" json:"review_comment,omitempty" toml:"review_comment" yaml:"review_comment,omitempty"`
 
 	R *postR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L postL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -62,6 +64,8 @@ var PostColumns = struct {
 	ReportedCount  string
 	Obfuscated     string
 	ReviewedAt     string
+	Reviewed       string
+	ReviewComment  string
 }{
 	PostID:         "post_id",
 	HiveID:         "hive_id",
@@ -79,6 +83,8 @@ var PostColumns = struct {
 	ReportedCount:  "reported_count",
 	Obfuscated:     "obfuscated",
 	ReviewedAt:     "reviewed_at",
+	Reviewed:       "reviewed",
+	ReviewComment:  "review_comment",
 }
 
 var PostTableColumns = struct {
@@ -98,6 +104,8 @@ var PostTableColumns = struct {
 	ReportedCount  string
 	Obfuscated     string
 	ReviewedAt     string
+	Reviewed       string
+	ReviewComment  string
 }{
 	PostID:         "post.post_id",
 	HiveID:         "post.hive_id",
@@ -115,6 +123,8 @@ var PostTableColumns = struct {
 	ReportedCount:  "post.reported_count",
 	Obfuscated:     "post.obfuscated",
 	ReviewedAt:     "post.reviewed_at",
+	Reviewed:       "post.reviewed",
+	ReviewComment:  "post.review_comment",
 }
 
 // Generated where
@@ -136,6 +146,8 @@ var PostWhere = struct {
 	ReportedCount  whereHelperint
 	Obfuscated     whereHelperbool
 	ReviewedAt     whereHelpernull_Time
+	Reviewed       whereHelperbool
+	ReviewComment  whereHelpernull_String
 }{
 	PostID:         whereHelperuint64{field: "`post`.`post_id`"},
 	HiveID:         whereHelperuint64{field: "`post`.`hive_id`"},
@@ -153,6 +165,8 @@ var PostWhere = struct {
 	ReportedCount:  whereHelperint{field: "`post`.`reported_count`"},
 	Obfuscated:     whereHelperbool{field: "`post`.`obfuscated`"},
 	ReviewedAt:     whereHelpernull_Time{field: "`post`.`reviewed_at`"},
+	Reviewed:       whereHelperbool{field: "`post`.`reviewed`"},
+	ReviewComment:  whereHelpernull_String{field: "`post`.`review_comment`"},
 }
 
 // PostRels is where relationship names are stored.
@@ -194,9 +208,9 @@ func (*postR) NewStruct() *postR {
 type postL struct{}
 
 var (
-	postAllColumns            = []string{"post_id", "hive_id", "impart_wealth_id", "pinned", "created_at", "updated_at", "deleted_at", "subject", "content", "last_comment_ts", "comment_count", "up_vote_count", "down_vote_count", "reported_count", "obfuscated", "reviewed_at"}
-	postColumnsWithoutDefault = []string{"hive_id", "impart_wealth_id", "pinned", "created_at", "updated_at", "deleted_at", "subject", "content", "last_comment_ts", "reviewed_at"}
-	postColumnsWithDefault    = []string{"post_id", "comment_count", "up_vote_count", "down_vote_count", "reported_count", "obfuscated"}
+	postAllColumns            = []string{"post_id", "hive_id", "impart_wealth_id", "pinned", "created_at", "updated_at", "deleted_at", "subject", "content", "last_comment_ts", "comment_count", "up_vote_count", "down_vote_count", "reported_count", "obfuscated", "reviewed_at", "reviewed", "review_comment"}
+	postColumnsWithoutDefault = []string{"hive_id", "impart_wealth_id", "pinned", "created_at", "updated_at", "deleted_at", "subject", "content", "last_comment_ts", "reviewed_at", "review_comment"}
+	postColumnsWithDefault    = []string{"post_id", "comment_count", "up_vote_count", "down_vote_count", "reported_count", "obfuscated", "reviewed"}
 	postPrimaryKeyColumns     = []string{"post_id"}
 )
 

@@ -94,6 +94,10 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 		existing.Subject = post.Subject
 	}
 	_, err = existing.Update(ctx, d.db, boil.Infer())
+
+	if post.Pinned != existing.Pinned {
+		err = d.PinPost(ctx, post.HiveID, post.PostID, post.Pinned)
+	}
 	if err := existing.SetTags(ctx, d.db, false, tags...); err != nil {
 		return nil, err
 	}
@@ -114,6 +118,9 @@ type GetPostsInput struct {
 	IsLastCommentSorted bool
 	// Tags is the optional list of tags to filter on
 	TagIDs []int
+
+	OffsetPost    int
+	OffsetComment int
 }
 
 // GetPosts takes a set GetPostsInput, and decides based on this input how to query DynamoDB.

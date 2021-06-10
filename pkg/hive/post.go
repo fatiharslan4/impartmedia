@@ -253,6 +253,8 @@ func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, 
 			return empty, impart.NewError(impart.ErrNoOp, "post is already in the input reported state")
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to report", postId))
+		case impart.ErrUnauthorized:
+			return empty, impart.NewError(err, fmt.Sprintf("could not report %v comment. It is already reviewed by admin", postId), impart.Report)
 		default:
 			return empty, impart.UnknownError
 		}
@@ -266,6 +268,33 @@ func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, 
 		return empty, impart.UnknownError
 	}
 	return out, nil
+}
+
+func (s *service) ReviewPost(ctx context.Context, postId uint64, comment string, remove bool) (models.Post, impart.Error) {
+	var dbReason *string
+	var empty models.Post
+
+	if comment != "" {
+		dbReason = &comment
+	}
+	err := s.reactionData.ReviewPost(ctx, postId, dbReason, remove)
+	if err != nil {
+		s.logger.Error("couldn't review post", zap.Error(err), zap.Uint64("postId", postId))
+		switch err {
+		case impart.ErrNoOp:
+			return empty, impart.NewError(impart.ErrNoOp, "post is already in the input reviewd state")
+		case impart.ErrNotFound:
+			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to review", postId))
+		default:
+			return empty, impart.UnknownError
+		}
+	}
+	dbPost, err := s.postData.GetPost(ctx, postId)
+	if err != nil {
+		s.logger.Error("couldn't get post information", zap.Error(err))
+		return empty, impart.UnknownError
+	}
+	return models.PostFromDB(dbPost), nil
 }
 
 /**

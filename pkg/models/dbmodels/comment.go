@@ -38,6 +38,8 @@ type Comment struct {
 	ReportedCount   int         `boil:"reported_count" json:"reported_count" toml:"reported_count" yaml:"reported_count"`
 	Obfuscated      bool        `boil:"obfuscated" json:"obfuscated" toml:"obfuscated" yaml:"obfuscated"`
 	ReviewedAt      null.Time   `boil:"reviewed_at" json:"reviewed_at,omitempty" toml:"reviewed_at" yaml:"reviewed_at,omitempty"`
+	Reviewed        bool        `boil:"reviewed" json:"reviewed" toml:"reviewed" yaml:"reviewed"`
+	ReviewComment   null.String `boil:"review_comment" json:"review_comment,omitempty" toml:"review_comment" yaml:"review_comment,omitempty"`
 
 	R *commentR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L commentL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -58,6 +60,8 @@ var CommentColumns = struct {
 	ReportedCount   string
 	Obfuscated      string
 	ReviewedAt      string
+	Reviewed        string
+	ReviewComment   string
 }{
 	CommentID:       "comment_id",
 	PostID:          "post_id",
@@ -73,6 +77,8 @@ var CommentColumns = struct {
 	ReportedCount:   "reported_count",
 	Obfuscated:      "obfuscated",
 	ReviewedAt:      "reviewed_at",
+	Reviewed:        "reviewed",
+	ReviewComment:   "review_comment",
 }
 
 var CommentTableColumns = struct {
@@ -90,6 +96,8 @@ var CommentTableColumns = struct {
 	ReportedCount   string
 	Obfuscated      string
 	ReviewedAt      string
+	Reviewed        string
+	ReviewComment   string
 }{
 	CommentID:       "comment.comment_id",
 	PostID:          "comment.post_id",
@@ -105,6 +113,8 @@ var CommentTableColumns = struct {
 	ReportedCount:   "comment.reported_count",
 	Obfuscated:      "comment.obfuscated",
 	ReviewedAt:      "comment.reviewed_at",
+	Reviewed:        "comment.reviewed",
+	ReviewComment:   "comment.review_comment",
 }
 
 // Generated where
@@ -231,6 +241,29 @@ func (w whereHelperbool) LTE(x bool) qm.QueryMod { return qmhelper.Where(w.field
 func (w whereHelperbool) GT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
 func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
 
+type whereHelpernull_String struct{ field string }
+
+func (w whereHelpernull_String) EQ(x null.String) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_String) NEQ(x null.String) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_String) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_String) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelpernull_String) LT(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_String) LTE(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_String) GT(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
 var CommentWhere = struct {
 	CommentID       whereHelperuint64
 	PostID          whereHelperuint64
@@ -246,6 +279,8 @@ var CommentWhere = struct {
 	ReportedCount   whereHelperint
 	Obfuscated      whereHelperbool
 	ReviewedAt      whereHelpernull_Time
+	Reviewed        whereHelperbool
+	ReviewComment   whereHelpernull_String
 }{
 	CommentID:       whereHelperuint64{field: "`comment`.`comment_id`"},
 	PostID:          whereHelperuint64{field: "`comment`.`post_id`"},
@@ -261,6 +296,8 @@ var CommentWhere = struct {
 	ReportedCount:   whereHelperint{field: "`comment`.`reported_count`"},
 	Obfuscated:      whereHelperbool{field: "`comment`.`obfuscated`"},
 	ReviewedAt:      whereHelpernull_Time{field: "`comment`.`reviewed_at`"},
+	Reviewed:        whereHelperbool{field: "`comment`.`reviewed`"},
+	ReviewComment:   whereHelpernull_String{field: "`comment`.`review_comment`"},
 }
 
 // CommentRels is where relationship names are stored.
@@ -299,9 +336,9 @@ func (*commentR) NewStruct() *commentR {
 type commentL struct{}
 
 var (
-	commentAllColumns            = []string{"comment_id", "post_id", "impart_wealth_id", "created_at", "updated_at", "deleted_at", "content", "last_reply_ts", "parent_comment_id", "up_vote_count", "down_vote_count", "reported_count", "obfuscated", "reviewed_at"}
-	commentColumnsWithoutDefault = []string{"post_id", "impart_wealth_id", "created_at", "updated_at", "deleted_at", "content", "last_reply_ts", "parent_comment_id", "reviewed_at"}
-	commentColumnsWithDefault    = []string{"comment_id", "up_vote_count", "down_vote_count", "reported_count", "obfuscated"}
+	commentAllColumns            = []string{"comment_id", "post_id", "impart_wealth_id", "created_at", "updated_at", "deleted_at", "content", "last_reply_ts", "parent_comment_id", "up_vote_count", "down_vote_count", "reported_count", "obfuscated", "reviewed_at", "reviewed", "review_comment"}
+	commentColumnsWithoutDefault = []string{"post_id", "impart_wealth_id", "created_at", "updated_at", "deleted_at", "content", "last_reply_ts", "parent_comment_id", "reviewed_at", "review_comment"}
+	commentColumnsWithDefault    = []string{"comment_id", "up_vote_count", "down_vote_count", "reported_count", "obfuscated", "reviewed"}
 	commentPrimaryKeyColumns     = []string{"comment_id"}
 )
 

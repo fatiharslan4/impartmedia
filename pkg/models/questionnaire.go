@@ -1,14 +1,16 @@
 package models
 
 import (
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"sort"
+
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 )
 
 type Questionnaire struct {
 	Name      string     `json:"name"`
 	Version   uint       `json:"version"`
 	Questions []Question `json:"questions"`
+	ZipCode   string     `json:"zipCode,omitempty"`
 }
 
 type Question struct {

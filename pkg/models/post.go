@@ -23,6 +23,12 @@ type PagedPostsResponse struct {
 	NextPage *NextPage `json:"nextPage"`
 }
 
+type PagedReportedContentResponse struct {
+	Posts    Posts     `json:"posts"`
+	Comments Comments  `json:"comments"`
+	NextPage *NextPage `json:"nextPage"`
+}
+
 type ReportedUser struct {
 	ImpartWealthID string `json:"impartWealthId"`
 	ScreenName     string `json:"screenName"`
@@ -49,6 +55,8 @@ type Post struct {
 	NextCommentPage     *NextPage        `json:"nextCommentPage"`
 	ReportedCount       int              `json:"reportedCount"`
 	Obfuscated          bool             `json:"obfuscated"`
+	Reviewed            bool             `json:"reviewed"`
+	ReviewComment       string           `json:"reviewComment"`
 	ReviewedDatetime    time.Time        `json:"reviewedDatetime,omitempty"`
 	ReportedUsers       []ReportedUser   `json:"reportedUsers"`
 	Deleted             bool             `json:"deleted,omitempty"`
@@ -151,6 +159,8 @@ func PostFromDB(p *dbmodels.Post) Post {
 		//NextCommentPage:     nil,
 		ReportedCount: p.ReportedCount,
 		Obfuscated:    p.Obfuscated,
+		Reviewed:      p.Reviewed,
+		ReviewComment: p.ReviewComment.String,
 	}
 	if p.R.ImpartWealth != nil {
 		out.ScreenName = p.R.ImpartWealth.ScreenName
@@ -240,4 +250,15 @@ type PostNotificationInput struct {
 type PostNotificationBuildDataOutput struct {
 	Alert             impart.Alert
 	PostOwnerWealthID string
+}
+
+func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int) Posts {
+	out := make(Posts, limit, limit)
+	for i, p := range dbPosts {
+		if i >= limit {
+			return out
+		}
+		out[i] = PostFromDB(p)
+	}
+	return out
 }

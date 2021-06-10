@@ -10,7 +10,6 @@ import (
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/impartwealthapp/backend/pkg/tags"
 	"go.uber.org/zap"
 )
@@ -44,7 +43,7 @@ type Service interface {
 	SendPostNotification(input models.PostNotificationInput) impart.Error
 
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
-	GetReviewedContents(ctx context.Context, getInput data.GetPostsInput) (dbmodels.PostSlice, dbmodels.CommentSlice, *models.NextPage, error)
+	GetReviewedContents(ctx context.Context, getInput data.GetPostsInput) (models.Posts, models.Comments, *models.NextPage, error)
 }
 
 const maxNotificationLength = 512

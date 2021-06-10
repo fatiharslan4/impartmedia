@@ -241,3 +241,14 @@ type PostNotificationBuildDataOutput struct {
 	Alert             impart.Alert
 	PostOwnerWealthID string
 }
+
+func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int) Posts {
+	out := make(Posts, limit, limit)
+	for i, p := range dbPosts {
+		if i >= limit {
+			return out
+		}
+		out[i] = PostFromDB(p)
+	}
+	return out
+}

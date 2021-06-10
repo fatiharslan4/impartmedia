@@ -762,7 +762,7 @@ func (hh *hiveHandler) GetReviewedContents() gin.HandlerFunc {
 		gpi := hivedata.GetPostsInput{}
 		gpi.HiveID = hiveId
 
-		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
+		gpi.Limit, gpi.Offset, gpi.OffsetPost, gpi.OffsetComment, err = parseReportedLimitOffset(ctx)
 		if err != nil {
 			hh.logger.Error("couldn't parse limit and offset", zap.Error(err))
 			impartErr = impart.NewError(impart.ErrUnknown, "couldn't parse limit and offset")
@@ -775,12 +775,44 @@ func (hh *hiveHandler) GetReviewedContents() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(erro))
 			return
 		}
-		outposts := models.PostsFromDB(posts)
-		outcomments := models.CommentsFromDBModelSlice(comments)
 		ctx.JSON(http.StatusOK, models.PagedReportedContentResponse{
-			Posts:    outposts,
-			Comments: outcomments,
+			Posts:    posts,
+			Comments: comments,
 			NextPage: nextPage,
 		})
 	}
+}
+
+func parseReportedLimitOffset(ctx *gin.Context) (limit int, offset int, offsetpost int, offsetcmnt int, err error) {
+	params := ctx.Request.URL.Query()
+
+	if limitParam := strings.TrimSpace(params.Get("limit")); limitParam != "" {
+		if limit, err = strconv.Atoi(limitParam); err != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impart.NewError(err, "invalid limit passed in")))
+			return
+		}
+	}
+
+	if offsetParam := strings.TrimSpace(params.Get("offset")); offsetParam != "" {
+		if offset, err = strconv.Atoi(offsetParam); err != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impart.NewError(err, "invalid limit passed in")))
+			return
+		}
+	}
+
+	if offsetParamCmnt := strings.TrimSpace(params.Get("offsetcmnt")); offsetParamCmnt != "" {
+		if offsetcmnt, err = strconv.Atoi(offsetParamCmnt); err != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impart.NewError(err, "invalid limit passed in")))
+			return
+		}
+	}
+
+	if offsetParamPost := strings.TrimSpace(params.Get("offsetpost")); offsetParamPost != "" {
+		if offsetpost, err = strconv.Atoi(offsetParamPost); err != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impart.NewError(err, "invalid limit passed in")))
+			return
+		}
+	}
+
+	return
 }

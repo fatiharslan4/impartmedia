@@ -114,6 +114,9 @@ type GetPostsInput struct {
 	IsLastCommentSorted bool
 	// Tags is the optional list of tags to filter on
 	TagIDs []int
+
+	OffsetPost    int
+	OffsetComment int
 }
 
 // GetPosts takes a set GetPostsInput, and decides based on this input how to query DynamoDB.

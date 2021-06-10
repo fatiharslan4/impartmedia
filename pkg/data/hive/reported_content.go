@@ -227,11 +227,17 @@ FROM (
 	return posts, nextPage, nil
 }
 
-func (d *mysqlHiveData) GetReviewedContents(ctx context.Context, gpi GetPostsInput) (dbmodels.PostSlice, dbmodels.CommentSlice, *models.NextPage, error) {
-	var nextPage *models.NextPage
+func (d *mysqlHiveData) GetReviewedContents(ctx context.Context, gpi GetPostsInput) (models.Posts, models.Comments, *models.NextPage, error) {
+	var postCnt int
+	var cmntCnt int
+
+	var resultComments models.Comments
+	var resultPosts models.Posts
 
 	outOffset := &models.NextPage{
-		Offset: gpi.Offset,
+		Offset:        gpi.Offset,
+		OffsetPost:    gpi.OffsetPost,
+		OffsetComment: gpi.OffsetComment,
 	}
 
 	if gpi.Limit <= 0 {
@@ -243,7 +249,7 @@ func (d *mysqlHiveData) GetReviewedContents(ctx context.Context, gpi GetPostsInp
 
 	queryMods := []qm.QueryMod{
 		dbmodels.PostWhere.HiveID.EQ(gpi.HiveID),
-		qm.Offset(gpi.Offset),
+		qm.Offset(gpi.OffsetPost),
 		qm.Limit(gpi.Limit),
 		orderByMod,
 		qm.Load(dbmodels.PostRels.Tags),
@@ -258,7 +264,7 @@ func (d *mysqlHiveData) GetReviewedContents(ctx context.Context, gpi GetPostsInp
 	}
 
 	queryCommnt := []qm.QueryMod{
-		qm.Offset(gpi.Offset),
+		qm.Offset(gpi.OffsetComment),
 		qm.Limit(gpi.Limit),
 		orderByMod,
 		qm.Load(dbmodels.CommentRels.ImpartWealth),
@@ -272,11 +278,53 @@ func (d *mysqlHiveData) GetReviewedContents(ctx context.Context, gpi GetPostsInp
 		comment = dbmodels.CommentSlice{}
 	}
 
-	if len(posts)+len(comment) < gpi.Limit {
-		outOffset = nil
-	} else {
-		outOffset.Offset += len(posts)
+	if len(posts)+len(comment) <= gpi.Limit {
+		cmntCnt = len(comment)
+		postCnt = len(posts)
+	} else if len(posts) <= gpi.Limit {
+		postCnt = len(posts)
+		cmntCnt = gpi.Limit - postCnt
+		if cmntCnt > len(comment) {
+			cmntCnt = len(comment)
+		}
+	} else if len(posts) > gpi.Limit {
+		postCnt = gpi.Limit
+		cmntCnt = 0
+	} else if len(comment) > gpi.Limit {
+		cmntCnt = gpi.Limit
+		postCnt = 0
+	} else if len(comment) <= gpi.Limit {
+		cmntCnt = len(comment)
+		postCnt = gpi.Limit - cmntCnt
+		if postCnt > len(posts) {
+			postCnt = len(posts)
+		}
 	}
 
-	return posts, comment, nextPage, nil
+	if cmntCnt == len(comment) {
+		resultComments = models.CommentsFromDBModelSlice(comment)
+	} else if cmntCnt == 0 {
+		resultComments = models.Comments{}
+	} else if cmntCnt != len(comment) {
+		resultComments = models.CommentsWithLimit(comment, cmntCnt)
+	}
+
+	if postCnt == len(posts) {
+		resultPosts = models.PostsFromDB(posts)
+	} else if postCnt == 0 {
+		resultPosts = models.Posts{}
+	} else if postCnt != len(posts) {
+		resultPosts = models.PostsWithlimit(posts, postCnt)
+	}
+
+	if cmntCnt+postCnt < gpi.Limit {
+		outOffset = nil
+	} else {
+		outOffset.OffsetPost += postCnt
+		outOffset.OffsetComment += cmntCnt
+		outOffset.Offset += (cmntCnt + postCnt)
+	}
+
+	return resultPosts, resultComments, outOffset, nil
+
 }

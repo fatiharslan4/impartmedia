@@ -379,13 +379,14 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 
 		if p.HiveID != hiveId {
 			impartErr = impart.NewError(impart.ErrBadRequest, "hiveID in route does not match hiveID in post body")
-			hh.logger.Error("error getting param", zap.Error(impartErr.Err()))
+			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 
 		p, impartErr = hh.hiveService.NewPost(ctx, p)
 		if impartErr != nil {
+			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
@@ -427,6 +428,7 @@ func (hh *hiveHandler) EditPostFunc() gin.HandlerFunc {
 			}
 
 			if impartErr := hh.hiveService.PinPost(ctx, hiveId, postId, pin); impartErr != nil {
+				hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
 				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 				return
 			}
@@ -441,17 +443,20 @@ func (hh *hiveHandler) EditPostFunc() gin.HandlerFunc {
 		if err != nil {
 			hh.logger.Error("deserialization error", zap.Error(err))
 			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Post")
+			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 		if postId != p.PostID {
 			impartErr := impart.NewError(impart.ErrBadRequest, "post IDs do not match")
+			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 		p, impartErr = hh.hiveService.EditPost(ctx, p)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
 			return
 		}
 
@@ -599,6 +604,7 @@ func (hh *hiveHandler) DeletePostFunc() gin.HandlerFunc {
 
 		err := hh.hiveService.DeletePost(ctx, postId)
 		if err != nil {
+			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
@@ -644,6 +650,7 @@ func (hh *hiveHandler) GetCommentsFunc() gin.HandlerFunc {
 
 		comments, nextPage, impartErr := hh.hiveService.GetComments(ctx, postId, limit, offset)
 		if impartErr != nil {
+			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
@@ -678,6 +685,7 @@ func (hh *hiveHandler) CreateCommentFunc() gin.HandlerFunc {
 		stdErr := ctx.ShouldBindJSON(&c)
 		if stdErr != nil {
 			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Comment")
+			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
@@ -697,6 +705,7 @@ func (hh *hiveHandler) CreateCommentFunc() gin.HandlerFunc {
 
 		c, err := hh.hiveService.NewComment(ctx, c)
 		if err != nil {
+			hh.logger.Error(err.Msg(), zap.Error(err.Err()))
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}

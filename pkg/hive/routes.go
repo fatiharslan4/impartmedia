@@ -478,6 +478,7 @@ func (hh *hiveHandler) PostCommentReactionFunc() gin.HandlerFunc {
 		upVoteParam := strings.TrimSpace(ctx.Query("upVote"))
 		downVoteParm := strings.TrimSpace(ctx.Query("downVote"))
 		reportParam := strings.TrimSpace(ctx.Query("report"))
+		reviewParam := strings.TrimSpace(ctx.Query("review"))
 
 		//we're voting
 		if upVoteParam != "" || downVoteParm != "" {
@@ -523,6 +524,42 @@ func (hh *hiveHandler) PostCommentReactionFunc() gin.HandlerFunc {
 
 			ctx.JSON(http.StatusOK, userTrack)
 			return
+		}
+
+		ctxUser := impart.GetCtxUser(ctx)
+
+		// admin is reviewd
+		if reviewParam != "" {
+			if !ctxUser.Admin {
+				impartErr := impart.NewError(impart.ErrUnauthorized, "cannot review a post unless you are a hive admin")
+				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(impartErr))
+				return
+			}
+
+			reviewComment := strings.TrimSpace(ctx.Query("comment"))
+			review, err := strconv.ParseBool(reviewParam)
+			if err != nil {
+				impartErr := impart.NewError(impart.ErrBadRequest, "could not parse 'review' query param to bool")
+				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			}
+
+			if commentId > 0 {
+				reviewPost, impartErr := hh.hiveService.ReviewComment(ctx, commentId, reviewComment, !review)
+				if impartErr != nil {
+					ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+					return
+				}
+				ctx.JSON(http.StatusOK, reviewPost)
+				return
+			} else {
+				reviewComment, impartErr := hh.hiveService.ReviewPost(ctx, postId, reviewComment, !review)
+				if impartErr != nil {
+					ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+					return
+				}
+				ctx.JSON(http.StatusOK, reviewComment)
+				return
+			}
 		}
 
 		//we're reporting

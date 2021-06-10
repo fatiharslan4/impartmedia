@@ -164,6 +164,8 @@ func (s *service) ReportComment(ctx context.Context, commentID uint64, reason st
 			return empty, impart.NewError(impart.ErrNoOp, "comment is already in the input reported state", impart.Report)
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find comment %v to report", commentID), impart.Report)
+		case impart.ErrUnauthorized:
+			return empty, impart.NewError(err, fmt.Sprintf("could not report %v comment. It is already reviewed by admin", commentID), impart.Report)
 		default:
 			return empty, impart.UnknownError
 		}
@@ -190,6 +192,39 @@ func (s *service) ReportComment(ctx context.Context, commentID uint64, reason st
 		return empty, impart.UnknownError
 	}
 	return out, nil
+}
+
+func (s *service) ReviewComment(ctx context.Context, commentID uint64, reason string, remove bool) (models.Comment, impart.Error) {
+	var dbReason *string
+	var empty models.Comment
+
+	if reason != "" {
+		dbReason = &reason
+	}
+
+	err := s.reactionData.ReviewComment(ctx, commentID, dbReason, remove)
+	if err != nil {
+		s.logger.Error("couldn't report comment", zap.Error(err), zap.Uint64("commentId", commentID))
+		switch err {
+		case impart.ErrNoOp:
+			return empty, impart.NewError(impart.ErrNoOp, "comment is already in the input review state", impart.Report)
+		case impart.ErrNotFound:
+			return empty, impart.NewError(err, fmt.Sprintf("could not find comment %v to review", commentID), impart.Report)
+		default:
+			return empty, impart.UnknownError
+		}
+	}
+
+	dbComment, err := s.commentData.GetComment(ctx, commentID)
+	if err != nil {
+		if err == impart.ErrNotFound {
+			return models.Comment{}, impart.NewError(err, "no comments found for post")
+		} else {
+			return models.Comment{}, impart.NewError(impart.ErrUnknown, "couldn't fetch comments")
+		}
+	}
+
+	return models.CommentFromDBModel(dbComment), nil
 }
 
 /**

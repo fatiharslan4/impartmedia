@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -223,8 +224,8 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 
 		}
 	}
-
-	if isMillenialOrGenx && hasChildren && hasHousehold {
+	match, _ := regexp.MatchString(`^\d{5}(?:[-\s]\d{4})?$`, questionnaire.ZipCode)
+	if isMillenialOrGenx && hasChildren && hasHousehold && match {
 		return &out
 	}
 	return nil

@@ -241,21 +241,21 @@ type FakeHiveService struct {
 		result1 models.Posts
 		result2 error
 	}
-	GetReviewedContentsStub        func(context.Context, data.GetPostsInput) (dbmodels.PostSlice, dbmodels.CommentSlice, *models.NextPage, error)
+	GetReviewedContentsStub        func(context.Context, data.GetPostsInput) (models.Posts, models.Comments, *models.NextPage, error)
 	getReviewedContentsMutex       sync.RWMutex
 	getReviewedContentsArgsForCall []struct {
 		arg1 context.Context
 		arg2 data.GetPostsInput
 	}
 	getReviewedContentsReturns struct {
-		result1 dbmodels.PostSlice
-		result2 dbmodels.CommentSlice
+		result1 models.Posts
+		result2 models.Comments
 		result3 *models.NextPage
 		result4 error
 	}
 	getReviewedContentsReturnsOnCall map[int]struct {
-		result1 dbmodels.PostSlice
-		result2 dbmodels.CommentSlice
+		result1 models.Posts
+		result2 models.Comments
 		result3 *models.NextPage
 		result4 error
 	}
@@ -1494,7 +1494,7 @@ func (fake *FakeHiveService) GetReportedUserReturnsOnCall(i int, result1 models.
 	}{result1, result2}
 }
 
-func (fake *FakeHiveService) GetReviewedContents(arg1 context.Context, arg2 data.GetPostsInput) (dbmodels.PostSlice, dbmodels.CommentSlice, *models.NextPage, error) {
+func (fake *FakeHiveService) GetReviewedContents(arg1 context.Context, arg2 data.GetPostsInput) (models.Posts, models.Comments, *models.NextPage, error) {
 	fake.getReviewedContentsMutex.Lock()
 	ret, specificReturn := fake.getReviewedContentsReturnsOnCall[len(fake.getReviewedContentsArgsForCall)]
 	fake.getReviewedContentsArgsForCall = append(fake.getReviewedContentsArgsForCall, struct {
@@ -1520,7 +1520,7 @@ func (fake *FakeHiveService) GetReviewedContentsCallCount() int {
 	return len(fake.getReviewedContentsArgsForCall)
 }
 
-func (fake *FakeHiveService) GetReviewedContentsCalls(stub func(context.Context, data.GetPostsInput) (dbmodels.PostSlice, dbmodels.CommentSlice, *models.NextPage, error)) {
+func (fake *FakeHiveService) GetReviewedContentsCalls(stub func(context.Context, data.GetPostsInput) (models.Posts, models.Comments, *models.NextPage, error)) {
 	fake.getReviewedContentsMutex.Lock()
 	defer fake.getReviewedContentsMutex.Unlock()
 	fake.GetReviewedContentsStub = stub
@@ -1533,33 +1533,33 @@ func (fake *FakeHiveService) GetReviewedContentsArgsForCall(i int) (context.Cont
 	return argsForCall.arg1, argsForCall.arg2
 }
 
-func (fake *FakeHiveService) GetReviewedContentsReturns(result1 dbmodels.PostSlice, result2 dbmodels.CommentSlice, result3 *models.NextPage, result4 error) {
+func (fake *FakeHiveService) GetReviewedContentsReturns(result1 models.Posts, result2 models.Comments, result3 *models.NextPage, result4 error) {
 	fake.getReviewedContentsMutex.Lock()
 	defer fake.getReviewedContentsMutex.Unlock()
 	fake.GetReviewedContentsStub = nil
 	fake.getReviewedContentsReturns = struct {
-		result1 dbmodels.PostSlice
-		result2 dbmodels.CommentSlice
+		result1 models.Posts
+		result2 models.Comments
 		result3 *models.NextPage
 		result4 error
 	}{result1, result2, result3, result4}
 }
 
-func (fake *FakeHiveService) GetReviewedContentsReturnsOnCall(i int, result1 dbmodels.PostSlice, result2 dbmodels.CommentSlice, result3 *models.NextPage, result4 error) {
+func (fake *FakeHiveService) GetReviewedContentsReturnsOnCall(i int, result1 models.Posts, result2 models.Comments, result3 *models.NextPage, result4 error) {
 	fake.getReviewedContentsMutex.Lock()
 	defer fake.getReviewedContentsMutex.Unlock()
 	fake.GetReviewedContentsStub = nil
 	if fake.getReviewedContentsReturnsOnCall == nil {
 		fake.getReviewedContentsReturnsOnCall = make(map[int]struct {
-			result1 dbmodels.PostSlice
-			result2 dbmodels.CommentSlice
+			result1 models.Posts
+			result2 models.Comments
 			result3 *models.NextPage
 			result4 error
 		})
 	}
 	fake.getReviewedContentsReturnsOnCall[i] = struct {
-		result1 dbmodels.PostSlice
-		result2 dbmodels.CommentSlice
+		result1 models.Posts
+		result2 models.Comments
 		result3 *models.NextPage
 		result4 error
 	}{result1, result2, result3, result4}

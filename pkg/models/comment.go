@@ -167,3 +167,14 @@ type CommentNotificationBuildDataOutput struct {
 	PostOwnerAlert    impart.Alert
 	PostOwnerWealthID string
 }
+
+func CommentsWithLimit(comments dbmodels.CommentSlice, limit int) Comments {
+	out := make(Comments, limit, limit)
+	for i, c := range comments {
+		if i >= limit {
+			return out
+		}
+		out[i] = CommentFromDBModel(c)
+	}
+	return out
+}

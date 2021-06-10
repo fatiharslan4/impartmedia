@@ -16,6 +16,11 @@ import (
 	"gopkg.in/auth0.v5/management"
 )
 
+const impartDomain = "impartwealth.auth0.com"
+const integrationConnectionPrefix = "impart"
+const auth0managementClient = "wK78yrI3H2CSoWr0iscR5lItcZdjcLBA"
+const auth0managementClientSecret = "X3bXip3IZTQcLRoYIQ5VkMfSQdqcSZdJtdZpQd8w5-D22wK3vCt5HjMBo3Et93cJ"
+
 type hiveHandler struct {
 	hiveData    hivedata.Hives
 	hiveService Service
@@ -37,6 +42,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	hiveRoutes.POST("", handler.CreateHiveFunc())
 	hiveRoutes.PUT("", handler.EditHiveFunc())
 	hiveRoutes.GET("/:hiveId/percentiles/:impartWealthId", handler.GetHivePercentilesFunc())
+	hiveRoutes.GET("/:hiveId/reported-list", handler.GetReviewedContents())
 
 	//base is /:version/hives/:hiveId/posts"
 	postRoutes := hiveRoutes.Group("/:hiveId/posts")
@@ -222,12 +228,11 @@ func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 		var posts models.Posts
 		var hiveId uint64
 		var impartErr impart.Error
-
-		m, err0 := management.New("impartwealth.auth0.com", management.WithClientCredentials("wK78yrI3H2CSoWr0iscR5lItcZdjcLBA", "X3bXip3IZTQcLRoYIQ5VkMfSQdqcSZdJtdZpQd8w5-D22wK3vCt5HjMBo3Et93cJ"))
+		ctxUser := impart.GetCtxUser(ctx)
+		m, err0 := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
 		// res2B, _ := json.Marshal(m)
 		if err0 != nil {
 		}
-		ctxUser := impart.GetCtxUser(ctx)
 		existingUsers, err2 := m.User.ListByEmail(ctxUser.Email)
 		if err2 != nil {
 		}
@@ -733,4 +738,81 @@ func (hh *hiveHandler) DeleteCommentFunc() gin.HandlerFunc {
 
 		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "comment deleted"})
 	}
+}
+
+func (hh *hiveHandler) GetReviewedContents() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var hiveId uint64
+		var impartErr impart.Error
+		var err error
+
+		ctxUser := impart.GetCtxUser(ctx)
+
+		if !ctxUser.Admin {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "You are a not hive admin")
+			ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(impartErr))
+			return
+		}
+
+		if _, ok := ctx.Params.Get("hiveId"); ok {
+			if hiveId, impartErr = ctxUint64Param(ctx, "hiveId"); impartErr != nil {
+				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			}
+		}
+		gpi := hivedata.GetPostsInput{}
+		gpi.HiveID = hiveId
+
+		gpi.Limit, gpi.Offset, gpi.OffsetPost, gpi.OffsetComment, err = parseReportedLimitOffset(ctx)
+		if err != nil {
+			hh.logger.Error("couldn't parse limit and offset", zap.Error(err))
+			impartErr = impart.NewError(impart.ErrUnknown, "couldn't parse limit and offset")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		posts, comments, nextPage, erro := hh.hiveService.GetReviewedContents(ctx, gpi)
+		if erro != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(erro))
+			return
+		}
+		ctx.JSON(http.StatusOK, models.PagedReportedContentResponse{
+			Posts:    posts,
+			Comments: comments,
+			NextPage: nextPage,
+		})
+	}
+}
+
+func parseReportedLimitOffset(ctx *gin.Context) (limit int, offset int, offsetpost int, offsetcmnt int, err error) {
+	params := ctx.Request.URL.Query()
+
+	if limitParam := strings.TrimSpace(params.Get("limit")); limitParam != "" {
+		if limit, err = strconv.Atoi(limitParam); err != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impart.NewError(err, "invalid limit passed in")))
+			return
+		}
+	}
+
+	if offsetParam := strings.TrimSpace(params.Get("offset")); offsetParam != "" {
+		if offset, err = strconv.Atoi(offsetParam); err != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impart.NewError(err, "invalid limit passed in")))
+			return
+		}
+	}
+
+	if offsetParamCmnt := strings.TrimSpace(params.Get("offsetcmnt")); offsetParamCmnt != "" {
+		if offsetcmnt, err = strconv.Atoi(offsetParamCmnt); err != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impart.NewError(err, "invalid limit passed in")))
+			return
+		}
+	}
+
+	if offsetParamPost := strings.TrimSpace(params.Get("offsetpost")); offsetParamPost != "" {
+		if offsetpost, err = strconv.Atoi(offsetParamPost); err != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impart.NewError(err, "invalid limit passed in")))
+			return
+		}
+	}
+
+	return
 }

@@ -23,6 +23,12 @@ type PagedPostsResponse struct {
 	NextPage *NextPage `json:"nextPage"`
 }
 
+type PagedReportedContentResponse struct {
+	Posts    Posts     `json:"posts"`
+	Comments Comments  `json:"comments"`
+	NextPage *NextPage `json:"nextPage"`
+}
+
 type ReportedUser struct {
 	ImpartWealthID string `json:"impartWealthId"`
 	ScreenName     string `json:"screenName"`
@@ -240,4 +246,15 @@ type PostNotificationInput struct {
 type PostNotificationBuildDataOutput struct {
 	Alert             impart.Alert
 	PostOwnerWealthID string
+}
+
+func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int) Posts {
+	out := make(Posts, limit, limit)
+	for i, p := range dbPosts {
+		if i >= limit {
+			return out
+		}
+		out[i] = PostFromDB(p)
+	}
+	return out
 }

@@ -49,7 +49,7 @@ type Hives interface {
 	GetUnreviewedReportedPosts(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetPostsWithUnreviewedComments(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetPostsWithReviewedComments(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error)
-	GetReviewedContents(ctx context.Context, getInput GetPostsInput) (models.Posts, models.Comments, *models.NextPage, error)
+	GetReportedContents(ctx context.Context, getInput GetPostsInput) (models.PostComments, *models.NextPage, error)
 }
 
 func (d *mysqlHiveData) GetHives(ctx context.Context) (dbmodels.HiveSlice, error) {

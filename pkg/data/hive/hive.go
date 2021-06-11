@@ -45,11 +45,11 @@ type Hives interface {
 	NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error)
 	EditHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error)
 	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) error
-	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 	GetReviewedPosts(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetUnreviewedReportedPosts(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetPostsWithUnreviewedComments(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetPostsWithReviewedComments(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error)
+	GetReportedContents(ctx context.Context, getInput GetPostsInput) (models.PostComments, *models.NextPage, error)
 }
 
 func (d *mysqlHiveData) GetHives(ctx context.Context) (dbmodels.HiveSlice, error) {
@@ -102,7 +102,6 @@ func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin 
 	if !ctxUser.Admin {
 		return impart.ErrUnauthorized
 	}
-
 	toPin, err := dbmodels.FindPost(ctx, d.db, postID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -114,18 +113,11 @@ func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin 
 	if err != nil {
 		return err
 	}
-
 	if toPin.Pinned == pin && hive.PinnedPostID.Valid && hive.PinnedPostID.Uint64 == postID {
-		return impart.ErrNoOp
+		return impart.NewError(impart.ErrBadRequest, "Resource already matches exactly as request.")
 	}
 	if toPin.HiveID != hiveID {
-		return impart.ErrBadRequest
-	}
-
-	//if this post has a pin, and doesn't match the request pin
-	// that we're removing, do nothing.
-	if hive.PinnedPostID.Uint64 == postID {
-		return impart.ErrNoOp
+		return impart.NewError(impart.ErrBadRequest, "HiveId not matching.")
 	}
 
 	tx, err := d.db.BeginTx(ctx, nil)

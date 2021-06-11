@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/segmentio/ksuid"
@@ -113,7 +114,7 @@ func (ps *profileService) ValidateSchema(document gojsonschema.JSONLoader) (erro
 	return errors
 }
 
-func (ps *profileService) ValidateScreenName(document gojsonschema.JSONLoader) (errors []impart.Error) {
+func (ps *profileService) ValidateScreenNameInput(document gojsonschema.JSONLoader) (errors []impart.Error) {
 	v := gojsonschema.NewReferenceLoader(fmt.Sprintf("file://%s", "./schemas/json/ScreenNameValidator.json"))
 	_, err := v.LoadJSON()
 	if err != nil {
@@ -141,4 +142,59 @@ func (ps *profileService) ValidateScreenName(document gojsonschema.JSONLoader) (
 		errors = append(errors, er)
 	}
 	return errors
+}
+
+func (ps *profileService) ValidateInput(document gojsonschema.JSONLoader, validationModel types.Type) (errors []impart.Error) {
+
+	v := gojsonschema.NewReferenceLoader(
+		fmt.Sprintf("file://%s", "./schemas/json/"+validationModel+".json"),
+	)
+	_, err := v.LoadJSON()
+	if err != nil {
+		ps.SugaredLogger.Error(err.Error())
+		return []impart.Error{
+			impart.NewError(impart.ErrBadRequest, "unable to load validation schema"),
+		}
+	}
+	result, err := gojsonschema.Validate(v, document)
+	if err != nil {
+		ps.SugaredLogger.Error(err.Error())
+		return []impart.Error{
+			impart.NewError(impart.ErrBadRequest, "unable to validate schema"),
+		}
+	}
+
+	if result.Valid() {
+		return nil
+	}
+	// msg := fmt.Sprintf("%v validations errors.\n", len(result.Errors()))
+	msg := "validations errors"
+	for i, desc := range result.Errors() {
+		msg += fmt.Sprintf("%v: %s\n", i, desc)
+		er := impart.NewError(impart.ErrValidationError, fmt.Sprintf("%s ", desc), impart.ErrorKey(desc.Field()))
+		errors = append(errors, er)
+	}
+	return errors
+}
+
+/**
+ *
+ * Validate the screen name
+ *	No screen names can contain Impart, Impartwealth,
+ *  mod, moderator or Admin unless they are official Impart Wealth account.
+ *
+ */
+func (ps *profileService) ValidateScreenNameString(ctx context.Context, screenName string) impart.Error {
+	var invalidStrings = []string{
+		"impart", "impartwealth", "mod", "moderator", "admin", "wealth",
+	}
+	var err impart.Error
+	for _, str := range invalidStrings {
+		if ok := strings.Index(strings.ToLower(screenName), str); ok > -1 {
+			err = impart.NewError(impart.ErrValidationError, "this screen name is not allowed.")
+			break
+		}
+	}
+
+	return err
 }

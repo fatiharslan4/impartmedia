@@ -213,3 +213,16 @@ func (s *service) SendNotificationOnVote(ctx context.Context, actionType types.T
 
 	return err
 }
+
+/**
+ * Get Reported User
+ *
+ * get post reported users list
+ */
+func (s *service) GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error) {
+	return s.postData.GetReportedUser(ctx, posts)
+}
+
+func (s *service) GetReportedContents(ctx context.Context, gpi data.GetPostsInput) (models.PostComments, *models.NextPage, error) {
+	return s.hiveData.GetReportedContents(ctx, gpi)
+}

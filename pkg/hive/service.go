@@ -31,6 +31,8 @@ type Service interface {
 	DeletePost(ctx context.Context, postID uint64) impart.Error
 	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) impart.Error
 	ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
+	ReviewPost(ctx context.Context, postId uint64, comment string, remove bool) (models.Post, impart.Error)
+	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo) (models.PostVideo, impart.Error)
 
 	GetComments(ctx context.Context, postID uint64, limit, offset int) (models.Comments, *models.NextPage, impart.Error)
 	GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error)
@@ -38,8 +40,13 @@ type Service interface {
 	EditComment(ctx context.Context, comment models.Comment) (models.Comment, impart.Error)
 	DeleteComment(ctx context.Context, commentID uint64) impart.Error
 	ReportComment(ctx context.Context, commentID uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
+	ReviewComment(ctx context.Context, commentId uint64, comment string, remove bool) (models.Comment, impart.Error)
+
 	SendCommentNotification(input models.CommentNotificationInput) impart.Error
 	SendPostNotification(input models.PostNotificationInput) impart.Error
+
+	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
+	GetReportedContents(ctx context.Context, getInput data.GetPostsInput) (models.PostComments, *models.NextPage, error)
 }
 
 const maxNotificationLength = 512

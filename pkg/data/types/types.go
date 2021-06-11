@@ -12,4 +12,10 @@ var (
 	NewPost        Type = "newPost"
 	NewComment     Type = "newComment"
 	NewPostComment Type = "newPostComment"
+
+	Block   Type = "block"
+	UnBlock Type = "unblock"
+
+	UserDeviceValidationModel Type = "UserDevice"
+	UserBlockValidationModel  Type = "BlockUserInput"
 )

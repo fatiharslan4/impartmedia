@@ -226,3 +226,75 @@ FROM (
 	}
 	return posts, nextPage, nil
 }
+
+func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetPostsInput) (models.PostComments, *models.NextPage, error) {
+	var postCnt int
+	var cmntCnt int
+
+	outOffset := &models.NextPage{
+		Offset:        gpi.Offset,
+		OffsetPost:    gpi.OffsetPost,
+		OffsetComment: gpi.OffsetComment,
+	}
+
+	if gpi.Limit <= 0 {
+		gpi.Limit = defaultPostLimit
+	} else if gpi.Limit > maxPostLimit {
+		gpi.Limit = maxPostLimit
+	}
+	orderByMod := qm.OrderBy("created_at desc, post_id desc")
+
+	queryMods := []qm.QueryMod{
+		dbmodels.PostWhere.HiveID.EQ(gpi.HiveID),
+		qm.Offset(gpi.OffsetPost),
+		qm.Limit(gpi.Limit),
+		orderByMod,
+		qm.Load(dbmodels.PostRels.Tags),
+		qm.Load(dbmodels.PostRels.PostReactions),
+		qm.Load(dbmodels.PostRels.ImpartWealth),
+	}
+
+	queryMods = append(queryMods, qm.WhereIn("exists (select * from post_reactions rectn where rectn.post_id = `post`.`post_id` and rectn.reported = ?)", 1))
+	posts, err := dbmodels.Posts(queryMods...).All(ctx, d.db)
+	if err != nil {
+		posts = dbmodels.PostSlice{}
+	}
+
+	queryCommnt := []qm.QueryMod{
+		qm.Offset(gpi.OffsetComment),
+		qm.Limit(gpi.Limit),
+		orderByMod,
+		qm.Load(dbmodels.CommentRels.ImpartWealth),
+		qm.Load(dbmodels.CommentRels.CommentReactions),
+		qm.Load(dbmodels.CommentRels.Post, dbmodels.PostWhere.HiveID.EQ(gpi.HiveID)),
+	}
+
+	queryCommnt = append(queryCommnt, qm.WhereIn("exists (select * from comment_reactions cmtrec where cmtrec.comment_id = `comment`.`comment_id` and cmtrec.reported = ?)", 1))
+	comment, err := dbmodels.Comments(queryCommnt...).All(ctx, d.db)
+	if err != nil {
+		comment = dbmodels.CommentSlice{}
+	}
+	limit := len(posts) + len(comment)
+
+	resulData := models.PostCommentsLimit(posts, comment, limit)
+
+	resulData.SortDescending()
+
+	if len(resulData) > gpi.Limit {
+		resulData = models.PostsCommentsWithLimit(resulData, gpi.Limit)
+		resulData.SortDescending()
+	}
+
+	postCnt, cmntCnt = models.CountPostComnt(resulData)
+
+	if cmntCnt+postCnt < gpi.Limit {
+		outOffset = nil
+	} else {
+		outOffset.OffsetPost += postCnt
+		outOffset.OffsetComment += cmntCnt
+		outOffset.Offset += (cmntCnt + postCnt)
+	}
+
+	return resulData, outOffset, nil
+
+}

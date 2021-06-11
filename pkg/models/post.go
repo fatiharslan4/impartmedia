@@ -10,6 +10,7 @@ import (
 
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 
 	r "github.com/Pallinder/go-randomdata"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -20,6 +21,11 @@ import (
 type PagedPostsResponse struct {
 	Posts    Posts     `json:"posts"`
 	NextPage *NextPage `json:"nextPage"`
+}
+
+type PagedReportedContentResponse struct {
+	Data     PostComments `json:"postcomments"`
+	NextPage *NextPage    `json:"nextPage"`
 }
 
 type ReportedUser struct {
@@ -48,8 +54,19 @@ type Post struct {
 	NextCommentPage     *NextPage        `json:"nextCommentPage"`
 	ReportedCount       int              `json:"reportedCount"`
 	Obfuscated          bool             `json:"obfuscated"`
+	Reviewed            bool             `json:"reviewed"`
+	ReviewComment       string           `json:"reviewComment"`
 	ReviewedDatetime    time.Time        `json:"reviewedDatetime,omitempty"`
 	ReportedUsers       []ReportedUser   `json:"reportedUsers"`
+	Deleted             bool             `json:"deleted,omitempty"`
+	Video               PostVideo        `json:"video,omitempty"`
+	IsAdminPost         bool             `json:"isAdminPost"`
+}
+
+type PostVideo struct {
+	ReferenceId string `json:"referenceId,omitempty"`
+	Source      string `json:"source"`
+	Url         string `json:"url"`
 }
 
 func (posts Posts) Latest() time.Time {
@@ -110,6 +127,16 @@ func (p *Post) Random() {
 	}
 }
 
+func PostVideoFromDB(p *dbmodels.PostVideo) PostVideo {
+	out := PostVideo{
+		ReferenceId: p.ReferenceID.String,
+		Url:         p.URL,
+		Source:      p.Source,
+	}
+
+	return out
+}
+
 func PostFromDB(p *dbmodels.Post) Post {
 	out := Post{
 		HiveID:              p.HiveID,
@@ -131,6 +158,8 @@ func PostFromDB(p *dbmodels.Post) Post {
 		//NextCommentPage:     nil,
 		ReportedCount: p.ReportedCount,
 		Obfuscated:    p.Obfuscated,
+		Reviewed:      p.Reviewed,
+		ReviewComment: p.ReviewComment.String,
 	}
 	if p.R.ImpartWealth != nil {
 		out.ScreenName = p.R.ImpartWealth.ScreenName
@@ -149,6 +178,23 @@ func PostFromDB(p *dbmodels.Post) Post {
 	}
 	if len(p.R.Comments) > 0 {
 
+	}
+	if (p.DeletedAt != null.Time{}) {
+		out.Deleted = true
+	}
+	if p.R.PostVideos != nil && len(p.R.PostVideos) > 0 {
+		out.Video = PostVideoFromDB(p.R.PostVideos[0])
+	}
+
+	// check the user is blocked
+	if p.R.ImpartWealth != nil && p.R.ImpartWealth.Blocked {
+		out.ScreenName = "[deleted user]"
+	}
+	//check the user is admin
+	if p.R.ImpartWealth != nil && p.R.ImpartWealth.Admin {
+		out.IsAdminPost = true
+	} else {
+		out.IsAdminPost = false
 	}
 	return out
 }
@@ -203,4 +249,15 @@ type PostNotificationInput struct {
 type PostNotificationBuildDataOutput struct {
 	Alert             impart.Alert
 	PostOwnerWealthID string
+}
+
+func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int) Posts {
+	out := make(Posts, limit, limit)
+	for i, p := range dbPosts {
+		if i >= limit {
+			return out
+		}
+		out[i] = PostFromDB(p)
+	}
+	return out
 }

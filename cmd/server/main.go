@@ -43,6 +43,12 @@ func main() {
 		logger.Fatal("nil config")
 		return
 	}
+
+	//init the sentry logger
+	logger, err = impart.InitSentryLogger(cfg, logger)
+	if err != nil {
+		logger.Error("error on sentry init", zap.Any("error", err))
+	}
 	if cfg.Debug {
 		gin.SetMode(gin.DebugMode)
 		//boil.DebugMode = true
@@ -152,6 +158,7 @@ func main() {
 
 	v1.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
 	v1.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
+	v1.Use(services.Auth.DeviceIdentificationHandler()) //context for device identification
 	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
 
 	hive.SetupRoutes(v1, db, services.HiveData, services.Hive, logger)

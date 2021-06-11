@@ -39,6 +39,7 @@ type Profile struct {
 	//SurveyResponses  SurveyResponses `json:"surveyResponses,omitempty"`
 	HiveMemberships HiveMemberships `json:"hives,omitempty"`
 	IsMember        bool            `json:"isMember,omitempty"`
+	IsBlocked       bool            `json:"isBlocked,omitempty"`
 }
 
 // Attributes for Impart Wealth
@@ -71,7 +72,11 @@ type Subscription struct {
 }
 
 type ScreenNameValidator struct {
-	ScreenName string `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=4,maxLength=35"`
+	ScreenName string `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=4,maxLength=15"`
+}
+
+type AuthenticationIDValidation struct {
+	AuthenticationID string `json:"authId,omitempty" conform:"trim"`
 }
 
 func UnmarshallJson(profileJson string) (Profile, error) {
@@ -192,6 +197,9 @@ func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error)
 			if err := p.Attributes.Unmarshal(&out.Attributes); err != nil {
 				return nil, err
 			}
+		}
+		if u.Blocked {
+			out.IsBlocked = true
 		}
 	}
 

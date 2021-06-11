@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -46,35 +47,50 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		tagsSlice[i] = &dbmodels.Tag{TagID: uint(t)}
 	}
 	dbPost, err := s.postData.NewPost(ctx, dbPost, tagsSlice)
+
 	if err != nil {
 		s.logger.Error("unable to create a new post", zap.Error(err))
 		return models.Post{}, impart.UnknownError
 	}
 	if shouldPin {
-		if err := s.hiveData.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
+		// if err := s.hiveData.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
+		// 	s.logger.Error("couldn't pin post", zap.Error(err))
+		// }
+
+		if err := s.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
 			s.logger.Error("couldn't pin post", zap.Error(err))
 		}
 
 	}
 	p := models.PostFromDB(dbPost)
+	// p.Video = post.Video
+	fmt.Println("the post video", post.Video)
+	postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video)
+	p.Video = postvideo
+
+	// p, _ = s.AddPostVideo(ctx, p)
 	return p, nil
 }
 
 func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post, impart.Error) {
 	ctxUser := impart.GetCtxUser(ctx)
 	existingPost, err := s.postData.GetPost(ctx, inPost.PostID)
+	var shouldPin bool
 	if err != nil {
 		s.logger.Error("error fetching post trying to edit", zap.Error(err))
 		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "error fetching post trying to edit")
 	}
-	if !ctxUser.Admin && existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
+	if existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
 		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours", impart.ImpartWealthID)
 	}
 	tagsSlice := make(dbmodels.TagSlice, len(inPost.TagIDs), len(inPost.TagIDs))
 	for i, t := range inPost.TagIDs {
 		tagsSlice[i] = &dbmodels.Tag{TagID: uint(t)}
 	}
-	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice)
+	if ctxUser.Admin {
+		shouldPin = true
+	}
+	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin)
 	if err != nil {
 		return models.Post{}, impart.UnknownError
 	}
@@ -126,7 +142,6 @@ func (s *service) GetPost(ctx context.Context, postID uint64, includeComments bo
 	if err := eg.Wait(); err != nil {
 		return out, impart.NewError(err, "error getting post", impart.PostID)
 	}
-
 	out = models.PostFromDB(dbPost)
 	out.Comments = models.CommentsFromDBModelSlice(comments)
 	out.NextCommentPage = nextCommentPage
@@ -242,6 +257,8 @@ func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, 
 			return empty, impart.NewError(impart.ErrNoOp, "post is already in the input reported state")
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to report", postId))
+		case impart.ErrUnauthorized:
+			return empty, impart.NewError(err, fmt.Sprintf("could not report %v comment. It is already reviewed by admin", postId), impart.Report)
 		default:
 			return empty, impart.UnknownError
 		}
@@ -255,6 +272,33 @@ func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, 
 		return empty, impart.UnknownError
 	}
 	return out, nil
+}
+
+func (s *service) ReviewPost(ctx context.Context, postId uint64, comment string, remove bool) (models.Post, impart.Error) {
+	var dbReason *string
+	var empty models.Post
+
+	if comment != "" {
+		dbReason = &comment
+	}
+	err := s.reactionData.ReviewPost(ctx, postId, dbReason, remove)
+	if err != nil {
+		s.logger.Error("couldn't review post", zap.Error(err), zap.Uint64("postId", postId))
+		switch err {
+		case impart.ErrNoOp:
+			return empty, impart.NewError(impart.ErrNoOp, "post is already in the input reviewd state")
+		case impart.ErrNotFound:
+			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to review", postId))
+		default:
+			return empty, impart.UnknownError
+		}
+	}
+	dbPost, err := s.postData.GetPost(ctx, postId)
+	if err != nil {
+		s.logger.Error("couldn't get post information", zap.Error(err))
+		return empty, impart.UnknownError
+	}
+	return models.PostFromDB(dbPost), nil
 }
 
 /**
@@ -344,4 +388,24 @@ func (s *service) BuildPostNotificationData(input models.PostNotificationInput) 
 		PostOwnerAlert:    postOwnerAlert,
 		PostOwnerWealthID: postUserIWID,
 	}, err
+}
+
+func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo models.PostVideo) (models.PostVideo, impart.Error) {
+	ctxUser := impart.GetCtxUser(ctx)
+	if ctxUser.Admin && (postVideo != models.PostVideo{}) {
+		input := &dbmodels.PostVideo{
+			Source:      postVideo.Source,
+			ReferenceID: null.StringFrom(postVideo.ReferenceId),
+			URL:         postVideo.Url,
+			PostID:      postID,
+		}
+		input, err := s.postData.NewPostVideo(ctx, input)
+		if err != nil {
+			s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+			return models.PostVideo{}, nil
+		}
+		postVideo = models.PostVideoFromDB(input)
+		return postVideo, nil
+	}
+	return models.PostVideo{}, nil
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
+
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -46,6 +48,9 @@ type UserTrack interface {
 
 	ReportPost(ctx context.Context, postId uint64, reason *string, remove bool) error
 	ReportComment(ctx context.Context, commentId uint64, reason *string, remove bool) error
+
+	ReviewPost(ctx context.Context, postId uint64, comment *string, remove bool) error
+	ReviewComment(ctx context.Context, commentId uint64, comment *string, remove bool) error
 }
 
 //// NewContentTrack returns an implementation of data.Comments interface
@@ -364,6 +369,7 @@ func (d *mysqlHiveData) ReportPost(ctx context.Context, postId uint64, reason *s
 			return err
 		}
 	}
+
 	//alter the reaction first
 	if remove {
 		if !pr.Reported {
@@ -384,6 +390,11 @@ func (d *mysqlHiveData) ReportPost(ctx context.Context, postId uint64, reason *s
 	post, err = dbmodels.Posts(dbmodels.PostWhere.PostID.EQ(postId), qm.For("UPDATE")).One(ctx, tx)
 	if err != nil {
 		return err
+	}
+
+	// if the post is reviewd, then user is not able to report
+	if post.Reviewed {
+		return impart.ErrUnauthorized
 	}
 
 	if pr.Reported {
@@ -432,7 +443,10 @@ func (d *mysqlHiveData) ReportComment(ctx context.Context, commentId uint64, rea
 	if err != nil {
 		return err
 	}
-
+	// if the comment is reviewd, then user is not able to report
+	if comment.Reviewed {
+		return impart.ErrUnauthorized
+	}
 	//lock the record, regardless of whether it exists or not.
 	if cr, err = dbmodels.CommentReactions(dbmodels.CommentReactionWhere.CommentID.EQ(commentId),
 		dbmodels.CommentReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID),
@@ -497,4 +511,80 @@ func (d *mysqlHiveData) ReportComment(ctx context.Context, commentId uint64, rea
 		return err
 	}
 	return tx.Commit()
+}
+
+// ReviewPost
+func (d *mysqlHiveData) ReviewPost(ctx context.Context, postId uint64, reason *string, remove bool) error {
+	// update the post review status
+	dbPost, err := dbmodels.Posts(
+		dbmodels.PostWhere.PostID.EQ(postId),
+	).One(ctx, d.db)
+
+	if err != nil {
+		return err
+	}
+
+	//alter the reaction first
+	if remove {
+		if !dbPost.Reviewed {
+			return impart.ErrNoOp
+		} else {
+			dbPost.Reviewed = false
+			dbPost.ReviewedAt = null.Time{}
+			dbPost.ReviewComment = null.StringFrom("")
+		}
+	} else {
+		if dbPost.Reviewed {
+			return impart.ErrNoOp
+		} else {
+			dbPost.Reviewed = true
+			dbPost.ReviewedAt = null.TimeFrom(time.Now())
+			dbPost.ReviewComment = null.StringFromPtr(reason)
+		}
+	}
+
+	// update the status
+	_, err = dbPost.Update(ctx, d.db, boil.Infer())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *mysqlHiveData) ReviewComment(ctx context.Context, commentId uint64, reason *string, remove bool) error {
+	// update comment review status
+	dbComment, err := dbmodels.Comments(
+		dbmodels.CommentWhere.CommentID.EQ(commentId),
+	).One(ctx, d.db)
+
+	if err != nil {
+		return err
+	}
+
+	//alter the reaction first
+	if remove {
+		if !dbComment.Reviewed {
+			return impart.ErrNoOp
+		} else {
+			dbComment.Reviewed = false
+			dbComment.ReviewedAt = null.Time{}
+			dbComment.ReviewComment = null.StringFrom("")
+		}
+	} else {
+		if dbComment.Reviewed {
+			return impart.ErrNoOp
+		} else {
+			dbComment.Reviewed = true
+			dbComment.ReviewedAt = null.TimeFrom(time.Now())
+			dbComment.ReviewComment = null.StringFromPtr(reason)
+		}
+	}
+
+	// update the status
+	_, err = dbComment.Update(ctx, d.db, boil.Infer())
+	if err != nil {
+		return err
+	}
+	return nil
 }

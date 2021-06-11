@@ -42,7 +42,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	hiveRoutes.POST("", handler.CreateHiveFunc())
 	hiveRoutes.PUT("", handler.EditHiveFunc())
 	hiveRoutes.GET("/:hiveId/percentiles/:impartWealthId", handler.GetHivePercentilesFunc())
-	hiveRoutes.GET("/:hiveId/reported-list", handler.GetReviewedContents())
+	hiveRoutes.GET("/:hiveId/reported-list", handler.GetReportedContents())
 
 	//base is /:version/hives/:hiveId/posts"
 	postRoutes := hiveRoutes.Group("/:hiveId/posts")
@@ -786,7 +786,7 @@ func (hh *hiveHandler) DeleteCommentFunc() gin.HandlerFunc {
 	}
 }
 
-func (hh *hiveHandler) GetReviewedContents() gin.HandlerFunc {
+func (hh *hiveHandler) GetReportedContents() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var hiveId uint64
 		var impartErr impart.Error
@@ -816,14 +816,13 @@ func (hh *hiveHandler) GetReviewedContents() gin.HandlerFunc {
 			return
 		}
 
-		posts, comments, nextPage, erro := hh.hiveService.GetReviewedContents(ctx, gpi)
+		postcomments, nextPage, erro := hh.hiveService.GetReportedContents(ctx, gpi)
 		if erro != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(erro))
 			return
 		}
 		ctx.JSON(http.StatusOK, models.PagedReportedContentResponse{
-			Posts:    posts,
-			Comments: comments,
+			Data:     postcomments,
 			NextPage: nextPage,
 		})
 	}

@@ -223,6 +223,6 @@ func (s *service) GetReportedUser(ctx context.Context, posts models.Posts) (mode
 	return s.postData.GetReportedUser(ctx, posts)
 }
 
-func (s *service) GetReviewedContents(ctx context.Context, gpi data.GetPostsInput) (models.Posts, models.Comments, *models.NextPage, error) {
-	return s.hiveData.GetReviewedContents(ctx, gpi)
+func (s *service) GetReportedContents(ctx context.Context, gpi data.GetPostsInput) (models.PostComments, *models.NextPage, error) {
+	return s.hiveData.GetReportedContents(ctx, gpi)
 }

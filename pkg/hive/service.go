@@ -46,7 +46,7 @@ type Service interface {
 	SendPostNotification(input models.PostNotificationInput) impart.Error
 
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
-	GetReviewedContents(ctx context.Context, getInput data.GetPostsInput) (models.Posts, models.Comments, *models.NextPage, error)
+	GetReportedContents(ctx context.Context, getInput data.GetPostsInput) (models.PostComments, *models.NextPage, error)
 }
 
 const maxNotificationLength = 512

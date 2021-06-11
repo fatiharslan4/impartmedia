@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -18,7 +19,6 @@ var (
 )
 
 type CensorWordDetection struct {
-	SanitizeSpecialChars      bool
 	CensorList                []string
 	CensorReplaceChar         string
 	KeepPrefixChar            bool
@@ -30,7 +30,6 @@ type CensorWordDetection struct {
 // this will create a new CensorWordDetection object
 func NewDetector() *CensorWordDetection {
 	return &CensorWordDetection{
-		SanitizeSpecialChars:      true,
 		CensorList:                censor.CensorWordsList,
 		CensorReplaceChar:         censor.CensorChar,
 		KeepPrefixChar:            false,
@@ -91,7 +90,16 @@ func (censor *CensorWordDetection) CensorWord(word string) (string, error) {
 
 	// sanitize with text normalization
 	word = censor.normalizeText(word)
-	word = censor.SanitizeCharacter(word)
+
+	if censor.SanitizeSpecialCharacters {
+		word = censor.SanitizeCharacter(word)
+	}
+
+	//sort on descending
+	sort.Strings(censor.CensorList)
+	sort.Slice(censor.CensorList, func(i, j int) bool {
+		return len(censor.CensorList[i]) > len(censor.CensorList[j])
+	})
 
 	// check the list is empty
 	if ok := len(censor.CensorList) > 0; !ok {
@@ -106,11 +114,11 @@ func (censor *CensorWordDetection) CensorWord(word string) (string, error) {
 		wordLength := len(forbiddenWord)
 
 		if censor.KeepPrefixChar {
-			prefix = string(word[0])
+			prefix = string(forbiddenWord[0])
 			wordLength--
 		}
 		if censor.KeepSuffixChar {
-			suffix = string(word[len(word)-1])
+			suffix = string(forbiddenWord[len(forbiddenWord)-1])
 			wordLength--
 		}
 

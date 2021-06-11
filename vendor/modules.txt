@@ -157,7 +157,7 @@ github.com/modern-go/reflect2
 # github.com/ory/graceful v0.1.1
 ## explicit
 github.com/ory/graceful
-# github.com/pcpratheesh/go-censorword v1.1.2-0.20210610102658-75fef0e9d553
+# github.com/pcpratheesh/go-censorword v0.0.0-20210611122341-e5c647fa3d71
 ## explicit
 github.com/pcpratheesh/go-censorword
 github.com/pcpratheesh/go-censorword/censor
@@ -237,7 +237,6 @@ golang.org/x/sync/errgroup
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 # golang.org/x/text v0.3.6
-## explicit
 golang.org/x/text/runes
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm

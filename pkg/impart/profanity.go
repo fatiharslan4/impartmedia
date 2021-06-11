@@ -1,21 +1,13 @@
 package impart
 
 import (
-	"sort"
-
 	gocensorword "github.com/pcpratheesh/go-censorword"
 )
 
 var ProfanityDetector *gocensorword.CensorWordDetection
 
 func InitProfanityDetector() *gocensorword.CensorWordDetection {
-	ProfanityDetector = gocensorword.NewDetector().SetCensorReplaceChar("*")
-	sort.Strings(censorList)
-
-	sort.Slice(censorList, func(i, j int) bool {
-		return len(censorList[i]) > len(censorList[j])
-	})
-
+	ProfanityDetector = gocensorword.NewDetector().SetCensorReplaceChar("*").WithSanitizeSpecialCharacters(false)
 	ProfanityDetector.CustomCensorList(censorList)
 	return ProfanityDetector
 }
@@ -44,6 +36,7 @@ var censorList = []string{
 	"asshat",
 	"assho1e",
 	"ass hole",
+	"asshole",
 	"assholes",
 	"assmaster",
 	"assmunch",

@@ -39,3 +39,11 @@ func ValidationPost(post models.Post) models.Post {
 
 	return updatePost
 }
+
+// this will filter and validate the comment input
+func ValidateCommentInput(c models.Comment) models.Comment {
+	if filter, err := impart.ProfanityDetector.CensorWord(c.Content.Markdown); err == nil {
+		c.Content.Markdown = filter
+	}
+	return c
+}

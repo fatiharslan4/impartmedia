@@ -227,12 +227,9 @@ FROM (
 	return posts, nextPage, nil
 }
 
-func (d *mysqlHiveData) GetReviewedContents(ctx context.Context, gpi GetPostsInput) (models.Posts, models.Comments, *models.NextPage, error) {
+func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetPostsInput) (models.PostComments, *models.NextPage, error) {
 	var postCnt int
 	var cmntCnt int
-
-	var resultComments models.Comments
-	var resultPosts models.Posts
 
 	outOffset := &models.NextPage{
 		Offset:        gpi.Offset,
@@ -277,45 +274,18 @@ func (d *mysqlHiveData) GetReviewedContents(ctx context.Context, gpi GetPostsInp
 	if err != nil {
 		comment = dbmodels.CommentSlice{}
 	}
+	limit := len(posts) + len(comment)
 
-	if len(posts)+len(comment) <= gpi.Limit {
-		cmntCnt = len(comment)
-		postCnt = len(posts)
-	} else if len(posts) <= gpi.Limit {
-		postCnt = len(posts)
-		cmntCnt = gpi.Limit - postCnt
-		if cmntCnt > len(comment) {
-			cmntCnt = len(comment)
-		}
-	} else if len(posts) > gpi.Limit {
-		postCnt = gpi.Limit
-		cmntCnt = 0
-	} else if len(comment) > gpi.Limit {
-		cmntCnt = gpi.Limit
-		postCnt = 0
-	} else if len(comment) <= gpi.Limit {
-		cmntCnt = len(comment)
-		postCnt = gpi.Limit - cmntCnt
-		if postCnt > len(posts) {
-			postCnt = len(posts)
-		}
+	resulData := models.PostCommentsLimit(posts, comment, limit)
+
+	resulData.SortDescending()
+
+	if len(resulData) > gpi.Limit {
+		resulData = models.PostsCommentsWithLimit(resulData, gpi.Limit)
+		resulData.SortDescending()
 	}
 
-	if cmntCnt == len(comment) {
-		resultComments = models.CommentsFromDBModelSlice(comment)
-	} else if cmntCnt == 0 {
-		resultComments = models.Comments{}
-	} else if cmntCnt != len(comment) {
-		resultComments = models.CommentsWithLimit(comment, cmntCnt)
-	}
-
-	if postCnt == len(posts) {
-		resultPosts = models.PostsFromDB(posts)
-	} else if postCnt == 0 {
-		resultPosts = models.Posts{}
-	} else if postCnt != len(posts) {
-		resultPosts = models.PostsWithlimit(posts, postCnt)
-	}
+	postCnt, cmntCnt = models.CountPostComnt(resulData)
 
 	if cmntCnt+postCnt < gpi.Limit {
 		outOffset = nil
@@ -325,6 +295,6 @@ func (d *mysqlHiveData) GetReviewedContents(ctx context.Context, gpi GetPostsInp
 		outOffset.Offset += (cmntCnt + postCnt)
 	}
 
-	return resultPosts, resultComments, outOffset, nil
+	return resulData, outOffset, nil
 
 }

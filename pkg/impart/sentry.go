@@ -41,6 +41,8 @@ func InitSentryLogger(cfg *config.Impart, log *zap.Logger) (logger *zap.Logger, 
 			}
 			return nil
 		}))
+	} else {
+		logger.Info("Sentry logger is not configured")
 	}
 	return
 }

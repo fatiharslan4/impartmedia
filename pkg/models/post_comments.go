@@ -29,7 +29,6 @@ type PostComment struct {
 	DownVotes           int              `json:"downVotes"`
 	PostCommentTrack    PostCommentTrack `json:"postCommentTrack,omitempty"`
 	Comments            Comments         `json:"comments,omitempty"`
-	NextCommentPage     *NextPage        `json:"nextCommentPage"`
 	ReportedCount       int              `json:"reportedCount"`
 	Obfuscated          bool             `json:"obfuscated"`
 	Reviewed            bool             `json:"reviewed"`

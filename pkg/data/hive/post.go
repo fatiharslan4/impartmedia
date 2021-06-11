@@ -26,7 +26,7 @@ type Posts interface {
 	//GetPostsImpartWealthID(ctx context.Context, impartWealthID string, limit int64, offset time.Time) (models.Posts, error)
 	GetPost(ctx context.Context, postID uint64) (*dbmodels.Post, error)
 	NewPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice) (*dbmodels.Post, error)
-	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice) (*dbmodels.Post, error)
+	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool) (*dbmodels.Post, error)
 	DeletePost(ctx context.Context, postID uint64) error
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 	NewPostVideo(ctx context.Context, post *dbmodels.PostVideo) (*dbmodels.PostVideo, error)
@@ -76,7 +76,7 @@ func (d *mysqlHiveData) NewPost(ctx context.Context, post *dbmodels.Post, tags d
 }
 
 // EditPost takes an incoming Post, and modifies the record to match.
-func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice) (*dbmodels.Post, error) {
+func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool) (*dbmodels.Post, error) {
 	//you can only edit content and subject
 	existing, err := dbmodels.FindPost(ctx, d.db, post.PostID)
 	if err != nil {
@@ -95,7 +95,7 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 	}
 	_, err = existing.Update(ctx, d.db, boil.Infer())
 
-	if post.Pinned != existing.Pinned {
+	if shouldPin && post.Pinned != existing.Pinned {
 		err = d.PinPost(ctx, post.HiveID, post.PostID, post.Pinned)
 	}
 	if err := existing.SetTags(ctx, d.db, false, tags...); err != nil {

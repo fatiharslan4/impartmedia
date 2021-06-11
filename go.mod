@@ -21,6 +21,7 @@ require (
 	github.com/leebenson/conform v1.2.2
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
 	github.com/ory/graceful v0.1.1
+	github.com/pcpratheesh/go-censorword v1.1.2-0.20210610102658-75fef0e9d553
 	github.com/pkg/errors v0.9.1
 	github.com/segmentio/ksuid v1.0.3
 	github.com/shopspring/decimal v1.2.0
@@ -31,6 +32,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.uber.org/zap v1.16.0
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
+	golang.org/x/text v0.3.6 // indirect
 	gopkg.in/auth0.v5 v5.11.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 )

@@ -100,6 +100,9 @@ func main() {
 		logger.Fatal("unable to bootstrap user", zap.Error(err))
 	}
 
+	// initiate global profanity detector
+	impart.InitProfanityDetector()
+
 	services := setupServices(cfg, db, logger)
 
 	r := gin.New()

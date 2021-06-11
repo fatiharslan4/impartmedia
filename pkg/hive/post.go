@@ -75,18 +75,22 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post, impart.Error) {
 	ctxUser := impart.GetCtxUser(ctx)
 	existingPost, err := s.postData.GetPost(ctx, inPost.PostID)
+	var shouldPin bool
 	if err != nil {
 		s.logger.Error("error fetching post trying to edit", zap.Error(err))
 		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "error fetching post trying to edit")
 	}
-	if !ctxUser.Admin && existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
+	if existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
 		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours", impart.ImpartWealthID)
 	}
 	tagsSlice := make(dbmodels.TagSlice, len(inPost.TagIDs), len(inPost.TagIDs))
 	for i, t := range inPost.TagIDs {
 		tagsSlice[i] = &dbmodels.Tag{TagID: uint(t)}
 	}
-	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice)
+	if ctxUser.Admin {
+		shouldPin = true
+	}
+	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin)
 	if err != nil {
 		return models.Post{}, impart.UnknownError
 	}

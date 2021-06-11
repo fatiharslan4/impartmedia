@@ -24,9 +24,8 @@ type PagedPostsResponse struct {
 }
 
 type PagedReportedContentResponse struct {
-	Posts    Posts     `json:"posts"`
-	Comments Comments  `json:"comments"`
-	NextPage *NextPage `json:"nextPage"`
+	Data     PostComments `json:"postcomments"`
+	NextPage *NextPage    `json:"nextPage"`
 }
 
 type ReportedUser struct {

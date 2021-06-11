@@ -43,6 +43,12 @@ func main() {
 		logger.Fatal("nil config")
 		return
 	}
+
+	//init the sentry logger
+	logger, err = impart.InitSentryLogger(cfg, logger)
+	if err != nil {
+		logger.Error("error on sentry init", zap.Any("error", err))
+	}
 	if cfg.Debug {
 		gin.SetMode(gin.DebugMode)
 		//boil.DebugMode = true

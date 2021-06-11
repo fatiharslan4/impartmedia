@@ -421,6 +421,34 @@ type FakeHiveService struct {
 	reportPostReturnsOnCall map[int]struct {
 		result1 error
 	}
+	ReviewCommentStub        func(context.Context, uint64, *string, bool) error
+	reviewCommentMutex       sync.RWMutex
+	reviewCommentArgsForCall []struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 *string
+		arg4 bool
+	}
+	reviewCommentReturns struct {
+		result1 error
+	}
+	reviewCommentReturnsOnCall map[int]struct {
+		result1 error
+	}
+	ReviewPostStub        func(context.Context, uint64, *string, bool) error
+	reviewPostMutex       sync.RWMutex
+	reviewPostArgsForCall []struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 *string
+		arg4 bool
+	}
+	reviewPostReturns struct {
+		result1 error
+	}
+	reviewPostReturnsOnCall map[int]struct {
+		result1 error
+	}
 	TakeDownVoteStub        func(context.Context, data.ContentInput) error
 	takeDownVoteMutex       sync.RWMutex
 	takeDownVoteArgsForCall []struct {
@@ -2287,6 +2315,134 @@ func (fake *FakeHiveService) ReportPostReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeHiveService) ReviewComment(arg1 context.Context, arg2 uint64, arg3 *string, arg4 bool) error {
+	fake.reviewCommentMutex.Lock()
+	ret, specificReturn := fake.reviewCommentReturnsOnCall[len(fake.reviewCommentArgsForCall)]
+	fake.reviewCommentArgsForCall = append(fake.reviewCommentArgsForCall, struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 *string
+		arg4 bool
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.ReviewCommentStub
+	fakeReturns := fake.reviewCommentReturns
+	fake.recordInvocation("ReviewComment", []interface{}{arg1, arg2, arg3, arg4})
+	fake.reviewCommentMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeHiveService) ReviewCommentCallCount() int {
+	fake.reviewCommentMutex.RLock()
+	defer fake.reviewCommentMutex.RUnlock()
+	return len(fake.reviewCommentArgsForCall)
+}
+
+func (fake *FakeHiveService) ReviewCommentCalls(stub func(context.Context, uint64, *string, bool) error) {
+	fake.reviewCommentMutex.Lock()
+	defer fake.reviewCommentMutex.Unlock()
+	fake.ReviewCommentStub = stub
+}
+
+func (fake *FakeHiveService) ReviewCommentArgsForCall(i int) (context.Context, uint64, *string, bool) {
+	fake.reviewCommentMutex.RLock()
+	defer fake.reviewCommentMutex.RUnlock()
+	argsForCall := fake.reviewCommentArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeHiveService) ReviewCommentReturns(result1 error) {
+	fake.reviewCommentMutex.Lock()
+	defer fake.reviewCommentMutex.Unlock()
+	fake.ReviewCommentStub = nil
+	fake.reviewCommentReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) ReviewCommentReturnsOnCall(i int, result1 error) {
+	fake.reviewCommentMutex.Lock()
+	defer fake.reviewCommentMutex.Unlock()
+	fake.ReviewCommentStub = nil
+	if fake.reviewCommentReturnsOnCall == nil {
+		fake.reviewCommentReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.reviewCommentReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) ReviewPost(arg1 context.Context, arg2 uint64, arg3 *string, arg4 bool) error {
+	fake.reviewPostMutex.Lock()
+	ret, specificReturn := fake.reviewPostReturnsOnCall[len(fake.reviewPostArgsForCall)]
+	fake.reviewPostArgsForCall = append(fake.reviewPostArgsForCall, struct {
+		arg1 context.Context
+		arg2 uint64
+		arg3 *string
+		arg4 bool
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.ReviewPostStub
+	fakeReturns := fake.reviewPostReturns
+	fake.recordInvocation("ReviewPost", []interface{}{arg1, arg2, arg3, arg4})
+	fake.reviewPostMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeHiveService) ReviewPostCallCount() int {
+	fake.reviewPostMutex.RLock()
+	defer fake.reviewPostMutex.RUnlock()
+	return len(fake.reviewPostArgsForCall)
+}
+
+func (fake *FakeHiveService) ReviewPostCalls(stub func(context.Context, uint64, *string, bool) error) {
+	fake.reviewPostMutex.Lock()
+	defer fake.reviewPostMutex.Unlock()
+	fake.ReviewPostStub = stub
+}
+
+func (fake *FakeHiveService) ReviewPostArgsForCall(i int) (context.Context, uint64, *string, bool) {
+	fake.reviewPostMutex.RLock()
+	defer fake.reviewPostMutex.RUnlock()
+	argsForCall := fake.reviewPostArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeHiveService) ReviewPostReturns(result1 error) {
+	fake.reviewPostMutex.Lock()
+	defer fake.reviewPostMutex.Unlock()
+	fake.ReviewPostStub = nil
+	fake.reviewPostReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) ReviewPostReturnsOnCall(i int, result1 error) {
+	fake.reviewPostMutex.Lock()
+	defer fake.reviewPostMutex.Unlock()
+	fake.ReviewPostStub = nil
+	if fake.reviewPostReturnsOnCall == nil {
+		fake.reviewPostReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.reviewPostReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeHiveService) TakeDownVote(arg1 context.Context, arg2 data.ContentInput) error {
 	fake.takeDownVoteMutex.Lock()
 	ret, specificReturn := fake.takeDownVoteReturnsOnCall[len(fake.takeDownVoteArgsForCall)]
@@ -2470,6 +2626,10 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.reportCommentMutex.RUnlock()
 	fake.reportPostMutex.RLock()
 	defer fake.reportPostMutex.RUnlock()
+	fake.reviewCommentMutex.RLock()
+	defer fake.reviewCommentMutex.RUnlock()
+	fake.reviewPostMutex.RLock()
+	defer fake.reviewPostMutex.RUnlock()
 	fake.takeDownVoteMutex.RLock()
 	defer fake.takeDownVoteMutex.RUnlock()
 	fake.takeUpVoteMutex.RLock()

@@ -441,7 +441,7 @@ func (tagL) LoadPosts(ctx context.Context, e boil.ContextExecutor, singular bool
 	}
 
 	query := NewQuery(
-		qm.Select("`post`.post_id, `post`.hive_id, `post`.impart_wealth_id, `post`.pinned, `post`.created_at, `post`.updated_at, `post`.deleted_at, `post`.subject, `post`.content, `post`.last_comment_ts, `post`.comment_count, `post`.up_vote_count, `post`.down_vote_count, `post`.reported_count, `post`.obfuscated, `post`.reviewed_at, `a`.`tag_id`"),
+		qm.Select("`post`.post_id, `post`.hive_id, `post`.impart_wealth_id, `post`.pinned, `post`.created_at, `post`.updated_at, `post`.deleted_at, `post`.subject, `post`.content, `post`.last_comment_ts, `post`.comment_count, `post`.up_vote_count, `post`.down_vote_count, `post`.reported_count, `post`.obfuscated, `post`.reviewed_at, `post`.reviewed, `post`.review_comment, `a`.`tag_id`"),
 		qm.From("`post`"),
 		qm.InnerJoin("`post_tag` as `a` on `post`.`post_id` = `a`.`post_id`"),
 		qm.WhereIn("`a`.`tag_id` in ?", args...),
@@ -463,7 +463,7 @@ func (tagL) LoadPosts(ctx context.Context, e boil.ContextExecutor, singular bool
 		one := new(Post)
 		var localJoinCol uint
 
-		err = results.Scan(&one.PostID, &one.HiveID, &one.ImpartWealthID, &one.Pinned, &one.CreatedAt, &one.UpdatedAt, &one.DeletedAt, &one.Subject, &one.Content, &one.LastCommentTS, &one.CommentCount, &one.UpVoteCount, &one.DownVoteCount, &one.ReportedCount, &one.Obfuscated, &one.ReviewedAt, &localJoinCol)
+		err = results.Scan(&one.PostID, &one.HiveID, &one.ImpartWealthID, &one.Pinned, &one.CreatedAt, &one.UpdatedAt, &one.DeletedAt, &one.Subject, &one.Content, &one.LastCommentTS, &one.CommentCount, &one.UpVoteCount, &one.DownVoteCount, &one.ReportedCount, &one.Obfuscated, &one.ReviewedAt, &one.Reviewed, &one.ReviewComment, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for post")
 		}

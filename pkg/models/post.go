@@ -55,6 +55,8 @@ type Post struct {
 	NextCommentPage     *NextPage        `json:"nextCommentPage"`
 	ReportedCount       int              `json:"reportedCount"`
 	Obfuscated          bool             `json:"obfuscated"`
+	Reviewed            bool             `json:"reviewed"`
+	ReviewComment       string           `json:"reviewComment"`
 	ReviewedDatetime    time.Time        `json:"reviewedDatetime,omitempty"`
 	ReportedUsers       []ReportedUser   `json:"reportedUsers"`
 	Deleted             bool             `json:"deleted,omitempty"`
@@ -157,6 +159,8 @@ func PostFromDB(p *dbmodels.Post) Post {
 		//NextCommentPage:     nil,
 		ReportedCount: p.ReportedCount,
 		Obfuscated:    p.Obfuscated,
+		Reviewed:      p.Reviewed,
+		ReviewComment: p.ReviewComment.String,
 	}
 	if p.R.ImpartWealth != nil {
 		out.ScreenName = p.R.ImpartWealth.ScreenName

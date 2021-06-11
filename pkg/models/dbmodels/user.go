@@ -81,6 +81,7 @@ var UserTableColumns = struct {
 	AwsSNSAppArn     string
 	Admin            string
 	EmailVerified    string
+	Blocked          string
 }{
 	ImpartWealthID:   "user.impart_wealth_id",
 	AuthenticationID: "user.authentication_id",
@@ -93,6 +94,7 @@ var UserTableColumns = struct {
 	AwsSNSAppArn:     "user.aws_sns_app_arn",
 	Admin:            "user.admin",
 	EmailVerified:    "user.email_verified",
+	Blocked:          "user.blocked",
 }
 
 // Generated where

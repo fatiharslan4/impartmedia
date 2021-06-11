@@ -37,6 +37,8 @@ type Comment struct {
 	PostCommentTrack PostCommentTrack `json:"postCommentTrack,omitempty"`
 	ReportedCount    int              `json:"reportedCount"`
 	Obfuscated       bool             `json:"obfuscated"`
+	Reviewed         bool             `json:"reviewed"`
+	ReviewComment    string           `json:"reviewComment"`
 	ReviewedDatetime time.Time        `json:"reviewedDatetime,omitempty"`
 	ParentCommentID  uint64           `json:"parentCommentId"`
 	Deleted          bool             `json:"deleted,omitempty"`
@@ -131,6 +133,8 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 		PostCommentTrack: PostCommentTrack{},
 		ReportedCount:    c.ReportedCount,
 		Obfuscated:       c.Obfuscated,
+		Reviewed:         c.Reviewed,
+		ReviewComment:    c.ReviewComment.String,
 	}
 	if c.ReviewedAt.Valid {
 		out.ReviewedDatetime = c.ReviewedAt.Time

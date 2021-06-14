@@ -254,11 +254,7 @@ func (m *mysqlStore) GetUserQuestionnaires(ctx context.Context, impartWealthId s
 	return out, nil
 }
 
-/**
- *
- * GetUserDevice : Get the user device
- *
- */
+//  GetUserDevice : Get the user device
 func (m *mysqlStore) GetUserDevice(ctx context.Context, token string, impartID string, deviceID string) (*dbmodels.UserDevice, error) {
 	where := []QueryMod{}
 	if impartID != "" {
@@ -283,11 +279,7 @@ func (m *mysqlStore) GetUserDevice(ctx context.Context, token string, impartID s
 	return device, err
 }
 
-/**
- *
- * CreateUserDevice
- *
- */
+// CreateUserDevice
 func (m *mysqlStore) CreateUserDevice(ctx context.Context, device *dbmodels.UserDevice) (*dbmodels.UserDevice, error) {
 	if device == nil {
 		m.logger.Error("device is nil")
@@ -303,11 +295,7 @@ func (m *mysqlStore) CreateUserDevice(ctx context.Context, device *dbmodels.User
 	return m.GetUserDevice(ctx, device.Token, "", "")
 }
 
-/**
- *
- * AddUserConfigurations
- *
- */
+// AddUserConfigurations
 func (m *mysqlStore) CreateUserConfigurations(ctx context.Context, conf *dbmodels.UserConfiguration) (*dbmodels.UserConfiguration, error) {
 	if conf.ImpartWealthID == "" {
 		m.logger.Error("impartWealthID is nil")
@@ -320,11 +308,7 @@ func (m *mysqlStore) CreateUserConfigurations(ctx context.Context, conf *dbmodel
 	return conf, nil
 }
 
-/**
- *
- * Edit User Configurations
- *
- */
+// Edit User Configurations
 func (m *mysqlStore) EditUserConfigurations(ctx context.Context, conf *dbmodels.UserConfiguration) (*dbmodels.UserConfiguration, error) {
 	if conf.ImpartWealthID == "" {
 		m.logger.Error("impartWealthID is nil")
@@ -336,11 +320,7 @@ func (m *mysqlStore) EditUserConfigurations(ctx context.Context, conf *dbmodels.
 	return conf, conf.Reload(ctx, m.db)
 }
 
-/**
- *
- * GetUserConfigurations
- *
- */
+// GetUserConfigurations
 func (m *mysqlStore) GetUserConfigurations(ctx context.Context, impartWealthID string) (*dbmodels.UserConfiguration, error) {
 	if impartWealthID == "" {
 		m.logger.Error("impartWealthID is nil")
@@ -358,12 +338,7 @@ func (m *mysqlStore) GetUserConfigurations(ctx context.Context, impartWealthID s
 	return configurations, nil
 }
 
-/**
- *
- *  GetUserNotificationMappData
- *
- */
-
+// GetUserNotificationMappData
 func (m *mysqlStore) GetUserNotificationMappData(input models.MapArgumentInput) (*dbmodels.NotificationDeviceMapping, error) {
 	where := []QueryMod{}
 	if input.ImpartWealthID != "" {
@@ -384,13 +359,8 @@ func (m *mysqlStore) GetUserNotificationMappData(input models.MapArgumentInput) 
 	return mapData, nil
 }
 
-/**
- *
- *  DeleteUserNotificationMappData
- *
- * Delete the user notification map details
- */
-
+//  DeleteUserNotificationMappData
+//  Delete the user notification map details
 func (m *mysqlStore) DeleteUserNotificationMappData(input models.MapArgumentInput) error {
 	where := []QueryMod{}
 	if input.ImpartWealthID != "" {
@@ -414,13 +384,8 @@ func (m *mysqlStore) DeleteUserNotificationMappData(input models.MapArgumentInpu
 	return nil
 }
 
-/**
- *
- *  DeleteUserNotificationMappData
- *
- * Delete the user notification map details
- */
-
+// DeleteUserNotificationMappData
+// Delete the user notification map details
 func (m *mysqlStore) UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) error {
 	where := []QueryMod{}
 	// where impart id provided and negate is false
@@ -451,12 +416,8 @@ func (m *mysqlStore) UpdateExistingNotificationMappData(input models.MapArgument
 	return nil
 }
 
-/**
- *
- * CreateUserNotificationMappData
- *
- * create user notificatoin map data
- */
+// CreateUserNotificationMappData
+// create user notificatoin map data
 func (m *mysqlStore) CreateUserNotificationMappData(ctx context.Context, data *dbmodels.NotificationDeviceMapping) (*dbmodels.NotificationDeviceMapping, error) {
 	if data == nil {
 		m.logger.Error("maping data is nil")
@@ -470,10 +431,7 @@ func (m *mysqlStore) CreateUserNotificationMappData(ctx context.Context, data *d
 	return data, nil
 }
 
-/**
- *
- * Block a user
- */
+// Block a user
 func (m *mysqlStore) BlockUser(ctx context.Context, impartWealthID string, screenName string, status bool) error {
 	if impartWealthID == "" && screenName == "" {
 		m.logger.Error("please provide proper values")

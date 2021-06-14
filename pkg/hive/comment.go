@@ -227,14 +227,11 @@ func (s *service) ReviewComment(ctx context.Context, commentID uint64, reason st
 	return models.CommentFromDBModel(dbComment), nil
 }
 
-/**
- * SendCommentNotification
- *
- * Send notification when a comment reported
- * Notifying to :
- *		post owner
- *		comment owner
- */
+// SendCommentNotification
+// Send notification when a comment reported
+// Notifying to :
+// 	post owner
+// 	comment owner
 func (s *service) SendCommentNotification(input models.CommentNotificationInput) impart.Error {
 	dbComment, err := s.commentData.GetComment(input.Ctx, input.CommentID)
 	if err != nil {

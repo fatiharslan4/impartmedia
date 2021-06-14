@@ -60,15 +60,12 @@ func (ps *profileService) GetUserConfigurations(ctx context.Context, impartWealt
 	return models.UserConfigurationFromDBModel(config), nil
 }
 
-/**
- * map the device id for notification
- *
- * check the user have configuration save for notification
- * if yes
- *		check it is true, then new config for notification map for true, else false
- * if No
- *		inseet with true
- */
+// map the device id for notification
+// check the user have configuration save for notification
+//  if yes
+//		check it is true, then new config for notification map for true, else false
+//  if No
+//		insert with true
 func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error {
 	var notifyStatus bool
 
@@ -157,11 +154,7 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 	return nil
 }
 
-/**
- *
- * Save user configuration
- *
- */
+// Save user configuration
 func (ps *profileService) ModifyUserConfigurations(ctx context.Context, conf models.UserConfigurations) (models.UserConfigurations, impart.Error) {
 	var configuration *dbmodels.UserConfiguration
 	var err error
@@ -189,11 +182,8 @@ func (ps *profileService) ModifyUserConfigurations(ctx context.Context, conf mod
 	return models.UserConfigurationFromDBModel(configuration), nil
 }
 
-/**
- *
- * Update Existing Notification Mapp Data
- * Which will upodate the notification mapp status into true/false
- */
+// Update Existing Notification Mapp Data
+// Which will upodate the notification mapp status into true/false
 func (ps *profileService) UpdateExistingNotificationMappData(input models.MapArgumentInput, status bool) impart.Error {
 	err := ps.profileStore.UpdateExistingNotificationMappData(input, status)
 	if err != nil {
@@ -204,11 +194,7 @@ func (ps *profileService) UpdateExistingNotificationMappData(input models.MapArg
 	return nil
 }
 
-/**
- *  Block user
- *
- *
- */
+// Block user
 func (ps *profileService) BlockUser(ctx context.Context, impartID string, screenName string, status bool) impart.Error {
 	ctxUser := impart.GetCtxUser(ctx)
 	if !ctxUser.Admin {

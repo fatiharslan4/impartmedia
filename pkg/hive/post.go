@@ -297,13 +297,10 @@ func (s *service) ReviewPost(ctx context.Context, postId uint64, comment string,
 	return models.PostFromDB(dbPost), nil
 }
 
-/**
- * SendPostNotification
- *
- * Send notification when a comment reported
- * Notifying to :
- *		post owner
- */
+//  SendPostNotification
+// Send notification when a comment reported
+// Notifying to :
+// 		post owner
 func (s *service) SendPostNotification(input models.PostNotificationInput) impart.Error {
 
 	dbPost, err := s.postData.GetPost(input.Ctx, input.PostID)

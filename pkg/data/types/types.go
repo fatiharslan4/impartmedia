@@ -2,6 +2,11 @@ package types
 
 type Type string
 
+// convert the type into string
+func (t Type) ToString() string {
+	return string(t)
+}
+
 var (
 	Report       Type = "Report"
 	UpVote       Type = "upVote"
@@ -18,4 +23,8 @@ var (
 
 	UserDeviceValidationModel Type = "UserDevice"
 	UserBlockValidationModel  Type = "BlockUserInput"
+)
+
+var (
+	AccountRemoved Type = "[account removed]"
 )

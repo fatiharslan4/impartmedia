@@ -183,11 +183,8 @@ func (s *service) EditHive(ctx context.Context, hive models.Hive) (models.Hive, 
 	return out, nil
 }
 
-/**
- * SendNotificationOnVote
- *
- * vote may be to post or comment under post
- */
+// SendNotificationOnVote
+// vote may be to post or comment under post
 func (s *service) SendNotificationOnVote(ctx context.Context, actionType types.Type, v VoteInput, in data.ContentInput) error {
 	var err error
 	// check the type is comment
@@ -214,11 +211,8 @@ func (s *service) SendNotificationOnVote(ctx context.Context, actionType types.T
 	return err
 }
 
-/**
- * Get Reported User
- *
- * get post reported users list
- */
+// Get Reported User
+// get post reported users list
 func (s *service) GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error) {
 	return s.postData.GetReportedUser(ctx, posts)
 }

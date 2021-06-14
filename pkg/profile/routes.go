@@ -625,10 +625,6 @@ func (ph *profileHandler) BlockUser() gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
 			return
 		}
-
-		fmt.Println(inputStatus != string(types.UnBlock))
-		fmt.Println(inputStatus != string(types.Block))
-
 		status := true
 		if inputStatus == string(types.UnBlock) {
 			status = false

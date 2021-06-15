@@ -432,33 +432,13 @@ func (m *mysqlStore) CreateUserNotificationMappData(ctx context.Context, data *d
 }
 
 // Block a user
-func (m *mysqlStore) BlockUser(ctx context.Context, impartWealthID string, screenName string, status bool) error {
-	if impartWealthID == "" && screenName == "" {
-		m.logger.Error("please provide proper values")
-		return impart.ErrBadRequest
-	}
-
-	where := []QueryMod{}
-	if impartWealthID != "" {
-		where = append(where, dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthID))
-	}
-	if screenName != "" {
-		where = append(where, dbmodels.UserWhere.ScreenName.EQ(screenName))
-	}
-
-	//find user details
-	userInfo, err := dbmodels.Users(where...).One(ctx, m.db)
-	if err != nil {
-		m.logger.Error("unable to find the user data", zap.Any("error", err))
-		return err
-	}
-
+func (m *mysqlStore) BlockUser(ctx context.Context, user *dbmodels.User, status bool) error {
 	// set the blocked status
-	userInfo.Blocked = status
-	_, err = userInfo.Update(ctx, m.db, boil.Infer())
+	user.Blocked = status
+	_, err := user.Update(ctx, m.db, boil.Infer())
 	if err != nil {
 		m.logger.Error("unable to block user", zap.Any("error", err))
-		return err
+		return fmt.Errorf("unable to block")
 	}
 	return nil
 }

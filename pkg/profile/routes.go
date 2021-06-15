@@ -371,11 +371,7 @@ func (ph *profileHandler) ResentEmail() gin.HandlerFunc {
 	}
 }
 
-/**
- *
- * CreateUserDevice
- *
- */
+// CreateUserDevice
 func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		b, err := ctx.GetRawData()
@@ -425,18 +421,17 @@ func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 	}
 }
 
-/**
- *
- * Add/update notification configuration
- *
- * Create / update user notification configuration
- * check the header included device token / request included notification token
- * if the status is for set true, then get device details
- * then set all the device notification status into false, where the user is not current user
- *
- * check whether the configuration for disable, then deactivate all the active notification
- * devices of this user, else enable current device only
- */
+//
+//  Add/update notification configuration
+//
+//  Create / update user notification configuration
+//  check the header included device token / request included notification token
+//  if the status is for set true, then get device details
+//  then set all the device notification status into false, where the user is not current user
+//
+//  check whether the configuration for disable, then deactivate all the active notification
+//  devices of this user, else enable current device only
+//
 func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		conf := models.UserGlobalConfigInput{}
@@ -516,11 +511,7 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 	}
 }
 
-/**
- *
- * Get user configurations
- *
- */
+// Get user configurations
 func (ph *profileHandler) GetConfiguration() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		context := impart.GetCtxUser(ctx)
@@ -541,12 +532,12 @@ func (ph *profileHandler) GetConfiguration() gin.HandlerFunc {
 	}
 }
 
-/**
- * User Logout
- *
- * Once the user is logout,
- * the notification status for this device should be disable
- */
+//
+//  User Logout
+//
+//  Once the user is logout,
+//  the notification status for this device should be disable
+//
 func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		context := impart.GetCtxUser(ctx)
@@ -575,10 +566,7 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 	}
 }
 
-/**
- * Block user
- *
- */
+// Block user
 func (ph *profileHandler) BlockUser() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		rawData, err := ctx.GetRawData()
@@ -614,23 +602,19 @@ func (ph *profileHandler) BlockUser() gin.HandlerFunc {
 
 		// check the input type provide
 		var inputStatus string
-		inputStatus = string(types.Block)
+		inputStatus = types.Block.ToString()
 
 		if input.Status != "" {
 			inputStatus = input.Status
 		}
 		//check status either blocked/unblocked
-		if inputStatus != string(types.UnBlock) && inputStatus != string(types.Block) {
+		if inputStatus != types.UnBlock.ToString() && inputStatus != types.Block.ToString() {
 			err := impart.NewError(impart.ErrBadRequest, "invalid option provided")
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
 			return
 		}
-
-		fmt.Println(inputStatus != string(types.UnBlock))
-		fmt.Println(inputStatus != string(types.Block))
-
 		status := true
-		if inputStatus == string(types.UnBlock) {
+		if inputStatus == types.UnBlock.ToString() {
 			status = false
 		}
 

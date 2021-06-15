@@ -152,7 +152,7 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 
 	// check the user is blocked
 	if c.R.ImpartWealth != nil && c.R.ImpartWealth.Blocked {
-		out.ScreenName = "[deleted user]"
+		out.ScreenName = types.AccountRemoved.ToString()
 	}
 	return out
 }

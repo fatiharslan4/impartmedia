@@ -188,7 +188,7 @@ func PostFromDB(p *dbmodels.Post) Post {
 
 	// check the user is blocked
 	if p.R.ImpartWealth != nil && p.R.ImpartWealth.Blocked {
-		out.ScreenName = "[deleted user]"
+		out.ScreenName = types.AccountRemoved.ToString()
 	}
 	//check the user is admin
 	if p.R.ImpartWealth != nil && p.R.ImpartWealth.Admin {

@@ -35,7 +35,7 @@ type Store interface {
 	DeleteUserNotificationMappData(input models.MapArgumentInput) error
 	UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) error
 
-	BlockUser(ctx context.Context, impartWealthID string, screenname string, status bool) error
+	BlockUser(ctx context.Context, user *dbmodels.User, status bool) error
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

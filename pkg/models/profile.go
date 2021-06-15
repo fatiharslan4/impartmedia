@@ -67,7 +67,7 @@ type NotificationProfile struct {
 
 type Subscriptions []Subscription
 type Subscription struct {
-	Name            string `json: name`
+	Name            string `json:"name"`
 	SubscriptionARN string
 }
 

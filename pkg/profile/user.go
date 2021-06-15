@@ -203,11 +203,37 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 		return impart.NewError(impart.ErrUnauthorized, errorString)
 	}
 
-	// block the user
-	err := ps.profileStore.BlockUser(ctx, impartID, screenName, status)
+	if impartID == "" && screenName == "" {
+		errorString := "please provided user data to block"
+		ps.Logger().Error(errorString, zap.Any("error", errorString))
+		return impart.NewError(impart.ErrBadRequest, errorString)
+	}
+
+	//get user
+	var dbUser *dbmodels.User
+	var err error
+	if impartID != "" {
+		dbUser, err = ps.profileStore.GetUser(ctx, impartID)
+	} else {
+		dbUser, err = ps.profileStore.GetUserFromScreenName(ctx, screenName)
+	}
+
 	if err != nil {
-		errorString := fmt.Sprintf("unable to block user - %v", err)
-		return impart.NewError(impart.ErrUnknown, errorString)
+		errorString := "unable to find user"
+		return impart.NewError(impart.ErrBadRequest, errorString)
+	}
+
+	// cant block admin
+	if dbUser.Admin {
+		errorString := "cant't block admin user"
+		return impart.NewError(impart.ErrBadRequest, errorString)
+	}
+
+	// block the user
+	err = ps.profileStore.BlockUser(ctx, dbUser, status)
+	if err != nil {
+		errorString := fmt.Sprintf("%v", err)
+		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
 	return nil
 }

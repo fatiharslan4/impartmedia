@@ -602,19 +602,19 @@ func (ph *profileHandler) BlockUser() gin.HandlerFunc {
 
 		// check the input type provide
 		var inputStatus string
-		inputStatus = string(types.Block)
+		inputStatus = types.Block.ToString()
 
 		if input.Status != "" {
 			inputStatus = input.Status
 		}
 		//check status either blocked/unblocked
-		if inputStatus != string(types.UnBlock) && inputStatus != string(types.Block) {
+		if inputStatus != types.UnBlock.ToString() && inputStatus != types.Block.ToString() {
 			err := impart.NewError(impart.ErrBadRequest, "invalid option provided")
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
 			return
 		}
 		status := true
-		if inputStatus == string(types.UnBlock) {
+		if inputStatus == types.UnBlock.ToString() {
 			status = false
 		}
 

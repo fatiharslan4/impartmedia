@@ -177,13 +177,9 @@ func (ps *profileService) ValidateInput(document gojsonschema.JSONLoader, valida
 	return errors
 }
 
-/**
- *
- * Validate the screen name
- *	No screen names can contain Impart, Impartwealth,
- *  mod, moderator or Admin unless they are official Impart Wealth account.
- *
- */
+// Validate the screen name
+// No screen names can contain Impart, Impartwealth,
+// mod, moderator or Admin unless they are official Impart Wealth account.
 func (ps *profileService) ValidateScreenNameString(ctx context.Context, screenName string) impart.Error {
 	var invalidStrings = []string{
 		"impart", "impartwealth", "mod", "moderator", "admin", "wealth",

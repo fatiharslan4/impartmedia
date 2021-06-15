@@ -169,7 +169,8 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 	})
 	eg.Go(func() error {
 		//if we're filtering on tags, or this is a secondary page request, return early.
-		if len(gpi.TagIDs) > 0 || gpi.Offset > 0 {
+		//filtering on tags removed.
+		if gpi.Offset > 0 {
 			return nil
 		}
 		var pinnedError error

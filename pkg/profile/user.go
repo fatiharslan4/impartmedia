@@ -223,7 +223,6 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
 
-	fmt.Println("dbUser-------------------", dbUser)
 	// cant block admin
 	if dbUser.Admin {
 		errorString := "cant't block admin user"

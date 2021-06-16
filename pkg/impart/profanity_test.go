@@ -8,7 +8,7 @@ import (
 )
 
 func TestProfanityTest(t *testing.T) {
-	impart.InitProfanityDetector()
+	impart.TestInitProfanityDetector()
 
 	word := "bad ass"
 	resultString, err := impart.ProfanityDetector.CensorWord(word)

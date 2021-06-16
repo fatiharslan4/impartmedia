@@ -6,8 +6,14 @@ import (
 
 var ProfanityDetector *gocensorword.CensorWordDetection
 
-func InitProfanityDetector() *gocensorword.CensorWordDetection {
+func TestInitProfanityDetector() *gocensorword.CensorWordDetection {
 	ProfanityDetector = gocensorword.NewDetector().SetCensorReplaceChar("*").WithSanitizeSpecialCharacters(false)
+	ProfanityDetector.CustomCensorList(censorList)
+	return ProfanityDetector
+}
+
+func InitProfanityDetector() *gocensorword.CensorWordDetection {
+	ProfanityDetector = gocensorword.NewDetector().SetCensorReplaceChar("X").WithSanitizeSpecialCharacters(false)
 	ProfanityDetector.CustomCensorList(censorList)
 	return ProfanityDetector
 }

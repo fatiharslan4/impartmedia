@@ -61,6 +61,7 @@ type Post struct {
 	Deleted             bool             `json:"deleted,omitempty"`
 	Video               PostVideo        `json:"video,omitempty"`
 	IsAdminPost         bool             `json:"isAdminPost"`
+	Files               []File           `json:"file,omitempty"`
 }
 
 type PostVideo struct {
@@ -135,6 +136,10 @@ func PostVideoFromDB(p *dbmodels.PostVideo) PostVideo {
 	}
 
 	return out
+}
+
+func PostFilesFromDB(pfiles *dbmodels.File) []File {
+	return []File{}
 }
 
 func PostFromDB(p *dbmodels.Post) Post {

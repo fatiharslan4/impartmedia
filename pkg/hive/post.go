@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 
@@ -62,13 +63,16 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		}
 
 	}
+
+	// add post files
+	s.AddPostFiles(ctx, dbPost.PostID, post.Files)
+
 	p := models.PostFromDB(dbPost)
-	// p.Video = post.Video
-	fmt.Println("the post video", post.Video)
+
+	// add post videos
 	postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video)
 	p.Video = postvideo
 
-	// p, _ = s.AddPostVideo(ctx, p)
 	return p, nil
 }
 
@@ -406,4 +410,25 @@ func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo mod
 		return postVideo, nil
 	}
 	return models.PostVideo{}, nil
+}
+
+func (s *service) AddPostFiles(ctx context.Context, postId uint64, postFiles []models.File) ([]models.File, impart.Error) {
+	var file []models.File
+	if len(postFiles) > 0 {
+		mediaObject := media.New(media.StorageConfigurations{
+			Storage:   "s3",
+			MediaPath: "/",
+			S3Storage: media.S3Storage{
+				BucketName:   "impart-data-source-developer",
+				BucketRegion: "us-east-2",
+			},
+		})
+		// upload multiple files
+		file, err := mediaObject.UploadMultipleFile(postFiles)
+		if err != nil {
+			s.logger.Error("error attempting to Save post video data ", zap.Any("files", file), zap.Error(err))
+			return file, impart.NewError(err, fmt.Sprintf("error on post files storage %v", err))
+		}
+	}
+	return file, nil
 }

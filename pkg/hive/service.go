@@ -33,6 +33,7 @@ type Service interface {
 	ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
 	ReviewPost(ctx context.Context, postId uint64, comment string, remove bool) (models.Post, impart.Error)
 	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo) (models.PostVideo, impart.Error)
+	AddPostFiles(ctx context.Context, postId uint64, postFiles []models.File) ([]models.File, impart.Error)
 
 	GetComments(ctx context.Context, postID uint64, limit, offset int) (models.Comments, *models.NextPage, impart.Error)
 	GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error)
@@ -60,6 +61,7 @@ type service struct {
 	profileData         profiledata.Store
 	notificationService impart.NotificationService
 	db                  *sql.DB
+	fileStorage         string
 }
 
 // New creates a new Hive Service

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/volatiletech/null/v8"
 )
 
 type UserDevice struct {
@@ -17,7 +16,6 @@ type UserDevice struct {
 	DeviceVersion  string    `json:"deviceVersion"`
 	CreatedAt      time.Time `json:"created_at,omitempty"`
 	UpdatedAt      time.Time `json:"updated_at,omitempty"`
-	DeletedAt      null.Time `json:"deleted_at,omitempty"`
 }
 
 type UserConfigurations struct {
@@ -36,7 +34,6 @@ func (d UserDevice) UserDeviceToDBModel() *dbmodels.UserDevice {
 		DeviceVersion:  d.DeviceVersion,
 		CreatedAt:      d.CreatedAt,
 		UpdatedAt:      d.UpdatedAt,
-		DeletedAt:      d.DeletedAt,
 	}
 
 	return out
@@ -52,7 +49,6 @@ func UserDeviceFromDBModel(d *dbmodels.UserDevice) UserDevice {
 		DeviceVersion:  d.DeviceVersion,
 		CreatedAt:      d.CreatedAt,
 		UpdatedAt:      d.UpdatedAt,
-		DeletedAt:      d.DeletedAt,
 	}
 
 	return out

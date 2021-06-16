@@ -184,6 +184,18 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 			if pinnedError != nil {
 				s.logger.Error("unable to get pinned post", zap.Error(pinnedError))
 			}
+			if pinnedPost != nil && len(gpi.TagIDs) > 0 {
+				var pinnedPostExist bool
+				pinnedtags := pinnedPost.R.Tags
+				for _, p := range pinnedtags {
+					if uint64(p.TagID) == uint64(gpi.TagIDs[0]) {
+						pinnedPostExist = true
+					}
+				}
+				if !pinnedPostExist {
+					pinnedPost = nil
+				}
+			}
 		}
 		//returns nil so we don't fail the call if the pinned post is no longer present.
 		return nil

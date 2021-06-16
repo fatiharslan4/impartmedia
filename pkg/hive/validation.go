@@ -1,6 +1,7 @@
 package hive
 
 import (
+	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/leebenson/conform"
 )
@@ -31,5 +32,18 @@ func ValidationPost(post models.Post) models.Post {
 	}
 	conform.Strings(&updatePost)
 	updatePost.TagIDs = post.TagIDs
+
+	// profanity detection and removal
+	updatePost.Subject, _ = impart.ProfanityDetector.CensorWord(post.Subject)
+	updatePost.Content.Markdown, _ = impart.ProfanityDetector.CensorWord(post.Content.Markdown)
+
 	return updatePost
+}
+
+// this will filter and validate the comment input
+func ValidateCommentInput(c models.Comment) models.Comment {
+	if filter, err := impart.ProfanityDetector.CensorWord(c.Content.Markdown); err == nil {
+		c.Content.Markdown = filter
+	}
+	return c
 }

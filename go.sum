@@ -440,6 +440,12 @@ github.com/opencontainers/image-spec v1.0.1 h1:JMemWkRwHx4Zj+fVxWoMCFm/8sYGGrUVo
 github.com/opencontainers/image-spec v1.0.1/go.mod h1:BtxoFyWECRxE4U/7sNtV5W15zMzWCbyJoFRP3s7yZA0=
 github.com/ory/graceful v0.1.1 h1:zx+8tDObLPrG+7Tc8jKYlXsqWnLtOQA1IZ/FAAKHMXU=
 github.com/ory/graceful v0.1.1/go.mod h1:zqu70l95WrKHF4AZ6tXHvAqAvpY6M7g6ttaAVcMm7KU=
+github.com/pcpratheesh/go-censorword v0.0.0-20210611091402-1d84c70c88ca h1:ua2bPl5dsd7WiFF+7GOMcmkWEe1sljt2OsGnFgT5RzM=
+github.com/pcpratheesh/go-censorword v0.0.0-20210611091402-1d84c70c88ca/go.mod h1:1egFY+SIkK2+l7498aPqncBcnhDM2PhOcJV9L2VWfAw=
+github.com/pcpratheesh/go-censorword v0.0.0-20210611122341-e5c647fa3d71 h1:gmSaA1VR2Rt3rHV0cmMT0CDlx6mFOXbhopYxkq1wGj8=
+github.com/pcpratheesh/go-censorword v0.0.0-20210611122341-e5c647fa3d71/go.mod h1:1egFY+SIkK2+l7498aPqncBcnhDM2PhOcJV9L2VWfAw=
+github.com/pcpratheesh/go-censorword v1.1.2-0.20210610102658-75fef0e9d553 h1:2XpAccZP7jHYfxj4hwSoDdOZCznG2ahJNCqbQPfsRlg=
+github.com/pcpratheesh/go-censorword v1.1.2-0.20210610102658-75fef0e9d553/go.mod h1:1egFY+SIkK2+l7498aPqncBcnhDM2PhOcJV9L2VWfAw=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pierrec/lz4 v2.0.5+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi+IEE17M5jbnwPHcY=
 github.com/pingcap/errors v0.11.4 h1:lFuQV/oaUMGcD2tqt+01ROSmJs75VG1ToEOkZIZ4nE4=
@@ -740,8 +746,9 @@ golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fq
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=
-golang.org/x/text v0.3.3 h1:cokOdA+Jmi5PJGXLlLllQSgYigAEfHXJAERHVMaCc2k=
 golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+golang.org/x/text v0.3.6 h1:aRYxNxv6iGQlyVaZmk6ZgYEDa+Jg18DxebPSrd6bg1M=
+golang.org/x/text v0.3.6/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
 golang.org/x/time v0.0.0-20181108054448-85acf8d2951c/go.mod h1:tRJNPiyCQ0inRvYxbN9jk5I+vvW/OXSQhTDSoE431IQ=
 golang.org/x/time v0.0.0-20190308202827-9d24e82272b4/go.mod h1:tRJNPiyCQ0inRvYxbN9jk5I+vvW/OXSQhTDSoE431IQ=
 golang.org/x/time v0.0.0-20191024005414-555d28b269f0/go.mod h1:tRJNPiyCQ0inRvYxbN9jk5I+vvW/OXSQhTDSoE431IQ=

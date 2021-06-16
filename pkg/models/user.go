@@ -14,8 +14,8 @@ type UserDevice struct {
 	AppVersion     string    `json:"appVersion"`
 	DeviceName     string    `json:"deviceName"`
 	DeviceVersion  string    `json:"deviceVersion"`
-	CreatedAt      time.Time `json:"created_at,omitempty"`
-	UpdatedAt      time.Time `json:"updated_at,omitempty"`
+	CreatedAt      time.Time `json:"createdAt,omitempty"`
+	UpdatedAt      time.Time `json:"updatedAt,omitempty"`
 }
 
 type UserConfigurations struct {

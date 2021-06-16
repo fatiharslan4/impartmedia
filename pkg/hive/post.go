@@ -3,13 +3,16 @@ package hive
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/google/uuid"
 	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -65,13 +68,17 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	}
 
 	// add post files
-	s.AddPostFiles(ctx, dbPost.PostID, post.Files)
+	post.Files = s.ValidatePostFilesName(ctx, post.Files)
+	postFiles, _ := s.AddPostFiles(ctx, dbPost, post.Files)
 
 	p := models.PostFromDB(dbPost)
 
 	// add post videos
 	postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video)
 	p.Video = postvideo
+
+	// update post files
+	p.Files = postFiles
 
 	return p, nil
 }
@@ -412,23 +419,66 @@ func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo mod
 	return models.PostVideo{}, nil
 }
 
-func (s *service) AddPostFiles(ctx context.Context, postId uint64, postFiles []models.File) ([]models.File, impart.Error) {
-	var file []models.File
+// add post file
+func (s *service) AddPostFiles(ctx context.Context, post *dbmodels.Post, postFiles []models.File) ([]models.File, impart.Error) {
+	var fileResponse []models.File
 	if len(postFiles) > 0 {
 		mediaObject := media.New(media.StorageConfigurations{
-			Storage:   "s3",
-			MediaPath: "/",
+			Storage:   s.MediaStorage.Storage,
+			MediaPath: s.MediaStorage.MediaPath,
 			S3Storage: media.S3Storage{
-				BucketName:   "impart-data-source-developer",
-				BucketRegion: "us-east-2",
+				BucketName:   s.MediaStorage.BucketName,
+				BucketRegion: s.MediaStorage.BucketRegion,
 			},
 		})
 		// upload multiple files
 		file, err := mediaObject.UploadMultipleFile(postFiles)
 		if err != nil {
-			s.logger.Error("error attempting to Save post video data ", zap.Any("files", file), zap.Error(err))
+			s.logger.Error("error attempting to Save post file data ", zap.Any("files", file), zap.Error(err))
 			return file, impart.NewError(err, fmt.Sprintf("error on post files storage %v", err))
 		}
+
+		var postFielRelationMap []*dbmodels.PostFile
+		//upload the files to table
+		for index, f := range file {
+			fileModel := &dbmodels.File{
+				FileName: f.FileName,
+				FileType: f.FileType,
+				URL:      f.URL,
+			}
+			if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
+				s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
+			}
+
+			file[index].FID = int(fileModel.Fid)
+			postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
+				PostID: post.PostID,
+				Fid:    fileModel.Fid,
+			})
+
+			// set reponse
+			fileResponse = file
+		}
+
+		err = post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
+		if err != nil {
+			s.logger.Error("error attempting to map post files ",
+				zap.Any("data", postFielRelationMap),
+				zap.Any("err", err),
+				zap.Error(err),
+			)
+		}
+
 	}
-	return file, nil
+	return fileResponse, nil
+}
+
+//validate / replace file name
+// remove spaces,special characters,scripts..etc
+func (s *service) ValidatePostFilesName(ctx context.Context, postFiles []models.File) []models.File {
+	for index := range postFiles {
+		var extension = filepath.Ext(postFiles[index].FileName)
+		postFiles[index].FileName = uuid.New().String() + extension
+	}
+	return postFiles
 }

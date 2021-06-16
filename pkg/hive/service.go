@@ -9,7 +9,9 @@ import (
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/impartwealthapp/backend/pkg/tags"
 	"go.uber.org/zap"
 )
@@ -33,7 +35,8 @@ type Service interface {
 	ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
 	ReviewPost(ctx context.Context, postId uint64, comment string, remove bool) (models.Post, impart.Error)
 	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo) (models.PostVideo, impart.Error)
-	AddPostFiles(ctx context.Context, postId uint64, postFiles []models.File) ([]models.File, impart.Error)
+	AddPostFiles(ctx context.Context, post *dbmodels.Post, postFiles []models.File) ([]models.File, impart.Error)
+	ValidatePostFilesName(ctx context.Context, postFiles []models.File) []models.File
 
 	GetComments(ctx context.Context, postID uint64, limit, offset int) (models.Comments, *models.NextPage, impart.Error)
 	GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error)
@@ -61,11 +64,11 @@ type service struct {
 	profileData         profiledata.Store
 	notificationService impart.NotificationService
 	db                  *sql.DB
-	fileStorage         string
+	MediaStorage        media.StorageConfigurations
 }
 
 // New creates a new Hive Service
-func New(cfg *config.Impart, db *sql.DB, logger *zap.Logger) Service {
+func New(cfg *config.Impart, db *sql.DB, logger *zap.Logger, media media.StorageConfigurations) Service {
 	hd := data.NewHiveService(db, logger)
 	var notificationSvc impart.NotificationService
 	if cfg.Env == config.Local {
@@ -83,6 +86,7 @@ func New(cfg *config.Impart, db *sql.DB, logger *zap.Logger) Service {
 		reactionData:        hd,
 		notificationService: notificationSvc,
 		profileData:         profileData,
+		MediaStorage:        media,
 	}
 
 	return svc

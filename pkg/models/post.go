@@ -201,6 +201,16 @@ func PostFromDB(p *dbmodels.Post) Post {
 	} else {
 		out.IsAdminPost = false
 	}
+
+	// post files
+	if p.R.PostFiles != nil {
+		out.Files = make([]File, len(p.R.PostFiles))
+		for _, f := range p.R.PostFiles {
+			if f.R.FidFile != nil {
+				out.Files = append(out.Files, PostFileToFile(f))
+			}
+		}
+	}
 	return out
 }
 
@@ -265,4 +275,13 @@ func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int) Posts {
 		out[i] = PostFromDB(p)
 	}
 	return out
+}
+
+func PostFileToFile(f *dbmodels.PostFile) File {
+	return File{
+		FID:      int(f.Fid),
+		FileName: f.R.FidFile.FileName,
+		FileType: f.R.FidFile.FileType,
+		URL:      f.R.FidFile.URL,
+	}
 }

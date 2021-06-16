@@ -80,7 +80,7 @@ func (fp *FileUpload) UploadMultipleFile(files []models.File) ([]models.File, er
 // Upload multiple files
 func (up *s3Uploader) UploadMultipleFile(files []models.File) ([]models.File, error) {
 	var uploadedFiles []models.File
-	// errorchan := make(chan error)
+	errChan := make(chan error)
 	uploadedFilesChan := make(chan models.File)
 
 	s, err := up.NewSession()
@@ -97,7 +97,10 @@ func (up *s3Uploader) UploadMultipleFile(files []models.File) ([]models.File, er
 
 		go func() {
 			defer wg.Done()
-			file, _ := up.UploadSingleFile(s, fileObj)
+			file, err := up.UploadSingleFile(s, fileObj)
+			if err != nil {
+				errChan <- err
+			}
 			uploadedFilesChan <- file
 		}()
 	}
@@ -107,17 +110,15 @@ func (up *s3Uploader) UploadMultipleFile(files []models.File) ([]models.File, er
 	go func() {
 		wg.Wait()
 		close(uploadedFilesChan)
+		close(errChan)
 	}()
 
-	for {
-		res, ok := <-uploadedFilesChan
-		if !ok {
-			fmt.Println("Channel Close ", ok)
-			break
-		}
-		uploadedFiles = append(uploadedFiles, res)
+	select {
+	case file := <-uploadedFilesChan:
+		uploadedFiles = append(uploadedFiles, file)
+	case err := <-errChan:
+		return uploadedFiles, err
 	}
-
 	return uploadedFiles, nil
 }
 

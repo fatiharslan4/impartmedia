@@ -215,8 +215,7 @@ func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services
 
 	svcs.Profile = profile.New(logger.Sugar(), db, svcs.ProfileData, svcs.Notifications, profileValidator, string(cfg.Env))
 
-	svcs.Hive = hive.New(cfg, db, logger)
 	svcs.MediaStorage = media.LoadMediaConfig(cfg)
-	fmt.Println(svcs.MediaStorage)
+	svcs.Hive = hive.New(cfg, db, logger, svcs.MediaStorage)
 	return svcs
 }

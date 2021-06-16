@@ -50,6 +50,8 @@ func (d *mysqlHiveData) GetPost(ctx context.Context, postID uint64) (*dbmodels.P
 		qm.Load(dbmodels.PostRels.ImpartWealth),
 		qm.Load(dbmodels.PostRels.PostReactions, dbmodels.PostReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)),
 		qm.Load(dbmodels.PostRels.PostVideos),
+		qm.Load(dbmodels.PostRels.PostFiles),
+		qm.Load("PostFiles.FidFile"), // get files
 	).Bind(ctx, d.db, &post)
 
 	if err != nil {
@@ -149,7 +151,8 @@ func (d *mysqlHiveData) GetPosts(ctx context.Context, gpi GetPostsInput) (dbmode
 		qm.Load(dbmodels.PostRels.Tags), // all the tags associated with this post
 		qm.Load(dbmodels.PostRels.PostReactions, dbmodels.PostReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)), // the callers reaction
 		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
-		qm.Load(dbmodels.PostRels.PostVideos),   // the post relation Post video
+		qm.Load(dbmodels.PostRels.PostFiles),    // get post files
+		qm.Load("PostFiles.FidFile"),            // get files
 	}
 
 	if len(gpi.TagIDs) > 0 {

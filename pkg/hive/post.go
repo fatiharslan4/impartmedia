@@ -455,6 +455,8 @@ func (s *service) AddPostFiles(ctx context.Context, post *dbmodels.Post, postFil
 				Fid:    fileModel.Fid,
 			})
 
+			//doesnt return the content,
+			file[index].Content = ""
 			// set reponse
 			fileResponse = file
 		}
@@ -475,7 +477,7 @@ func (s *service) AddPostFiles(ctx context.Context, post *dbmodels.Post, postFil
 //validate / replace file name
 // remove spaces,special characters,scripts..etc
 func (s *service) ValidatePostFilesName(ctx context.Context, ctxUser *dbmodels.User, postFiles []models.File) []models.File {
-	basePath := "post/"
+	basePath := fmt.Sprintf("%s/%s/", "post", ctxUser.ScreenName)
 	pattern := `[^\[0-9A-Za-z_.-]`
 	for index := range postFiles {
 		filename := fmt.Sprintf("%d_%s_%s",

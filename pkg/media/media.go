@@ -138,6 +138,7 @@ func (up *s3Uploader) UploadMultipleFile(files []models.File) ([]models.File, er
 // Upload single file to s3
 //
 func (up *s3Uploader) UploadSingleFile(s *session.Session, file models.File) (models.File, error) {
+
 	fileName := file.FileName
 	// append base path
 	fileName = fmt.Sprintf("%s%s", up.MediaPath, fileName)
@@ -156,7 +157,6 @@ func (up *s3Uploader) UploadSingleFile(s *session.Session, file models.File) (mo
 	if err != nil {
 		return models.File{}, err
 	}
-
 	//append the url to the response
 	file.URL = up.ConstructS3FilePath(fileName)
 	return file, nil

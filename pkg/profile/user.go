@@ -21,8 +21,14 @@ func (ps *profileService) GetUserDevice(ctx context.Context, token string, impar
 	return models.UserDeviceFromDBModel(device), nil
 }
 
-func (ps *profileService) CreateUserDevice(ctx context.Context, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error) {
-	contextUser := impart.GetCtxUser(ctx)
+func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.User, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error) {
+	var contextUser *dbmodels.User
+	if user == nil {
+		contextUser = impart.GetCtxUser(ctx)
+	} else {
+		contextUser = user
+	}
+
 	if contextUser == nil || contextUser.ImpartWealthID == "" {
 		return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, "context user not found")
 	}
@@ -115,7 +121,7 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
 
-	//there us no mapp entry exists , insert new entry
+	//there is no mapp entry exists , insert new entry
 	if exists == nil {
 		// from here, this device id should be sync with sns
 		arn, err := ps.notificationService.SyncTokenEndpoint(ctx, ud.DeviceID, "")

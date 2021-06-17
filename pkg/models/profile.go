@@ -40,6 +40,9 @@ type Profile struct {
 	HiveMemberships HiveMemberships `json:"hives,omitempty"`
 	IsMember        bool            `json:"isMember,omitempty"`
 	IsBlocked       bool            `json:"isBlocked,omitempty"`
+	UserDevice      UserDevice      `json:"device,omitempty"`
+	UserDevices     []UserDevice    `json:"devices,omitempty"`
+	Settings        UserSettings    `json:"settings,omitempty"`
 }
 
 // Attributes for Impart Wealth
@@ -200,6 +203,26 @@ func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error)
 		}
 		if u.Blocked {
 			out.IsBlocked = true
+		}
+	}
+
+	// append user settings
+	if u.R != nil {
+		if u.R.ImpartWealthUserConfigurations != nil {
+			if len(u.R.ImpartWealthUserConfigurations) > 0 {
+				out.Settings = UserSettings{
+					NotificationStatus: u.R.ImpartWealthUserConfigurations[0].NotificationStatus,
+				}
+			}
+		}
+
+		if u.R.ImpartWealthUserDevices != nil {
+			if len(u.R.ImpartWealthUserDevices) > 0 {
+				out.UserDevices = make([]UserDevice, 0)
+				for _, device := range u.R.ImpartWealthUserDevices {
+					out.UserDevices = append(out.UserDevices, UserDeviceFromDBModel(device))
+				}
+			}
 		}
 	}
 

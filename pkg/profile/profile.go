@@ -37,7 +37,7 @@ type Service interface {
 	GetUserConfigurations(ctx context.Context, impartWealthID string) (models.UserConfigurations, impart.Error)
 
 	GetUserDevice(ctx context.Context, token string, impartWealthID string, deviceID string) (models.UserDevice, error)
-	CreateUserDevice(ctx context.Context, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error)
+	CreateUserDevice(ctx context.Context, user *dbmodels.User, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error)
 
 	MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error
 	UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) impart.Error
@@ -159,11 +159,14 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	dbUser.CreatedAt = impart.CurrentUTC()
 	dbUser.UpdatedAt = impart.CurrentUTC()
 	dbProfile.UpdatedAt = impart.CurrentUTC()
-	endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
-	if err != nil {
-		ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
-	}
-	dbUser.AwsSNSAppArn = endpointARN
+
+	// hide this : begin
+	// endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
+	// if err != nil {
+	// 	ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
+	// }
+	// dbUser.AwsSNSAppArn = endpointARN
+	// hide this : end
 
 	err = ps.profileStore.CreateUserProfile(ctx, dbUser, dbProfile)
 	if err != nil {
@@ -177,9 +180,47 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 		return empty, impart.NewError(err, "unable to create profile")
 	}
 	dbProfile = dbUser.R.ImpartWealthProfile
+
 	out, err := models.ProfileFromDBModel(dbUser, dbProfile)
 	if err != nil {
 		return models.Profile{}, impart.NewError(err, "")
+	}
+
+	// save notification configuration
+	// based on user added notification status
+	// insert entry to table
+	var notificationStatus bool
+	if (p.Settings != models.UserSettings{} && p.Settings.NotificationStatus) {
+		notificationStatus = true
+	}
+	_, err = ps.ModifyUserConfigurations(ctx, models.UserConfigurations{
+		ImpartWealthID:     dbUser.ImpartWealthID,
+		NotificationStatus: notificationStatus,
+	})
+	if err != nil {
+		ps.Logger().Error("unable to process your request", zap.Error(err))
+	}
+	out.Settings.NotificationStatus = notificationStatus
+
+	//
+	// Register the device for notification
+	//
+	if (p.UserDevice != models.UserDevice{}) {
+		userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevice.UserDeviceToDBModel())
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
+			ps.Logger().Error(impartErr.Error())
+		}
+
+		// map for notification
+		err = ps.MapDeviceForNotification(ctx, userDevice)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
+			ps.Logger().Error(impartErr.Error())
+		}
+
+		out.UserDevices = append(out.UserDevices, userDevice)
+		out.UserDevice = models.UserDevice{}
 	}
 
 	return *out, nil

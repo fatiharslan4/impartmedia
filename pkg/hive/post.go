@@ -3,12 +3,11 @@ package hive
 import (
 	"context"
 	"fmt"
-	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/google/uuid"
 	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
@@ -68,7 +67,7 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	}
 
 	// add post files
-	post.Files = s.ValidatePostFilesName(ctx, post.Files)
+	post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
 	postFiles, _ := s.AddPostFiles(ctx, dbPost, post.Files)
 
 	p := models.PostFromDB(dbPost)
@@ -475,10 +474,23 @@ func (s *service) AddPostFiles(ctx context.Context, post *dbmodels.Post, postFil
 
 //validate / replace file name
 // remove spaces,special characters,scripts..etc
-func (s *service) ValidatePostFilesName(ctx context.Context, postFiles []models.File) []models.File {
+func (s *service) ValidatePostFilesName(ctx context.Context, ctxUser *dbmodels.User, postFiles []models.File) []models.File {
+	basePath := "post/"
+	pattern := `[^\[0-9A-Za-z_.-]`
 	for index := range postFiles {
-		var extension = filepath.Ext(postFiles[index].FileName)
-		postFiles[index].FileName = uuid.New().String() + extension
+		filename := fmt.Sprintf("%d_%s_%s",
+			time.Now().Unix(),
+			ctxUser.ScreenName,
+			postFiles[index].FileName,
+		)
+
+		// var extension = filepath.Ext(postFiles[index].FileName)
+		re, _ := regexp.Compile(pattern)
+		filename = re.ReplaceAllString(filename, "")
+
+		postFiles[index].FileName = fmt.Sprintf("%s%s",
+			basePath, filename,
+		)
 	}
 	return postFiles
 }

@@ -36,7 +36,7 @@ type Service interface {
 	ReviewPost(ctx context.Context, postId uint64, comment string, remove bool) (models.Post, impart.Error)
 	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo) (models.PostVideo, impart.Error)
 	AddPostFiles(ctx context.Context, post *dbmodels.Post, postFiles []models.File) ([]models.File, impart.Error)
-	ValidatePostFilesName(ctx context.Context, postFiles []models.File) []models.File
+	ValidatePostFilesName(ctx context.Context, ctxUser *dbmodels.User, postFiles []models.File) []models.File
 
 	GetComments(ctx context.Context, postID uint64, limit, offset int) (models.Comments, *models.NextPage, impart.Error)
 	GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error)

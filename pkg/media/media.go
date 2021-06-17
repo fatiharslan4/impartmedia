@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"io"
+	"os"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -52,7 +54,13 @@ func LoadMediaConfig(cfg *config.Impart) StorageConfigurations {
 	return sc
 }
 
+// s3 uploader
 type s3Uploader struct {
+	StorageConfigurations
+}
+
+// s3 uploader
+type localUploader struct {
 	StorageConfigurations
 }
 
@@ -66,6 +74,10 @@ func (fp *FileUpload) UploadMultipleFile(files []models.File) ([]models.File, er
 	var uploaderService MediaUploadService
 
 	switch fp.Storage {
+	case "", "local":
+		uploaderService = &localUploader{
+			StorageConfigurations: fp.StorageConfigurations,
+		}
 	case "s3":
 		uploaderService = &s3Uploader{
 			StorageConfigurations: fp.StorageConfigurations,
@@ -127,6 +139,9 @@ func (up *s3Uploader) UploadMultipleFile(files []models.File) ([]models.File, er
 //
 func (up *s3Uploader) UploadSingleFile(s *session.Session, file models.File) (models.File, error) {
 	fileName := file.FileName
+	// append base path
+	fileName = fmt.Sprintf("%s%s", up.MediaPath, fileName)
+
 	ipFile, err := base64.StdEncoding.DecodeString(file.Content)
 	if err != nil {
 		return models.File{}, err
@@ -143,7 +158,7 @@ func (up *s3Uploader) UploadSingleFile(s *session.Session, file models.File) (mo
 	}
 
 	//append the url to the response
-	file.URL = up.ConstructFilePath(fileName)
+	file.URL = up.ConstructS3FilePath(fileName)
 	return file, nil
 }
 
@@ -157,6 +172,81 @@ func (up *s3Uploader) NewSession() (*session.Session, error) {
 }
 
 // construct uploded file path
-func (up *s3Uploader) ConstructFilePath(filename string) string {
+func (up *s3Uploader) ConstructS3FilePath(filename string) string {
 	return fmt.Sprintf(" https://%s.s3.%s.amazonaws.com/%s", up.BucketName, up.BucketRegion, filename)
+}
+
+// local
+func (lp *localUploader) UploadMultipleFile(files []models.File) ([]models.File, error) {
+	var uploadedFiles []models.File
+	errChan := make(chan error)
+	uploadedFilesChan := make(chan models.File)
+
+	var wg sync.WaitGroup
+	wg.Add(len(files))
+
+	// upload the files
+	for _, f := range files {
+		fileObj := f
+
+		go func() {
+			defer wg.Done()
+			file, err := lp.UploadSingleFile(fileObj)
+			if err != nil {
+				errChan <- err
+			}
+			uploadedFilesChan <- file
+		}()
+	}
+
+	// Start a goroutine to close out once all the output goroutines are
+	// done.  This must start after the wg.Add call.
+	go func() {
+		wg.Wait()
+		close(uploadedFilesChan)
+		close(errChan)
+	}()
+
+	select {
+	case file := <-uploadedFilesChan:
+		uploadedFiles = append(uploadedFiles, file)
+	case err := <-errChan:
+		return uploadedFiles, err
+	}
+	return uploadedFiles, nil
+}
+
+//
+// Upload single file to local
+//
+func (lp *localUploader) UploadSingleFile(file models.File) (models.File, error) {
+	fileName := file.FileName
+
+	// append base path
+	fileName = fmt.Sprintf("%s%s", lp.MediaPath, fileName)
+
+	ipFile, err := base64.StdEncoding.DecodeString(file.Content)
+	if err != nil {
+		return models.File{}, err
+	}
+
+	imgFile, err := os.Create(fileName)
+	if err != nil {
+		return models.File{}, err
+	}
+	srcFile := bytes.NewReader(ipFile)
+	_, err = io.Copy(imgFile, srcFile)
+
+	if err != nil {
+		return models.File{}, err
+	}
+
+	//append the url to the response
+	file.URL = lp.ConstructLocalFilePath(fileName)
+	return file, nil
+}
+
+// construct uploded file path
+func (lp *localUploader) ConstructLocalFilePath(filename string) string {
+	return filename
 }

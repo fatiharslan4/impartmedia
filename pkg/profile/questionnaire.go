@@ -226,7 +226,7 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 		}
 	}
 	if questionnaire.ZipCode != "" {
-		match, _ = regexp.MatchString(`^\d{5}(?:[-\s]\d{4})?$`, questionnaire.ZipCode)
+		match, _ = regexp.MatchString(`^(?!0{3})[0-9]{3,5}$`, questionnaire.ZipCode)
 	}
 
 	if isMillenialOrGenx && hasChildren && hasHousehold && match {

@@ -490,9 +490,8 @@ func (s *service) ValidatePostFilesName(ctx context.Context, ctxUser *dbmodels.U
 		re, _ := regexp.Compile(pattern)
 		filename = re.ReplaceAllString(filename, "")
 
-		postFiles[index].FileName = fmt.Sprintf("%s%s",
-			basePath, filename,
-		)
+		postFiles[index].FilePath = basePath
+		postFiles[index].FileName = filename
 	}
 	return postFiles
 }

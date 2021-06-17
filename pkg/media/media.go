@@ -141,7 +141,7 @@ func (up *s3Uploader) UploadSingleFile(s *session.Session, file models.File) (mo
 
 	fileName := file.FileName
 	// append base path
-	fileName = fmt.Sprintf("%s%s", up.MediaPath, fileName)
+	fileName = fmt.Sprintf("%s%s%s", up.MediaPath, file.FilePath, fileName)
 
 	ipFile, err := base64.StdEncoding.DecodeString(file.Content)
 	if err != nil {
@@ -223,7 +223,7 @@ func (lp *localUploader) UploadSingleFile(file models.File) (models.File, error)
 	fileName := file.FileName
 
 	// append base path
-	fileName = fmt.Sprintf("%s%s", lp.MediaPath, fileName)
+	fileName = fmt.Sprintf("%s%s%s", lp.MediaPath, file.FilePath, fileName)
 
 	ipFile, err := base64.StdEncoding.DecodeString(file.Content)
 	if err != nil {

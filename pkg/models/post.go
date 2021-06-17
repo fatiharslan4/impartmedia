@@ -204,7 +204,7 @@ func PostFromDB(p *dbmodels.Post) Post {
 
 	// post files
 	if p.R.PostFiles != nil {
-		out.Files = make([]File, len(p.R.PostFiles))
+		out.Files = make([]File, 0)
 		for _, f := range p.R.PostFiles {
 			if f.R.FidFile != nil {
 				out.Files = append(out.Files, PostFileToFile(f))

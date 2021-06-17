@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/data/migrater"
+	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 
@@ -187,6 +188,7 @@ type Services struct {
 	HiveData      hivedata.Hives
 	Auth          auth.Service
 	Notifications impart.NotificationService
+	MediaStorage  media.StorageConfigurations
 }
 
 func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services {
@@ -213,7 +215,7 @@ func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services
 
 	svcs.Profile = profile.New(logger.Sugar(), db, svcs.ProfileData, svcs.Notifications, profileValidator, string(cfg.Env))
 
-	svcs.Hive = hive.New(cfg, db, logger)
-
+	svcs.MediaStorage = media.LoadMediaConfig(cfg)
+	svcs.Hive = hive.New(cfg, db, logger, svcs.MediaStorage)
 	return svcs
 }

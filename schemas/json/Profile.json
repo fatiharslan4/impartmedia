@@ -117,12 +117,9 @@
 				"isBlocked": {
 					"type": "boolean"
 				},
-				"device": {
-					"$schema": "http://json-schema.org/draft-04/schema#",
-					"$ref": "#/definitions/UserDevice"
-				},
 				"devices": {
 					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
 						"$ref": "#/definitions/UserDevice"
 					},
 					"type": "array"

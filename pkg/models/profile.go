@@ -40,7 +40,6 @@ type Profile struct {
 	HiveMemberships HiveMemberships `json:"hives,omitempty"`
 	IsMember        bool            `json:"isMember,omitempty"`
 	IsBlocked       bool            `json:"isBlocked,omitempty"`
-	UserDevice      UserDevice      `json:"device,omitempty"`
 	UserDevices     []UserDevice    `json:"devices,omitempty"`
 	Settings        UserSettings    `json:"settings,omitempty"`
 }

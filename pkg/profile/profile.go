@@ -160,12 +160,12 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	dbUser.UpdatedAt = impart.CurrentUTC()
 	dbProfile.UpdatedAt = impart.CurrentUTC()
 
-	// hide this : begin
-	// endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
-	// if err != nil {
-	// 	ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
-	// }
-	// dbUser.AwsSNSAppArn = endpointARN
+	// hide this when new notify workflow ok : begin
+	endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
+	if err != nil {
+		ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
+	}
+	dbUser.AwsSNSAppArn = endpointARN
 	// hide this : end
 
 	err = ps.profileStore.CreateUserProfile(ctx, dbUser, dbProfile)
@@ -205,8 +205,8 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	//
 	// Register the device for notification
 	//
-	if (p.UserDevice != models.UserDevice{}) {
-		userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevice.UserDeviceToDBModel())
+	if (len(p.UserDevices) > 0 && p.UserDevices[0] != models.UserDevice{}) {
+		userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevices[0].UserDeviceToDBModel())
 		if err != nil {
 			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
 			ps.Logger().Error(impartErr.Error())
@@ -220,9 +220,7 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 		}
 
 		out.UserDevices = append(out.UserDevices, userDevice)
-		out.UserDevice = models.UserDevice{}
 	}
-
 	return *out, nil
 }
 

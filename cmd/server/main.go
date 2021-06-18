@@ -45,11 +45,6 @@ func main() {
 		return
 	}
 
-	//init the sentry logger
-	logger, err = impart.InitSentryLogger(cfg, logger)
-	if err != nil {
-		logger.Error("error on sentry init", zap.Any("error", err))
-	}
 	if cfg.Debug {
 		gin.SetMode(gin.DebugMode)
 		//boil.DebugMode = true
@@ -60,6 +55,12 @@ func main() {
 		}
 	} else {
 		gin.SetMode(gin.ReleaseMode)
+	}
+
+	//init the sentry logger ,either debug
+	logger, err = impart.InitSentryLogger(cfg, logger, cfg.Debug)
+	if err != nil {
+		logger.Error("error on sentry init", zap.Any("error", err))
 	}
 
 	migrationDB, err := cfg.GetMigrationDBConnection()

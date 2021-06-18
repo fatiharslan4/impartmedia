@@ -123,29 +123,33 @@
 			"additionalProperties": false,
 			"type": "object"
 		},
-		"FileHeader": {
+		"File": {
 			"required": [
-				"Filename",
-				"Header",
-				"Size"
+				"FID",
+				"fileName",
+				"filePath",
+				"fileType",
+				"url",
+				"content"
 			],
 			"properties": {
-				"Filename": {
+				"FID": {
+					"type": "integer"
+				},
+				"fileName": {
 					"type": "string"
 				},
-				"Header": {
-					"patternProperties": {
-						".*": {
-							"items": {
-								"type": "string"
-							},
-							"type": "array"
-						}
-					},
-					"type": "object"
+				"filePath": {
+					"type": "string"
 				},
-				"Size": {
-					"type": "integer"
+				"fileType": {
+					"type": "string"
+				},
+				"url": {
+					"type": "string"
+				},
+				"content": {
+					"type": "string"
 				}
 			},
 			"additionalProperties": false,
@@ -192,8 +196,7 @@
 				"reviewed",
 				"reviewComment",
 				"reportedUsers",
-				"isAdminPost",
-				"file"
+				"isAdminPost"
 			],
 			"properties": {
 				"hiveId": {
@@ -297,8 +300,11 @@
 					"type": "boolean"
 				},
 				"file": {
-					"$schema": "http://json-schema.org/draft-04/schema#",
-					"$ref": "#/definitions/FileHeader"
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/File"
+					},
+					"type": "array"
 				}
 			},
 			"additionalProperties": false,

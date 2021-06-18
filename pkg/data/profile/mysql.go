@@ -57,6 +57,8 @@ func (m *mysqlStore) getUser(ctx context.Context, impartID, authID, email, scree
 		clause,
 		Load(dbmodels.UserRels.ImpartWealthProfile),
 		Load(dbmodels.UserRels.MemberHiveHives),
+		Load(dbmodels.UserRels.ImpartWealthUserDevices),
+		Load(dbmodels.UserRels.ImpartWealthUserConfigurations),
 	}
 
 	u, err := dbmodels.Users(usersWhere...).One(ctx, m.db)

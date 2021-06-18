@@ -116,6 +116,67 @@
 				},
 				"isBlocked": {
 					"type": "boolean"
+				},
+				"devices": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/UserDevice"
+					},
+					"type": "array"
+				},
+				"settings": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/UserSettings"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"UserDevice": {
+			"required": [
+				"deviceId",
+				"appVersion",
+				"deviceName",
+				"deviceVersion"
+			],
+			"properties": {
+				"token": {
+					"type": "string"
+				},
+				"impartWealthId": {
+					"type": "string"
+				},
+				"deviceId": {
+					"type": "string"
+				},
+				"appVersion": {
+					"type": "string"
+				},
+				"deviceName": {
+					"type": "string"
+				},
+				"deviceVersion": {
+					"type": "string"
+				},
+				"createdAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"updatedAt": {
+					"type": "string",
+					"format": "date-time"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"UserSettings": {
+			"required": [
+				"notificationStatus"
+			],
+			"properties": {
+				"notificationStatus": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

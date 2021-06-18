@@ -61,6 +61,7 @@ type Post struct {
 	Deleted             bool             `json:"deleted,omitempty"`
 	Video               PostVideo        `json:"video,omitempty"`
 	IsAdminPost         bool             `json:"isAdminPost"`
+	Files               []File           `json:"file,omitempty"`
 }
 
 type PostVideo struct {
@@ -137,6 +138,10 @@ func PostVideoFromDB(p *dbmodels.PostVideo) PostVideo {
 	return out
 }
 
+func PostFilesFromDB(pfiles *dbmodels.File) []File {
+	return []File{}
+}
+
 func PostFromDB(p *dbmodels.Post) Post {
 	out := Post{
 		HiveID:              p.HiveID,
@@ -195,6 +200,16 @@ func PostFromDB(p *dbmodels.Post) Post {
 		out.IsAdminPost = true
 	} else {
 		out.IsAdminPost = false
+	}
+
+	// post files
+	if p.R.PostFiles != nil {
+		out.Files = make([]File, 0)
+		for _, f := range p.R.PostFiles {
+			if f.R.FidFile != nil {
+				out.Files = append(out.Files, PostFileToFile(f))
+			}
+		}
 	}
 	return out
 }
@@ -260,4 +275,13 @@ func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int) Posts {
 		out[i] = PostFromDB(p)
 	}
 	return out
+}
+
+func PostFileToFile(f *dbmodels.PostFile) File {
+	return File{
+		FID:      int(f.Fid),
+		FileName: f.R.FidFile.FileName,
+		FileType: f.R.FidFile.FileType,
+		URL:      f.R.FidFile.URL,
+	}
 }

@@ -29,6 +29,7 @@ func ValidationPost(post models.Post) models.Post {
 		Obfuscated:          post.Obfuscated,
 		ReviewedDatetime:    post.ReviewedDatetime,
 		Video:               post.Video,
+		Files:               post.Files,
 	}
 	conform.Strings(&updatePost)
 	updatePost.TagIDs = post.TagIDs

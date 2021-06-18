@@ -24,6 +24,10 @@ type UserConfigurations struct {
 	NotificationStatus bool   `json:"notificationStatus"`
 }
 
+type UserSettings struct {
+	NotificationStatus bool `json:"notificationStatus"`
+}
+
 func (d UserDevice) UserDeviceToDBModel() *dbmodels.UserDevice {
 	out := &dbmodels.UserDevice{
 		Token:          d.Token,

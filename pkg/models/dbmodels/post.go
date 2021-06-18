@@ -175,6 +175,7 @@ var PostRels = struct {
 	ImpartWealth  string
 	Comments      string
 	PostEdits     string
+	PostFiles     string
 	PostReactions string
 	Tags          string
 	PostVideos    string
@@ -183,6 +184,7 @@ var PostRels = struct {
 	ImpartWealth:  "ImpartWealth",
 	Comments:      "Comments",
 	PostEdits:     "PostEdits",
+	PostFiles:     "PostFiles",
 	PostReactions: "PostReactions",
 	Tags:          "Tags",
 	PostVideos:    "PostVideos",
@@ -194,6 +196,7 @@ type postR struct {
 	ImpartWealth  *User             `boil:"ImpartWealth" json:"ImpartWealth" toml:"ImpartWealth" yaml:"ImpartWealth"`
 	Comments      CommentSlice      `boil:"Comments" json:"Comments" toml:"Comments" yaml:"Comments"`
 	PostEdits     PostEditSlice     `boil:"PostEdits" json:"PostEdits" toml:"PostEdits" yaml:"PostEdits"`
+	PostFiles     PostFileSlice     `boil:"PostFiles" json:"PostFiles" toml:"PostFiles" yaml:"PostFiles"`
 	PostReactions PostReactionSlice `boil:"PostReactions" json:"PostReactions" toml:"PostReactions" yaml:"PostReactions"`
 	Tags          TagSlice          `boil:"Tags" json:"Tags" toml:"Tags" yaml:"Tags"`
 	PostVideos    PostVideoSlice    `boil:"PostVideos" json:"PostVideos" toml:"PostVideos" yaml:"PostVideos"`
@@ -557,6 +560,27 @@ func (o *Post) PostEdits(mods ...qm.QueryMod) postEditQuery {
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"`post_edits`.*"})
+	}
+
+	return query
+}
+
+// PostFiles retrieves all the post_file's PostFiles with an executor.
+func (o *Post) PostFiles(mods ...qm.QueryMod) postFileQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`post_files`.`post_id`=?", o.PostID),
+	)
+
+	query := PostFiles(queryMods...)
+	queries.SetFrom(query.Query, "`post_files`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`post_files`.*"})
 	}
 
 	return query
@@ -1024,6 +1048,104 @@ func (postL) LoadPostEdits(ctx context.Context, e boil.ContextExecutor, singular
 				local.R.PostEdits = append(local.R.PostEdits, foreign)
 				if foreign.R == nil {
 					foreign.R = &postEditR{}
+				}
+				foreign.R.Post = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadPostFiles allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (postL) LoadPostFiles(ctx context.Context, e boil.ContextExecutor, singular bool, maybePost interface{}, mods queries.Applicator) error {
+	var slice []*Post
+	var object *Post
+
+	if singular {
+		object = maybePost.(*Post)
+	} else {
+		slice = *maybePost.(*[]*Post)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &postR{}
+		}
+		args = append(args, object.PostID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &postR{}
+			}
+
+			for _, a := range args {
+				if a == obj.PostID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.PostID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`post_files`),
+		qm.WhereIn(`post_files.post_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load post_files")
+	}
+
+	var resultSlice []*PostFile
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice post_files")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on post_files")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for post_files")
+	}
+
+	if len(postFileAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.PostFiles = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &postFileR{}
+			}
+			foreign.R.Post = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.PostID == foreign.PostID {
+				local.R.PostFiles = append(local.R.PostFiles, foreign)
+				if foreign.R == nil {
+					foreign.R = &postFileR{}
 				}
 				foreign.R.Post = local
 				break
@@ -1537,6 +1659,59 @@ func (o *Post) AddPostEdits(ctx context.Context, exec boil.ContextExecutor, inse
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &postEditR{
+				Post: o,
+			}
+		} else {
+			rel.R.Post = o
+		}
+	}
+	return nil
+}
+
+// AddPostFiles adds the given related objects to the existing relationships
+// of the post, optionally inserting them as new records.
+// Appends related to o.R.PostFiles.
+// Sets related.R.Post appropriately.
+func (o *Post) AddPostFiles(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*PostFile) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.PostID = o.PostID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `post_files` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"post_id"}),
+				strmangle.WhereClause("`", "`", 0, postFilePrimaryKeyColumns),
+			)
+			values := []interface{}{o.PostID, rel.PFID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.PostID = o.PostID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &postR{
+			PostFiles: related,
+		}
+	} else {
+		o.R.PostFiles = append(o.R.PostFiles, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &postFileR{
 				Post: o,
 			}
 		} else {

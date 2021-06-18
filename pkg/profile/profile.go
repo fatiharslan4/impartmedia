@@ -206,20 +206,30 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	// Register the device for notification
 	//
 	if (len(p.UserDevices) > 0 && p.UserDevices[0] != models.UserDevice{}) {
-		userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevices[0].UserDeviceToDBModel())
-		if err != nil {
-			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
-			ps.Logger().Error(impartErr.Error())
+		// check empty device id but provided with devide token
+		if p.UserDevices[0].DeviceID == "" && p.DeviceToken != "" {
+			p.UserDevices[0].DeviceID = p.DeviceToken
 		}
+		// check the device id exists
+		if p.UserDevices[0].DeviceID != "" {
+			userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevices[0].UserDeviceToDBModel())
+			if err != nil {
+				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
+				ps.Logger().Error(impartErr.Error())
+			}
 
-		// map for notification
-		err = ps.MapDeviceForNotification(ctx, userDevice)
-		if err != nil {
-			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
-			ps.Logger().Error(impartErr.Error())
+			// map for notification
+			err = ps.MapDeviceForNotification(ctx, userDevice)
+			if err != nil {
+				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
+				ps.Logger().Error(impartErr.Error())
+			}
+
+			out.UserDevices = append(out.UserDevices, userDevice)
+		} else {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("can't register device, device id not found %v", err))
+			ps.Logger().Error(impartErr.Error(), zap.Any("data", p))
 		}
-
-		out.UserDevices = append(out.UserDevices, userDevice)
 	}
 	return *out, nil
 }

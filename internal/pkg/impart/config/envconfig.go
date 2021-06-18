@@ -27,6 +27,14 @@ const (
 
 var validEnvironments = []Environment{Local, Development, IOS, Preproduction, Production}
 
+// media configuraitons
+type Media struct {
+	Storage      string `split_words:"true"`
+	MediaPath    string `split_words:"true"`
+	BucketName   string `split_words:"true"`
+	BucketRegion string `split_words:"true"`
+}
+
 // all fields read from the environment, and prefixed with IMPART_
 type Impart struct {
 	Env    Environment `split_words:"true" default:"dev"`
@@ -45,9 +53,10 @@ type Impart struct {
 	DBUsername string `split_words:"true"`
 	DBPassword string `split_words:"true"`
 
-	DBMigrationUsername string `split_words:"true"`
-	DBMigrationPassword string `split_words:"true"`
-	SentryDSN           string `split_words:"true"`
+	DBMigrationUsername string            `split_words:"true"`
+	DBMigrationPassword string            `split_words:"true"`
+	SentryDSN           string            `split_words:"true"`
+	Media               map[string]string `split_words:"true"`
 }
 
 func GetImpart() (*Impart, error) {

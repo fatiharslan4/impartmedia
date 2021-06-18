@@ -8,6 +8,7 @@ var TableNames = struct {
 	Comment                   string
 	CommentEdits              string
 	CommentReactions          string
+	Files                     string
 	Hive                      string
 	HiveAdmins                string
 	HiveMembers               string
@@ -17,6 +18,7 @@ var TableNames = struct {
 	Pings                     string
 	Post                      string
 	PostEdits                 string
+	PostFiles                 string
 	PostReactions             string
 	PostTag                   string
 	PostVideos                string
@@ -34,6 +36,7 @@ var TableNames = struct {
 	Comment:                   "comment",
 	CommentEdits:              "comment_edits",
 	CommentReactions:          "comment_reactions",
+	Files:                     "files",
 	Hive:                      "hive",
 	HiveAdmins:                "hive_admins",
 	HiveMembers:               "hive_members",
@@ -43,6 +46,7 @@ var TableNames = struct {
 	Pings:                     "pings",
 	Post:                      "post",
 	PostEdits:                 "post_edits",
+	PostFiles:                 "post_files",
 	PostReactions:             "post_reactions",
 	PostTag:                   "post_tag",
 	PostVideos:                "post_videos",

@@ -399,7 +399,7 @@ func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 			return
 		}
 
-		userDevice, err := ph.profileService.CreateUserDevice(ctx, dbModel)
+		userDevice, err := ph.profileService.CreateUserDevice(ctx, nil, dbModel)
 		if err != nil {
 			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
 			ph.logger.Error(impartErr.Error())

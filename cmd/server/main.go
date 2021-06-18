@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/data/migrater"
+	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 
@@ -44,11 +45,6 @@ func main() {
 		return
 	}
 
-	//init the sentry logger
-	logger, err = impart.InitSentryLogger(cfg, logger)
-	if err != nil {
-		logger.Error("error on sentry init", zap.Any("error", err))
-	}
 	if cfg.Debug {
 		gin.SetMode(gin.DebugMode)
 		//boil.DebugMode = true
@@ -59,6 +55,12 @@ func main() {
 		}
 	} else {
 		gin.SetMode(gin.ReleaseMode)
+	}
+
+	//init the sentry logger ,either debug
+	logger, err = impart.InitSentryLogger(cfg, logger, cfg.Debug)
+	if err != nil {
+		logger.Error("error on sentry init", zap.Any("error", err))
 	}
 
 	migrationDB, err := cfg.GetMigrationDBConnection()
@@ -187,6 +189,7 @@ type Services struct {
 	HiveData      hivedata.Hives
 	Auth          auth.Service
 	Notifications impart.NotificationService
+	MediaStorage  media.StorageConfigurations
 }
 
 func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services {
@@ -213,7 +216,7 @@ func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services
 
 	svcs.Profile = profile.New(logger.Sugar(), db, svcs.ProfileData, svcs.Notifications, profileValidator, string(cfg.Env))
 
-	svcs.Hive = hive.New(cfg, db, logger)
-
+	svcs.MediaStorage = media.LoadMediaConfig(cfg)
+	svcs.Hive = hive.New(cfg, db, logger, svcs.MediaStorage)
 	return svcs
 }

@@ -252,6 +252,7 @@ func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetPostsInp
 		qm.Load(dbmodels.PostRels.Tags),
 		qm.Load(dbmodels.PostRels.PostReactions),
 		qm.Load(dbmodels.PostRels.ImpartWealth),
+		qm.Load(dbmodels.PostRels.PostVideos),
 	}
 
 	queryMods = append(queryMods, qm.WhereIn("exists (select * from post_reactions rectn where rectn.post_id = `post`.`post_id` and rectn.reported = ?)", 1))

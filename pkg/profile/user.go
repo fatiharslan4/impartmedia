@@ -128,7 +128,7 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 		if err != nil {
 			ps.Logger().Error("Token Sync Endpoint error",
 				zap.Any("Error", err),
-				zap.Any("contextUser", impart.GetCtxUser(ctx)),
+				zap.Any("Device", ud),
 			)
 		}
 

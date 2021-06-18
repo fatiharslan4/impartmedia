@@ -22,11 +22,7 @@ func GetCtxAuthID(ctx context.Context) string {
 }
 
 func GetCtxUser(ctx context.Context) *dbmodels.User {
-	user := ctx.Value(UserRequestContextKey)
-	if user != nil {
-		return ctx.Value(UserRequestContextKey).(*dbmodels.User)
-	}
-	return nil
+	return ctx.Value(UserRequestContextKey).(*dbmodels.User)
 }
 
 //func GetCtxHiveMemberships(ctx context.Context) dbmodels.HiveSlice {

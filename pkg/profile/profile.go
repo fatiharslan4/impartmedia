@@ -36,7 +36,7 @@ type Service interface {
 	ModifyUserConfigurations(ctx context.Context, conf models.UserConfigurations) (models.UserConfigurations, impart.Error)
 	GetUserConfigurations(ctx context.Context, impartWealthID string) (models.UserConfigurations, impart.Error)
 
-	GetUserDevice(ctx context.Context, token string, impartWealthID string, deviceID string) (models.UserDevice, error)
+	GetUserDevice(ctx context.Context, token string, impartWealthID string, deviceToken string) (models.UserDevice, error)
 	CreateUserDevice(ctx context.Context, user *dbmodels.User, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error)
 
 	MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error
@@ -226,11 +226,11 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	//
 	if (len(p.UserDevices) > 0 && p.UserDevices[0] != models.UserDevice{}) {
 		// check empty device id but provided with devide token
-		if p.UserDevices[0].DeviceID == "" && p.DeviceToken != "" {
-			p.UserDevices[0].DeviceID = p.DeviceToken
+		if p.UserDevices[0].DeviceToken == "" && p.DeviceToken != "" {
+			p.UserDevices[0].DeviceToken = p.DeviceToken
 		}
 		// check the device id exists
-		if p.UserDevices[0].DeviceID != "" {
+		if p.UserDevices[0].DeviceToken != "" {
 			userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevices[0].UserDeviceToDBModel())
 			if err != nil {
 				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))

@@ -135,6 +135,7 @@
 		"UserDevice": {
 			"required": [
 				"deviceId",
+				"deviceToken",
 				"appVersion",
 				"deviceName",
 				"deviceVersion"
@@ -147,6 +148,9 @@
 					"type": "string"
 				},
 				"deviceId": {
+					"type": "string"
+				},
+				"deviceToken": {
 					"type": "string"
 				},
 				"appVersion": {

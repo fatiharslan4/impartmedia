@@ -121,16 +121,17 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
 
+	// from here, this device id should be sync with sns
+	arn, nErr := ps.notificationService.SyncTokenEndpoint(ctx, ud.DeviceToken, "")
+	if nErr != nil {
+		ps.Logger().Error("Token Sync Endpoint error",
+			zap.Any("Error", nErr),
+			zap.Any("Device", ud),
+		)
+	}
+
 	//there is no mapp entry exists , insert new entry
 	if exists == nil {
-		// from here, this device id should be sync with sns
-		arn, err := ps.notificationService.SyncTokenEndpoint(ctx, ud.DeviceToken, "")
-		if err != nil {
-			ps.Logger().Error("Token Sync Endpoint error",
-				zap.Any("Error", err),
-				zap.Any("Device", ud),
-			)
-		}
 
 		_, mapErr = ps.profileStore.CreateUserNotificationMappData(ctx, &dbmodels.NotificationDeviceMapping{
 			ImpartWealthID: ud.ImpartWealthID,

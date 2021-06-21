@@ -108,11 +108,30 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error) {
 	var empty models.Profile
 	var err error
+	var deviceToken string
 
 	contextAuthId := impart.GetCtxAuthID(ctx)
 	if contextAuthId == "" {
 		return empty, impart.NewError(impart.ErrBadRequest, "Unable to locate authenticationID")
 	}
+
+	// check device token provided
+	//  check the device token is provided with either
+	// input deviceToken / with userDevices
+	deviceToken = p.DeviceToken
+	if (len(p.UserDevices) > 0 && p.UserDevices[0] != models.UserDevice{}) {
+		deviceToken = p.UserDevices[0].DeviceID
+	}
+
+	//
+	// If device token is not found from input
+	//
+	if deviceToken == "" {
+		ps.Logger().Debug("Unable to locate device token",
+			zap.Any("profile", p),
+		)
+	}
+
 	ctxUser, err := ps.profileStore.GetUserFromAuthId(ctx, contextAuthId)
 	if err != nil {
 		if err == impart.ErrNotFound {

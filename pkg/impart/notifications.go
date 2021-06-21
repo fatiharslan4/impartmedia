@@ -191,7 +191,7 @@ func (ns *snsAppleNotificationService) Notify(ctx context.Context, data Notifica
 		return err
 	}
 	if u.DeviceToken == "" {
-		return fmt.Errorf("empty device token found")
+		return fmt.Errorf("empty device token found for user %v", impartWealthID)
 	}
 	if u.AwsSNSAppArn == "" {
 		return fmt.Errorf("empty sns ARN found")

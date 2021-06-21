@@ -127,7 +127,7 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	// If device token is not found from input
 	//
 	if deviceToken == "" {
-		ps.Logger().Debug("Unable to locate device id",
+		ps.Logger().Debug("Unable to locate device token",
 			zap.Any("profile", p),
 		)
 	}

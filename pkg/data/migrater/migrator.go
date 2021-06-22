@@ -132,11 +132,11 @@ func BootStrapTopicHive(db *sql.DB, env config.Environment, logger *zap.Logger) 
 }
 
 var topics = map[config.Environment]string{
-	config.Local:         "arn:aws:sns:us-east-2:518740895671:SNSHiveNotification",
-	config.Development:   "arn:aws:sns:us-east-2:518740895671:SNSHiveNotification-dev",
-	config.IOS:           "arn:aws:sns:us-east-2:518740895671:SNSHiveNotification-iosdev",
-	config.Preproduction: "arn:aws:sns:us-east-2:518740895671:SNSHiveNotification-preprod",
-	config.Production:    "arn:aws:sns:us-east-2:518740895671:SNSHiveNotification-prod",
+	config.Local:         "arn:aws:sns:us-east-1:518740895671:SNSHiveNotification",
+	config.Development:   "arn:aws:sns:us-east-1:518740895671:SNSHiveNotification-dev",
+	config.IOS:           "arn:aws:sns:us-east-1:518740895671:SNSHiveNotification-iosdev",
+	config.Preproduction: "arn:aws:sns:us-east-1:518740895671:SNSHiveNotification-preprod",
+	config.Production:    "arn:aws:sns:us-east-1:518740895671:SNSHiveNotification-prod",
 }
 
 // christian PW 1q0FlyD8rP65vhL8UNHzDKQOjzh1q0FllEIfAww

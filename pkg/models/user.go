@@ -100,3 +100,8 @@ type BlockUserInput struct {
 	ScreenName     string `json:"screenName,omitempty"`
 	Status         string `json:"status,omitempty" default:"block"`
 }
+
+type DeleteUserInput struct {
+	ImpartWealthID string `json:"impartWealthID,omitempty"`
+	Feedback       string `json:"feedback,omitempty"`
+}

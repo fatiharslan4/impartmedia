@@ -1,10 +1,10 @@
 package models
 
 import (
-	"fmt"
 	"sort"
 	"time"
 
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/impartwealthapp/backend/pkg/tags"
 	"github.com/volatiletech/null/v8"
@@ -45,17 +45,15 @@ type PostComment struct {
 }
 
 func PostCommentsLimit(dbPosts dbmodels.PostSlice, dbcomments dbmodels.CommentSlice, limit int) PostComments {
-	out := make(PostComments, limit, limit)
-	out1 := make(PostComments, limit, limit)
-	fmt.Println("---")
+	postout := make(PostComments, len(dbPosts), len(dbPosts))
+	cmntout := make(PostComments, len(dbcomments), len(dbcomments))
 	for i, p := range dbPosts {
-		out[i] = PostCommentPostFromDB(p, nil)
+		postout[i] = PostCommentPostFromDB(p, nil)
 	}
-	for postcnt, cmnt := range dbcomments {
-		out1[postcnt] = PostCommentPostFromDB(nil, cmnt)
-		fmt.Println(postcnt)
+	for i, cmnt := range dbcomments {
+		cmntout[i] = PostCommentPostFromDB(nil, cmnt)
 	}
-	out = append(out, out1...)
+	out := append(postout, cmntout...)
 	return out
 }
 
@@ -108,7 +106,10 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment) PostComment {
 
 		// check the user is blocked
 		if p.R.ImpartWealth != nil && p.R.ImpartWealth.Blocked {
-			out.ScreenName = "[deleted user]"
+			out.ScreenName = string(types.AccountRemoved)
+		}
+		if p.R.ImpartWealth == nil {
+			out.ScreenName = types.AccountDeleted.ToString()
 		}
 		//check the user is admin
 		if p.R.ImpartWealth != nil && p.R.ImpartWealth.Admin {
@@ -156,7 +157,10 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment) PostComment {
 
 		// check the user is blocked
 		if c.R.ImpartWealth != nil && c.R.ImpartWealth.Blocked {
-			out.ScreenName = "[deleted user]"
+			out.ScreenName = string(types.AccountRemoved)
+		}
+		if c.R.ImpartWealth == nil {
+			out.ScreenName = types.AccountDeleted.ToString()
 		}
 
 		return out

@@ -21,10 +21,13 @@ var (
 	Block   Type = "block"
 	UnBlock Type = "unblock"
 
+	Delete Type = "delete"
+
 	UserDeviceValidationModel Type = "UserDevice"
 	UserBlockValidationModel  Type = "BlockUserInput"
 )
 
 var (
 	AccountRemoved Type = "[account removed]"
+	AccountDeleted Type = "[account Deleted]"
 )

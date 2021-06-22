@@ -149,6 +149,9 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 	if (c.DeletedAt != null.Time{}) {
 		out.Deleted = true
 	}
+	if c.R.ImpartWealth == nil {
+		out.ScreenName = types.AccountDeleted.ToString()
+	}
 
 	// check the user is blocked
 	if c.R.ImpartWealth != nil && c.R.ImpartWealth.Blocked {

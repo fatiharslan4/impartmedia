@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
@@ -185,26 +186,56 @@ func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data Not
 	return err
 }
 
+//
+// Notification only send to active devices of user
+//
+// only fectch 5 active devices of user
 func (ns *snsAppleNotificationService) Notify(ctx context.Context, data NotificationData, alert Alert, impartWealthID string) error {
-	u, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthID)).One(ctx, ns.db)
+	activeDevices, err := dbmodels.NotificationDeviceMappings(
+		dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.EQ(impartWealthID),
+		dbmodels.NotificationDeviceMappingWhere.NotifyStatus.EQ(true),
+		qm.Offset(0),
+		qm.Limit(5),
+		qm.OrderBy("map_id desc"),
+		qm.Load(dbmodels.NotificationDeviceMappingRels.UserDevice),
+		qm.Load(dbmodels.NotificationDeviceMappingRels.ImpartWealth),
+	).All(ctx, ns.db)
+
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to fetch user active devices %v", err)
 	}
-	if u.DeviceToken == "" {
-		return fmt.Errorf("empty device token found")
+	// if not active devices found
+	if len(activeDevices) <= 0 {
+		ns.Logger.Info("no active devices found for user",
+			zap.Any("msg", alert),
+			zap.String("impartWealthID", impartWealthID),
+		)
 	}
-	if u.AwsSNSAppArn == "" {
-		return fmt.Errorf("empty sns ARN found")
-	}
-	snsAppARN, err := ns.NotifyAppleDevice(ctx, data, alert, u.DeviceToken, u.AwsSNSAppArn)
-	if err != nil {
-		return err
-	}
-	if snsAppARN != u.AwsSNSAppArn {
-		u.AwsSNSAppArn = snsAppARN
-		if _, err := u.Update(ctx, ns.db, boil.Whitelist(dbmodels.UserColumns.AwsSNSAppArn)); err != nil {
-			ns.Logger.Error("unable to update sns app arn")
+
+	// loop through the active devices and send notification
+	for _, u := range activeDevices {
+		if u.NotifyArn == "" {
+			return fmt.Errorf("empty device token found for user %v", impartWealthID)
 		}
+		if u.R.UserDevice == nil {
+			return fmt.Errorf("unable to find user device information")
+		}
+		// user device
+		userDevice := u.R.UserDevice
+		// var notificationStatus bool
+
+		_, err := ns.NotifyAppleDevice(ctx, data, alert, userDevice.DeviceToken, u.NotifyArn)
+		if err != nil {
+			ns.Logger.Error("unable to notify to the device", zap.Any("device", userDevice))
+			continue
+		}
+
+		// if snsAppARN != u.AwsSNSAppArn {
+		// 	u.AwsSNSAppArn = snsAppARN
+		// 	if _, err := u.Update(ctx, ns.db, boil.Whitelist(dbmodels.UserColumns.AwsSNSAppArn)); err != nil {
+		// 		ns.Logger.Error("unable to update sns app arn")
+		// 	}
+		// }
 	}
 	return nil
 }

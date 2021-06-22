@@ -178,6 +178,7 @@ var PostRels = struct {
 	PostFiles     string
 	PostReactions string
 	Tags          string
+	PostUrls      string
 	PostVideos    string
 }{
 	Hive:          "Hive",
@@ -187,6 +188,7 @@ var PostRels = struct {
 	PostFiles:     "PostFiles",
 	PostReactions: "PostReactions",
 	Tags:          "Tags",
+	PostUrls:      "PostUrls",
 	PostVideos:    "PostVideos",
 }
 
@@ -199,6 +201,7 @@ type postR struct {
 	PostFiles     PostFileSlice     `boil:"PostFiles" json:"PostFiles" toml:"PostFiles" yaml:"PostFiles"`
 	PostReactions PostReactionSlice `boil:"PostReactions" json:"PostReactions" toml:"PostReactions" yaml:"PostReactions"`
 	Tags          TagSlice          `boil:"Tags" json:"Tags" toml:"Tags" yaml:"Tags"`
+	PostUrls      PostURLSlice      `boil:"PostUrls" json:"PostUrls" toml:"PostUrls" yaml:"PostUrls"`
 	PostVideos    PostVideoSlice    `boil:"PostVideos" json:"PostVideos" toml:"PostVideos" yaml:"PostVideos"`
 }
 
@@ -625,6 +628,27 @@ func (o *Post) Tags(mods ...qm.QueryMod) tagQuery {
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"`tag`.*"})
+	}
+
+	return query
+}
+
+// PostUrls retrieves all the post_url's PostUrls with an executor.
+func (o *Post) PostUrls(mods ...qm.QueryMod) postURLQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`post_urls`.`post_id`=?", o.PostID),
+	)
+
+	query := PostUrls(queryMods...)
+	queries.SetFrom(query.Query, "`post_urls`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`post_urls`.*"})
 	}
 
 	return query
@@ -1370,6 +1394,104 @@ func (postL) LoadTags(ctx context.Context, e boil.ContextExecutor, singular bool
 	return nil
 }
 
+// LoadPostUrls allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (postL) LoadPostUrls(ctx context.Context, e boil.ContextExecutor, singular bool, maybePost interface{}, mods queries.Applicator) error {
+	var slice []*Post
+	var object *Post
+
+	if singular {
+		object = maybePost.(*Post)
+	} else {
+		slice = *maybePost.(*[]*Post)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &postR{}
+		}
+		args = append(args, object.PostID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &postR{}
+			}
+
+			for _, a := range args {
+				if a == obj.PostID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.PostID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`post_urls`),
+		qm.WhereIn(`post_urls.post_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load post_urls")
+	}
+
+	var resultSlice []*PostURL
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice post_urls")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on post_urls")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for post_urls")
+	}
+
+	if len(postURLAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.PostUrls = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &postURLR{}
+			}
+			foreign.R.Post = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.PostID == foreign.PostID {
+				local.R.PostUrls = append(local.R.PostUrls, foreign)
+				if foreign.R == nil {
+					foreign.R = &postURLR{}
+				}
+				foreign.R.Post = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // LoadPostVideos allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
 func (postL) LoadPostVideos(ctx context.Context, e boil.ContextExecutor, singular bool, maybePost interface{}, mods queries.Applicator) error {
@@ -1916,6 +2038,59 @@ func removeTagsFromPostsSlice(o *Post, related []*Tag) {
 			break
 		}
 	}
+}
+
+// AddPostUrls adds the given related objects to the existing relationships
+// of the post, optionally inserting them as new records.
+// Appends related to o.R.PostUrls.
+// Sets related.R.Post appropriately.
+func (o *Post) AddPostUrls(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*PostURL) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.PostID = o.PostID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `post_urls` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"post_id"}),
+				strmangle.WhereClause("`", "`", 0, postURLPrimaryKeyColumns),
+			)
+			values := []interface{}{o.PostID, rel.ID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.PostID = o.PostID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &postR{
+			PostUrls: related,
+		}
+	} else {
+		o.R.PostUrls = append(o.R.PostUrls, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &postURLR{
+				Post: o,
+			}
+		} else {
+			rel.R.Post = o
+		}
+	}
+	return nil
 }
 
 // AddPostVideos adds the given related objects to the existing relationships

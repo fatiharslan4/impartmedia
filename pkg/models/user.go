@@ -11,6 +11,7 @@ type UserDevice struct {
 	Token          string    `json:"token,omitempty"`
 	ImpartWealthID string    `json:"impartWealthId,omitempty" conform:"trim"`
 	DeviceID       string    `json:"deviceId"`
+	DeviceToken    string    `json:"deviceToken"`
 	AppVersion     string    `json:"appVersion"`
 	DeviceName     string    `json:"deviceName"`
 	DeviceVersion  string    `json:"deviceVersion"`
@@ -33,6 +34,7 @@ func (d UserDevice) UserDeviceToDBModel() *dbmodels.UserDevice {
 		Token:          d.Token,
 		ImpartWealthID: d.ImpartWealthID,
 		DeviceID:       d.DeviceID,
+		DeviceToken:    d.DeviceToken,
 		AppVersion:     d.AppVersion,
 		DeviceName:     d.DeviceName,
 		DeviceVersion:  d.DeviceVersion,
@@ -48,6 +50,7 @@ func UserDeviceFromDBModel(d *dbmodels.UserDevice) UserDevice {
 		Token:          string(d.Token),
 		ImpartWealthID: d.ImpartWealthID,
 		DeviceID:       d.DeviceID,
+		DeviceToken:    d.DeviceToken,
 		AppVersion:     d.AppVersion,
 		DeviceName:     d.DeviceName,
 		DeviceVersion:  d.DeviceVersion,
@@ -82,6 +85,7 @@ func (uc UserConfigurations) UserConfigurationTODBModel() *dbmodels.UserConfigur
 type MapArgumentInput struct {
 	Ctx            context.Context
 	ImpartWealthID string
+	Token          string
 	DeviceID       string
 	DeviceToken    string
 	Negate         bool

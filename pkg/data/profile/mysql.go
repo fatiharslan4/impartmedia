@@ -257,7 +257,7 @@ func (m *mysqlStore) GetUserQuestionnaires(ctx context.Context, impartWealthId s
 }
 
 //  GetUserDevice : Get the user device
-func (m *mysqlStore) GetUserDevice(ctx context.Context, token string, impartID string, deviceID string) (*dbmodels.UserDevice, error) {
+func (m *mysqlStore) GetUserDevice(ctx context.Context, token string, impartID string, deviceToken string) (*dbmodels.UserDevice, error) {
 	where := []QueryMod{}
 	if impartID != "" {
 		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.ImpartWealthID), impartID))
@@ -265,8 +265,8 @@ func (m *mysqlStore) GetUserDevice(ctx context.Context, token string, impartID s
 	if token != "" {
 		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.Token), token))
 	}
-	if deviceID != "" {
-		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceID), deviceID))
+	if deviceToken != "" {
+		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceToken), deviceToken))
 	}
 
 	where = append(where, Load(dbmodels.UserDeviceRels.ImpartWealth))
@@ -347,11 +347,11 @@ func (m *mysqlStore) GetUserNotificationMappData(input models.MapArgumentInput) 
 		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.EQ(input.ImpartWealthID))
 	}
 	if input.DeviceToken != "" {
-		where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.DeviceToken))
+		// where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.DeviceToken))
 	}
-	if input.DeviceID != "" {
+	if input.DeviceToken != "" {
 		where = append(where, qm.InnerJoin("user_devices ON user_devices.token = notification_device_mapping.user_device_id"))
-		where = append(where, qm.Where("user_devices.device_id=?", input.DeviceID))
+		where = append(where, qm.Where("user_devices.device_token=?", input.DeviceToken))
 	}
 
 	mapData, err := dbmodels.NotificationDeviceMappings(where...).One(input.Ctx, m.db)
@@ -369,10 +369,10 @@ func (m *mysqlStore) DeleteUserNotificationMappData(input models.MapArgumentInpu
 		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.EQ(input.ImpartWealthID))
 	}
 	if input.DeviceToken != "" {
-		where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.DeviceToken))
+		// where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.DeviceToken))
 	}
-	if input.DeviceID != "" {
-		where = append(where, qm.Where("user_device_id IN (select token from user_devices where device_id = ?)", input.DeviceID))
+	if input.DeviceToken != "" {
+		where = append(where, qm.Where("user_device_id IN (select token from user_devices where device_token = ?)", input.DeviceToken))
 	}
 
 	_, err := dbmodels.NotificationDeviceMappings(where...).DeleteAll(input.Ctx, m.db)
@@ -398,13 +398,15 @@ func (m *mysqlStore) UpdateExistingNotificationMappData(input models.MapArgument
 	if input.ImpartWealthID != "" && input.Negate {
 		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.NEQ(input.ImpartWealthID))
 	}
+	if input.Token != "" {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.Token))
+	}
 	if input.DeviceToken != "" {
-		where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.DeviceToken))
+		where = append(where, qm.Where("user_device_id IN (select token from user_devices where device_token = ?)", input.DeviceToken))
 	}
 	if input.DeviceID != "" {
 		where = append(where, qm.Where("user_device_id IN (select token from user_devices where device_id = ?)", input.DeviceID))
 	}
-
 	_, err := dbmodels.NotificationDeviceMappings(where...).UpdateAll(input.Ctx, m.db, dbmodels.M{
 		"notify_status": notifyStatus,
 	})

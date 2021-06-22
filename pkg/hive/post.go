@@ -445,12 +445,7 @@ func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string)
 			s.logger.Error("error attempting to fetch URL Data", zap.Any("postURL", postUrl), zap.Error(err))
 			return models.PostUrl{}, nil
 		}
-		//
-		// fmt.Println(ogp, err)
-		fmt.Println(ogp.Image[0].URL)
-		fmt.Println(ogp.Title)
-		fmt.Println(ogp.Type)
-		fmt.Println(ogp.URL)
+
 		input := &dbmodels.PostURL{
 			Title:    ogp.Title,
 			ImageUrl: ogp.Image[0].URL,

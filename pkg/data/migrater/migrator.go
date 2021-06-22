@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -117,6 +118,25 @@ func BootStrapAdminUsers(db *sql.DB, env config.Environment, logger *zap.Logger)
 		tx.Commit()
 	}
 	return nil
+}
+
+func BootStrapTopicHive(db *sql.DB, env config.Environment, logger *zap.Logger) error {
+	topicForEnv := topics[env]
+	// queryMode := qm.Where()
+	hives, err := db.Exec("update hive set notification_topic_arn = ? where hive_id = 2;", topicForEnv)
+	fmt.Println("the hive are", hives, topicForEnv)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+var topics = map[config.Environment]string{
+	config.Local:         "arn:aws:sns:us-east-2:518740895671:SNSHiveNotification",
+	config.Development:   "arn:aws:sns:us-east-2:518740895671:SNSHiveNotification-dev",
+	config.IOS:           "arn:aws:sns:us-east-2:518740895671:SNSHiveNotification-iosdev",
+	config.Preproduction: "arn:aws:sns:us-east-2:518740895671:SNSHiveNotification-preprod",
+	config.Production:    "arn:aws:sns:us-east-2:518740895671:SNSHiveNotification-prod",
 }
 
 // christian PW 1q0FlyD8rP65vhL8UNHzDKQOjzh1q0FllEIfAww

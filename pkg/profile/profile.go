@@ -41,8 +41,9 @@ type Service interface {
 
 	MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error
 	UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) impart.Error
-
 	BlockUser(ctx context.Context, impartWealthID string, screenname string, status bool) impart.Error
+
+	GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, impart.Error)
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {
@@ -398,4 +399,15 @@ func (ps *profileService) SubscribeNewDeviceToken(ctx context.Context, user *dbm
 		}
 	}
 	return nil
+}
+
+func (s *profileService) GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, impart.Error) {
+
+	hive, err := dbmodels.Hives(
+		dbmodels.HiveWhere.HiveID.EQ(hiveID)).One(ctx, s.db)
+	if err != nil {
+		return nil, impart.NewError(impart.ErrUnknown, "unable to get Hive of hiveId")
+	}
+
+	return hive, nil
 }

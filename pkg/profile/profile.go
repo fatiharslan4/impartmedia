@@ -181,11 +181,12 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	dbProfile.UpdatedAt = impart.CurrentUTC()
 
 	// hide this when new notify workflow ok : begin
-	endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
-	if err != nil {
-		ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
-	}
-	dbUser.AwsSNSAppArn = endpointARN
+	// can removed after complete QA test
+	// endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
+	// if err != nil {
+	// 	ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
+	// }
+	// dbUser.AwsSNSAppArn = endpointARN
 	// hide this : end
 
 	err = ps.profileStore.CreateUserProfile(ctx, dbUser, dbProfile)

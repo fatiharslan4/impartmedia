@@ -53,12 +53,12 @@ func (s *service) Votes(ctx context.Context, v VoteInput) (models.PostCommentTra
 
 	if err != nil {
 		s.logger.Error("error on vote", zap.Error(err), zap.Any("vote", v))
-	}
-
-	// send notification on up,down,take votes
-	err = s.SendNotificationOnVote(ctx, actionType, v, in)
-	if err != nil {
-		s.logger.Error("error on vote notification", zap.Error(err), zap.Any("vote", v))
+	} else {
+		// send notification on up,down,take votes
+		err = s.SendNotificationOnVote(ctx, actionType, v, in)
+		if err != nil {
+			s.logger.Error("error on vote notification", zap.Error(err), zap.Any("vote", v))
+		}
 	}
 	out, err = s.reactionData.GetUserTrack(ctx, in)
 	if err != nil {

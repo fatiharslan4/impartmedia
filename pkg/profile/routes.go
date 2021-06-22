@@ -499,7 +499,7 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
 			Ctx:            ctx,
 			ImpartWealthID: context.ImpartWealthID,
-			DeviceToken:    deviceToken,
+			Token:          deviceToken,
 		}, conf.Status)
 		if err != nil {
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
@@ -551,7 +551,7 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 		err := ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
 			Ctx:            ctx,
 			ImpartWealthID: context.ImpartWealthID,
-			DeviceToken:    deviceToken,
+			Token:          deviceToken,
 		}, false)
 		if err != nil {
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))

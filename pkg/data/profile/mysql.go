@@ -398,13 +398,15 @@ func (m *mysqlStore) UpdateExistingNotificationMappData(input models.MapArgument
 	if input.ImpartWealthID != "" && input.Negate {
 		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.NEQ(input.ImpartWealthID))
 	}
-	if input.DeviceToken != "" {
-		// where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.DeviceToken))
+	if input.Token != "" {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.Token))
 	}
 	if input.DeviceToken != "" {
 		where = append(where, qm.Where("user_device_id IN (select token from user_devices where device_token = ?)", input.DeviceToken))
 	}
-
+	if input.DeviceID != "" {
+		where = append(where, qm.Where("user_device_id IN (select token from user_devices where device_id = ?)", input.DeviceID))
+	}
 	_, err := dbmodels.NotificationDeviceMappings(where...).UpdateAll(input.Ctx, m.db, dbmodels.M{
 		"notify_status": notifyStatus,
 	})

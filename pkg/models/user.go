@@ -85,6 +85,7 @@ func (uc UserConfigurations) UserConfigurationTODBModel() *dbmodels.UserConfigur
 type MapArgumentInput struct {
 	Ctx            context.Context
 	ImpartWealthID string
+	Token          string
 	DeviceID       string
 	DeviceToken    string
 	Negate         bool

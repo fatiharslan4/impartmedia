@@ -21,6 +21,7 @@ var TableNames = struct {
 	PostFiles                 string
 	PostReactions             string
 	PostTag                   string
+	PostUrls                  string
 	PostVideos                string
 	Profile                   string
 	Question                  string
@@ -49,6 +50,7 @@ var TableNames = struct {
 	PostFiles:                 "post_files",
 	PostReactions:             "post_reactions",
 	PostTag:                   "post_tag",
+	PostUrls:                  "post_urls",
 	PostVideos:                "post_videos",
 	Profile:                   "profile",
 	Question:                  "question",

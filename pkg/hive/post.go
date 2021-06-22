@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/otiai10/opengraph/v2"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 
@@ -75,6 +76,10 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	// add post videos
 	postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video)
 	p.Video = postvideo
+
+	// add post videos
+	postUrl, _ := s.AddPostUrl(ctx, p.PostID, post.Url)
+	p.UrlData = postUrl
 
 	// update post files
 	p.Files = postFiles
@@ -428,6 +433,34 @@ func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo mod
 		return postVideo, nil
 	}
 	return models.PostVideo{}, nil
+}
+
+func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string) (models.PostUrl, impart.Error) {
+	ctxUser := impart.GetCtxUser(ctx)
+	fmt.Println("the data are", postUrl, ctxUser.Admin)
+	if ctxUser.Admin && (postUrl != "") {
+		ogp, err := opengraph.Fetch(postUrl)
+
+		if err != nil {
+			s.logger.Error("error attempting to fetch URL Data", zap.Any("postURL", postUrl), zap.Error(err))
+			return models.PostUrl{}, nil
+		}
+
+		input := &dbmodels.PostURL{
+			Title:    ogp.Title,
+			ImageUrl: ogp.Image[0].URL,
+			URL:      null.StringFrom(postUrl),
+			PostID:   postID,
+		}
+		inputData, err := s.postData.NewPostUrl(ctx, input)
+		if err != nil {
+			s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+			return models.PostUrl{}, nil
+		}
+		PostedUrl := models.PostUrlFromDB(inputData)
+		return PostedUrl, nil
+	}
+	return models.PostUrl{}, nil
 }
 
 // add post file

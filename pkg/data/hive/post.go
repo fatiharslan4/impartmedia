@@ -30,6 +30,7 @@ type Posts interface {
 	DeletePost(ctx context.Context, postID uint64) error
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 	NewPostVideo(ctx context.Context, post *dbmodels.PostVideo) (*dbmodels.PostVideo, error)
+	NewPostUrl(ctx context.Context, post *dbmodels.PostURL) (*dbmodels.PostURL, error)
 }
 
 // GetPost gets a single post and it's associated content
@@ -50,6 +51,7 @@ func (d *mysqlHiveData) GetPost(ctx context.Context, postID uint64) (*dbmodels.P
 		qm.Load(dbmodels.PostRels.ImpartWealth),
 		qm.Load(dbmodels.PostRels.PostReactions, dbmodels.PostReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)),
 		qm.Load(dbmodels.PostRels.PostVideos),
+		qm.Load(dbmodels.PostRels.PostUrls),
 		qm.Load(dbmodels.PostRels.PostFiles, dbmodels.PostFileWhere.PostID.EQ(postID)),
 		qm.Load("PostFiles.FidFile"), // get files
 	).Bind(ctx, d.db, &post)
@@ -61,6 +63,7 @@ func (d *mysqlHiveData) GetPost(ctx context.Context, postID uint64) (*dbmodels.P
 		return nil, err
 	}
 	p := &post
+
 	return p, nil
 }
 
@@ -152,6 +155,8 @@ func (d *mysqlHiveData) GetPosts(ctx context.Context, gpi GetPostsInput) (dbmode
 		qm.Load(dbmodels.PostRels.PostReactions, dbmodels.PostReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)), // the callers reaction
 		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
 		qm.Load(dbmodels.PostRels.PostFiles),
+		qm.Load(dbmodels.PostRels.PostVideos),
+		qm.Load(dbmodels.PostRels.PostUrls),
 		qm.Load("PostFiles.FidFile"), // get files
 	}
 
@@ -214,4 +219,11 @@ func (d *mysqlHiveData) NewPostVideo(ctx context.Context, postVideo *dbmodels.Po
 		return nil, err
 	}
 	return postVideo, nil
+}
+
+func (d *mysqlHiveData) NewPostUrl(ctx context.Context, postUrl *dbmodels.PostURL) (*dbmodels.PostURL, error) {
+	if err := postUrl.Insert(ctx, d.db, boil.Infer()); err != nil {
+		return nil, err
+	}
+	return postUrl, nil
 }

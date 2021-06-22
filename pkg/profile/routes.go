@@ -481,7 +481,7 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 			err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
 				Ctx:            ctx,
 				ImpartWealthID: context.ImpartWealthID,
-				DeviceID:       deviceDetails.DeviceID,
+				DeviceToken:    deviceDetails.DeviceToken,
 				Negate:         true,
 			}, false)
 			if err != nil {

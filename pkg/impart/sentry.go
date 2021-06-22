@@ -6,11 +6,57 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
+	"github.com/impartwealthapp/backend/pkg/sentryCore"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 func InitSentryLogger(cfg *config.Impart, log *zap.Logger, debug bool) (logger *zap.Logger, err error) {
+	logger = log
+	if cfg.SentryDSN != "" {
+		if debug {
+			logger, err = zap.NewDevelopment()
+		} else {
+			logger, err = zap.NewProduction()
+		}
+
+		logger = ModifyToSentryLogger(logger, cfg.SentryDSN, cfg.Env.String())
+
+	}
+	return
+}
+
+func ModifyToSentryLogger(log *zap.Logger, DSN string, env string) *zap.Logger {
+	cfg := sentryCore.Configuration{
+		Level: zapcore.ErrorLevel, //when to send message to sentry
+		Tags: map[string]string{
+			"component": "system",
+		},
+		DisableStacktrace: true,
+	}
+	core, err := sentryCore.NewCore(
+		cfg,
+		sentryCore.NewSentryClientFromDSN(DSN),
+		sentryCore.SentryEventConfig{
+			ServerName: fmt.Sprintf("impart-%s", env),
+			Platform:   "Golang",
+		},
+	)
+
+	//in case of err it will return noop core. so we can safely attach it
+	if err != nil {
+		log.Warn("failed to init zap", zap.Error(err))
+	}
+	return AttachCoreToLogger(core, log)
+}
+
+func AttachCoreToLogger(sentryCore zapcore.Core, l *zap.Logger) *zap.Logger {
+	return l.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
+		return zapcore.NewTee(core, sentryCore)
+	}))
+}
+
+func InitSentryLoggerBackup(cfg *config.Impart, log *zap.Logger, debug bool) (logger *zap.Logger, err error) {
 	logger = log
 
 	var ZapHook = zap.Hooks(func(entry zapcore.Entry) error {

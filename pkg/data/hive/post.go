@@ -155,6 +155,7 @@ func (d *mysqlHiveData) GetPosts(ctx context.Context, gpi GetPostsInput) (dbmode
 		qm.Load(dbmodels.PostRels.PostReactions, dbmodels.PostReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)), // the callers reaction
 		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
 		qm.Load(dbmodels.PostRels.PostFiles),
+		qm.Load(dbmodels.PostRels.PostVideos),
 		qm.Load(dbmodels.PostRels.PostUrls),
 		qm.Load("PostFiles.FidFile"), // get files
 	}

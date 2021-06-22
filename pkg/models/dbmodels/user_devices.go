@@ -33,6 +33,7 @@ type UserDevice struct {
 	CreatedAt      time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt      time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 	DeletedAt      null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	DeviceToken    string    `boil:"device_token" json:"device_token" toml:"device_token" yaml:"device_token"`
 
 	R *userDeviceR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userDeviceL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -48,6 +49,7 @@ var UserDeviceColumns = struct {
 	CreatedAt      string
 	UpdatedAt      string
 	DeletedAt      string
+	DeviceToken    string
 }{
 	Token:          "token",
 	ImpartWealthID: "impart_wealth_id",
@@ -58,6 +60,7 @@ var UserDeviceColumns = struct {
 	CreatedAt:      "created_at",
 	UpdatedAt:      "updated_at",
 	DeletedAt:      "deleted_at",
+	DeviceToken:    "device_token",
 }
 
 var UserDeviceTableColumns = struct {
@@ -70,6 +73,7 @@ var UserDeviceTableColumns = struct {
 	CreatedAt      string
 	UpdatedAt      string
 	DeletedAt      string
+	DeviceToken    string
 }{
 	Token:          "user_devices.token",
 	ImpartWealthID: "user_devices.impart_wealth_id",
@@ -80,6 +84,7 @@ var UserDeviceTableColumns = struct {
 	CreatedAt:      "user_devices.created_at",
 	UpdatedAt:      "user_devices.updated_at",
 	DeletedAt:      "user_devices.deleted_at",
+	DeviceToken:    "user_devices.device_token",
 }
 
 // Generated where
@@ -94,6 +99,7 @@ var UserDeviceWhere = struct {
 	CreatedAt      whereHelpertime_Time
 	UpdatedAt      whereHelpertime_Time
 	DeletedAt      whereHelpernull_Time
+	DeviceToken    whereHelperstring
 }{
 	Token:          whereHelperstring{field: "`user_devices`.`token`"},
 	ImpartWealthID: whereHelperstring{field: "`user_devices`.`impart_wealth_id`"},
@@ -104,6 +110,7 @@ var UserDeviceWhere = struct {
 	CreatedAt:      whereHelpertime_Time{field: "`user_devices`.`created_at`"},
 	UpdatedAt:      whereHelpertime_Time{field: "`user_devices`.`updated_at`"},
 	DeletedAt:      whereHelpernull_Time{field: "`user_devices`.`deleted_at`"},
+	DeviceToken:    whereHelperstring{field: "`user_devices`.`device_token`"},
 }
 
 // UserDeviceRels is where relationship names are stored.
@@ -130,8 +137,8 @@ func (*userDeviceR) NewStruct() *userDeviceR {
 type userDeviceL struct{}
 
 var (
-	userDeviceAllColumns            = []string{"token", "impart_wealth_id", "device_id", "app_version", "device_name", "device_version", "created_at", "updated_at", "deleted_at"}
-	userDeviceColumnsWithoutDefault = []string{"token", "impart_wealth_id", "device_id", "app_version", "device_name", "device_version", "created_at", "updated_at", "deleted_at"}
+	userDeviceAllColumns            = []string{"token", "impart_wealth_id", "device_id", "app_version", "device_name", "device_version", "created_at", "updated_at", "deleted_at", "device_token"}
+	userDeviceColumnsWithoutDefault = []string{"token", "impart_wealth_id", "device_id", "app_version", "device_name", "device_version", "created_at", "updated_at", "deleted_at", "device_token"}
 	userDeviceColumnsWithDefault    = []string{}
 	userDevicePrimaryKeyColumns     = []string{"token"}
 )

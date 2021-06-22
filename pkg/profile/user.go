@@ -10,10 +10,10 @@ import (
 	"go.uber.org/zap"
 )
 
-func (ps *profileService) GetUserDevice(ctx context.Context, token string, impartID string, deviceID string) (models.UserDevice, error) {
-	device, err := ps.profileStore.GetUserDevice(ctx, token, impartID, deviceID)
+func (ps *profileService) GetUserDevice(ctx context.Context, token string, impartID string, deviceToken string) (models.UserDevice, error) {
+	device, err := ps.profileStore.GetUserDevice(ctx, token, impartID, deviceToken)
 	if err != nil {
-		errorString := fmt.Sprintf("error occured during update existing %s device id", deviceID)
+		errorString := fmt.Sprintf("error occured during update existing %s device token", deviceToken)
 		ps.Logger().Error(errorString, zap.Any("error", err))
 		return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, errorString)
 	}
@@ -35,7 +35,7 @@ func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.U
 
 	// check the device details already exists in table
 	// then dont insert to table
-	exists, err := ps.profileStore.GetUserDevice(ctx, "", contextUser.ImpartWealthID, ud.DeviceID)
+	exists, err := ps.profileStore.GetUserDevice(ctx, "", contextUser.ImpartWealthID, ud.DeviceToken)
 	if err != nil && err != impart.ErrNotFound {
 		return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, "error to find user device")
 	}
@@ -45,7 +45,7 @@ func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.U
 		ud.ImpartWealthID = contextUser.ImpartWealthID
 		response, err := ps.profileStore.CreateUserDevice(ctx, ud)
 		if err != nil && err != impart.ErrNotFound {
-			return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, "error to create user device")
+			return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, fmt.Sprintf("error to create user device %v", err))
 		}
 		ud = response
 	} else {
@@ -91,18 +91,18 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 	// check the same device is accessed for another user, then have to remove that
 	// remove the entries and insert new entry
 	// delete all the entries with the same device id
-	// mapErr := ps.profileStore.DeleteUserNotificationMappData(ctx, "", ud.DeviceID, "")
+	// mapErr := ps.profileStore.DeleteUserNotificationMappData(ctx, "", ud.DevticeToken, "")
 
 	// check the same device is actived for some other users, then update the status into false
-	// mapErr := ps.profileStore.UpdateExistingNotificationMappData(ctx, ud.ImpartWealthID, ud.DeviceID, "", true)
+	// mapErr := ps.profileStore.UpdateExistingNotificationMappData(ctx, ud.ImpartWealthID, ud.DeviceToken, "", true)
 	mapErr := ps.profileStore.UpdateExistingNotificationMappData(models.MapArgumentInput{
 		Ctx:            ctx,
 		ImpartWealthID: ud.ImpartWealthID,
-		DeviceID:       ud.DeviceID,
+		DeviceToken:    ud.DeviceToken,
 		Negate:         true,
 	}, false)
 	if mapErr != nil {
-		errorString := fmt.Sprintf("error occured during update existing %s device id", ud.DeviceID)
+		errorString := fmt.Sprintf("error occured during update existing %s device id", ud.DeviceToken)
 		ps.Logger().Error(errorString, zap.Any("error", mapErr))
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
@@ -113,21 +113,25 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 	exists, existsErr := ps.profileStore.GetUserNotificationMappData(models.MapArgumentInput{
 		Ctx:            ctx,
 		ImpartWealthID: ud.ImpartWealthID,
-		DeviceID:       ud.DeviceID,
+		DeviceToken:    ud.DeviceToken,
 	})
 	if existsErr != nil {
-		errorString := fmt.Sprintf("unable to fetch the existing mapped data %s device id", ud.DeviceID)
+		errorString := fmt.Sprintf("unable to fetch the existing mapped data %s device id", ud.DeviceToken)
 		ps.Logger().Error(errorString, zap.Any("error", mapErr))
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
 
+	// from here, this device id should be sync with sns
+	arn, nErr := ps.notificationService.SyncTokenEndpoint(ctx, ud.DeviceToken, "")
+	if nErr != nil {
+		ps.Logger().Error("Token Sync Endpoint error",
+			zap.Any("Error", nErr),
+			zap.Any("Device", ud),
+		)
+	}
+
 	//there is no mapp entry exists , insert new entry
 	if exists == nil {
-		// from here, this device id should be sync with sns
-		arn, err := ps.notificationService.SyncTokenEndpoint(ctx, ud.DeviceID, "")
-		if err != nil {
-			ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", impart.GetCtxUser(ctx)))
-		}
 
 		_, mapErr = ps.profileStore.CreateUserNotificationMappData(ctx, &dbmodels.NotificationDeviceMapping{
 			ImpartWealthID: ud.ImpartWealthID,
@@ -141,18 +145,18 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 		mapErr := ps.profileStore.UpdateExistingNotificationMappData(models.MapArgumentInput{
 			Ctx:            ctx,
 			ImpartWealthID: ud.ImpartWealthID,
-			DeviceID:       ud.DeviceID,
+			DeviceToken:    ud.DeviceToken,
 		}, notifyStatus)
 
 		if mapErr != nil {
-			errorString := fmt.Sprintf("error occure during delete existing %s device id", ud.DeviceID)
+			errorString := fmt.Sprintf("error occure during delete existing %s device token", ud.DeviceName)
 			ps.Logger().Error(errorString, zap.Any("error", mapErr))
 			return impart.NewError(impart.ErrBadRequest, errorString)
 		}
 
 	}
 	if mapErr != nil {
-		errorString := fmt.Sprintf("unable to add %s device id", ud.DeviceID)
+		errorString := fmt.Sprintf("unable to add %s device token", ud.DeviceToken)
 		ps.Logger().Error(errorString, zap.Any("error", mapErr))
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}

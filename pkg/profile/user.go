@@ -74,7 +74,6 @@ func (ps *profileService) GetUserConfigurations(ctx context.Context, impartWealt
 //		insert with true
 func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error {
 	var notifyStatus bool
-
 	userConfig, err := ps.GetUserConfigurations(ctx, ud.ImpartWealthID)
 	if err != nil {
 		return impart.NewError(impart.ErrBadRequest, "unable to read user configurations")
@@ -86,6 +85,15 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 		}
 	} else {
 		notifyStatus = true
+	}
+	hiveData, err := ps.GetHive(ctx, uint64(2))
+	if err != nil {
+		return impart.NewError(impart.ErrBadRequest, "unable to read user configurations")
+	}
+	if notifyStatus {
+		ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String)
+	} else {
+		ps.notificationService.UnsubscribeAll(ctx, ud.ImpartWealthID)
 	}
 
 	// check the same device is accessed for another user, then have to remove that

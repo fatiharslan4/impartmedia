@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -259,9 +260,17 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 		}),
 		zap.Any("notificationData", out),
 	)
+	var count int
+	count = 1
+	if input.NotifyPostOwner {
+		count = 2
+	}
+	var wg sync.WaitGroup
+	wg.Add(count)
 
 	// send to comment owner
 	go func() {
+		defer wg.Done()
 		if strings.TrimSpace(dbComment.R.ImpartWealth.ImpartWealthID) != "" {
 			err = s.sendNotification(notificationData, out.Alert, dbComment.R.ImpartWealth.ImpartWealthID)
 			if err != nil {
@@ -273,6 +282,7 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 	// send to post owner
 	if input.NotifyPostOwner {
 		go func() {
+			defer wg.Done()
 			if strings.TrimSpace(out.PostOwnerWealthID) != "" {
 				err = s.sendNotification(notificationData, out.PostOwnerAlert, out.PostOwnerWealthID)
 				if err != nil {
@@ -282,6 +292,7 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 		}()
 	}
 
+	wg.Wait()
 	return nil
 }
 

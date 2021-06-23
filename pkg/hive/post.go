@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -361,7 +362,10 @@ func (s *service) SendPostNotification(input models.PostNotificationInput) impar
 	)
 
 	// send to comment owner
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		if strings.TrimSpace(dbPost.R.ImpartWealth.ImpartWealthID) != "" {
 			err = s.sendNotification(notificationData, out.Alert, dbPost.R.ImpartWealth.ImpartWealthID)
 			if err != nil {
@@ -369,6 +373,7 @@ func (s *service) SendPostNotification(input models.PostNotificationInput) impar
 			}
 		}
 	}()
+	wg.Wait()
 
 	return nil
 }

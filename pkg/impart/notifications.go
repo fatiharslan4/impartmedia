@@ -217,17 +217,32 @@ func (ns *snsAppleNotificationService) Notify(ctx context.Context, data Notifica
 		)
 	}
 
+	ns.Logger.Info("Sending notifications to", zap.Any("devices", activeDevices))
+
 	// loop through the active devices and send notification
 	for _, u := range activeDevices {
 		if u.NotifyArn == "" {
-			return fmt.Errorf("empty device token found for user %v", impartWealthID)
+			ns.Logger.Error("empty device token found for user",
+				zap.Any("device", u),
+				zap.Any("impartWealthID", impartWealthID),
+			)
+			continue
 		}
 		if u.R.UserDevice == nil {
-			return fmt.Errorf("unable to find user device information")
+			ns.Logger.Error("unable to find user device information",
+				zap.Any("device", u),
+				zap.Any("impartWealthID", impartWealthID),
+			)
+			continue
 		}
 		// user device
 		userDevice := u.R.UserDevice
 		// var notificationStatus bool
+
+		ns.Logger.Info("Initiate notification to",
+			zap.Any("device", u),
+			zap.Any("impartWealthID", impartWealthID),
+		)
 
 		_, err := ns.NotifyAppleDevice(ctx, data, alert, userDevice.DeviceToken, u.NotifyArn)
 		if err != nil {

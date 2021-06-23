@@ -138,7 +138,7 @@ func (m *mysqlStore) UpdateProfile(ctx context.Context, user *dbmodels.User, pro
 	return tx.Commit()
 }
 
-func (m *mysqlStore) DeleteProfile(ctx context.Context, impartWealthID string) error {
+func (m *mysqlStore) DeleteProfile(ctx context.Context, impartWealthID string, hardDelete bool) error {
 	u, err := dbmodels.FindUser(ctx, m.db, impartWealthID)
 	if err == sql.ErrNoRows || u == nil {
 		return impart.ErrNotFound
@@ -146,7 +146,7 @@ func (m *mysqlStore) DeleteProfile(ctx context.Context, impartWealthID string) e
 	if err != nil {
 		return err
 	}
-	_, err = u.Delete(ctx, m.db, false)
+	_, err = u.Delete(ctx, m.db, hardDelete)
 	return err
 }
 

@@ -46,6 +46,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	profileRoutes.GET("/:impartWealthId", handler.GetProfileFunc())
 	profileRoutes.DELETE("/:impartWealthId", handler.DeleteProfileFunc())
+	profileRoutes.DELETE("", handler.DeleteUserProfileFunc())
 
 	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
 	profileRoutes.POST("/send-email", handler.ResentEmail())
@@ -201,7 +202,7 @@ func (ph *profileHandler) DeleteProfileFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		impartWealthID := ctx.Param("impartWealthId")
 
-		impartErr := ph.profileService.DeleteProfile(ctx, impartWealthID)
+		impartErr := ph.profileService.DeleteProfile(ctx, impartWealthID, false, DeleteProfileInput{})
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			//ctx.AbortWithError(err.HttpStatus(), err)
@@ -671,5 +672,44 @@ func (ph *profileHandler) BlockUser() gin.HandlerFunc {
 			"message": fmt.Sprintf("user account %ved successfully", inputStatus),
 		})
 
+	}
+}
+
+func (ph *profileHandler) DeleteUserProfileFunc() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		rawData, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		input := models.DeleteUserInput{}
+		err = json.Unmarshal(rawData, &input)
+		if err != nil {
+			ph.logger.Error("input json parse error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+
+		// validate either screen Name or impartWealthID provided
+		if input.ImpartWealthID == "" {
+			err := impart.NewError(impart.ErrBadRequest, "please provide user information")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+
+		gpi := DeleteProfileInput{ImpartWealthID: input.ImpartWealthID,
+			Feedback: input.Feedback}
+
+		impartErr := ph.profileService.DeleteProfile(ctx, input.ImpartWealthID, false, gpi)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			//ctx.AbortWithError(err.HttpStatus(), err)
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "profile deleted"})
 	}
 }

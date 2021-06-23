@@ -106,5 +106,7 @@ type BlockUserInput struct {
 	Status         string `json:"status,omitempty" default:"block"`
 }
 
-type DeleteDeviceConditionInput struct {
+type DeleteUserInput struct {
+	ImpartWealthID string `json:"impartWealthID,omitempty"`
+	Feedback       string `json:"feedback,omitempty"`
 }

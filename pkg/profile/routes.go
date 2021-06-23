@@ -47,6 +47,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	profileRoutes.GET("/:impartWealthId", handler.GetProfileFunc())
 	profileRoutes.DELETE("/:impartWealthId", handler.DeleteProfileFunc())
+	profileRoutes.DELETE("", handler.DeleteUserProfileFunc())
 
 	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
 	profileRoutes.POST("/send-email", handler.ResentEmail())
@@ -202,7 +203,7 @@ func (ph *profileHandler) DeleteProfileFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		impartWealthID := ctx.Param("impartWealthId")
 
-		impartErr := ph.profileService.DeleteProfile(ctx, impartWealthID)
+		impartErr := ph.profileService.DeleteProfile(ctx, impartWealthID, false, DeleteProfileInput{})
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			//ctx.AbortWithError(err.HttpStatus(), err)
@@ -407,13 +408,15 @@ func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-		// map for notification
-		err = ph.profileService.MapDeviceForNotification(ctx, userDevice)
-		if err != nil {
-			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
-			ph.logger.Error(impartErr.Error())
-			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
-			return
+		if userDevice.DeviceToken != "" {
+			// map for notification
+			err = ph.profileService.MapDeviceForNotification(ctx, userDevice)
+			if err != nil {
+				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
+				ph.logger.Error(impartErr.Error())
+				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+				return
+			}
 		}
 
 		ctx.JSON(http.StatusOK, userDevice)
@@ -455,14 +458,20 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 		}
 		// get user device details
 		// user can provide the device token from header / from request
+
+		refToken := ""
+		if conf.RefToken != "" {
+			refToken = conf.RefToken
+		} else {
+			refToken = impart.GetCtxDeviceToken(ctx)
+		}
+
 		deviceToken := ""
 		if conf.DeviceToken != "" {
 			deviceToken = conf.DeviceToken
-		} else {
-			deviceToken = impart.GetCtxDeviceToken(ctx)
 		}
 
-		if deviceToken == "" {
+		if refToken == "" {
 			ph.logger.Error("unable to find device token to update notification", zap.Error(err))
 			err := impart.NewError(impart.ErrBadRequest, "unable to find device token")
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
@@ -471,12 +480,46 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 
 		// if the user is requested for enable notification
 		if conf.Status {
-			deviceDetails, devErr := ph.profileService.GetUserDevice(ctx, deviceToken, "", "")
+			// empty device token is not allowed here
+			if deviceToken == "" {
+				ph.logger.Error("have to provide device token", zap.Any("request", conf))
+				err := impart.NewError(impart.ErrBadRequest, "have to provide device token")
+				ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+				return
+			}
+
+			deviceDetails, devErr := ph.profileService.GetUserDevice(ctx, refToken, "", "")
 			if devErr != nil {
 				ph.logger.Error("unable to find device", zap.Error(err))
 				err := impart.NewError(impart.ErrBadRequest, "unable to find device")
 				ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 				return
+			}
+
+			// check the deviceToken is not added yet, or not equals then need to sync again
+			// also check the device token is not nill
+			if deviceDetails.DeviceToken != deviceToken {
+				err := ph.profileService.UpdateDeviceToken(ctx, refToken, deviceToken)
+				if err != nil {
+					ph.logger.Error("unable to update device token", zap.Error(err))
+				} else {
+					deviceDetails.DeviceToken = deviceToken
+					err = ph.profileService.MapDeviceForNotification(ctx, deviceDetails)
+					if err != nil {
+						ph.logger.Error("unable to map device token", zap.Error(err))
+					}
+				}
+
+				//delete previous entries for same user same device token
+				dErr := ph.profileService.DeleteExceptUserDevice(
+					ctx,
+					deviceDetails.ImpartWealthID,
+					deviceToken,
+					refToken,
+				)
+				if dErr != nil {
+					ph.logger.Error("unable to remove existing devices", zap.Error(dErr))
+				}
 			}
 			// check the same device id exists for another user, then set to false
 			err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
@@ -494,13 +537,13 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 		// if the status is for disable,
 		// then deactivate all the devices of this user
 		if !conf.Status {
-			deviceToken = ""
+			refToken = ""
 		}
 		// update the notificaton status for device this user
 		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
 			Ctx:            ctx,
 			ImpartWealthID: context.ImpartWealthID,
-			Token:          deviceToken,
+			Token:          refToken,
 		}, conf.Status)
 		if err != nil {
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
@@ -641,5 +684,44 @@ func (ph *profileHandler) BlockUser() gin.HandlerFunc {
 			"message": fmt.Sprintf("user account %ved successfully", inputStatus),
 		})
 
+	}
+}
+
+func (ph *profileHandler) DeleteUserProfileFunc() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		rawData, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		input := models.DeleteUserInput{}
+		err = json.Unmarshal(rawData, &input)
+		if err != nil {
+			ph.logger.Error("input json parse error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+
+		// validate either screen Name or impartWealthID provided
+		if input.ImpartWealthID == "" {
+			err := impart.NewError(impart.ErrBadRequest, "please provide user information")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+
+		gpi := DeleteProfileInput{ImpartWealthID: input.ImpartWealthID,
+			Feedback: input.Feedback}
+
+		impartErr := ph.profileService.DeleteProfile(ctx, input.ImpartWealthID, false, gpi)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			//ctx.AbortWithError(err.HttpStatus(), err)
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "profile deleted"})
 	}
 }

@@ -24,18 +24,19 @@ import (
 
 // User is an object representing the database table.
 type User struct {
-	ImpartWealthID   string    `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	AuthenticationID string    `boil:"authentication_id" json:"authentication_id" toml:"authentication_id" yaml:"authentication_id"`
-	Email            string    `boil:"email" json:"email" toml:"email" yaml:"email"`
-	ScreenName       string    `boil:"screen_name" json:"screen_name" toml:"screen_name" yaml:"screen_name"`
-	CreatedAt        time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt        time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt        null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
-	DeviceToken      string    `boil:"device_token" json:"device_token" toml:"device_token" yaml:"device_token"`
-	AwsSNSAppArn     string    `boil:"aws_sns_app_arn" json:"aws_sns_app_arn" toml:"aws_sns_app_arn" yaml:"aws_sns_app_arn"`
-	Admin            bool      `boil:"admin" json:"admin" toml:"admin" yaml:"admin"`
-	EmailVerified    bool      `boil:"email_verified" json:"email_verified" toml:"email_verified" yaml:"email_verified"`
-	Blocked          bool      `boil:"blocked" json:"blocked" toml:"blocked" yaml:"blocked"`
+	ImpartWealthID   string      `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
+	AuthenticationID string      `boil:"authentication_id" json:"authentication_id" toml:"authentication_id" yaml:"authentication_id"`
+	Email            string      `boil:"email" json:"email" toml:"email" yaml:"email"`
+	ScreenName       string      `boil:"screen_name" json:"screen_name" toml:"screen_name" yaml:"screen_name"`
+	CreatedAt        time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt        time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt        null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	DeviceToken      string      `boil:"device_token" json:"device_token" toml:"device_token" yaml:"device_token"`
+	AwsSNSAppArn     string      `boil:"aws_sns_app_arn" json:"aws_sns_app_arn" toml:"aws_sns_app_arn" yaml:"aws_sns_app_arn"`
+	Admin            bool        `boil:"admin" json:"admin" toml:"admin" yaml:"admin"`
+	EmailVerified    bool        `boil:"email_verified" json:"email_verified" toml:"email_verified" yaml:"email_verified"`
+	Blocked          bool        `boil:"blocked" json:"blocked" toml:"blocked" yaml:"blocked"`
+	Feedback         null.String `boil:"feedback" json:"feedback,omitempty" toml:"feedback" yaml:"feedback,omitempty"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -54,6 +55,7 @@ var UserColumns = struct {
 	Admin            string
 	EmailVerified    string
 	Blocked          string
+	Feedback         string
 }{
 	ImpartWealthID:   "impart_wealth_id",
 	AuthenticationID: "authentication_id",
@@ -67,6 +69,7 @@ var UserColumns = struct {
 	Admin:            "admin",
 	EmailVerified:    "email_verified",
 	Blocked:          "blocked",
+	Feedback:         "feedback",
 }
 
 var UserTableColumns = struct {
@@ -82,6 +85,7 @@ var UserTableColumns = struct {
 	Admin            string
 	EmailVerified    string
 	Blocked          string
+	Feedback         string
 }{
 	ImpartWealthID:   "user.impart_wealth_id",
 	AuthenticationID: "user.authentication_id",
@@ -95,6 +99,7 @@ var UserTableColumns = struct {
 	Admin:            "user.admin",
 	EmailVerified:    "user.email_verified",
 	Blocked:          "user.blocked",
+	Feedback:         "user.feedback",
 }
 
 // Generated where
@@ -112,6 +117,7 @@ var UserWhere = struct {
 	Admin            whereHelperbool
 	EmailVerified    whereHelperbool
 	Blocked          whereHelperbool
+	Feedback         whereHelpernull_String
 }{
 	ImpartWealthID:   whereHelperstring{field: "`user`.`impart_wealth_id`"},
 	AuthenticationID: whereHelperstring{field: "`user`.`authentication_id`"},
@@ -125,6 +131,7 @@ var UserWhere = struct {
 	Admin:            whereHelperbool{field: "`user`.`admin`"},
 	EmailVerified:    whereHelperbool{field: "`user`.`email_verified`"},
 	Blocked:          whereHelperbool{field: "`user`.`blocked`"},
+	Feedback:         whereHelpernull_String{field: "`user`.`feedback`"},
 }
 
 // UserRels is where relationship names are stored.
@@ -184,8 +191,8 @@ func (*userR) NewStruct() *userR {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked"}
-	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified"}
+	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked", "feedback"}
+	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "feedback"}
 	userColumnsWithDefault    = []string{"blocked"}
 	userPrimaryKeyColumns     = []string{"impart_wealth_id"}
 )

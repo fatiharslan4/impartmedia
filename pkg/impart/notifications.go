@@ -216,27 +216,42 @@ func (ns *snsAppleNotificationService) Notify(ctx context.Context, data Notifica
 	}
 	// if not active devices found
 	if len(activeDevices) <= 0 {
-		ns.Logger.Info("no active devices found for user",
+		ns.Logger.Info("push-notification : no active devices found for user",
 			zap.Any("msg", alert),
 			zap.String("impartWealthID", impartWealthID),
 		)
 	}
 
+	ns.Logger.Info("push-notification : Sending notifications to", zap.Any("devices", activeDevices))
+
 	// loop through the active devices and send notification
 	for _, u := range activeDevices {
 		if u.NotifyArn == "" {
-			return fmt.Errorf("empty device token found for user %v", impartWealthID)
+			ns.Logger.Error("push-notification : empty device token found for user",
+				zap.Any("device", u),
+				zap.Any("impartWealthID", impartWealthID),
+			)
+			continue
 		}
 		if u.R.UserDevice == nil {
-			return fmt.Errorf("unable to find user device information")
+			ns.Logger.Error("push-notification : unable to find user device information",
+				zap.Any("device", u),
+				zap.Any("impartWealthID", impartWealthID),
+			)
+			continue
 		}
 		// user device
 		userDevice := u.R.UserDevice
 		// var notificationStatus bool
 
+		ns.Logger.Info("push-notification : Initiate notification to",
+			zap.Any("device", u),
+			zap.Any("impartWealthID", impartWealthID),
+		)
+
 		_, err := ns.NotifyAppleDevice(ctx, data, alert, userDevice.DeviceToken, u.NotifyArn)
 		if err != nil {
-			ns.Logger.Error("unable to notify to the device", zap.Any("device", userDevice))
+			ns.Logger.Error("push-notification : unable to notify to the device", zap.Any("device", userDevice))
 			continue
 		}
 

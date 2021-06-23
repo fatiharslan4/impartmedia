@@ -11,7 +11,7 @@ type UserDevice struct {
 	Token          string    `json:"token,omitempty"`
 	ImpartWealthID string    `json:"impartWealthId,omitempty" conform:"trim"`
 	DeviceID       string    `json:"deviceId"`
-	DeviceToken    string    `json:"deviceToken"`
+	DeviceToken    string    `json:"deviceToken,omitempty"`
 	AppVersion     string    `json:"appVersion"`
 	DeviceName     string    `json:"deviceName"`
 	DeviceVersion  string    `json:"deviceVersion"`
@@ -93,6 +93,7 @@ type MapArgumentInput struct {
 
 // user Notification
 type UserGlobalConfigInput struct {
+	RefToken       string `json:"refToken,omitempty"`
 	DeviceToken    string `json:"deviceToken,omitempty"`
 	Status         bool   `json:"status"`
 	ImpartWealthID string `json:"impartWealthID,omitempty"`
@@ -103,4 +104,9 @@ type BlockUserInput struct {
 	ImpartWealthID string `json:"impartWealthID,omitempty"`
 	ScreenName     string `json:"screenName,omitempty"`
 	Status         string `json:"status,omitempty" default:"block"`
+}
+
+type DeleteUserInput struct {
+	ImpartWealthID string `json:"impartWealthID,omitempty"`
+	Feedback       string `json:"feedback,omitempty"`
 }

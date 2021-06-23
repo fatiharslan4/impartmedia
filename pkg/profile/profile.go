@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"gopkg.in/auth0.v5/management"
 
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	profile_data "github.com/impartwealthapp/backend/pkg/data/profile"
@@ -24,7 +27,7 @@ type Service interface {
 	NewProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
 	GetProfile(ctx context.Context, getProfileInput GetProfileInput) (models.Profile, impart.Error)
 	UpdateProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
-	DeleteProfile(ctx context.Context, impartWealthID string) impart.Error
+	DeleteProfile(ctx context.Context, impartWealthID string, hardtDelete bool, deleteUser DeleteProfileInput) impart.Error
 	ScreenNameExists(ctx context.Context, screenName string) bool
 
 	ValidateSchema(document gojsonschema.JSONLoader) []impart.Error
@@ -38,6 +41,8 @@ type Service interface {
 
 	GetUserDevice(ctx context.Context, token string, impartWealthID string, deviceToken string) (models.UserDevice, error)
 	CreateUserDevice(ctx context.Context, user *dbmodels.User, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error)
+	UpdateDeviceToken(ctx context.Context, token string, deviceToken string) impart.Error
+	DeleteExceptUserDevice(ctx context.Context, impartID string, deviceToken string, refToken string) error
 
 	MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error
 	UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) impart.Error
@@ -78,7 +83,7 @@ func (ps *profileService) Logger() *zap.Logger {
 	return ps.Desugar()
 }
 
-func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID string) impart.Error {
+func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID string, hardDelete bool, deleteUser DeleteProfileInput) impart.Error {
 	if strings.TrimSpace(impartWealthID) == "" {
 		return impart.NewError(impart.ErrBadRequest, "impartWealthID is empty")
 	}
@@ -86,19 +91,92 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 	if contextUser == nil || contextUser.ImpartWealthID == "" {
 		return impart.NewError(impart.ErrBadRequest, "context user not found")
 	}
+	if contextUser.Admin {
+		errorString := "Admin user doesn't have the permission"
+		ps.Logger().Error(errorString, zap.Any("error", errorString))
+		return impart.NewError(impart.ErrUnauthorized, errorString)
+	}
+
 	userToDelete, err := ps.profileStore.GetUser(ctx, impartWealthID)
 	if err != nil {
 		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", impartWealthID))
 	}
 
-	if contextUser.ImpartWealthID == userToDelete.ImpartWealthID ||
-		contextUser.Admin {
+	// admin removed- APP-144
+	if contextUser.ImpartWealthID == userToDelete.ImpartWealthID {
 		ps.Logger().Info("request to delete a user passed validation", zap.String("deleteUser", userToDelete.ImpartWealthID),
 			zap.String("contextUser", contextUser.ImpartWealthID))
-		err = ps.profileStore.DeleteProfile(ctx, impartWealthID)
-		if err != nil {
-			return impart.NewError(err, "unable to retrieve profile")
+		if hardDelete {
+			err = ps.profileStore.DeleteProfile(ctx, impartWealthID, hardDelete)
+			if err != nil {
+				return impart.NewError(err, "unable to retrieve profile")
+			}
 		}
+
+		existingDBProfile := userToDelete.R.ImpartWealthProfile
+
+		userToDelete.Feedback = null.StringFromPtr(&deleteUser.Feedback)
+		currTime := time.Now().In(boil.GetLocation())
+		userToDelete.DeletedAt = null.TimeFrom(currTime)
+		userToDelete.ScreenName = fmt.Sprintf("%s%s", userToDelete.ScreenName, "-Deleted")
+
+		err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
+		if err != nil {
+			ps.Logger().Error("Delete user requset failed", zap.String("deleteUser", userToDelete.ImpartWealthID),
+				zap.String("contextUser", contextUser.ImpartWealthID))
+
+			return impart.NewError(err, "User Deletion failed")
+
+		}
+
+		m, errDel := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
+		if errDel != nil {
+			ps.Logger().Error("Delete user requset failed in AUth 0", zap.String("deleteUser", userToDelete.ImpartWealthID),
+				zap.String("contextUser", contextUser.ImpartWealthID))
+
+			//revert the server update
+			screenName := strings.SplitAfter(userToDelete.ScreenName, "-")
+			userToDelete.ScreenName = screenName[0]
+			userToDelete.Feedback = null.String{}
+			userToDelete.DeletedAt = null.Time{}
+
+			err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
+			if err != nil {
+				ps.Logger().Error("Delete user requset reverted due to auth 0 fail", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", contextUser.ImpartWealthID))
+
+				return impart.NewError(err, "User Deletion failed")
+
+			}
+			return impart.NewError(err, "User Deletion failed")
+
+		}
+		userEmail := fmt.Sprintf("%s%s", "Delete", userToDelete.Email)
+		userUp := management.User{
+			Email: &userEmail,
+		}
+		errDel = m.User.Update(*&userToDelete.AuthenticationID, &userUp)
+		if errDel != nil {
+			ps.Logger().Debug("User Deleted(updated with emailid) failed in AUth0",
+				zap.Any("impartWealthID", impartWealthID))
+
+			//revert the server update
+			screenName := strings.SplitAfter(userToDelete.ScreenName, "-")
+			userToDelete.ScreenName = screenName[0]
+			userToDelete.Feedback = null.String{}
+			userToDelete.DeletedAt = null.Time{}
+
+			err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
+			if err != nil {
+				ps.Logger().Error("Delete user requset reverted due to auth 0 fail", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", contextUser.ImpartWealthID))
+
+				return impart.NewError(err, "User Deletion failed")
+
+			}
+			return impart.NewError(err, "User Deletion failed")
+		}
+
 		return nil
 	}
 
@@ -238,25 +316,23 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 		if p.UserDevices[0].DeviceToken == "" && p.DeviceToken != "" {
 			p.UserDevices[0].DeviceToken = p.DeviceToken
 		}
+
+		//create user device
+		userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevices[0].UserDeviceToDBModel())
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
+			ps.Logger().Error(impartErr.Error())
+		}
+		out.UserDevices = append(out.UserDevices, userDevice)
+
 		// check the device id exists
 		if p.UserDevices[0].DeviceToken != "" {
-			userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevices[0].UserDeviceToDBModel())
-			if err != nil {
-				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
-				ps.Logger().Error(impartErr.Error())
-			}
-
 			// map for notification
 			err = ps.MapDeviceForNotification(ctx, userDevice)
 			if err != nil {
 				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
 				ps.Logger().Error(impartErr.Error())
 			}
-
-			out.UserDevices = append(out.UserDevices, userDevice)
-		} else {
-			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("can't register device, device id not found %v", err))
-			ps.Logger().Error(impartErr.Error(), zap.Any("data", p))
 		}
 	}
 	return *out, nil
@@ -407,6 +483,10 @@ func (ps *profileService) SubscribeNewDeviceToken(ctx context.Context, user *dbm
 		}
 	}
 	return nil
+}
+
+type DeleteProfileInput struct {
+	ImpartWealthID, Feedback string
 }
 
 func (s *profileService) GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, impart.Error) {

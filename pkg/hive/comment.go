@@ -166,7 +166,7 @@ func (s *service) ReportComment(ctx context.Context, commentID uint64, reason st
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find comment %v to report", commentID), impart.Report)
 		case impart.ErrUnauthorized:
-			return empty, impart.NewError(err, fmt.Sprintf("could not report %v comment. It is already reviewed by admin", commentID), impart.Report)
+			return empty, impart.NewError(err, "It is already reviewed by admin", impart.Report)
 		default:
 			return empty, impart.UnknownError
 		}

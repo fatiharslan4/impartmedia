@@ -287,7 +287,7 @@ func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, 
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to report", postId))
 		case impart.ErrUnauthorized:
-			return empty, impart.NewError(err, fmt.Sprintf("could not report %v comment. It is already reviewed by admin", postId), impart.Report)
+			return empty, impart.NewError(err, "It is already reviewed by admin", impart.Report)
 		default:
 			return empty, impart.UnknownError
 		}

@@ -42,6 +42,7 @@ type Profile struct {
 	IsBlocked       bool            `json:"isBlocked,omitempty"`
 	UserDevices     []UserDevice    `json:"devices,omitempty"`
 	Settings        UserSettings    `json:"settings,omitempty"`
+	Feedback        string          `json:"feedback,omitempty"`
 }
 
 // Attributes for Impart Wealth

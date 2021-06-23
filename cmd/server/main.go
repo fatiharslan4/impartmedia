@@ -108,6 +108,10 @@ func main() {
 		logger.Fatal("unable to bootstrap user", zap.Error(err))
 	}
 
+	if err := migrater.BootStrapTopicHive(db, cfg.Env, logger); err != nil {
+		logger.Fatal("unable to bootstrap user", zap.Error(err))
+	}
+
 	// initiate global profanity detector
 	impart.InitProfanityDetector()
 

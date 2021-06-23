@@ -350,7 +350,7 @@ func (s *service) SendPostNotification(input models.PostNotificationInput) impar
 		return impart.NewError(err, "build post notification params")
 	}
 
-	s.logger.Debug("sending post notification",
+	s.logger.Debug("push-notification : sending post notification",
 		zap.Any("data", models.PostNotificationInput{
 			CommentID:  input.CommentID,
 			PostID:     input.PostID,
@@ -365,7 +365,7 @@ func (s *service) SendPostNotification(input models.PostNotificationInput) impar
 		if strings.TrimSpace(dbPost.R.ImpartWealth.ImpartWealthID) != "" {
 			err = s.sendNotification(notificationData, out.Alert, dbPost.R.ImpartWealth.ImpartWealthID)
 			if err != nil {
-				s.logger.Error("error attempting to send post notification ", zap.Any("postData", out), zap.Error(err))
+				s.logger.Error("push-notification : error attempting to send post notification ", zap.Any("postData", out), zap.Error(err))
 			}
 		}
 	}()

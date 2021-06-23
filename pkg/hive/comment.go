@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -250,15 +251,30 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 	if err != nil {
 		return impart.NewError(err, "build comment notification params")
 	}
-
-	s.logger.Debug("sending comment notification", zap.Any("data", input), zap.Any("notificationData", out))
+	s.logger.Debug("push-notification : sending comment notification",
+		zap.Any("data", models.PostNotificationInput{
+			CommentID:  input.CommentID,
+			PostID:     input.PostID,
+			ActionType: input.ActionType,
+			ActionData: input.ActionData,
+		}),
+		zap.Any("notificationData", out),
+	)
+	var count int
+	count = 1
+	if input.NotifyPostOwner {
+		count = 2
+	}
+	var wg sync.WaitGroup
+	wg.Add(count)
 
 	// send to comment owner
 	go func() {
+		defer wg.Done()
 		if strings.TrimSpace(dbComment.R.ImpartWealth.ImpartWealthID) != "" {
 			err = s.sendNotification(notificationData, out.Alert, dbComment.R.ImpartWealth.ImpartWealthID)
 			if err != nil {
-				s.logger.Error("error attempting to send post comment notification ", zap.Any("postData", out), zap.Error(err))
+				s.logger.Error("push-notification : error attempting to send post comment notification ", zap.Any("postData", out), zap.Error(err))
 			}
 		}
 	}()
@@ -266,15 +282,17 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 	// send to post owner
 	if input.NotifyPostOwner {
 		go func() {
+			defer wg.Done()
 			if strings.TrimSpace(out.PostOwnerWealthID) != "" {
 				err = s.sendNotification(notificationData, out.PostOwnerAlert, out.PostOwnerWealthID)
 				if err != nil {
-					s.logger.Error("error attempting to send post comment notification post owner ", zap.Any("postData", out), zap.Any("postData", out), zap.Error(err))
+					s.logger.Error("push-notification : error attempting to send post comment notification post owner ", zap.Any("postData", out), zap.Any("postData", out), zap.Error(err))
 				}
 			}
 		}()
 	}
 
+	wg.Wait()
 	return nil
 }
 

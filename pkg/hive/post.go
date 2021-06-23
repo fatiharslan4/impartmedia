@@ -334,7 +334,6 @@ func (s *service) ReviewPost(ctx context.Context, postId uint64, comment string,
 // Notifying to :
 // 		post owner
 func (s *service) SendPostNotification(input models.PostNotificationInput) impart.Error {
-
 	dbPost, err := s.postData.GetPost(input.Ctx, input.PostID)
 	if err != nil {
 		return impart.NewError(err, "unable to fetch post for send notification")
@@ -351,7 +350,15 @@ func (s *service) SendPostNotification(input models.PostNotificationInput) impar
 		return impart.NewError(err, "build post notification params")
 	}
 
-	s.logger.Debug("sending post notification", zap.Any("data", input), zap.Any("notificationData", out))
+	s.logger.Debug("sending post notification",
+		zap.Any("data", models.PostNotificationInput{
+			CommentID:  input.CommentID,
+			PostID:     input.PostID,
+			ActionType: input.ActionType,
+			ActionData: input.ActionData,
+		}),
+		zap.Any("notificationData", out),
+	)
 
 	// send to comment owner
 	go func() {

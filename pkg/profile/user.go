@@ -86,15 +86,6 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 	} else {
 		notifyStatus = true
 	}
-	hiveData, err := ps.GetHive(ctx, uint64(2))
-	if err != nil {
-		return impart.NewError(impart.ErrBadRequest, "unable to read user configurations")
-	}
-	if notifyStatus {
-		ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String)
-	} else {
-		ps.notificationService.UnsubscribeAll(ctx, ud.ImpartWealthID)
-	}
 
 	// check the same device is accessed for another user, then have to remove that
 	// remove the entries and insert new entry
@@ -136,6 +127,17 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 			zap.Any("Error", nErr),
 			zap.Any("Device", ud),
 		)
+	}
+
+	//subscribe unsubsribe to topic
+	hiveData, err := ps.GetHive(ctx, uint64(2))
+	if err != nil {
+		return impart.NewError(impart.ErrBadRequest, "unable to read user configurations")
+	}
+	if notifyStatus {
+		ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
+	} else {
+		//ps.notificationService.UnsubscribeAll(ctx, ud.ImpartWealthID)
 	}
 
 	//there is no mapp entry exists , insert new entry

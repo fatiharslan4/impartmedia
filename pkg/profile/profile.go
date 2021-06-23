@@ -416,16 +416,17 @@ func (ps *profileService) UpdateProfile(ctx context.Context, p models.Profile) (
 		return empty, impart.NewError(impart.ErrBadRequest, msg)
 	}
 
-	if existingDBUser.DeviceToken != "" && strings.TrimSpace(p.DeviceToken) == "" {
-		err = ps.notificationService.UnsubscribeAll(ctx, existingDBUser.ImpartWealthID)
-		ps.Logger().Error("error unsusbcribing", zap.Error(err))
-	} else if existingDBUser.DeviceToken != p.DeviceToken {
-		existingDBUser.DeviceToken = p.DeviceToken
-		existingDBUser.UpdatedAt = impart.CurrentUTC()
-		if err := ps.SubscribeNewDeviceToken(ctx, existingDBUser); err != nil {
-			return empty, impart.NewError(impart.ErrUnknown, "unknown error updating subscriptions")
-		}
-	}
+	//unsubsribe Logic is removed from here
+	// if existingDBUser.DeviceToken != "" && strings.TrimSpace(p.DeviceToken) == "" {
+	// 	err = ps.notificationService.UnsubscribeAll(ctx, existingDBUser.ImpartWealthID)
+	// 	ps.Logger().Error("error unsusbcribing", zap.Error(err))
+	// } else if existingDBUser.DeviceToken != p.DeviceToken {
+	// 	existingDBUser.DeviceToken = p.DeviceToken
+	// 	existingDBUser.UpdatedAt = impart.CurrentUTC()
+	// 	if err := ps.SubscribeNewDeviceToken(ctx, existingDBUser); err != nil {
+	// 		return empty, impart.NewError(impart.ErrUnknown, "unknown error updating subscriptions")
+	// 	}
+	// }
 
 	tmpProfile, err := models.ProfileFromDBModel(existingDBUser, existingDBProfile)
 	if err != nil {
@@ -470,7 +471,7 @@ func (ps *profileService) SubscribeNewDeviceToken(ctx context.Context, user *dbm
 		dbmodels.NotificationSubscriptionWhere.ImpartWealthID.EQ(user.ImpartWealthID)).All(ctx, ps.db)
 
 	for _, sub := range subs {
-		if err := ps.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, sub.TopicArn); err != nil {
+		if err := ps.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, sub.TopicArn, ""); err != nil {
 			return err
 		}
 	}

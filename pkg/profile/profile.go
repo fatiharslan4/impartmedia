@@ -116,7 +116,7 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 		userToDelete.Feedback = null.StringFromPtr(&deleteUser.Feedback)
 		currTime := time.Now().In(boil.GetLocation())
 		userToDelete.DeletedAt = null.TimeFrom(currTime)
-		userToDelete.ScreenName = userToDelete.ScreenName + "-Deleted"
+		userToDelete.ScreenName = fmt.Sprintf("%s%s", userToDelete.ScreenName, "-Deleted")
 
 		err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
 		if err != nil {
@@ -149,8 +149,7 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 			return impart.NewError(err, "User Deletion failed")
 
 		}
-		str1 := "Delete"
-		userEmail := fmt.Sprintf("%s%s", str1, userToDelete.Email)
+		userEmail := fmt.Sprintf("%s%s", "Delete", userToDelete.Email)
 		userUp := management.User{
 			Email: &userEmail,
 		}

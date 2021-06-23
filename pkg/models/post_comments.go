@@ -42,6 +42,9 @@ type PostComment struct {
 	CommentDatetime     time.Time        `json:"commentDatetime,omitempty"`
 	ParentCommentID     uint64           `json:"parentCommentId"`
 	UpdatedDate         time.Time        `json:"updatedDate"`
+	Files               []File           `json:"file,omitempty"`
+	Url                 string           `json:"url,omitempty"`
+	UrlData             PostUrl          `json:"urlData,omitempty"`
 }
 
 func PostCommentsLimit(dbPosts dbmodels.PostSlice, dbcomments dbmodels.CommentSlice, limit int) PostComments {
@@ -116,6 +119,20 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment) PostComment {
 			out.IsAdminPost = true
 		} else {
 			out.IsAdminPost = false
+		}
+
+		// post files
+		if p.R.PostFiles != nil {
+			out.Files = make([]File, 0)
+			for _, f := range p.R.PostFiles {
+				if f.R.FidFile != nil {
+					out.Files = append(out.Files, PostFileToFile(f))
+				}
+			}
+		}
+
+		if p.R.PostUrls != nil && len(p.R.PostUrls) > 0 {
+			out.UrlData = PostUrlFromDB(p.R.PostUrls[0])
 		}
 
 		return out

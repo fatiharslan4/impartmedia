@@ -246,6 +246,7 @@ func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetPostsInp
 
 	queryMods := []qm.QueryMod{
 		dbmodels.PostWhere.HiveID.EQ(gpi.HiveID),
+		dbmodels.PostWhere.Reviewed.EQ(false),
 		qm.Offset(gpi.OffsetPost),
 		qm.Limit(gpi.Limit),
 		orderByMod,
@@ -253,6 +254,9 @@ func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetPostsInp
 		qm.Load(dbmodels.PostRels.PostReactions),
 		qm.Load(dbmodels.PostRels.ImpartWealth),
 		qm.Load(dbmodels.PostRels.PostVideos),
+		qm.Load(dbmodels.PostRels.PostFiles),
+		qm.Load(dbmodels.PostRels.PostUrls),
+		qm.Load("PostFiles.FidFile"), // get files
 	}
 
 	queryMods = append(queryMods, qm.WhereIn("exists (select * from post_reactions rectn where rectn.post_id = `post`.`post_id` and rectn.reported = ?)", 1))
@@ -262,6 +266,7 @@ func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetPostsInp
 	}
 
 	queryCommnt := []qm.QueryMod{
+		dbmodels.CommentWhere.Reviewed.EQ(false),
 		qm.Offset(gpi.OffsetComment),
 		qm.Limit(gpi.Limit),
 		orderByMod,

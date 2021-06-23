@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -33,9 +34,14 @@ func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.U
 		return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, "context user not found")
 	}
 
+	deviceToken := "__NILL__"
+	if ud.DeviceToken != "" {
+		deviceToken = ud.DeviceToken
+	}
+
 	// check the device details already exists in table
 	// then dont insert to table
-	exists, err := ps.profileStore.GetUserDevice(ctx, "", contextUser.ImpartWealthID, ud.DeviceToken)
+	exists, err := ps.profileStore.GetUserDevice(ctx, "", contextUser.ImpartWealthID, deviceToken)
 	if err != nil && err != impart.ErrNotFound {
 		return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, "error to find user device")
 	}
@@ -49,6 +55,14 @@ func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.U
 		}
 		ud = response
 	} else {
+		exists.AppVersion = ud.AppVersion
+		exists.DeviceID = ud.DeviceID
+		exists.DeviceName = ud.DeviceName
+		exists.DeviceVersion = ud.DeviceVersion
+		err = ps.profileStore.UpdateDevice(ctx, exists)
+		if err != nil && err != impart.ErrNotFound {
+			return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, fmt.Sprintf("error to create user device %v", err))
+		}
 		ud = exists
 	}
 	return models.UserDeviceFromDBModel(ud), nil
@@ -100,7 +114,7 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 		DeviceToken:    ud.DeviceToken,
 		Negate:         true,
 	}, false)
-	if mapErr != nil {
+	if mapErr != nil && err != sql.ErrNoRows {
 		errorString := fmt.Sprintf("error occured during update existing %s device id", ud.DeviceToken)
 		ps.Logger().Error(errorString, zap.Any("error", mapErr))
 		return impart.NewError(impart.ErrBadRequest, errorString)
@@ -256,4 +270,20 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
 	return nil
+}
+
+func (ps *profileService) UpdateDeviceToken(ctx context.Context, token string, deviceToken string) impart.Error {
+	device, err := ps.profileStore.GetUserDevice(ctx, token, "", "")
+	if err != nil {
+		return impart.NewError(impart.ErrBadRequest, fmt.Sprintf("%v", err))
+	}
+	err = ps.profileStore.UpdateDeviceToken(ctx, device, deviceToken)
+	if err != nil {
+		return impart.NewError(impart.ErrBadRequest, fmt.Sprintf("%v", err))
+	}
+	return nil
+}
+
+func (ps *profileService) DeleteExceptUserDevice(ctx context.Context, impartID string, deviceToken string, refToken string) error {
+	return ps.profileStore.DeleteExceptUserDevice(ctx, impartID, deviceToken, refToken)
 }

@@ -325,6 +325,13 @@
 						"$ref": "#/definitions/File"
 					},
 					"type": "array"
+				},
+				"url": {
+					"type": "string"
+				},
+				"urlData": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/PostUrl"
 				}
 			},
 			"additionalProperties": false,
@@ -365,6 +372,29 @@
 					"type": "boolean"
 				},
 				"reportedReason": {
+					"type": "string"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"PostUrl": {
+			"required": [
+				"imageUrl",
+				"title",
+				"description"
+			],
+			"properties": {
+				"url": {
+					"type": "string"
+				},
+				"imageUrl": {
+					"type": "string"
+				},
+				"title": {
+					"type": "string"
+				},
+				"description": {
 					"type": "string"
 				}
 			},

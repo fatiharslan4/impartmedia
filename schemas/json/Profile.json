@@ -135,7 +135,6 @@
 		"UserDevice": {
 			"required": [
 				"deviceId",
-				"deviceToken",
 				"appVersion",
 				"deviceName",
 				"deviceVersion"

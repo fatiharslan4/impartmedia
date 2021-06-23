@@ -327,7 +327,7 @@ func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetPostsInp
 
 	postCnt, cmntCnt = models.CountPostComnt(resulData)
 
-	if cmntCnt+postCnt < gpi.Limit {
+	if cmntCnt+postCnt <= gpi.Limit {
 		outOffset = nil
 	} else {
 		outOffset.OffsetPost += postCnt

@@ -266,7 +266,11 @@ func (m *mysqlStore) GetUserDevice(ctx context.Context, token string, impartID s
 		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.Token), token))
 	}
 	if deviceToken != "" {
-		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceToken), deviceToken))
+		if deviceToken == "__NILL__" {
+			where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceToken), ""))
+		} else {
+			where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceToken), deviceToken))
+		}
 	}
 
 	where = append(where, Load(dbmodels.UserDeviceRels.ImpartWealth))
@@ -444,5 +448,37 @@ func (m *mysqlStore) BlockUser(ctx context.Context, user *dbmodels.User, status 
 		m.logger.Error("unable to block user", zap.Any("error", err))
 		return fmt.Errorf("unable to block")
 	}
+	return nil
+}
+
+func (m *mysqlStore) UpdateDeviceToken(ctx context.Context, device *dbmodels.UserDevice, deviceToken string) error {
+	device.DeviceToken = deviceToken
+	_, err := device.Update(ctx, m.db, boil.Infer())
+	if err != nil {
+		m.logger.Error("unable to update device token user", zap.Any("error", err))
+		return fmt.Errorf("unable to update device token")
+	}
+	return nil
+}
+func (m *mysqlStore) UpdateDevice(ctx context.Context, device *dbmodels.UserDevice) error {
+	_, err := device.Update(ctx, m.db, boil.Infer())
+	if err != nil {
+		m.logger.Error("unable to update device", zap.Any("error", err))
+		return fmt.Errorf("unable to update")
+	}
+	return nil
+}
+
+func (m *mysqlStore) DeleteExceptUserDevice(ctx context.Context, impartID string, deviceToken string, refToken string) error {
+	// Delete a slice of pilots from the database
+	_, err := dbmodels.UserDevices(
+		dbmodels.UserDeviceWhere.ImpartWealthID.EQ(impartID),
+		dbmodels.UserDeviceWhere.DeviceToken.EQ(deviceToken),
+		dbmodels.UserDeviceWhere.Token.NEQ(refToken)).DeleteAll(ctx, m.db, true)
+
+	if err != nil {
+		return fmt.Errorf("error occured during delete non wanted devices %v", err)
+	}
+
 	return nil
 }

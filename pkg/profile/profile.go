@@ -41,6 +41,8 @@ type Service interface {
 
 	GetUserDevice(ctx context.Context, token string, impartWealthID string, deviceToken string) (models.UserDevice, error)
 	CreateUserDevice(ctx context.Context, user *dbmodels.User, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error)
+	UpdateDeviceToken(ctx context.Context, token string, deviceToken string) impart.Error
+	DeleteExceptUserDevice(ctx context.Context, impartID string, deviceToken string, refToken string) error
 
 	MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error
 	UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) impart.Error
@@ -307,25 +309,23 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 		if p.UserDevices[0].DeviceToken == "" && p.DeviceToken != "" {
 			p.UserDevices[0].DeviceToken = p.DeviceToken
 		}
+
+		//create user device
+		userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevices[0].UserDeviceToDBModel())
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
+			ps.Logger().Error(impartErr.Error())
+		}
+		out.UserDevices = append(out.UserDevices, userDevice)
+
 		// check the device id exists
 		if p.UserDevices[0].DeviceToken != "" {
-			userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevices[0].UserDeviceToDBModel())
-			if err != nil {
-				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
-				ps.Logger().Error(impartErr.Error())
-			}
-
 			// map for notification
 			err = ps.MapDeviceForNotification(ctx, userDevice)
 			if err != nil {
 				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
 				ps.Logger().Error(impartErr.Error())
 			}
-
-			out.UserDevices = append(out.UserDevices, userDevice)
-		} else {
-			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("can't register device, device id not found %v", err))
-			ps.Logger().Error(impartErr.Error(), zap.Any("data", p))
 		}
 	}
 	return *out, nil

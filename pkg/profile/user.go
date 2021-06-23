@@ -134,7 +134,6 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 	if err != nil {
 		return impart.NewError(impart.ErrBadRequest, "unable to read user configurations")
 	}
-	fmt.Println("the data here", notifyStatus)
 	if notifyStatus {
 		ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
 	} else {

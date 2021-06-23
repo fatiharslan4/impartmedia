@@ -23,6 +23,7 @@ import (
 
 // NotificationSubscription is an object representing the database table.
 type NotificationSubscription struct {
+	NSID                uint64 `boil:"ns_id" json:"ns_id" toml:"ns_id" yaml:"ns_id"`
 	ImpartWealthID      string `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
 	TopicArn            string `boil:"topic_arn" json:"topic_arn" toml:"topic_arn" yaml:"topic_arn"`
 	SubscriptionArn     string `boil:"subscription_arn" json:"subscription_arn" toml:"subscription_arn" yaml:"subscription_arn"`
@@ -33,11 +34,13 @@ type NotificationSubscription struct {
 }
 
 var NotificationSubscriptionColumns = struct {
+	NSID                string
 	ImpartWealthID      string
 	TopicArn            string
 	SubscriptionArn     string
 	PlatformEndpointArn string
 }{
+	NSID:                "ns_id",
 	ImpartWealthID:      "impart_wealth_id",
 	TopicArn:            "topic_arn",
 	SubscriptionArn:     "subscription_arn",
@@ -45,11 +48,13 @@ var NotificationSubscriptionColumns = struct {
 }
 
 var NotificationSubscriptionTableColumns = struct {
+	NSID                string
 	ImpartWealthID      string
 	TopicArn            string
 	SubscriptionArn     string
 	PlatformEndpointArn string
 }{
+	NSID:                "notification_subscriptions.ns_id",
 	ImpartWealthID:      "notification_subscriptions.impart_wealth_id",
 	TopicArn:            "notification_subscriptions.topic_arn",
 	SubscriptionArn:     "notification_subscriptions.subscription_arn",
@@ -59,11 +64,13 @@ var NotificationSubscriptionTableColumns = struct {
 // Generated where
 
 var NotificationSubscriptionWhere = struct {
+	NSID                whereHelperuint64
 	ImpartWealthID      whereHelperstring
 	TopicArn            whereHelperstring
 	SubscriptionArn     whereHelperstring
 	PlatformEndpointArn whereHelperstring
 }{
+	NSID:                whereHelperuint64{field: "`notification_subscriptions`.`ns_id`"},
 	ImpartWealthID:      whereHelperstring{field: "`notification_subscriptions`.`impart_wealth_id`"},
 	TopicArn:            whereHelperstring{field: "`notification_subscriptions`.`topic_arn`"},
 	SubscriptionArn:     whereHelperstring{field: "`notification_subscriptions`.`subscription_arn`"},
@@ -72,17 +79,10 @@ var NotificationSubscriptionWhere = struct {
 
 // NotificationSubscriptionRels is where relationship names are stored.
 var NotificationSubscriptionRels = struct {
-	ImpartWealth              string
-	TopicArnNotificationTopic string
-}{
-	ImpartWealth:              "ImpartWealth",
-	TopicArnNotificationTopic: "TopicArnNotificationTopic",
-}
+}{}
 
 // notificationSubscriptionR is where relationships are stored.
 type notificationSubscriptionR struct {
-	ImpartWealth              *User              `boil:"ImpartWealth" json:"ImpartWealth" toml:"ImpartWealth" yaml:"ImpartWealth"`
-	TopicArnNotificationTopic *NotificationTopic `boil:"TopicArnNotificationTopic" json:"TopicArnNotificationTopic" toml:"TopicArnNotificationTopic" yaml:"TopicArnNotificationTopic"`
 }
 
 // NewStruct creates a new relationship struct
@@ -94,10 +94,10 @@ func (*notificationSubscriptionR) NewStruct() *notificationSubscriptionR {
 type notificationSubscriptionL struct{}
 
 var (
-	notificationSubscriptionAllColumns            = []string{"impart_wealth_id", "topic_arn", "subscription_arn", "platform_endpoint_arn"}
+	notificationSubscriptionAllColumns            = []string{"ns_id", "impart_wealth_id", "topic_arn", "subscription_arn", "platform_endpoint_arn"}
 	notificationSubscriptionColumnsWithoutDefault = []string{"impart_wealth_id", "topic_arn", "subscription_arn", "platform_endpoint_arn"}
-	notificationSubscriptionColumnsWithDefault    = []string{}
-	notificationSubscriptionPrimaryKeyColumns     = []string{"impart_wealth_id", "topic_arn"}
+	notificationSubscriptionColumnsWithDefault    = []string{"ns_id"}
+	notificationSubscriptionPrimaryKeyColumns     = []string{"ns_id"}
 )
 
 type (
@@ -375,338 +375,6 @@ func (q notificationSubscriptionQuery) Exists(ctx context.Context, exec boil.Con
 	return count > 0, nil
 }
 
-// ImpartWealth pointed to by the foreign key.
-func (o *NotificationSubscription) ImpartWealth(mods ...qm.QueryMod) userQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("`impart_wealth_id` = ?", o.ImpartWealthID),
-		qmhelper.WhereIsNull("deleted_at"),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	query := Users(queryMods...)
-	queries.SetFrom(query.Query, "`user`")
-
-	return query
-}
-
-// TopicArnNotificationTopic pointed to by the foreign key.
-func (o *NotificationSubscription) TopicArnNotificationTopic(mods ...qm.QueryMod) notificationTopicQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("`topic_arn` = ?", o.TopicArn),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	query := NotificationTopics(queryMods...)
-	queries.SetFrom(query.Query, "`notification_topic`")
-
-	return query
-}
-
-// LoadImpartWealth allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for an N-1 relationship.
-func (notificationSubscriptionL) LoadImpartWealth(ctx context.Context, e boil.ContextExecutor, singular bool, maybeNotificationSubscription interface{}, mods queries.Applicator) error {
-	var slice []*NotificationSubscription
-	var object *NotificationSubscription
-
-	if singular {
-		object = maybeNotificationSubscription.(*NotificationSubscription)
-	} else {
-		slice = *maybeNotificationSubscription.(*[]*NotificationSubscription)
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &notificationSubscriptionR{}
-		}
-		args = append(args, object.ImpartWealthID)
-
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &notificationSubscriptionR{}
-			}
-
-			for _, a := range args {
-				if a == obj.ImpartWealthID {
-					continue Outer
-				}
-			}
-
-			args = append(args, obj.ImpartWealthID)
-
-		}
-	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(
-		qm.From(`user`),
-		qm.WhereIn(`user.impart_wealth_id in ?`, args...),
-		qmhelper.WhereIsNull(`user.deleted_at`),
-	)
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.QueryContext(ctx, e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load User")
-	}
-
-	var resultSlice []*User
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice User")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results of eager load for user")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user")
-	}
-
-	if len(notificationSubscriptionAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(resultSlice) == 0 {
-		return nil
-	}
-
-	if singular {
-		foreign := resultSlice[0]
-		object.R.ImpartWealth = foreign
-		if foreign.R == nil {
-			foreign.R = &userR{}
-		}
-		foreign.R.ImpartWealthNotificationSubscriptions = append(foreign.R.ImpartWealthNotificationSubscriptions, object)
-		return nil
-	}
-
-	for _, local := range slice {
-		for _, foreign := range resultSlice {
-			if local.ImpartWealthID == foreign.ImpartWealthID {
-				local.R.ImpartWealth = foreign
-				if foreign.R == nil {
-					foreign.R = &userR{}
-				}
-				foreign.R.ImpartWealthNotificationSubscriptions = append(foreign.R.ImpartWealthNotificationSubscriptions, local)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// LoadTopicArnNotificationTopic allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for an N-1 relationship.
-func (notificationSubscriptionL) LoadTopicArnNotificationTopic(ctx context.Context, e boil.ContextExecutor, singular bool, maybeNotificationSubscription interface{}, mods queries.Applicator) error {
-	var slice []*NotificationSubscription
-	var object *NotificationSubscription
-
-	if singular {
-		object = maybeNotificationSubscription.(*NotificationSubscription)
-	} else {
-		slice = *maybeNotificationSubscription.(*[]*NotificationSubscription)
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &notificationSubscriptionR{}
-		}
-		args = append(args, object.TopicArn)
-
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &notificationSubscriptionR{}
-			}
-
-			for _, a := range args {
-				if a == obj.TopicArn {
-					continue Outer
-				}
-			}
-
-			args = append(args, obj.TopicArn)
-
-		}
-	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(
-		qm.From(`notification_topic`),
-		qm.WhereIn(`notification_topic.topic_arn in ?`, args...),
-	)
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.QueryContext(ctx, e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load NotificationTopic")
-	}
-
-	var resultSlice []*NotificationTopic
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice NotificationTopic")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results of eager load for notification_topic")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for notification_topic")
-	}
-
-	if len(notificationSubscriptionAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(resultSlice) == 0 {
-		return nil
-	}
-
-	if singular {
-		foreign := resultSlice[0]
-		object.R.TopicArnNotificationTopic = foreign
-		if foreign.R == nil {
-			foreign.R = &notificationTopicR{}
-		}
-		foreign.R.TopicArnNotificationSubscriptions = append(foreign.R.TopicArnNotificationSubscriptions, object)
-		return nil
-	}
-
-	for _, local := range slice {
-		for _, foreign := range resultSlice {
-			if local.TopicArn == foreign.TopicArn {
-				local.R.TopicArnNotificationTopic = foreign
-				if foreign.R == nil {
-					foreign.R = &notificationTopicR{}
-				}
-				foreign.R.TopicArnNotificationSubscriptions = append(foreign.R.TopicArnNotificationSubscriptions, local)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// SetImpartWealth of the notificationSubscription to the related item.
-// Sets o.R.ImpartWealth to related.
-// Adds o to related.R.ImpartWealthNotificationSubscriptions.
-func (o *NotificationSubscription) SetImpartWealth(ctx context.Context, exec boil.ContextExecutor, insert bool, related *User) error {
-	var err error
-	if insert {
-		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	}
-
-	updateQuery := fmt.Sprintf(
-		"UPDATE `notification_subscriptions` SET %s WHERE %s",
-		strmangle.SetParamNames("`", "`", 0, []string{"impart_wealth_id"}),
-		strmangle.WhereClause("`", "`", 0, notificationSubscriptionPrimaryKeyColumns),
-	)
-	values := []interface{}{related.ImpartWealthID, o.ImpartWealthID, o.TopicArn}
-
-	if boil.IsDebug(ctx) {
-		writer := boil.DebugWriterFrom(ctx)
-		fmt.Fprintln(writer, updateQuery)
-		fmt.Fprintln(writer, values)
-	}
-	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	o.ImpartWealthID = related.ImpartWealthID
-	if o.R == nil {
-		o.R = &notificationSubscriptionR{
-			ImpartWealth: related,
-		}
-	} else {
-		o.R.ImpartWealth = related
-	}
-
-	if related.R == nil {
-		related.R = &userR{
-			ImpartWealthNotificationSubscriptions: NotificationSubscriptionSlice{o},
-		}
-	} else {
-		related.R.ImpartWealthNotificationSubscriptions = append(related.R.ImpartWealthNotificationSubscriptions, o)
-	}
-
-	return nil
-}
-
-// SetTopicArnNotificationTopic of the notificationSubscription to the related item.
-// Sets o.R.TopicArnNotificationTopic to related.
-// Adds o to related.R.TopicArnNotificationSubscriptions.
-func (o *NotificationSubscription) SetTopicArnNotificationTopic(ctx context.Context, exec boil.ContextExecutor, insert bool, related *NotificationTopic) error {
-	var err error
-	if insert {
-		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	}
-
-	updateQuery := fmt.Sprintf(
-		"UPDATE `notification_subscriptions` SET %s WHERE %s",
-		strmangle.SetParamNames("`", "`", 0, []string{"topic_arn"}),
-		strmangle.WhereClause("`", "`", 0, notificationSubscriptionPrimaryKeyColumns),
-	)
-	values := []interface{}{related.TopicArn, o.ImpartWealthID, o.TopicArn}
-
-	if boil.IsDebug(ctx) {
-		writer := boil.DebugWriterFrom(ctx)
-		fmt.Fprintln(writer, updateQuery)
-		fmt.Fprintln(writer, values)
-	}
-	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	o.TopicArn = related.TopicArn
-	if o.R == nil {
-		o.R = &notificationSubscriptionR{
-			TopicArnNotificationTopic: related,
-		}
-	} else {
-		o.R.TopicArnNotificationTopic = related
-	}
-
-	if related.R == nil {
-		related.R = &notificationTopicR{
-			TopicArnNotificationSubscriptions: NotificationSubscriptionSlice{o},
-		}
-	} else {
-		related.R.TopicArnNotificationSubscriptions = append(related.R.TopicArnNotificationSubscriptions, o)
-	}
-
-	return nil
-}
-
 // NotificationSubscriptions retrieves all the records using an executor.
 func NotificationSubscriptions(mods ...qm.QueryMod) notificationSubscriptionQuery {
 	mods = append(mods, qm.From("`notification_subscriptions`"))
@@ -715,7 +383,7 @@ func NotificationSubscriptions(mods ...qm.QueryMod) notificationSubscriptionQuer
 
 // FindNotificationSubscription retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindNotificationSubscription(ctx context.Context, exec boil.ContextExecutor, impartWealthID string, topicArn string, selectCols ...string) (*NotificationSubscription, error) {
+func FindNotificationSubscription(ctx context.Context, exec boil.ContextExecutor, nSID uint64, selectCols ...string) (*NotificationSubscription, error) {
 	notificationSubscriptionObj := &NotificationSubscription{}
 
 	sel := "*"
@@ -723,10 +391,10 @@ func FindNotificationSubscription(ctx context.Context, exec boil.ContextExecutor
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from `notification_subscriptions` where `impart_wealth_id`=? AND `topic_arn`=?", sel,
+		"select %s from `notification_subscriptions` where `ns_id`=?", sel,
 	)
 
-	q := queries.Raw(query, impartWealthID, topicArn)
+	q := queries.Raw(query, nSID)
 
 	err := q.Bind(ctx, exec, notificationSubscriptionObj)
 	if err != nil {
@@ -802,21 +470,31 @@ func (o *NotificationSubscription) Insert(ctx context.Context, exec boil.Context
 		fmt.Fprintln(writer, cache.query)
 		fmt.Fprintln(writer, vals)
 	}
-	_, err = exec.ExecContext(ctx, cache.query, vals...)
+	result, err := exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "dbmodels: unable to insert into notification_subscriptions")
 	}
 
+	var lastID int64
 	var identifierCols []interface{}
 
 	if len(cache.retMapping) == 0 {
 		goto CacheNoHooks
 	}
 
+	lastID, err = result.LastInsertId()
+	if err != nil {
+		return ErrSyncFail
+	}
+
+	o.NSID = uint64(lastID)
+	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == notificationSubscriptionMapping["ns_id"] {
+		goto CacheNoHooks
+	}
+
 	identifierCols = []interface{}{
-		o.ImpartWealthID,
-		o.TopicArn,
+		o.NSID,
 	}
 
 	if boil.IsDebug(ctx) {
@@ -967,7 +645,10 @@ func (o NotificationSubscriptionSlice) UpdateAll(ctx context.Context, exec boil.
 	return rowsAff, nil
 }
 
-var mySQLNotificationSubscriptionUniqueColumns = []string{}
+var mySQLNotificationSubscriptionUniqueColumns = []string{
+	"ns_id",
+	"platform_endpoint_arn",
+}
 
 // Upsert attempts an insert using an executor, and does an update or ignore on conflict.
 // See boil.Columns documentation for how to properly use updateColumns and insertColumns.
@@ -1063,16 +744,27 @@ func (o *NotificationSubscription) Upsert(ctx context.Context, exec boil.Context
 		fmt.Fprintln(writer, cache.query)
 		fmt.Fprintln(writer, vals)
 	}
-	_, err = exec.ExecContext(ctx, cache.query, vals...)
+	result, err := exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "dbmodels: unable to upsert for notification_subscriptions")
 	}
 
+	var lastID int64
 	var uniqueMap []uint64
 	var nzUniqueCols []interface{}
 
 	if len(cache.retMapping) == 0 {
+		goto CacheNoHooks
+	}
+
+	lastID, err = result.LastInsertId()
+	if err != nil {
+		return ErrSyncFail
+	}
+
+	o.NSID = uint64(lastID)
+	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == notificationSubscriptionMapping["ns_id"] {
 		goto CacheNoHooks
 	}
 
@@ -1114,7 +806,7 @@ func (o *NotificationSubscription) Delete(ctx context.Context, exec boil.Context
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), notificationSubscriptionPrimaryKeyMapping)
-	sql := "DELETE FROM `notification_subscriptions` WHERE `impart_wealth_id`=? AND `topic_arn`=?"
+	sql := "DELETE FROM `notification_subscriptions` WHERE `ns_id`=?"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1211,7 +903,7 @@ func (o NotificationSubscriptionSlice) DeleteAll(ctx context.Context, exec boil.
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *NotificationSubscription) Reload(ctx context.Context, exec boil.ContextExecutor) error {
-	ret, err := FindNotificationSubscription(ctx, exec, o.ImpartWealthID, o.TopicArn)
+	ret, err := FindNotificationSubscription(ctx, exec, o.NSID)
 	if err != nil {
 		return err
 	}
@@ -1250,16 +942,16 @@ func (o *NotificationSubscriptionSlice) ReloadAll(ctx context.Context, exec boil
 }
 
 // NotificationSubscriptionExists checks if the NotificationSubscription row exists.
-func NotificationSubscriptionExists(ctx context.Context, exec boil.ContextExecutor, impartWealthID string, topicArn string) (bool, error) {
+func NotificationSubscriptionExists(ctx context.Context, exec boil.ContextExecutor, nSID uint64) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from `notification_subscriptions` where `impart_wealth_id`=? AND `topic_arn`=? limit 1)"
+	sql := "select exists(select 1 from `notification_subscriptions` where `ns_id`=? limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
 		fmt.Fprintln(writer, sql)
-		fmt.Fprintln(writer, impartWealthID, topicArn)
+		fmt.Fprintln(writer, nSID)
 	}
-	row := exec.QueryRowContext(ctx, sql, impartWealthID, topicArn)
+	row := exec.QueryRowContext(ctx, sql, nSID)
 
 	err := row.Scan(&exists)
 	if err != nil {

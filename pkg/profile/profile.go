@@ -182,7 +182,14 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 
 	// hide this when new notify workflow ok : begin
 	// can removed after complete QA test
-	// endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
+
+	endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
+	hiveData, err := ps.GetHive(ctx, uint64(2))
+	if err != nil {
+		return empty, impart.NewError(impart.ErrBadRequest, "unable to read user configurations")
+	}
+	ps.notificationService.SubscribeTopic(ctx, p.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
+
 	// if err != nil {
 	// 	ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
 	// }

@@ -369,15 +369,14 @@ func (ns *snsAppleNotificationService) SubscribeTopic(ctx context.Context, impar
 	// }
 
 	currentSubscriptions, err := dbmodels.NotificationSubscriptions(
-		dbmodels.NotificationSubscriptionWhere.ImpartWealthID.EQ(impartWealthId)).All(ctx, ns.db)
+		dbmodels.NotificationSubscriptionWhere.PlatformEndpointArn.EQ(platformEndpointARN)).One(ctx, ns.db)
 	if err != nil {
 		return err
 	}
-	for _, sub := range currentSubscriptions {
-		if sub.TopicArn == topicARN {
-			//already subbed
-			return nil
-		}
+
+	if currentSubscriptions.TopicArn == topicARN {
+		//already subbed
+		return nil
 	}
 
 	subscriptionRequest := sns.SubscribeInput{
@@ -396,9 +395,10 @@ func (ns *snsAppleNotificationService) SubscribeTopic(ctx context.Context, impar
 		return err
 	}
 	p := &dbmodels.NotificationSubscription{
-		ImpartWealthID:  impartWealthId,
-		TopicArn:        topicARN,
-		SubscriptionArn: *resp.SubscriptionArn,
+		ImpartWealthID:      impartWealthId,
+		TopicArn:            topicARN,
+		SubscriptionArn:     *resp.SubscriptionArn,
+		PlatformEndpointArn: platformEndpointARN,
 	}
 
 	return p.Upsert(ctx, ns.db, boil.Infer(), boil.Infer())
@@ -427,17 +427,26 @@ func (ns *snsAppleNotificationService) UnsubscribeTopic(ctx context.Context, imp
 }
 
 func (ns *snsAppleNotificationService) UnsubscribeTopicForDevice(ctx context.Context, impartWealthID, topicARN, platformEndpointARN string) (err error) {
-	// var subscribtionList *sns.ListSubscriptionsByTopicOutput
-	// req := sns.ListSubscriptionsByTopicInput{
-	// 	TopicArn: aws.String(topicARN),
-	// }
-	// if subscribtionList, err = ns.ListSubscriptionsByTopic(&req); err != nil {
-	// 	ns.Logger.Error("error attempting to ListSubscriptionsByTopic from topic",
-	// 		zap.Error(err),
-	// 		zap.String("SubscriptionARN", topicARN))
-	// 	//noop, still delete the row from db
-	// }
+	currentSubscriptions, err := dbmodels.NotificationSubscriptions(
+		dbmodels.NotificationSubscriptionWhere.PlatformEndpointArn.EQ(platformEndpointARN)).One(ctx, ns.db)
+	if err != nil {
+		return err
+	}
+	req := sns.UnsubscribeInput{
+		SubscriptionArn: aws.String(currentSubscriptions.SubscriptionArn),
+	}
+	if _, err = ns.Unsubscribe(&req); err != nil {
+		ns.Logger.Error("error attempting to unsubscribe from topic",
+			zap.Error(err),
+			zap.String("SubscriptionARN", currentSubscriptions.SubscriptionArn))
+		//noop, still delete the row from db
+	}
+	_, err = dbmodels.NotificationSubscriptions(
+		dbmodels.NotificationSubscriptionWhere.PlatformEndpointArn.EQ(platformEndpointARN)).DeleteAll(ctx, ns.db)
 
+	ns.Logger.Error("error attempting to unsubscribe",
+		zap.Error(err),
+		zap.String("platformEndpointARN", platformEndpointARN))
 	return nil
 }
 

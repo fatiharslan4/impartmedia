@@ -259,26 +259,55 @@ func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetPostsInp
 		qm.Load("PostFiles.FidFile"), // get files
 	}
 
-	queryMods = append(queryMods, qm.WhereIn("exists (select * from post_reactions rectn where rectn.post_id = `post`.`post_id` and rectn.reported = ?)", 1))
+	queryMods = append(queryMods, qm.WhereIn("exists (select * from post_reactions rectn where rectn.post_id = `post`.`post_id` and rectn.reported = ? and `post`.`deleted_at` is null)", 1))
 	posts, err := dbmodels.Posts(queryMods...).All(ctx, d.db)
 	if err != nil {
 		posts = dbmodels.PostSlice{}
 	}
 
-	queryCommnt := []qm.QueryMod{
-		dbmodels.CommentWhere.Reviewed.EQ(false),
-		qm.Offset(gpi.OffsetComment),
-		qm.Limit(gpi.Limit),
-		orderByMod,
-		qm.Load(dbmodels.CommentRels.ImpartWealth),
-		qm.Load(dbmodels.CommentRels.CommentReactions),
-		qm.Load(dbmodels.CommentRels.Post, dbmodels.PostWhere.HiveID.EQ(gpi.HiveID)),
+	type postComment struct {
+		Post    dbmodels.Post    `boil:",bind"`
+		Comment dbmodels.Comment `boil:",bind"`
 	}
 
-	queryCommnt = append(queryCommnt, qm.WhereIn("exists (select * from comment_reactions cmtrec where cmtrec.comment_id = `comment`.`comment_id` and cmtrec.reported = ?)", 1))
-	comment, err := dbmodels.Comments(queryCommnt...).All(ctx, d.db)
-	if err != nil {
-		comment = dbmodels.CommentSlice{}
+	var postComments []*postComment
+
+	comment := dbmodels.CommentSlice{}
+
+	err = queries.Raw(`
+	Select pst.post_id, cmt.comment_id from post pst
+	join comment cmt on pst.post_id=cmt.post_id
+	join comment_reactions cmtrec on cmt.comment_id=cmtrec.comment_id
+	where cmtrec.reported=?
+	and hive_id=?
+	and pst.deleted_at is null
+	and cmt.deleted_at is null
+	`, 1, gpi.HiveID).Bind(ctx, d.db, &postComments)
+
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	if err == nil {
+		commentIds := make([]uint64, len(postComments), len(postComments))
+		for i, pc := range postComments {
+			commentIds[i] = pc.Comment.CommentID
+		}
+		queryCommnt := []qm.QueryMod{
+			dbmodels.CommentWhere.CommentID.IN(commentIds),
+			dbmodels.CommentWhere.Reviewed.EQ(false),
+			qm.Offset(gpi.OffsetComment),
+			qm.Limit(gpi.Limit),
+			orderByMod,
+			qm.Load(dbmodels.CommentRels.ImpartWealth),
+			qm.Load(dbmodels.CommentRels.CommentReactions),
+			qm.Load(dbmodels.CommentRels.Post, dbmodels.PostWhere.HiveID.EQ(gpi.HiveID)),
+		}
+
+		// queryCommnt = append(queryCommnt, qm.WhereIn("exists (select * from comment_reactions cmtrec where cmtrec.comment_id = `comment`.`comment_id` and cmtrec.reported = ? and `comment`.`deleted_at` is null)", 1))
+		comment, err = dbmodels.Comments(queryCommnt...).All(ctx, d.db)
+		if err != nil {
+			comment = dbmodels.CommentSlice{}
+		}
 	}
 	limit := len(posts) + len(comment)
 

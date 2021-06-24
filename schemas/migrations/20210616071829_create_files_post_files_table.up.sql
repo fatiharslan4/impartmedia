@@ -1,0 +1,29 @@
+-- 
+-- Create files table
+-- 
+CREATE TABLE IF NOT EXISTS files(
+    fid BIGINT UNSIGNED AUTO_INCREMENT NOT NULL,
+    file_name NVARCHAR(250) NOT NULL,
+    file_type NVARCHAR(100) NOT NULL,
+    url NVARCHAR(255) NOT NULL,
+    PRIMARY KEY (fid)
+) DEFAULT CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci
+  ENGINE = InnoDB
+  ROW_FORMAT = DYNAMIC;
+
+
+-- 
+-- Create post files table
+-- 
+CREATE TABLE IF NOT EXISTS post_files(
+    pf_id BIGINT UNSIGNED AUTO_INCREMENT NOT NULL,
+    post_id  BIGINT UNSIGNED  NOT NULL,
+    fid  BIGINT UNSIGNED  NOT NULL,
+    PRIMARY KEY (pf_id),
+    FOREIGN KEY (post_id) REFERENCES post (post_id) ON DELETE CASCADE,
+    FOREIGN KEY (fid) REFERENCES files (fid) ON DELETE CASCADE
+) DEFAULT CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci
+  ENGINE = InnoDB
+  ROW_FORMAT = DYNAMIC;

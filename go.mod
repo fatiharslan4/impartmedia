@@ -10,16 +10,19 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/dustin/go-humanize v1.0.0
 	github.com/friendsofgo/errors v0.9.2
+	github.com/getsentry/sentry-go v0.11.0
 	github.com/gin-contrib/zap v0.0.1
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang-migrate/migrate/v4 v4.14.1
-	github.com/google/go-cmp v0.5.4 // indirect
+	github.com/google/uuid v1.1.2
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/leebenson/conform v1.2.2
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
 	github.com/ory/graceful v0.1.1
+	github.com/otiai10/opengraph/v2 v2.0.3
+	github.com/pcpratheesh/go-censorword v0.0.0-20210611122341-e5c647fa3d71
 	github.com/pkg/errors v0.9.1
 	github.com/segmentio/ksuid v1.0.3
 	github.com/shopspring/decimal v1.2.0

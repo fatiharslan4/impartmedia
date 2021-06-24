@@ -2,13 +2,15 @@ package hive
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"go.uber.org/zap"
 )
 
 const adminPostNotification = "Your Hive is Buzzing"
+const title = "New post"
+const body = "Admin added a post on Your Hive"
 
 // This is a lot of branches; should probably be broken up.
 func (s *service) PinPost(ctx context.Context, hiveID, postID uint64, pin bool) impart.Error {
@@ -35,11 +37,10 @@ func (s *service) PinPost(ctx context.Context, hiveID, postID uint64, pin bool) 
 		s.logger.Error("error pining post", zap.Error(err))
 		return impart.NewError(impart.ErrUnknown, "unable to pin post")
 	}
-
 	if pin && dbHive.PinnedPostID.Uint64 == dbPost.PostID {
 		pushNotification := impart.Alert{
-			Title: aws.String(adminPostNotification),
-			Body:  aws.String(dbPost.Subject),
+			Title: aws.String(title),
+			Body:  aws.String(body),
 		}
 
 		additionalData := impart.NotificationData{

@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/impartwealthapp/backend/pkg/data/migrater"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/volatiletech/sqlboiler/v4/boil"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -14,7 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-contrib/zap"
+	"github.com/impartwealthapp/backend/pkg/data/migrater"
+	"github.com/impartwealthapp/backend/pkg/media"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+
+	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/auth"
@@ -41,6 +44,7 @@ func main() {
 		logger.Fatal("nil config")
 		return
 	}
+
 	if cfg.Debug {
 		gin.SetMode(gin.DebugMode)
 		//boil.DebugMode = true
@@ -51,6 +55,12 @@ func main() {
 		}
 	} else {
 		gin.SetMode(gin.ReleaseMode)
+	}
+
+	//init the sentry logger ,either debug
+	logger, err = impart.InitSentryLogger(cfg, logger, cfg.Debug)
+	if err != nil {
+		logger.Error("error on sentry init", zap.Any("error", err))
 	}
 
 	migrationDB, err := cfg.GetMigrationDBConnection()
@@ -98,6 +108,13 @@ func main() {
 		logger.Fatal("unable to bootstrap user", zap.Error(err))
 	}
 
+	if err := migrater.BootStrapTopicHive(db, cfg.Env, logger); err != nil {
+		logger.Fatal("unable to bootstrap user", zap.Error(err))
+	}
+
+	// initiate global profanity detector
+	impart.InitProfanityDetector()
+
 	services := setupServices(cfg, db, logger)
 
 	r := gin.New()
@@ -113,6 +130,31 @@ func main() {
 		}
 		ctx.String(http.StatusOK, "pong")
 	})
+	r.GET("/checking", func(ctx *gin.Context) {
+		home := os.Getenv("HOME")
+		content, err := ioutil.ReadFile(home + "/.aws/config")
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"err": err,
+			})
+		}
+		text := string(content)
+
+		content, err = ioutil.ReadFile(home + "/.aws/credentials")
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"err": err,
+			})
+		}
+		credtext := string(content)
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"Config content": text,
+			"Cred content":   credtext,
+			"home":           home,
+		})
+
+	})
 
 	var v1Route string
 	if cfg.Env == config.Production || cfg.Env == config.Local {
@@ -122,8 +164,10 @@ func main() {
 	}
 
 	v1 := r.Group(v1Route)
+
 	v1.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
 	v1.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
+	v1.Use(services.Auth.DeviceIdentificationHandler()) //context for device identification
 	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
 
 	hive.SetupRoutes(v1, db, services.HiveData, services.Hive, logger)
@@ -149,6 +193,7 @@ type Services struct {
 	HiveData      hivedata.Hives
 	Auth          auth.Service
 	Notifications impart.NotificationService
+	MediaStorage  media.StorageConfigurations
 }
 
 func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services {
@@ -175,7 +220,7 @@ func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services
 
 	svcs.Profile = profile.New(logger.Sugar(), db, svcs.ProfileData, svcs.Notifications, profileValidator, string(cfg.Env))
 
-	svcs.Hive = hive.New(cfg, db, logger)
-
+	svcs.MediaStorage = media.LoadMediaConfig(cfg)
+	svcs.Hive = hive.New(cfg, db, logger, svcs.MediaStorage)
 	return svcs
 }

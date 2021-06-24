@@ -4,17 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/volatiletech/sqlboiler/v4/boil"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
-	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
 
@@ -24,9 +26,11 @@ type NotificationService interface {
 	Notify(ctx context.Context, data NotificationData, alert Alert, impartWealthID string) error
 	NotifyAppleDevice(ctx context.Context, data NotificationData, alert Alert, deviceToken, platformEndpointARN string) (sentPlatformEndpointARN string, err error)
 	NotifyTopic(ctx context.Context, data NotificationData, alert Alert, topicARN string) error
-	SubscribeTopic(ctx context.Context, impartWealthID, topicARN string) error
+	// subscribtion to topic methods
+	SubscribeTopic(ctx context.Context, impartWealthID, topicARN, platformEndpointARN string) error
 	UnsubscribeTopic(ctx context.Context, impartWealthID string, subscriptionARN string) (err error)
 	UnsubscribeAll(ctx context.Context, impartWealthID string) error
+	UnsubscribeTopicForDevice(ctx context.Context, impartWealthID, topicARN, platformEndpointARN string) error
 
 	// SyncTokenEndpoint is meant to be called when a profiles deviceToken has been updated - this will ensure that the platformApplication
 	// has the right device token, and the endpoint is enabled.
@@ -57,7 +61,7 @@ func (n noopNotificationService) NotifyTopic(ctx context.Context, data Notificat
 	return nil
 }
 
-func (n noopNotificationService) SubscribeTopic(ctx context.Context, platformApplicationARN, topicARN string) error {
+func (n noopNotificationService) SubscribeTopic(ctx context.Context, platformApplicationARN, topicARN, platformEndpointARN string) error {
 	return nil
 }
 
@@ -67,6 +71,10 @@ func (n noopNotificationService) UnsubscribeTopic(ctx context.Context, impartWea
 
 func (n noopNotificationService) NotifyAppleDevice(ctx context.Context, data NotificationData, alert Alert, deviceToken, platformEndpointARN string) (string, error) {
 	return "", nil
+}
+
+func (n noopNotificationService) UnsubscribeTopicForDevice(ctx context.Context, impartWealthID, topicARN, platformEndpointARN string) error {
+	return nil
 }
 
 func NewNoopNotificationService() NotificationService {
@@ -178,24 +186,76 @@ func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data Not
 		MessageStructure: aws.String("json"),
 		TopicArn:         aws.String(topicARN),
 	}
+	// print()
 	_, err = ns.Publish(input)
 	return err
 }
 
+//
+// Notification only send to active devices of user
+//
+// only fectch 5 active devices of user
 func (ns *snsAppleNotificationService) Notify(ctx context.Context, data NotificationData, alert Alert, impartWealthID string) error {
-	u, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthID)).One(ctx, ns.db)
+	activeDevices, err := dbmodels.NotificationDeviceMappings(
+		dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.EQ(impartWealthID),
+		dbmodels.NotificationDeviceMappingWhere.NotifyStatus.EQ(true),
+		qm.Offset(0),
+		qm.Limit(5),
+		qm.OrderBy("map_id desc"),
+		qm.Load(dbmodels.NotificationDeviceMappingRels.UserDevice),
+		qm.Load(dbmodels.NotificationDeviceMappingRels.ImpartWealth),
+	).All(ctx, ns.db)
+
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to fetch user active devices %v", err)
 	}
-	snsAppARN, err := ns.NotifyAppleDevice(ctx, data, alert, u.DeviceToken, u.AwsSNSAppArn)
-	if err != nil {
-		return err
+	// if not active devices found
+	if len(activeDevices) <= 0 {
+		ns.Logger.Info("push-notification : no active devices found for user",
+			zap.Any("msg", alert),
+			zap.String("impartWealthID", impartWealthID),
+		)
 	}
-	if snsAppARN != u.AwsSNSAppArn {
-		u.AwsSNSAppArn = snsAppARN
-		if _, err := u.Update(ctx, ns.db, boil.Whitelist(dbmodels.UserColumns.AwsSNSAppArn)); err != nil {
-			ns.Logger.Error("unable to update sns app arn")
+
+	ns.Logger.Info("push-notification : Sending notifications to", zap.Any("devices", activeDevices))
+
+	// loop through the active devices and send notification
+	for _, u := range activeDevices {
+		if u.NotifyArn == "" {
+			ns.Logger.Error("push-notification : empty device token found for user",
+				zap.Any("device", u),
+				zap.Any("impartWealthID", impartWealthID),
+			)
+			continue
 		}
+		if u.R.UserDevice == nil {
+			ns.Logger.Error("push-notification : unable to find user device information",
+				zap.Any("device", u),
+				zap.Any("impartWealthID", impartWealthID),
+			)
+			continue
+		}
+		// user device
+		userDevice := u.R.UserDevice
+		// var notificationStatus bool
+
+		ns.Logger.Info("push-notification : Initiate notification to",
+			zap.Any("device", u),
+			zap.Any("impartWealthID", impartWealthID),
+		)
+
+		_, err := ns.NotifyAppleDevice(ctx, data, alert, userDevice.DeviceToken, u.NotifyArn)
+		if err != nil {
+			ns.Logger.Error("push-notification : unable to notify to the device", zap.Any("device", userDevice))
+			continue
+		}
+
+		// if snsAppARN != u.AwsSNSAppArn {
+		// 	u.AwsSNSAppArn = snsAppARN
+		// 	if _, err := u.Update(ctx, ns.db, boil.Whitelist(dbmodels.UserColumns.AwsSNSAppArn)); err != nil {
+		// 		ns.Logger.Error("unable to update sns app arn")
+		// 	}
+		// }
 	}
 	return nil
 }
@@ -317,27 +377,26 @@ func (ns *snsAppleNotificationService) createEndpoint(ctx context.Context, devic
 	return *endpointResponse.EndpointArn, nil
 }
 
-func (ns *snsAppleNotificationService) SubscribeTopic(ctx context.Context, impartWealthId, topicARN string) error {
-	user, err := dbmodels.Users(Where("impart_wealth_id = ?", impartWealthId)).One(ctx, ns.db)
+func (ns *snsAppleNotificationService) SubscribeTopic(ctx context.Context, impartWealthId, topicARN, platformEndpointARN string) error {
+	// user, err := dbmodels.Users(Where("impart_wealth_id = ?", impartWealthId)).One(ctx, ns.db)
+	// if err != nil {
+	// 	return err
+	// }
+
+	currentSubscriptions, err := dbmodels.NotificationSubscriptions(
+		dbmodels.NotificationSubscriptionWhere.PlatformEndpointArn.EQ(platformEndpointARN)).One(ctx, ns.db)
 	if err != nil {
 		return err
 	}
 
-	currentSubscriptions, err := dbmodels.NotificationSubscriptions(
-		dbmodels.NotificationSubscriptionWhere.ImpartWealthID.EQ(impartWealthId)).All(ctx, ns.db)
-	if err != nil {
-		return err
-	}
-	for _, sub := range currentSubscriptions {
-		if sub.TopicArn == topicARN {
-			//already subbed
-			return nil
-		}
+	if currentSubscriptions.TopicArn == topicARN {
+		//already subbed
+		return nil
 	}
 
 	subscriptionRequest := sns.SubscribeInput{
 		TopicArn:              aws.String(topicARN),
-		Endpoint:              &user.AwsSNSAppArn,
+		Endpoint:              aws.String(platformEndpointARN),
 		Protocol:              aws.String("application"),
 		ReturnSubscriptionArn: aws.Bool(true),
 	}
@@ -347,13 +406,14 @@ func (ns *snsAppleNotificationService) SubscribeTopic(ctx context.Context, impar
 		ns.Logger.Error("error attempting to subscribe",
 			zap.Error(err),
 			zap.String("topicARN", topicARN),
-			zap.String("platformApplicationARN", user.AwsSNSAppArn))
+			zap.String("platformApplicationARN", platformEndpointARN))
 		return err
 	}
 	p := &dbmodels.NotificationSubscription{
-		ImpartWealthID:  impartWealthId,
-		TopicArn:        topicARN,
-		SubscriptionArn: *resp.SubscriptionArn,
+		ImpartWealthID:      impartWealthId,
+		TopicArn:            topicARN,
+		SubscriptionArn:     *resp.SubscriptionArn,
+		PlatformEndpointArn: platformEndpointARN,
 	}
 
 	return p.Upsert(ctx, ns.db, boil.Infer(), boil.Infer())
@@ -378,6 +438,30 @@ func (ns *snsAppleNotificationService) UnsubscribeTopic(ctx context.Context, imp
 		zap.Error(err),
 		zap.String("SubscriptionARN", SubscriptionARN))
 
+	return nil
+}
+
+func (ns *snsAppleNotificationService) UnsubscribeTopicForDevice(ctx context.Context, impartWealthID, topicARN, platformEndpointARN string) (err error) {
+	currentSubscriptions, err := dbmodels.NotificationSubscriptions(
+		dbmodels.NotificationSubscriptionWhere.PlatformEndpointArn.EQ(platformEndpointARN)).One(ctx, ns.db)
+	if err != nil {
+		return err
+	}
+	req := sns.UnsubscribeInput{
+		SubscriptionArn: aws.String(currentSubscriptions.SubscriptionArn),
+	}
+	if _, err = ns.Unsubscribe(&req); err != nil {
+		ns.Logger.Error("error attempting to unsubscribe from topic",
+			zap.Error(err),
+			zap.String("SubscriptionARN", currentSubscriptions.SubscriptionArn))
+		//noop, still delete the row from db
+	}
+	_, err = dbmodels.NotificationSubscriptions(
+		dbmodels.NotificationSubscriptionWhere.PlatformEndpointArn.EQ(platformEndpointARN)).DeleteAll(ctx, ns.db)
+
+	ns.Logger.Error("error attempting to unsubscribe",
+		zap.Error(err),
+		zap.String("platformEndpointARN", platformEndpointARN))
 	return nil
 }
 

@@ -3,12 +3,15 @@ package hive
 import (
 	"context"
 	"database/sql"
+
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/impartwealthapp/backend/pkg/tags"
 	"go.uber.org/zap"
 )
@@ -30,6 +33,10 @@ type Service interface {
 	DeletePost(ctx context.Context, postID uint64) impart.Error
 	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) impart.Error
 	ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
+	ReviewPost(ctx context.Context, postId uint64, comment string, remove bool) (models.Post, impart.Error)
+	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo) (models.PostVideo, impart.Error)
+	AddPostFiles(ctx context.Context, post *dbmodels.Post, postFiles []models.File) ([]models.File, impart.Error)
+	ValidatePostFilesName(ctx context.Context, ctxUser *dbmodels.User, postFiles []models.File) []models.File
 
 	GetComments(ctx context.Context, postID uint64, limit, offset int) (models.Comments, *models.NextPage, impart.Error)
 	GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error)
@@ -37,6 +44,13 @@ type Service interface {
 	EditComment(ctx context.Context, comment models.Comment) (models.Comment, impart.Error)
 	DeleteComment(ctx context.Context, commentID uint64) impart.Error
 	ReportComment(ctx context.Context, commentID uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
+	ReviewComment(ctx context.Context, commentId uint64, comment string, remove bool) (models.Comment, impart.Error)
+
+	SendCommentNotification(input models.CommentNotificationInput) impart.Error
+	SendPostNotification(input models.PostNotificationInput) impart.Error
+
+	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
+	GetReportedContents(ctx context.Context, getInput data.GetPostsInput) (models.PostComments, *models.NextPage, error)
 }
 
 const maxNotificationLength = 512
@@ -50,10 +64,11 @@ type service struct {
 	profileData         profiledata.Store
 	notificationService impart.NotificationService
 	db                  *sql.DB
+	MediaStorage        media.StorageConfigurations
 }
 
 // New creates a new Hive Service
-func New(cfg *config.Impart, db *sql.DB, logger *zap.Logger) Service {
+func New(cfg *config.Impart, db *sql.DB, logger *zap.Logger, media media.StorageConfigurations) Service {
 	hd := data.NewHiveService(db, logger)
 	var notificationSvc impart.NotificationService
 	if cfg.Env == config.Local {
@@ -71,6 +86,7 @@ func New(cfg *config.Impart, db *sql.DB, logger *zap.Logger) Service {
 		reactionData:        hd,
 		notificationService: notificationSvc,
 		profileData:         profileData,
+		MediaStorage:        media,
 	}
 
 	return svc

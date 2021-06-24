@@ -19,7 +19,9 @@ import (
 )
 
 type NextPage struct {
-	Offset int `json:"offset"`
+	Offset        int `json:"offset"`
+	OffsetPost    int `json:"offsetPost"`
+	OffsetComment int `json:"offsetComment"`
 }
 
 // HiveMemberships are primarily an attribute of the profile for a customer

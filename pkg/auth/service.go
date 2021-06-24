@@ -18,10 +18,12 @@ import (
 const ImpartAPIKeyHeaderName = "x-api-key"
 const AuthorizationHeader = "Authorization"
 const AuthorizationHeaderBearerType = "Bearer"
+const DeviceAuthorizationHeader = "x-device-token"
 
 type Service interface {
 	RequestAuthorizationHandler() gin.HandlerFunc
 	APIKeyHandler() gin.HandlerFunc
+	DeviceIdentificationHandler() gin.HandlerFunc
 }
 
 type authService struct {
@@ -113,9 +115,19 @@ func (a *authService) APIKeyHandler() gin.HandlerFunc {
 	}
 }
 
+func (a *authService) DeviceIdentificationHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if ctx.GetHeader(DeviceAuthorizationHeader) != "" {
+			ctx.Set(impart.DeviceAuthorizationContextKey, ctx.GetHeader(DeviceAuthorizationHeader))
+		}
+		ctx.Next()
+	}
+}
+
 var allowedRoutesBase = map[string]string{
-	"%s/profiles/new":   http.MethodGet,
-	"%s/questionnaires": http.MethodGet,
+	"%s/profiles/new":                  http.MethodGet,
+	"%s/questionnaires":                http.MethodGet,
+	"%s/profiles/validate/screen-name": http.MethodGet,
 }
 
 func (a *authService) SetUnauthenticatedRoutes(cfg *config.Impart) {

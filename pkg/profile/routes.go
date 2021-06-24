@@ -4,20 +4,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/segmentio/ksuid"
 	"github.com/xeipuuv/gojsonschema"
+	"gopkg.in/auth0.v5/management"
 
 	"github.com/gin-gonic/gin"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"go.uber.org/zap"
 )
+
+const impartDomain = "impartwealth.auth0.com"
+const integrationConnectionPrefix = "impart"
+const auth0managementClient = "wK78yrI3H2CSoWr0iscR5lItcZdjcLBA"
+const auth0managementClientSecret = "X3bXip3IZTQcLRoYIQ5VkMfSQdqcSZdJtdZpQd8w5-D22wK3vCt5HjMBo3Et93cJ"
 
 type profileHandler struct {
 	profileData          profiledata.Store
@@ -41,32 +46,24 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	profileRoutes.GET("/:impartWealthId", handler.GetProfileFunc())
 	profileRoutes.DELETE("/:impartWealthId", handler.DeleteProfileFunc())
+	profileRoutes.DELETE("", handler.DeleteUserProfileFunc())
+
+	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
+	profileRoutes.POST("/send-email", handler.ResentEmail())
 
 	questionnaireRoutes := version.Group("/questionnaires")
 	questionnaireRoutes.GET("", handler.AllQuestionnaireHandler())                     //returns a list of questionnaire; filter by `name` query param
 	questionnaireRoutes.GET("/:impartWealthId", handler.GetUserQuestionnaireHandler()) //returns a list of past questionnaires taken by this impart wealth id; filter by `name` query param
 	questionnaireRoutes.POST("/:impartWealthId", handler.SaveUserQuestionnaire())      //posts a new questionnaire for this impart wealth id
-}
 
-type AuthZeroUser struct {
-	CreatedAt     string       `json:"created_at"`
-	Email         string       `json:"email"`
-	Identities    []Identities `json:"identities"`
-	Name          string       `json:"name"`
-	Nickname      string       `json:"nickname"`
-	Picture       string       `json:"picture"`
-	UpdatedAt     string       `json:"updated_at"`
-	UserID        string       `json:"user_id"`
-	EmailVerified interface{}  `json:"email_verified"`
-	LastIP        string       `json:"last_ip"`
-	LastLogin     string       `json:"last_login"`
-	LoginsCount   int          `json:"logins_count"`
-}
-type Identities struct {
-	Connection string `json:"connection"`
-	Provider   string `json:"provider"`
-	UserID     string `json:"user_id"`
-	IsSocial   bool   `json:"isSocial"`
+	userRoutes := version.Group("/user")
+	userRoutes.POST("/logout", handler.HandlerUserLogout())
+	userRoutes.POST("/register-device", handler.CreateUserDevice())
+	userRoutes.GET("/notification", handler.GetConfiguration())
+	userRoutes.POST("/notification", handler.CreateNotificationConfiguration())
+
+	userRoutes.POST("/block", handler.BlockUser())
+
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -74,17 +71,6 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 		var impartErr impart.Error
 		var p models.Profile
 
-		// m, err := management.New("impartwealth.auth0.com", management.WithClientCredentials("uRHuNlRNiDKcbHcKtt0L08T0GkY8jtxe", "YL8Srtt1t3PgTCvSrVC51mXez7KYxG-iC2E0FBQNFlFO0bGu229Kn_BF7lQVko03"))
-		// // fmt.Println(*m.User)
-		// res2B, _ := json.Marshal(m)
-		// fmt.Println(string(res2B))
-		// if err != nil {
-		// 	// handle err
-		// }
-		// existingUsers, err := m.User.ListByEmail(ctxUser.Email)
-		// if err != nil {
-		// 	// handle err
-		// }
 		impartWealthId := ctx.Param("impartWealthId")
 		if impartWealthId == "new" {
 			p := models.Profile{
@@ -95,70 +81,6 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 		}
 
 		ctxUser := impart.GetCtxUser(ctx)
-
-		const AuthorizationHeader = "Authorization"
-		const AuthorizationHeaderBearerType = "Bearer"
-		// parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
-
-		fmt.Println(ctxUser.Email)
-
-		url := "https://impartwealth.auth0.com" + "/api/v2/users-by-email?email=" + ctxUser.Email
-		// url := "https://impartwealth.auth0.com" + "/api/v2/users"
-
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		req.Header.Add("Authorization", "Bearer "+"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ik56VTVOVU5DTmpORU4wUTFOekl5TlVOR1JUSkdNekV5TlVGRU1qSXpSVUZHTkVFMlJqZENPQSJ9.eyJpc3MiOiJodHRwczovL2ltcGFydHdlYWx0aC5hdXRoMC5jb20vIiwic3ViIjoiZlBaSmlEQUplZHpNNW94aGREN3J3TzJkYTVybGo3QlJAY2xpZW50cyIsImF1ZCI6Imh0dHBzOi8vaW1wYXJ0d2VhbHRoLmF1dGgwLmNvbS9hcGkvdjIvIiwiaWF0IjoxNjIwNzE2MzM5LCJleHAiOjE2MjMzMDgzMzksImF6cCI6ImZQWkppREFKZWR6TTVveGhkRDdyd08yZGE1cmxqN0JSIiwic2NvcGUiOiJyZWFkOmNsaWVudF9ncmFudHMgY3JlYXRlOmNsaWVudF9ncmFudHMgZGVsZXRlOmNsaWVudF9ncmFudHMgdXBkYXRlOmNsaWVudF9ncmFudHMgcmVhZDp1c2VycyB1cGRhdGU6dXNlcnMgZGVsZXRlOnVzZXJzIGNyZWF0ZTp1c2VycyByZWFkOnVzZXJzX2FwcF9tZXRhZGF0YSB1cGRhdGU6dXNlcnNfYXBwX21ldGFkYXRhIGRlbGV0ZTp1c2Vyc19hcHBfbWV0YWRhdGEgY3JlYXRlOnVzZXJzX2FwcF9tZXRhZGF0YSByZWFkOnVzZXJfY3VzdG9tX2Jsb2NrcyBjcmVhdGU6dXNlcl9jdXN0b21fYmxvY2tzIGRlbGV0ZTp1c2VyX2N1c3RvbV9ibG9ja3MgY3JlYXRlOnVzZXJfdGlja2V0cyByZWFkOmNsaWVudHMgdXBkYXRlOmNsaWVudHMgZGVsZXRlOmNsaWVudHMgY3JlYXRlOmNsaWVudHMgcmVhZDpjbGllbnRfa2V5cyB1cGRhdGU6Y2xpZW50X2tleXMgZGVsZXRlOmNsaWVudF9rZXlzIGNyZWF0ZTpjbGllbnRfa2V5cyByZWFkOmNvbm5lY3Rpb25zIHVwZGF0ZTpjb25uZWN0aW9ucyBkZWxldGU6Y29ubmVjdGlvbnMgY3JlYXRlOmNvbm5lY3Rpb25zIHJlYWQ6cmVzb3VyY2Vfc2VydmVycyB1cGRhdGU6cmVzb3VyY2Vfc2VydmVycyBkZWxldGU6cmVzb3VyY2Vfc2VydmVycyBjcmVhdGU6cmVzb3VyY2Vfc2VydmVycyByZWFkOmRldmljZV9jcmVkZW50aWFscyB1cGRhdGU6ZGV2aWNlX2NyZWRlbnRpYWxzIGRlbGV0ZTpkZXZpY2VfY3JlZGVudGlhbHMgY3JlYXRlOmRldmljZV9jcmVkZW50aWFscyByZWFkOnJ1bGVzIHVwZGF0ZTpydWxlcyBkZWxldGU6cnVsZXMgY3JlYXRlOnJ1bGVzIHJlYWQ6cnVsZXNfY29uZmlncyB1cGRhdGU6cnVsZXNfY29uZmlncyBkZWxldGU6cnVsZXNfY29uZmlncyByZWFkOmhvb2tzIHVwZGF0ZTpob29rcyBkZWxldGU6aG9va3MgY3JlYXRlOmhvb2tzIHJlYWQ6YWN0aW9ucyB1cGRhdGU6YWN0aW9ucyBkZWxldGU6YWN0aW9ucyBjcmVhdGU6YWN0aW9ucyByZWFkOmVtYWlsX3Byb3ZpZGVyIHVwZGF0ZTplbWFpbF9wcm92aWRlciBkZWxldGU6ZW1haWxfcHJvdmlkZXIgY3JlYXRlOmVtYWlsX3Byb3ZpZGVyIGJsYWNrbGlzdDp0b2tlbnMgcmVhZDpzdGF0cyByZWFkOnRlbmFudF9zZXR0aW5ncyB1cGRhdGU6dGVuYW50X3NldHRpbmdzIHJlYWQ6bG9ncyByZWFkOmxvZ3NfdXNlcnMgcmVhZDpzaGllbGRzIGNyZWF0ZTpzaGllbGRzIHVwZGF0ZTpzaGllbGRzIGRlbGV0ZTpzaGllbGRzIHJlYWQ6YW5vbWFseV9ibG9ja3MgZGVsZXRlOmFub21hbHlfYmxvY2tzIHVwZGF0ZTp0cmlnZ2VycyByZWFkOnRyaWdnZXJzIHJlYWQ6Z3JhbnRzIGRlbGV0ZTpncmFudHMgcmVhZDpndWFyZGlhbl9mYWN0b3JzIHVwZGF0ZTpndWFyZGlhbl9mYWN0b3JzIHJlYWQ6Z3VhcmRpYW5fZW5yb2xsbWVudHMgZGVsZXRlOmd1YXJkaWFuX2Vucm9sbG1lbnRzIGNyZWF0ZTpndWFyZGlhbl9lbnJvbGxtZW50X3RpY2tldHMgcmVhZDp1c2VyX2lkcF90b2tlbnMgY3JlYXRlOnBhc3N3b3Jkc19jaGVja2luZ19qb2IgZGVsZXRlOnBhc3N3b3Jkc19jaGVja2luZ19qb2IgcmVhZDpjdXN0b21fZG9tYWlucyBkZWxldGU6Y3VzdG9tX2RvbWFpbnMgY3JlYXRlOmN1c3RvbV9kb21haW5zIHVwZGF0ZTpjdXN0b21fZG9tYWlucyByZWFkOmVtYWlsX3RlbXBsYXRlcyBjcmVhdGU6ZW1haWxfdGVtcGxhdGVzIHVwZGF0ZTplbWFpbF90ZW1wbGF0ZXMgcmVhZDptZmFfcG9saWNpZXMgdXBkYXRlOm1mYV9wb2xpY2llcyByZWFkOnJvbGVzIGNyZWF0ZTpyb2xlcyBkZWxldGU6cm9sZXMgdXBkYXRlOnJvbGVzIHJlYWQ6cHJvbXB0cyB1cGRhdGU6cHJvbXB0cyByZWFkOmJyYW5kaW5nIHVwZGF0ZTpicmFuZGluZyBkZWxldGU6YnJhbmRpbmcgcmVhZDpsb2dfc3RyZWFtcyBjcmVhdGU6bG9nX3N0cmVhbXMgZGVsZXRlOmxvZ19zdHJlYW1zIHVwZGF0ZTpsb2dfc3RyZWFtcyBjcmVhdGU6c2lnbmluZ19rZXlzIHJlYWQ6c2lnbmluZ19rZXlzIHVwZGF0ZTpzaWduaW5nX2tleXMgcmVhZDpsaW1pdHMgdXBkYXRlOmxpbWl0cyBjcmVhdGU6cm9sZV9tZW1iZXJzIHJlYWQ6cm9sZV9tZW1iZXJzIGRlbGV0ZTpyb2xlX21lbWJlcnMgcmVhZDplbnRpdGxlbWVudHMgcmVhZDpvcmdhbml6YXRpb25zIHVwZGF0ZTpvcmdhbml6YXRpb25zIGNyZWF0ZTpvcmdhbml6YXRpb25zIGRlbGV0ZTpvcmdhbml6YXRpb25zIGNyZWF0ZTpvcmdhbml6YXRpb25fbWVtYmVycyByZWFkOm9yZ2FuaXphdGlvbl9tZW1iZXJzIGRlbGV0ZTpvcmdhbml6YXRpb25fbWVtYmVycyBjcmVhdGU6b3JnYW5pemF0aW9uX2Nvbm5lY3Rpb25zIHJlYWQ6b3JnYW5pemF0aW9uX2Nvbm5lY3Rpb25zIHVwZGF0ZTpvcmdhbml6YXRpb25fY29ubmVjdGlvbnMgZGVsZXRlOm9yZ2FuaXphdGlvbl9jb25uZWN0aW9ucyBjcmVhdGU6b3JnYW5pemF0aW9uX21lbWJlcl9yb2xlcyByZWFkOm9yZ2FuaXphdGlvbl9tZW1iZXJfcm9sZXMgZGVsZXRlOm9yZ2FuaXphdGlvbl9tZW1iZXJfcm9sZXMgY3JlYXRlOm9yZ2FuaXphdGlvbl9pbnZpdGF0aW9ucyByZWFkOm9yZ2FuaXphdGlvbl9pbnZpdGF0aW9ucyBkZWxldGU6b3JnYW5pemF0aW9uX2ludml0YXRpb25zIiwiZ3R5IjoiY2xpZW50LWNyZWRlbnRpYWxzIn0.cO7vWHJgfTKbG_FA3onflnoX0VPymO-9lmOxg4QLqCKY2XJkyRjmWTuj7PTYUYBMqfWzfb7JkpnEYSfpKS5TbKV-9TUQKphJJnquzW9X8rFVTT1Qa4zW9SyLDvPhvzh_SnGYcMQTuDxkIL6oZlDyx_EqukrhzVksBIMTcISIZo9jbMs1nyRAjgzhBdXWGX0Jxrf8QWY0y54w9ppLMVI36lxnRLqjV_1ozAvDiNpdK5wRkLHxGrdc9nGKRaRmo2gUaKw3cbG-0lhvtDENtm2Eik_GXzcDok2qh-hSAtZd47hezSyk4yD9pVPlJSaN_LL7dioEU7pKv6S1Ie1mDlC6ZQ")
-		// req.Header.Add("Authorization", "Bearer "+parts[1])
-
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		defer res.Body.Close()
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		fmt.Println(res)
-		fmt.Println(string(body))
-
-		var userList []AuthZeroUser
-		if len(body) > 0 {
-			if err := json.Unmarshal(body, &userList); err != nil {
-				panic(err)
-			}
-		}
-
-		for _, users := range userList {
-			if false == users.EmailVerified {
-				ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
-					impart.NewError(impart.ErrBadRequest, "Email not verified"),
-				))
-				return
-			}
-		}
-
-		// if len(existingUsers) == 0 {
-		// 	ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
-		// 		impart.NewError(impart.ErrBadRequest, "User Not Exist"),
-		// 	))
-		// 	return
-		// }
-		// for _, users := range existingUsers {
-		// 	if false == *users.EmailVerified {
-		// 		ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
-		// 			impart.NewError(impart.ErrBadRequest, "Email not verified"),
-		// 		))
-		// 		return
-		// 	}
-		// }
-
-		// ctxUser := impart.GetCtxUser(ctx)
 		if strings.TrimSpace(impartWealthId) == "" {
 			dbp, err := ph.profileData.GetProfile(ctx, ctxUser.ImpartWealthID)
 			if err != nil {
@@ -280,7 +202,7 @@ func (ph *profileHandler) DeleteProfileFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		impartWealthID := ctx.Param("impartWealthId")
 
-		impartErr := ph.profileService.DeleteProfile(ctx, impartWealthID)
+		impartErr := ph.profileService.DeleteProfile(ctx, impartWealthID, false, DeleteProfileInput{})
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			//ctx.AbortWithError(err.HttpStatus(), err)
@@ -327,12 +249,467 @@ func (ph *profileHandler) SaveUserQuestionnaire() gin.HandlerFunc {
 			return
 		}
 
-		if err := ph.profileService.SaveQuestionnaire(ctx, q); err != nil {
+		if hivedtype, err := ph.profileService.SaveQuestionnaire(ctx, q); err != nil {
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		} else {
+			ctx.JSON(http.StatusCreated, gin.H{"newhive": hivedtype})
+			return
+		}
+
+		// ctx.Status(http.StatusCreated)
+		// return
+	}
+}
+
+func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		// validate the inputs
+		impartErrl := ph.profileService.ValidateScreenNameInput(gojsonschema.NewStringLoader(string(b)))
+		if impartErrl != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
+			return
+		}
+
+		p := models.ScreenNameValidator{}
+		err = json.Unmarshal(b, &p)
+
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to validate screen name")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		valid := ph.profileService.ScreenNameExists(ctx, p.ScreenName)
+		if valid {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Screen name is already taken.")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		// validate the input string, it should not contain some words
+		err = ph.profileService.ValidateScreenNameString(ctx, p.ScreenName)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "This screen name is not allowed.")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"status": "success",
+		})
+	}
+}
+
+func (ph *profileHandler) ResentEmail() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "Couldn't parse JSON request body."),
+			))
+		}
+		authdata := models.AuthenticationIDValidation{}
+		err = json.Unmarshal(b, &authdata)
+
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to Authenticationid.")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		if authdata.AuthenticationID == "" {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "Query parameters missing."),
+			))
+			return
+		}
+
+		ctxUser := impart.GetCtxUser(ctx)
+		if authdata.AuthenticationID != ctxUser.AuthenticationID {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "Invalid AuthenticationID"),
+			))
+			return
+		}
+
+		mgmnt, err := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Resent email sending failed.")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		jobs := management.Job{
+			UserID: &authdata.AuthenticationID,
+		}
+		err = mgmnt.User.Job.VerifyEmail(&jobs)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Resent email sending failed.")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Email is send to the User.",
+		})
+
+	}
+}
+
+// CreateUserDevice
+func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		// validate the inputs
+		impartErrl := ph.profileService.ValidateInput(gojsonschema.NewStringLoader(string(b)), types.UserDeviceValidationModel)
+		if impartErrl != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
+			return
+		}
+
+		device := models.UserDevice{}
+		err = json.Unmarshal(b, &device)
+		dbModel := device.UserDeviceToDBModel()
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a UserDevice")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		userDevice, err := ph.profileService.CreateUserDevice(ctx, nil, dbModel)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		if userDevice.DeviceToken != "" {
+			// map for notification
+			err = ph.profileService.MapDeviceForNotification(ctx, userDevice)
+			if err != nil {
+				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
+				ph.logger.Error(impartErr.Error())
+				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+				return
+			}
+		}
+
+		ctx.JSON(http.StatusOK, userDevice)
+		return
+
+	}
+}
+
+//
+//  Add/update notification configuration
+//
+//  Create / update user notification configuration
+//  check the header included device token / request included notification token
+//  if the status is for set true, then get device details
+//  then set all the device notification status into false, where the user is not current user
+//
+//  check whether the configuration for disable, then deactivate all the active notification
+//  devices of this user, else enable current device only
+//
+func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		conf := models.UserGlobalConfigInput{}
+		if err := ctx.ShouldBindJSON(&conf); err != nil {
+			ph.logger.Error("invalid json payload", zap.Error(err))
+			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Questionnaire")
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+		context := impart.GetCtxUser(ctx)
+		configurations, err := ph.profileService.ModifyUserConfigurations(ctx, models.UserConfigurations{
+			ImpartWealthID:     context.ImpartWealthID,
+			NotificationStatus: conf.Status,
+		})
+		if err != nil {
+			ph.logger.Error("unable to process your request", zap.Error(err))
+			err := impart.NewError(impart.ErrBadRequest, "unable to process your request")
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+		// get user device details
+		// user can provide the device token from header / from request
+
+		refToken := ""
+		if conf.RefToken != "" {
+			refToken = conf.RefToken
+		} else {
+			refToken = impart.GetCtxDeviceToken(ctx)
+		}
+
+		deviceToken := ""
+		if conf.DeviceToken != "" {
+			deviceToken = conf.DeviceToken
+		}
+
+		if refToken == "" {
+			ph.logger.Error("unable to find device token to update notification", zap.Error(err))
+			err := impart.NewError(impart.ErrBadRequest, "unable to find device token")
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
 
-		ctx.Status(http.StatusCreated)
+		// if the user is requested for enable notification
+		if conf.Status {
+			// empty device token is not allowed here
+			if deviceToken == "" {
+				ph.logger.Error("have to provide device token", zap.Any("request", conf))
+				err := impart.NewError(impart.ErrBadRequest, "have to provide device token")
+				ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+				return
+			}
+
+			deviceDetails, devErr := ph.profileService.GetUserDevice(ctx, refToken, "", "")
+			if devErr != nil {
+				ph.logger.Error("unable to find device", zap.Error(err))
+				err := impart.NewError(impart.ErrBadRequest, "unable to find device")
+				ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+				return
+			}
+
+			// check the deviceToken is not added yet, or not equals then need to sync again
+			// also check the device token is not nill
+			if deviceDetails.DeviceToken != deviceToken {
+				err := ph.profileService.UpdateDeviceToken(ctx, refToken, deviceToken)
+				if err != nil {
+					ph.logger.Error("unable to update device token", zap.Error(err))
+				} else {
+					deviceDetails.DeviceToken = deviceToken
+					err = ph.profileService.MapDeviceForNotification(ctx, deviceDetails)
+					if err != nil {
+						ph.logger.Error("unable to map device token", zap.Error(err))
+					}
+				}
+
+				//delete previous entries for same user same device token
+				dErr := ph.profileService.DeleteExceptUserDevice(
+					ctx,
+					deviceDetails.ImpartWealthID,
+					deviceToken,
+					refToken,
+				)
+				if dErr != nil {
+					ph.logger.Error("unable to remove existing devices", zap.Error(dErr))
+				}
+			}
+			// check the same device id exists for another user, then set to false
+			err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+				Ctx:            ctx,
+				ImpartWealthID: context.ImpartWealthID,
+				DeviceToken:    deviceDetails.DeviceToken,
+				Negate:         true,
+			}, false)
+			if err != nil {
+				ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+				return
+			}
+		}
+
+		// if the status is for disable,
+		// then deactivate all the devices of this user
+		if !conf.Status {
+			refToken = ""
+		}
+		// update the notificaton status for device this user
+		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+			Ctx:            ctx,
+			ImpartWealthID: context.ImpartWealthID,
+			Token:          refToken,
+		}, conf.Status)
+		if err != nil {
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusCreated, configurations)
 		return
+	}
+}
+
+// Get user configurations
+func (ph *profileHandler) GetConfiguration() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		context := impart.GetCtxUser(ctx)
+
+		data, err := ph.profileService.GetUserConfigurations(ctx, context.ImpartWealthID)
+		if err != nil {
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+		if (data == models.UserConfigurations{}) {
+			err := impart.NewError(impart.ErrNotFound, "no configuration data found")
+			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusCreated, data)
+
+	}
+}
+
+//
+//  User Logout
+//
+//  Once the user is logout,
+//  the notification status for this device should be disable
+//
+func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		context := impart.GetCtxUser(ctx)
+		deviceToken := impart.GetCtxDeviceToken(ctx)
+		if deviceToken == "" {
+			err := impart.NewError(impart.ErrNotFound, "no device token found")
+			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
+			return
+		}
+		// update the notificaton status for device this user
+		err := ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+			Ctx:            ctx,
+			ImpartWealthID: context.ImpartWealthID,
+			Token:          deviceToken,
+		}, false)
+		if err != nil {
+			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			return
+		}
+
+		ctx.JSON(http.StatusCreated, gin.H{
+			"status":  true,
+			"message": "successfully logout from device",
+		})
+
+	}
+}
+
+// Block user
+func (ph *profileHandler) BlockUser() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		rawData, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		// validate the inputs
+		impartErrl := ph.profileService.ValidateInput(gojsonschema.NewStringLoader(string(rawData)), types.UserBlockValidationModel)
+		if impartErrl != nil {
+			ph.logger.Error("input validation error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
+			return
+		}
+
+		input := models.BlockUserInput{}
+		err = json.Unmarshal(rawData, &input)
+		if err != nil {
+			ph.logger.Error("input json parse error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+
+		// validate either screen Name or impartWealthID provided
+		if input.ScreenName == "" && input.ImpartWealthID == "" {
+			err := impart.NewError(impart.ErrBadRequest, "please provide user information")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+
+		// check the input type provide
+		var inputStatus string
+		inputStatus = types.Block.ToString()
+
+		if input.Status != "" {
+			inputStatus = input.Status
+		}
+		//check status either blocked/unblocked
+		if inputStatus != types.UnBlock.ToString() && inputStatus != types.Block.ToString() {
+			err := impart.NewError(impart.ErrBadRequest, "invalid option provided")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+		status := true
+		if inputStatus == types.UnBlock.ToString() {
+			status = false
+		}
+
+		bErr := ph.profileService.BlockUser(ctx, input.ImpartWealthID, input.ScreenName, status)
+		if bErr != nil {
+			ctx.JSON(bErr.HttpStatus(), impart.ErrorResponse(bErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"status":  true,
+			"message": fmt.Sprintf("user account %ved successfully", inputStatus),
+		})
+
+	}
+}
+
+func (ph *profileHandler) DeleteUserProfileFunc() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		rawData, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		input := models.DeleteUserInput{}
+		err = json.Unmarshal(rawData, &input)
+		if err != nil {
+			ph.logger.Error("input json parse error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+
+		// validate either screen Name or impartWealthID provided
+		if input.ImpartWealthID == "" {
+			err := impart.NewError(impart.ErrBadRequest, "please provide user information")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+
+		gpi := DeleteProfileInput{ImpartWealthID: input.ImpartWealthID,
+			Feedback: input.Feedback}
+
+		impartErr := ph.profileService.DeleteProfile(ctx, input.ImpartWealthID, false, gpi)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			//ctx.AbortWithError(err.HttpStatus(), err)
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "profile deleted"})
 	}
 }

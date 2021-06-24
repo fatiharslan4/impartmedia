@@ -1,18 +1,20 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
 	"math"
 	"reflect"
 	"sort"
 	"time"
 
-	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-
 	r "github.com/Pallinder/go-randomdata"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/leebenson/conform"
 	"github.com/segmentio/ksuid"
+	"github.com/volatiletech/null/v8"
 )
 
 type PagedCommentsResponse struct {
@@ -35,7 +37,11 @@ type Comment struct {
 	PostCommentTrack PostCommentTrack `json:"postCommentTrack,omitempty"`
 	ReportedCount    int              `json:"reportedCount"`
 	Obfuscated       bool             `json:"obfuscated"`
+	Reviewed         bool             `json:"reviewed"`
+	ReviewComment    string           `json:"reviewComment"`
 	ReviewedDatetime time.Time        `json:"reviewedDatetime,omitempty"`
+	ParentCommentID  uint64           `json:"parentCommentId"`
+	Deleted          bool             `json:"deleted,omitempty"`
 }
 
 func (comments Comments) Latest() time.Time {
@@ -127,6 +133,8 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 		PostCommentTrack: PostCommentTrack{},
 		ReportedCount:    c.ReportedCount,
 		Obfuscated:       c.Obfuscated,
+		Reviewed:         c.Reviewed,
+		ReviewComment:    c.ReviewComment.String,
 	}
 	if c.ReviewedAt.Valid {
 		out.ReviewedDatetime = c.ReviewedAt.Time
@@ -136,6 +144,43 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 	}
 	if len(c.R.CommentReactions) > 0 {
 		out.PostCommentTrack = PostCommentTrackFromDB(nil, c.R.CommentReactions[0])
+	}
+
+	if (c.DeletedAt != null.Time{}) {
+		out.Deleted = true
+	}
+	// check the user is blocked
+	if c.R.ImpartWealth != nil && c.R.ImpartWealth.Blocked {
+		out.ScreenName = types.AccountRemoved.ToString()
+	}
+	if c.R.ImpartWealth == nil {
+		out.ScreenName = types.AccountDeleted.ToString()
+	}
+	return out
+}
+
+type CommentNotificationInput struct {
+	Ctx             context.Context
+	CommentID       uint64
+	ActionType      types.Type // Report,upvote,downvote, take vote
+	ActionData      string
+	PostID          uint64
+	NotifyPostOwner bool
+}
+
+type CommentNotificationBuildDataOutput struct {
+	Alert             impart.Alert
+	PostOwnerAlert    impart.Alert
+	PostOwnerWealthID string
+}
+
+func CommentsWithLimit(comments dbmodels.CommentSlice, limit int) Comments {
+	out := make(Comments, limit, limit)
+	for i, c := range comments {
+		if i >= limit {
+			return out
+		}
+		out[i] = CommentFromDBModel(c)
 	}
 	return out
 }

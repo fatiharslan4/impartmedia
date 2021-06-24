@@ -1,0 +1,48 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"$ref": "#/definitions/UserDevice",
+	"title": "UserDevice",
+	"definitions": {
+		"UserDevice": {
+			"required": [
+				"deviceId",
+				"appVersion",
+				"deviceName",
+				"deviceVersion"
+			],
+			"properties": {
+				"token": {
+					"type": "string"
+				},
+				"impartWealthId": {
+					"type": "string"
+				},
+				"deviceId": {
+					"type": "string"
+				},
+				"deviceToken": {
+					"type": "string"
+				},
+				"appVersion": {
+					"type": "string"
+				},
+				"deviceName": {
+					"type": "string"
+				},
+				"deviceVersion": {
+					"type": "string"
+				},
+				"createdAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"updatedAt": {
+					"type": "string",
+					"format": "date-time"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	}
+}

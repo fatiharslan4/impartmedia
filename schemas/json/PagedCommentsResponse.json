@@ -10,7 +10,12 @@
 				"screenName",
 				"content",
 				"upVotes",
-				"downVotes"
+				"downVotes",
+				"reportedCount",
+				"obfuscated",
+				"reviewed",
+				"reviewComment",
+				"parentCommentId"
 			],
 			"properties": {
 				"postId": {
@@ -51,6 +56,28 @@
 				"postCommentTrack": {
 					"$schema": "http://json-schema.org/draft-04/schema#",
 					"$ref": "#/definitions/PostCommentTrack"
+				},
+				"reportedCount": {
+					"type": "integer"
+				},
+				"obfuscated": {
+					"type": "boolean"
+				},
+				"reviewed": {
+					"type": "boolean"
+				},
+				"reviewComment": {
+					"type": "string"
+				},
+				"reviewedDatetime": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"parentCommentId": {
+					"type": "integer"
+				},
+				"deleted": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,
@@ -101,10 +128,18 @@
 		},
 		"NextPage": {
 			"required": [
-				"offset"
+				"offset",
+				"offsetPost",
+				"offsetComment"
 			],
 			"properties": {
 				"offset": {
+					"type": "integer"
+				},
+				"offsetPost": {
+					"type": "integer"
+				},
+				"offsetComment": {
 					"type": "integer"
 				}
 			},
@@ -137,7 +172,9 @@
 				"impartWealthId",
 				"contentId",
 				"upVoted",
-				"downVoted"
+				"downVoted",
+				"reported",
+				"reportedReason"
 			],
 			"properties": {
 				"impartWealthId": {
@@ -160,6 +197,12 @@
 				"votedDatetime": {
 					"type": "string",
 					"format": "date-time"
+				},
+				"reported": {
+					"type": "boolean"
+				},
+				"reportedReason": {
+					"type": "string"
 				}
 			},
 			"additionalProperties": false,

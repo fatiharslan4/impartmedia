@@ -3,12 +3,20 @@ package hive
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/otiai10/opengraph/v2"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"go.uber.org/zap"
@@ -21,11 +29,11 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	ctxUser := impart.GetCtxUser(ctx)
 
 	if len(strings.TrimSpace(post.Subject)) < 2 {
-		return models.Post{}, impart.NewError(impart.ErrBadRequest, "subject is less than 2 characters")
+		return models.Post{}, impart.NewError(impart.ErrBadRequest, "subject is less than 2 characters", impart.Subject)
 	}
 
 	if len(strings.TrimSpace(post.Content.Markdown)) < 10 {
-		return models.Post{}, impart.NewError(impart.ErrBadRequest, "post is less than 10 characters")
+		return models.Post{}, impart.NewError(impart.ErrBadRequest, "post is less than 10 characters", impart.Content)
 	}
 	shouldPin := false
 	if post.IsPinnedPost {
@@ -44,35 +52,61 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		tagsSlice[i] = &dbmodels.Tag{TagID: uint(t)}
 	}
 	dbPost, err := s.postData.NewPost(ctx, dbPost, tagsSlice)
+
 	if err != nil {
 		s.logger.Error("unable to create a new post", zap.Error(err))
 		return models.Post{}, impart.UnknownError
 	}
 	if shouldPin {
-		if err := s.hiveData.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
+		// if err := s.hiveData.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
+		// 	s.logger.Error("couldn't pin post", zap.Error(err))
+		// }
+
+		if err := s.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
 			s.logger.Error("couldn't pin post", zap.Error(err))
 		}
 
 	}
+
+	// add post files
+	post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
+	postFiles, _ := s.AddPostFiles(ctx, dbPost, post.Files)
+
 	p := models.PostFromDB(dbPost)
+
+	// add post videos
+	postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video)
+	p.Video = postvideo
+
+	// add post videos
+	postUrl, _ := s.AddPostUrl(ctx, p.PostID, post.Url)
+	p.UrlData = postUrl
+
+	// update post files
+	p.Files = postFiles
+
 	return p, nil
 }
 
 func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post, impart.Error) {
 	ctxUser := impart.GetCtxUser(ctx)
 	existingPost, err := s.postData.GetPost(ctx, inPost.PostID)
+	var shouldPin bool
 	if err != nil {
 		s.logger.Error("error fetching post trying to edit", zap.Error(err))
 		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "error fetching post trying to edit")
 	}
-	if !ctxUser.Admin && existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
-		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours")
+	if existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
+		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours", impart.ImpartWealthID)
 	}
 	tagsSlice := make(dbmodels.TagSlice, len(inPost.TagIDs), len(inPost.TagIDs))
 	for i, t := range inPost.TagIDs {
 		tagsSlice[i] = &dbmodels.Tag{TagID: uint(t)}
 	}
-	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice)
+	if ctxUser.Admin {
+		shouldPin = true
+	}
+	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin)
 	if err != nil {
 		return models.Post{}, impart.UnknownError
 	}
@@ -124,7 +158,6 @@ func (s *service) GetPost(ctx context.Context, postID uint64, includeComments bo
 	if err := eg.Wait(); err != nil {
 		return out, impart.NewError(err, "error getting post", impart.PostID)
 	}
-
 	out = models.PostFromDB(dbPost)
 	out.Comments = models.CommentsFromDBModelSlice(comments)
 	out.NextCommentPage = nextCommentPage
@@ -150,10 +183,10 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 		}
 		return postsError
 	})
-
 	eg.Go(func() error {
 		//if we're filtering on tags, or this is a secondary page request, return early.
-		if len(gpi.TagIDs) > 0 || gpi.Offset > 0 {
+		//filtering on tags removed.
+		if gpi.Offset > 0 {
 			return nil
 		}
 		var pinnedError error
@@ -166,6 +199,18 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 			pinnedPost, pinnedError = s.postData.GetPost(ctx, hive.PinnedPostID.Uint64)
 			if pinnedError != nil {
 				s.logger.Error("unable to get pinned post", zap.Error(pinnedError))
+			}
+			if pinnedPost != nil && len(gpi.TagIDs) > 0 {
+				var pinnedPostExist bool
+				pinnedtags := pinnedPost.R.Tags
+				for _, p := range pinnedtags {
+					if uint64(p.TagID) == uint64(gpi.TagIDs[0]) {
+						pinnedPostExist = true
+					}
+				}
+				if !pinnedPostExist {
+					pinnedPost = nil
+				}
 			}
 		}
 		//returns nil so we don't fail the call if the pinned post is no longer present.
@@ -197,7 +242,10 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 	}
 
 	out := models.PostsFromDB(dbPosts)
-
+	out, err = s.postData.GetReportedUser(ctx, out)
+	if err != nil {
+		s.logger.Error("error fetching data", zap.Error(err))
+	}
 	return out, nextPage, nil
 }
 
@@ -223,6 +271,7 @@ func (s *service) DeletePost(ctx context.Context, postID uint64) impart.Error {
 func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error) {
 	var dbReason *string
 	var empty models.PostCommentTrack
+
 	if !remove && reason == "" {
 		return empty, impart.NewError(impart.ErrBadRequest, "must provide a reason for reporting")
 	}
@@ -237,6 +286,8 @@ func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, 
 			return empty, impart.NewError(impart.ErrNoOp, "post is already in the input reported state")
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to report", postId))
+		case impart.ErrUnauthorized:
+			return empty, impart.NewError(err, "It is already reviewed by admin", impart.Report)
 		default:
 			return empty, impart.UnknownError
 		}
@@ -250,4 +301,254 @@ func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, 
 		return empty, impart.UnknownError
 	}
 	return out, nil
+}
+
+func (s *service) ReviewPost(ctx context.Context, postId uint64, comment string, remove bool) (models.Post, impart.Error) {
+	var dbReason *string
+	var empty models.Post
+
+	if comment != "" {
+		dbReason = &comment
+	}
+	err := s.reactionData.ReviewPost(ctx, postId, dbReason, remove)
+	if err != nil {
+		s.logger.Error("couldn't review post", zap.Error(err), zap.Uint64("postId", postId))
+		switch err {
+		case impart.ErrNoOp:
+			return empty, impart.NewError(impart.ErrNoOp, "post is already in the input reviewd state")
+		case impart.ErrNotFound:
+			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to review", postId))
+		default:
+			return empty, impart.UnknownError
+		}
+	}
+	dbPost, err := s.postData.GetPost(ctx, postId)
+	if err != nil {
+		s.logger.Error("couldn't get post information", zap.Error(err))
+		return empty, impart.UnknownError
+	}
+	return models.PostFromDB(dbPost), nil
+}
+
+//  SendPostNotification
+// Send notification when a comment reported
+// Notifying to :
+// 		post owner
+func (s *service) SendPostNotification(input models.PostNotificationInput) impart.Error {
+	dbPost, err := s.postData.GetPost(input.Ctx, input.PostID)
+	if err != nil {
+		return impart.NewError(err, "unable to fetch post for send notification")
+	}
+
+	notificationData := impart.NotificationData{
+		EventDatetime: impart.CurrentUTC(),
+		PostID:        input.PostID,
+	}
+
+	// generate notification context
+	out, err := s.BuildPostNotificationData(input)
+	if err != nil {
+		return impart.NewError(err, "build post notification params")
+	}
+
+	s.logger.Debug("push-notification : sending post notification",
+		zap.Any("data", models.PostNotificationInput{
+			CommentID:  input.CommentID,
+			PostID:     input.PostID,
+			ActionType: input.ActionType,
+			ActionData: input.ActionData,
+		}),
+		zap.Any("notificationData", out),
+	)
+
+	// send to comment owner
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if strings.TrimSpace(dbPost.R.ImpartWealth.ImpartWealthID) != "" {
+			err = s.sendNotification(notificationData, out.Alert, dbPost.R.ImpartWealth.ImpartWealthID)
+			if err != nil {
+				s.logger.Error("push-notification : error attempting to send post notification ", zap.Any("postData", out), zap.Error(err))
+			}
+		}
+	}()
+	wg.Wait()
+
+	return nil
+}
+
+//
+// From here , all the notification action workflow
+//
+func (s *service) BuildPostNotificationData(input models.PostNotificationInput) (models.CommentNotificationBuildDataOutput, error) {
+	var _, postUserIWID string
+	var alert, postOwnerAlert impart.Alert
+	var err error
+
+	ctxUser := impart.GetCtxUser(input.Ctx)
+
+	switch input.ActionType {
+	// in case new post
+	case types.NewPost:
+		// make alert
+		alert = impart.Alert{
+			Title: aws.String("New post"),
+			Body: aws.String(
+				fmt.Sprintf("%s added a post on Your Hive", ctxUser.ScreenName),
+			),
+		}
+	// in case up vote
+	case types.UpVote:
+		// make alert
+		alert = impart.Alert{
+			Title: aws.String("New Post Like"),
+			Body: aws.String(
+				fmt.Sprintf("%s has liked your post", ctxUser.ScreenName),
+			),
+		}
+	// in case down vote
+	case types.NewPostComment:
+		// make alert
+		alert = impart.Alert{
+			Title: aws.String("New Comment"),
+			Body: aws.String(
+				fmt.Sprintf("%s has left a comment on your post", ctxUser.ScreenName),
+			),
+		}
+	default:
+		err = impart.NewError(err, fmt.Sprintf("invalid notify option %s", input.ActionType))
+	}
+
+	return models.CommentNotificationBuildDataOutput{
+		Alert:             alert,
+		PostOwnerAlert:    postOwnerAlert,
+		PostOwnerWealthID: postUserIWID,
+	}, err
+}
+
+func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo models.PostVideo) (models.PostVideo, impart.Error) {
+	ctxUser := impart.GetCtxUser(ctx)
+	if ctxUser.Admin && (postVideo != models.PostVideo{}) {
+		input := &dbmodels.PostVideo{
+			Source:      postVideo.Source,
+			ReferenceID: null.StringFrom(postVideo.ReferenceId),
+			URL:         postVideo.Url,
+			PostID:      postID,
+		}
+		input, err := s.postData.NewPostVideo(ctx, input)
+		if err != nil {
+			s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+			return models.PostVideo{}, nil
+		}
+		postVideo = models.PostVideoFromDB(input)
+		return postVideo, nil
+	}
+	return models.PostVideo{}, nil
+}
+
+func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string) (models.PostUrl, impart.Error) {
+	ctxUser := impart.GetCtxUser(ctx)
+	fmt.Println("the data are", postUrl, ctxUser.Admin)
+	if ctxUser.Admin && (postUrl != "") {
+		ogp, err := opengraph.Fetch(postUrl)
+
+		if err != nil {
+			s.logger.Error("error attempting to fetch URL Data", zap.Any("postURL", postUrl), zap.Error(err))
+			return models.PostUrl{}, nil
+		}
+
+		input := &dbmodels.PostURL{
+			Title:    ogp.Title,
+			ImageUrl: ogp.Image[0].URL,
+			URL:      null.StringFrom(postUrl),
+			PostID:   postID,
+		}
+		inputData, err := s.postData.NewPostUrl(ctx, input)
+		if err != nil {
+			s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+			return models.PostUrl{}, nil
+		}
+		PostedUrl := models.PostUrlFromDB(inputData)
+		return PostedUrl, nil
+	}
+	return models.PostUrl{}, nil
+}
+
+// add post file
+func (s *service) AddPostFiles(ctx context.Context, post *dbmodels.Post, postFiles []models.File) ([]models.File, impart.Error) {
+	var fileResponse []models.File
+	if len(postFiles) > 0 {
+		mediaObject := media.New(media.StorageConfigurations{
+			Storage:   s.MediaStorage.Storage,
+			MediaPath: s.MediaStorage.MediaPath,
+			S3Storage: media.S3Storage{
+				BucketName:   s.MediaStorage.BucketName,
+				BucketRegion: s.MediaStorage.BucketRegion,
+			},
+		})
+		// upload multiple files
+		file, err := mediaObject.UploadMultipleFile(postFiles)
+		if err != nil {
+			s.logger.Error("error attempting to Save post file data ", zap.Any("files", file), zap.Error(err))
+			return file, impart.NewError(err, fmt.Sprintf("error on post files storage %v", err))
+		}
+
+		var postFielRelationMap []*dbmodels.PostFile
+		//upload the files to table
+		for index, f := range file {
+			fileModel := &dbmodels.File{
+				FileName: f.FileName,
+				FileType: f.FileType,
+				URL:      f.URL,
+			}
+			if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
+				s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
+			}
+
+			file[index].FID = int(fileModel.Fid)
+			postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
+				PostID: post.PostID,
+				Fid:    fileModel.Fid,
+			})
+
+			//doesnt return the content,
+			file[index].Content = ""
+			// set reponse
+			fileResponse = file
+		}
+
+		err = post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
+		if err != nil {
+			s.logger.Error("error attempting to map post files ",
+				zap.Any("data", postFielRelationMap),
+				zap.Any("err", err),
+				zap.Error(err),
+			)
+		}
+
+	}
+	return fileResponse, nil
+}
+
+//validate / replace file name
+// remove spaces,special characters,scripts..etc
+func (s *service) ValidatePostFilesName(ctx context.Context, ctxUser *dbmodels.User, postFiles []models.File) []models.File {
+	basePath := fmt.Sprintf("%s/%s/", "post", ctxUser.ScreenName)
+	pattern := `[^\[0-9A-Za-z_.-]`
+	for index := range postFiles {
+		filename := fmt.Sprintf("%d_%s_%s",
+			time.Now().Unix(),
+			ctxUser.ScreenName,
+			postFiles[index].FileName,
+		)
+
+		// var extension = filepath.Ext(postFiles[index].FileName)
+		re, _ := regexp.Compile(pattern)
+		filename = re.ReplaceAllString(filename, "")
+
+		postFiles[index].FilePath = basePath
+		postFiles[index].FileName = filename
+	}
+	return postFiles
 }

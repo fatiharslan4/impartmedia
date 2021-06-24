@@ -4,9 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/google/uuid"
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
@@ -53,6 +57,8 @@ func (m *mysqlStore) getUser(ctx context.Context, impartID, authID, email, scree
 		clause,
 		Load(dbmodels.UserRels.ImpartWealthProfile),
 		Load(dbmodels.UserRels.MemberHiveHives),
+		Load(dbmodels.UserRels.ImpartWealthUserDevices),
+		Load(dbmodels.UserRels.ImpartWealthUserConfigurations),
 	}
 
 	u, err := dbmodels.Users(usersWhere...).One(ctx, m.db)
@@ -132,7 +138,7 @@ func (m *mysqlStore) UpdateProfile(ctx context.Context, user *dbmodels.User, pro
 	return tx.Commit()
 }
 
-func (m *mysqlStore) DeleteProfile(ctx context.Context, impartWealthID string) error {
+func (m *mysqlStore) DeleteProfile(ctx context.Context, impartWealthID string, hardDelete bool) error {
 	u, err := dbmodels.FindUser(ctx, m.db, impartWealthID)
 	if err == sql.ErrNoRows || u == nil {
 		return impart.ErrNotFound
@@ -140,7 +146,7 @@ func (m *mysqlStore) DeleteProfile(ctx context.Context, impartWealthID string) e
 	if err != nil {
 		return err
 	}
-	_, err = u.Delete(ctx, m.db, false)
+	_, err = u.Delete(ctx, m.db, hardDelete)
 	return err
 }
 
@@ -248,4 +254,231 @@ func (m *mysqlStore) GetUserQuestionnaires(ctx context.Context, impartWealthId s
 	}
 
 	return out, nil
+}
+
+//  GetUserDevice : Get the user device
+func (m *mysqlStore) GetUserDevice(ctx context.Context, token string, impartID string, deviceToken string) (*dbmodels.UserDevice, error) {
+	where := []QueryMod{}
+	if impartID != "" {
+		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.ImpartWealthID), impartID))
+	}
+	if token != "" {
+		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.Token), token))
+	}
+	if deviceToken != "" {
+		if deviceToken == "__NILL__" {
+			where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceToken), ""))
+		} else {
+			where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceToken), deviceToken))
+		}
+	}
+
+	where = append(where, Load(dbmodels.UserDeviceRels.ImpartWealth))
+
+	device, err := dbmodels.UserDevices(where...).One(ctx, m.db)
+	if err == sql.ErrNoRows {
+		return nil, impart.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return device, err
+}
+
+// CreateUserDevice
+func (m *mysqlStore) CreateUserDevice(ctx context.Context, device *dbmodels.UserDevice) (*dbmodels.UserDevice, error) {
+	if device == nil {
+		m.logger.Error("device is nil")
+		return nil, impart.ErrBadRequest
+	}
+	uuid := uuid.New()
+	device.Token = uuid.String()
+
+	err := device.Insert(ctx, m.db, boil.Infer())
+	if err != nil {
+		return nil, err
+	}
+	return m.GetUserDevice(ctx, device.Token, "", "")
+}
+
+// AddUserConfigurations
+func (m *mysqlStore) CreateUserConfigurations(ctx context.Context, conf *dbmodels.UserConfiguration) (*dbmodels.UserConfiguration, error) {
+	if conf.ImpartWealthID == "" {
+		m.logger.Error("impartWealthID is nil")
+		return nil, impart.ErrBadRequest
+	}
+	err := conf.Insert(ctx, m.db, boil.Infer())
+	if err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+// Edit User Configurations
+func (m *mysqlStore) EditUserConfigurations(ctx context.Context, conf *dbmodels.UserConfiguration) (*dbmodels.UserConfiguration, error) {
+	if conf.ImpartWealthID == "" {
+		m.logger.Error("impartWealthID is nil")
+		return nil, impart.ErrBadRequest
+	}
+	if _, err := conf.Update(ctx, m.db, boil.Infer()); err != nil {
+		return nil, err
+	}
+	return conf, conf.Reload(ctx, m.db)
+}
+
+// GetUserConfigurations
+func (m *mysqlStore) GetUserConfigurations(ctx context.Context, impartWealthID string) (*dbmodels.UserConfiguration, error) {
+	if impartWealthID == "" {
+		m.logger.Error("impartWealthID is nil")
+		return nil, impart.ErrBadRequest
+	}
+	where := []QueryMod{
+		Where(fmt.Sprintf("%s = ?", dbmodels.UserConfigurationColumns.ImpartWealthID), impartWealthID),
+		Load(dbmodels.UserConfigurationRels.ImpartWealth),
+	}
+
+	configurations, err := dbmodels.UserConfigurations(where...).One(ctx, m.db)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	return configurations, nil
+}
+
+// GetUserNotificationMappData
+func (m *mysqlStore) GetUserNotificationMappData(input models.MapArgumentInput) (*dbmodels.NotificationDeviceMapping, error) {
+	where := []QueryMod{}
+	if input.ImpartWealthID != "" {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.EQ(input.ImpartWealthID))
+	}
+	if input.DeviceToken != "" {
+		// where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.DeviceToken))
+	}
+	if input.DeviceToken != "" {
+		where = append(where, qm.InnerJoin("user_devices ON user_devices.token = notification_device_mapping.user_device_id"))
+		where = append(where, qm.Where("user_devices.device_token=?", input.DeviceToken))
+	}
+
+	mapData, err := dbmodels.NotificationDeviceMappings(where...).One(input.Ctx, m.db)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	return mapData, nil
+}
+
+//  DeleteUserNotificationMappData
+//  Delete the user notification map details
+func (m *mysqlStore) DeleteUserNotificationMappData(input models.MapArgumentInput) error {
+	where := []QueryMod{}
+	if input.ImpartWealthID != "" {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.EQ(input.ImpartWealthID))
+	}
+	if input.DeviceToken != "" {
+		// where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.DeviceToken))
+	}
+	if input.DeviceToken != "" {
+		where = append(where, qm.Where("user_device_id IN (select token from user_devices where device_token = ?)", input.DeviceToken))
+	}
+
+	_, err := dbmodels.NotificationDeviceMappings(where...).DeleteAll(input.Ctx, m.db)
+	if err != nil {
+		return err
+	}
+	if err == sql.ErrNoRows {
+		return impart.ErrNotFound
+	}
+
+	return nil
+}
+
+// DeleteUserNotificationMappData
+// Delete the user notification map details
+func (m *mysqlStore) UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) error {
+	where := []QueryMod{}
+	// where impart id provided and negate is false
+	if input.ImpartWealthID != "" && !input.Negate {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.EQ(input.ImpartWealthID))
+	}
+	// where impart id provided and required negate
+	if input.ImpartWealthID != "" && input.Negate {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.ImpartWealthID.NEQ(input.ImpartWealthID))
+	}
+	if input.Token != "" {
+		where = append(where, dbmodels.NotificationDeviceMappingWhere.UserDeviceID.EQ(input.Token))
+	}
+	if input.DeviceToken != "" {
+		where = append(where, qm.Where("user_device_id IN (select token from user_devices where device_token = ?)", input.DeviceToken))
+	}
+	if input.DeviceID != "" {
+		where = append(where, qm.Where("user_device_id IN (select token from user_devices where device_id = ?)", input.DeviceID))
+	}
+	_, err := dbmodels.NotificationDeviceMappings(where...).UpdateAll(input.Ctx, m.db, dbmodels.M{
+		"notify_status": notifyStatus,
+	})
+	if err != nil {
+		return err
+	}
+	if err == sql.ErrNoRows {
+		return impart.ErrNotFound
+	}
+
+	return nil
+}
+
+// CreateUserNotificationMappData
+// create user notificatoin map data
+func (m *mysqlStore) CreateUserNotificationMappData(ctx context.Context, data *dbmodels.NotificationDeviceMapping) (*dbmodels.NotificationDeviceMapping, error) {
+	if data == nil {
+		m.logger.Error("maping data is nil")
+		return nil, impart.ErrBadRequest
+	}
+
+	err := data.Insert(ctx, m.db, boil.Infer())
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+// Block a user
+func (m *mysqlStore) BlockUser(ctx context.Context, user *dbmodels.User, status bool) error {
+	// set the blocked status
+	user.Blocked = status
+	_, err := user.Update(ctx, m.db, boil.Infer())
+	if err != nil {
+		m.logger.Error("unable to block user", zap.Any("error", err))
+		return fmt.Errorf("unable to block")
+	}
+	return nil
+}
+
+func (m *mysqlStore) UpdateDeviceToken(ctx context.Context, device *dbmodels.UserDevice, deviceToken string) error {
+	device.DeviceToken = deviceToken
+	_, err := device.Update(ctx, m.db, boil.Infer())
+	if err != nil {
+		m.logger.Error("unable to update device token user", zap.Any("error", err))
+		return fmt.Errorf("unable to update device token")
+	}
+	return nil
+}
+func (m *mysqlStore) UpdateDevice(ctx context.Context, device *dbmodels.UserDevice) error {
+	_, err := device.Update(ctx, m.db, boil.Infer())
+	if err != nil {
+		m.logger.Error("unable to update device", zap.Any("error", err))
+		return fmt.Errorf("unable to update")
+	}
+	return nil
+}
+
+func (m *mysqlStore) DeleteExceptUserDevice(ctx context.Context, impartID string, deviceToken string, refToken string) error {
+	// Delete a slice of pilots from the database
+	_, err := dbmodels.UserDevices(
+		dbmodels.UserDeviceWhere.ImpartWealthID.EQ(impartID),
+		dbmodels.UserDeviceWhere.DeviceToken.EQ(deviceToken),
+		dbmodels.UserDeviceWhere.Token.NEQ(refToken)).DeleteAll(ctx, m.db, true)
+
+	if err != nil {
+		return fmt.Errorf("error occured during delete non wanted devices %v", err)
+	}
+
+	return nil
 }

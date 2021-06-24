@@ -172,18 +172,18 @@ func (s *service) ReportComment(ctx context.Context, commentID uint64, reason st
 		}
 	}
 
-	//send comment report notification
-	err = s.SendCommentNotification(models.CommentNotificationInput{
-		Ctx:             ctx,
-		CommentID:       commentID,
-		ActionType:      types.Report,
-		ActionData:      reason,
-		NotifyPostOwner: true,
-	})
+	// //send comment report notification
+	// err = s.SendCommentNotification(models.CommentNotificationInput{
+	// 	Ctx:             ctx,
+	// 	CommentID:       commentID,
+	// 	ActionType:      types.Report,
+	// 	ActionData:      reason,
+	// 	NotifyPostOwner: true,
+	// })
 
-	if err != nil {
-		s.logger.Error("error happened on notify reaction", zap.Error(err))
-	}
+	// if err != nil {
+	// 	s.logger.Error("error happened on notify reaction", zap.Error(err))
+	// }
 	out, err := s.reactionData.GetUserTrack(ctx, data.ContentInput{
 		Type: data.Comment,
 		Id:   commentID,
@@ -248,9 +248,6 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 
 	// generate notification context
 	out, err := s.BuildCommentNotificationData(input)
-	if err != nil {
-		return impart.NewError(err, "build comment notification params")
-	}
 	s.logger.Debug("push-notification : sending comment notification",
 		zap.Any("data", models.PostNotificationInput{
 			CommentID:  input.CommentID,
@@ -260,6 +257,14 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 		}),
 		zap.Any("notificationData", out),
 	)
+	//if not data found for report
+	if (out.Alert == impart.Alert{}) {
+		return nil
+	}
+	if err != nil && err != impart.ErrNotImplemented {
+		return impart.NewError(err, "build comment notification params")
+	}
+
 	var count int
 	count = 1
 	if input.NotifyPostOwner {
@@ -318,7 +323,7 @@ func (s *service) BuildCommentNotificationData(input models.CommentNotificationI
 
 	switch input.ActionType {
 	//in case of report, dislike,take like dislike
-	case types.Report, types.DownVote, types.TakeDownVote, types.TakeUpVote:
+	// case types.Report, types.DownVote, types.TakeDownVote, types.TakeUpVote:
 	// in case up vote
 	case types.UpVote:
 		// make alert
@@ -356,7 +361,7 @@ func (s *service) BuildCommentNotificationData(input models.CommentNotificationI
 			}
 		}
 	default:
-		err = impart.NewError(err, fmt.Sprintf("invalid notify option %s", input.ActionType))
+		err = impart.NewError(impart.ErrNotImplemented, fmt.Sprintf("invalid notify option %v", input.ActionType))
 	}
 
 	return models.CommentNotificationBuildDataOutput{

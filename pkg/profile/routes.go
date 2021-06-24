@@ -472,7 +472,7 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 
 		if refToken == "" {
 			ph.logger.Error("unable to find device token to update notification", zap.Error(err))
-			err := impart.NewError(impart.ErrBadRequest, "unable to find device token")
+			err := impart.NewError(impart.ErrBadRequest, "unable to find device identity token")
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}

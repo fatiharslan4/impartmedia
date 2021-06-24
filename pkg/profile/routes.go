@@ -608,19 +608,23 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
 			return
 		}
-
-		//unsubscribe device from the topic
-		endpointARN, err := ph.noticationService.GetEndPointArn(ctx, deviceToken, "")
-		hiveData, err := ph.profileService.GetHive(ctx, uint64(2))
-		if err != nil {
-			err := impart.NewError(impart.ErrBadRequest, "unable to read hive data")
-			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
-			return
-		}
-		ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
+		//deviceDetails, devErr := ph.profileService.GetUserDevice(ctx, refToken, "", "")
+		// deviceDetails, devErr := ph.profileData.GetUserDevice(ctx, deviceToken, context.ImpartWealthID, "")
+		// //unsubscribe device from the topic
+		// // deviceDetails.R.
+		// fmt.Println("the r is ", deviceDetails.R.NotificationDeviceMappings, devErr)
+		// endpointARN, err := ph.noticationService.GetEndPointArn(ctx, deviceToken, "")
+		// fmt.Println("the enpoint arn is", endpointARN)
+		// hiveData, err := ph.profileService.GetHive(ctx, uint64(2))
+		// if err != nil {
+		// 	err := impart.NewError(impart.ErrBadRequest, "unable to read hive data")
+		// 	ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
+		// 	return
+		// }
+		// ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
 
 		// update the notificaton status for device this user
-		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+		err := ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
 			Ctx:            ctx,
 			ImpartWealthID: context.ImpartWealthID,
 			Token:          deviceToken,

@@ -471,7 +471,6 @@ func (ns *snsAppleNotificationService) UnsubscribeTopic(ctx context.Context, imp
 func (ns *snsAppleNotificationService) UnsubscribeTopicForDevice(ctx context.Context, impartWealthID, topicARN, platformEndpointARN string) (err error) {
 	currentSubscriptions, err := dbmodels.NotificationSubscriptions(
 		dbmodels.NotificationSubscriptionWhere.PlatformEndpointArn.EQ(platformEndpointARN)).All(ctx, ns.db)
-	fmt.Println("the data is", currentSubscriptions)
 	if err != nil {
 		return err
 	}

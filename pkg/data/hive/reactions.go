@@ -393,9 +393,11 @@ func (d *mysqlHiveData) ReportPost(ctx context.Context, postId uint64, reason *s
 	}
 
 	// if the post is reviewd, then user is not able to report
-	if post.Reviewed {
-		return impart.ErrUnauthorized
-	}
+	// as per new workflow, no need to block reviewed when report
+
+	// if post.Reviewed {
+	// 	return impart.ErrUnauthorized
+	// }
 
 	if pr.Reported {
 		pr.ReportedReason = null.StringFromPtr(reason)
@@ -404,6 +406,11 @@ func (d *mysqlHiveData) ReportPost(ctx context.Context, postId uint64, reason *s
 			// if this post has never been reviewed, mark it as obfuscated
 			post.Obfuscated = true
 		}
+
+		//when reported, then disable reviewedStatus and reviewComment
+		post.ReviewComment = null.String{}
+		post.Reviewed = false
+
 	} else {
 		//we're removing a report
 		post.ReportedCount--
@@ -443,10 +450,14 @@ func (d *mysqlHiveData) ReportComment(ctx context.Context, commentId uint64, rea
 	if err != nil {
 		return err
 	}
+
 	// if the comment is reviewd, then user is not able to report
-	if comment.Reviewed {
-		return impart.ErrUnauthorized
-	}
+	// with new workflow, reviewed comment can be report again
+
+	// if comment.Reviewed {
+	// 	return impart.ErrUnauthorized
+	// }
+
 	//lock the record, regardless of whether it exists or not.
 	if cr, err = dbmodels.CommentReactions(dbmodels.CommentReactionWhere.CommentID.EQ(commentId),
 		dbmodels.CommentReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID),
@@ -489,6 +500,10 @@ func (d *mysqlHiveData) ReportComment(ctx context.Context, commentId uint64, rea
 			// if this comment has never been reviewed, mark it as obfuscated
 			comment.Obfuscated = true
 		}
+
+		//when reported, then disable reviewedStatus and reviewComment
+		comment.ReviewComment = null.String{}
+		comment.Reviewed = false
 	} else {
 		//we're removing a report
 		comment.ReportedCount--

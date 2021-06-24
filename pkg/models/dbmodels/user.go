@@ -143,7 +143,6 @@ var UserRels = struct {
 	AdminHiveHives                         string
 	MemberHiveHives                        string
 	ImpartWealthNotificationDeviceMappings string
-	ImpartWealthNotificationSubscriptions  string
 	ImpartWealthPosts                      string
 	ImpartWealthPostEdits                  string
 	ImpartWealthPostReactions              string
@@ -158,7 +157,6 @@ var UserRels = struct {
 	AdminHiveHives:                         "AdminHiveHives",
 	MemberHiveHives:                        "MemberHiveHives",
 	ImpartWealthNotificationDeviceMappings: "ImpartWealthNotificationDeviceMappings",
-	ImpartWealthNotificationSubscriptions:  "ImpartWealthNotificationSubscriptions",
 	ImpartWealthPosts:                      "ImpartWealthPosts",
 	ImpartWealthPostEdits:                  "ImpartWealthPostEdits",
 	ImpartWealthPostReactions:              "ImpartWealthPostReactions",
@@ -176,7 +174,6 @@ type userR struct {
 	AdminHiveHives                         HiveSlice                      `boil:"AdminHiveHives" json:"AdminHiveHives" toml:"AdminHiveHives" yaml:"AdminHiveHives"`
 	MemberHiveHives                        HiveSlice                      `boil:"MemberHiveHives" json:"MemberHiveHives" toml:"MemberHiveHives" yaml:"MemberHiveHives"`
 	ImpartWealthNotificationDeviceMappings NotificationDeviceMappingSlice `boil:"ImpartWealthNotificationDeviceMappings" json:"ImpartWealthNotificationDeviceMappings" toml:"ImpartWealthNotificationDeviceMappings" yaml:"ImpartWealthNotificationDeviceMappings"`
-	ImpartWealthNotificationSubscriptions  NotificationSubscriptionSlice  `boil:"ImpartWealthNotificationSubscriptions" json:"ImpartWealthNotificationSubscriptions" toml:"ImpartWealthNotificationSubscriptions" yaml:"ImpartWealthNotificationSubscriptions"`
 	ImpartWealthPosts                      PostSlice                      `boil:"ImpartWealthPosts" json:"ImpartWealthPosts" toml:"ImpartWealthPosts" yaml:"ImpartWealthPosts"`
 	ImpartWealthPostEdits                  PostEditSlice                  `boil:"ImpartWealthPostEdits" json:"ImpartWealthPostEdits" toml:"ImpartWealthPostEdits" yaml:"ImpartWealthPostEdits"`
 	ImpartWealthPostReactions              PostReactionSlice              `boil:"ImpartWealthPostReactions" json:"ImpartWealthPostReactions" toml:"ImpartWealthPostReactions" yaml:"ImpartWealthPostReactions"`
@@ -615,27 +612,6 @@ func (o *User) ImpartWealthNotificationDeviceMappings(mods ...qm.QueryMod) notif
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"`notification_device_mapping`.*"})
-	}
-
-	return query
-}
-
-// ImpartWealthNotificationSubscriptions retrieves all the notification_subscription's NotificationSubscriptions with an executor via impart_wealth_id column.
-func (o *User) ImpartWealthNotificationSubscriptions(mods ...qm.QueryMod) notificationSubscriptionQuery {
-	var queryMods []qm.QueryMod
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("`notification_subscriptions`.`impart_wealth_id`=?", o.ImpartWealthID),
-	)
-
-	query := NotificationSubscriptions(queryMods...)
-	queries.SetFrom(query.Query, "`notification_subscriptions`")
-
-	if len(queries.GetSelect(query.Query)) == 0 {
-		queries.SetSelect(query.Query, []string{"`notification_subscriptions`.*"})
 	}
 
 	return query
@@ -1488,104 +1464,6 @@ func (userL) LoadImpartWealthNotificationDeviceMappings(ctx context.Context, e b
 				local.R.ImpartWealthNotificationDeviceMappings = append(local.R.ImpartWealthNotificationDeviceMappings, foreign)
 				if foreign.R == nil {
 					foreign.R = &notificationDeviceMappingR{}
-				}
-				foreign.R.ImpartWealth = local
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// LoadImpartWealthNotificationSubscriptions allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for a 1-M or N-M relationship.
-func (userL) LoadImpartWealthNotificationSubscriptions(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUser interface{}, mods queries.Applicator) error {
-	var slice []*User
-	var object *User
-
-	if singular {
-		object = maybeUser.(*User)
-	} else {
-		slice = *maybeUser.(*[]*User)
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &userR{}
-		}
-		args = append(args, object.ImpartWealthID)
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &userR{}
-			}
-
-			for _, a := range args {
-				if a == obj.ImpartWealthID {
-					continue Outer
-				}
-			}
-
-			args = append(args, obj.ImpartWealthID)
-		}
-	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(
-		qm.From(`notification_subscriptions`),
-		qm.WhereIn(`notification_subscriptions.impart_wealth_id in ?`, args...),
-	)
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.QueryContext(ctx, e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load notification_subscriptions")
-	}
-
-	var resultSlice []*NotificationSubscription
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice notification_subscriptions")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results in eager load on notification_subscriptions")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for notification_subscriptions")
-	}
-
-	if len(notificationSubscriptionAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
-				return err
-			}
-		}
-	}
-	if singular {
-		object.R.ImpartWealthNotificationSubscriptions = resultSlice
-		for _, foreign := range resultSlice {
-			if foreign.R == nil {
-				foreign.R = &notificationSubscriptionR{}
-			}
-			foreign.R.ImpartWealth = object
-		}
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.ImpartWealthID == foreign.ImpartWealthID {
-				local.R.ImpartWealthNotificationSubscriptions = append(local.R.ImpartWealthNotificationSubscriptions, foreign)
-				if foreign.R == nil {
-					foreign.R = &notificationSubscriptionR{}
 				}
 				foreign.R.ImpartWealth = local
 				break
@@ -2731,59 +2609,6 @@ func (o *User) AddImpartWealthNotificationDeviceMappings(ctx context.Context, ex
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &notificationDeviceMappingR{
-				ImpartWealth: o,
-			}
-		} else {
-			rel.R.ImpartWealth = o
-		}
-	}
-	return nil
-}
-
-// AddImpartWealthNotificationSubscriptions adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.ImpartWealthNotificationSubscriptions.
-// Sets related.R.ImpartWealth appropriately.
-func (o *User) AddImpartWealthNotificationSubscriptions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*NotificationSubscription) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.ImpartWealthID = o.ImpartWealthID
-			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE `notification_subscriptions` SET %s WHERE %s",
-				strmangle.SetParamNames("`", "`", 0, []string{"impart_wealth_id"}),
-				strmangle.WhereClause("`", "`", 0, notificationSubscriptionPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ImpartWealthID, rel.ImpartWealthID, rel.TopicArn}
-
-			if boil.IsDebug(ctx) {
-				writer := boil.DebugWriterFrom(ctx)
-				fmt.Fprintln(writer, updateQuery)
-				fmt.Fprintln(writer, values)
-			}
-			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.ImpartWealthID = o.ImpartWealthID
-		}
-	}
-
-	if o.R == nil {
-		o.R = &userR{
-			ImpartWealthNotificationSubscriptions: related,
-		}
-	} else {
-		o.R.ImpartWealthNotificationSubscriptions = append(o.R.ImpartWealthNotificationSubscriptions, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &notificationSubscriptionR{
 				ImpartWealth: o,
 			}
 		} else {

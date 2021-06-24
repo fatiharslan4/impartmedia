@@ -29,14 +29,16 @@ type profileHandler struct {
 	profileService       Service
 	questionnaireService QuestionnaireService
 	logger               *zap.Logger
+	noticationService    impart.NotificationService
 }
 
 func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
-	profileService Service, logger *zap.Logger) {
+	profileService Service, logger *zap.Logger, noticationService impart.NotificationService) {
 	handler := profileHandler{
-		profileData:    profileData,
-		profileService: profileService,
-		logger:         logger,
+		profileData:       profileData,
+		profileService:    profileService,
+		logger:            logger,
+		noticationService: noticationService,
 	}
 
 	profileRoutes := version.Group("/profiles")
@@ -476,7 +478,12 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
-
+		hiveData, err := ph.profileService.GetHive(ctx, uint64(2))
+		if err != nil {
+			err := impart.NewError(impart.ErrBadRequest, "unable to read hive data")
+			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
+			return
+		}
 		// if the user is requested for enable notification
 		if conf.Status {
 			// empty device token is not allowed here
@@ -531,12 +538,30 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 				ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 				return
 			}
+
+			///subsribe for the topic
+			//ph.profileService.
+			endpointARN, err := ph.noticationService.GetEndPointArn(ctx, deviceDetails.DeviceToken, "")
+			if err != nil {
+				ph.logger.Error("Error while get enpoint arn", zap.Error(err))
+				return
+			}
+			// deviceDetails, devErr := ph.profileData.GetUserDevice(ctx, deviceDetails.DeviceToken, context.ImpartWealthID, "")
+			// if devErr != nil {
+			// 	ph.logger.Error("Error while get deviceDetails", zap.Error(devErr))
+			// 	return
+			// }
+			// deviceArn := deviceDetails.R.NotificationDeviceMappings[0].NotifyArn
+			ph.noticationService.SubscribeTopic(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
+
 		}
 
 		// if the status is for disable,
 		// then deactivate all the devices of this user
 		if !conf.Status {
 			refToken = ""
+			//unsubscribe device from the topic
+			ph.noticationService.UnsubscribeTopicForAllDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String)
 		}
 		// update the notificaton status for device this user
 		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
@@ -575,7 +600,6 @@ func (ph *profileHandler) GetConfiguration() gin.HandlerFunc {
 	}
 }
 
-//
 //  User Logout
 //
 //  Once the user is logout,
@@ -590,14 +614,28 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
 			return
 		}
+		// un subsribe from topic on logout
+		deviceDetails, devErr := ph.profileData.GetUserDevice(ctx, deviceToken, context.ImpartWealthID, "")
+		if devErr != nil {
+			ph.logger.Error("Error while get deviceDetails", zap.Error(devErr))
+			return
+		}
+		deviceArn := deviceDetails.R.NotificationDeviceMappings[0].NotifyArn
+		hiveData, err := ph.profileService.GetHive(ctx, uint64(2))
+		if err != nil {
+			ph.logger.Error("Error while get hiveData", zap.Error(err))
+			return
+		}
+		ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, deviceArn)
+
 		// update the notificaton status for device this user
-		err := ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
 			Ctx:            ctx,
 			ImpartWealthID: context.ImpartWealthID,
 			Token:          deviceToken,
 		}, false)
 		if err != nil {
-			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
 			return
 		}
 

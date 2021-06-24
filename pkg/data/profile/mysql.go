@@ -274,6 +274,7 @@ func (m *mysqlStore) GetUserDevice(ctx context.Context, token string, impartID s
 	}
 
 	where = append(where, Load(dbmodels.UserDeviceRels.ImpartWealth))
+	where = append(where, Load(dbmodels.UserDeviceRels.NotificationDeviceMappings))
 
 	device, err := dbmodels.UserDevices(where...).One(ctx, m.db)
 	if err == sql.ErrNoRows {

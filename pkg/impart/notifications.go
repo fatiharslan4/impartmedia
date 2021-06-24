@@ -31,6 +31,7 @@ type NotificationService interface {
 	UnsubscribeTopic(ctx context.Context, impartWealthID string, subscriptionARN string) (err error)
 	UnsubscribeAll(ctx context.Context, impartWealthID string) error
 	UnsubscribeTopicForDevice(ctx context.Context, impartWealthID, topicARN, platformEndpointARN string) error
+	UnsubscribeTopicForAllDevice(ctx context.Context, impartWealthID, topicARN string) (err error)
 
 	// SyncTokenEndpoint is meant to be called when a profiles deviceToken has been updated - this will ensure that the platformApplication
 	// has the right device token, and the endpoint is enabled.
@@ -80,6 +81,10 @@ func (n noopNotificationService) UnsubscribeTopicForDevice(ctx context.Context, 
 
 func (n noopNotificationService) GetEndPointArn(ctx context.Context, deviceToken, platformEndpointARN string) (string, error) {
 	return "", nil
+}
+
+func (n noopNotificationService) UnsubscribeTopicForAllDevice(ctx context.Context, impartWealthID, topicARN string) (err error) {
+	return nil
 }
 
 func NewNoopNotificationService() NotificationService {
@@ -485,6 +490,30 @@ func (ns *snsAppleNotificationService) UnsubscribeTopicForDevice(ctx context.Con
 	ns.Logger.Error("error attempting to unsubscribe",
 		zap.Error(err),
 		zap.String("platformEndpointARN", platformEndpointARN))
+	return nil
+}
+
+func (ns *snsAppleNotificationService) UnsubscribeTopicForAllDevice(ctx context.Context, impartWealthID, topicARN string) (err error) {
+	currentSubscriptions, err := dbmodels.NotificationSubscriptions(
+		dbmodels.NotificationSubscriptionWhere.ImpartWealthID.EQ(impartWealthID)).All(ctx, ns.db)
+	if err != nil {
+		return err
+	}
+	for _, sub := range currentSubscriptions {
+		if _, err = ns.Unsubscribe(&sns.UnsubscribeInput{
+			SubscriptionArn: aws.String(sub.SubscriptionArn),
+		}); err != nil {
+			ns.Logger.Error("error attempting to unsubscribe from topic",
+				zap.Error(err),
+				zap.String("SubscriptionARN", sub.SubscriptionArn))
+		}
+	}
+	_, err = dbmodels.NotificationSubscriptions(
+		dbmodels.NotificationSubscriptionWhere.ImpartWealthID.EQ(impartWealthID)).DeleteAll(ctx, ns.db)
+
+	ns.Logger.Error("error attempting to unsubscribe",
+		zap.Error(err),
+		zap.String("Impart wealth Id", impartWealthID))
 	return nil
 }
 

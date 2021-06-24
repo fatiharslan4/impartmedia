@@ -162,7 +162,7 @@ func (s *service) ReportComment(ctx context.Context, commentID uint64, reason st
 		s.logger.Error("couldn't report comment", zap.Error(err), zap.Uint64("commentId", commentID))
 		switch err {
 		case impart.ErrNoOp:
-			return empty, impart.NewError(impart.ErrNoOp, "you have already reported this comment", impart.Report)
+			return empty, impart.NewError(impart.ErrNoOp, "You have already reported this comment", impart.Report)
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find comment %v to report", commentID), impart.Report)
 		case impart.ErrUnauthorized:

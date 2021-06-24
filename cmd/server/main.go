@@ -171,7 +171,7 @@ func main() {
 	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
 
 	hive.SetupRoutes(v1, db, services.HiveData, services.Hive, logger)
-	profile.SetupRoutes(v1, services.ProfileData, services.Profile, logger)
+	profile.SetupRoutes(v1, services.ProfileData, services.Profile, logger, services.Notifications)
 
 	server := cfg.GetHttpServer()
 	server.Handler = r

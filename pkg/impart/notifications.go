@@ -256,7 +256,10 @@ func (ns *snsAppleNotificationService) Notify(ctx context.Context, data Notifica
 
 		_, err := ns.NotifyAppleDevice(ctx, data, alert, userDevice.DeviceToken, u.NotifyArn)
 		if err != nil {
-			ns.Logger.Error("push-notification : unable to notify to the device", zap.Any("device", userDevice))
+			ns.Logger.Error("push-notification : unable to notify to the device",
+				zap.Any("device", userDevice),
+				zap.Any("error", err),
+			)
 			continue
 		}
 

@@ -7,7 +7,7 @@
 			"properties": {
 				"screenName": {
 					"maxLength": 15,
-					"minLength": 4,
+					"minLength": 8,
 					"type": "string"
 				}
 			},

@@ -283,7 +283,7 @@ func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, 
 		s.logger.Error("couldn't report post", zap.Error(err), zap.Uint64("postId", postId))
 		switch err {
 		case impart.ErrNoOp:
-			return empty, impart.NewError(impart.ErrNoOp, "post is already in the input reported state")
+			return empty, impart.NewError(impart.ErrNoOp, "you have already reported this Post")
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to report", postId))
 		case impart.ErrUnauthorized:

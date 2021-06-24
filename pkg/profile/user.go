@@ -151,7 +151,7 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 	if notifyStatus {
 		ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
 	} else {
-		//ps.notificationService.UnsubscribeAll(ctx, ud.ImpartWealthID)
+		ps.notificationService.UnsubscribeTopicForDevice(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
 	}
 
 	//there is no mapp entry exists , insert new entry

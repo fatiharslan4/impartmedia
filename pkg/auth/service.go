@@ -18,7 +18,7 @@ import (
 const ImpartAPIKeyHeaderName = "x-api-key"
 const AuthorizationHeader = "Authorization"
 const AuthorizationHeaderBearerType = "Bearer"
-const DeviceAuthorizationHeader = "x-device-token"
+const DeviceAuthorizationHeader = "x-device-identity"
 
 type Service interface {
 	RequestAuthorizationHandler() gin.HandlerFunc

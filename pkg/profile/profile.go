@@ -258,9 +258,6 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	dbUser.UpdatedAt = impart.CurrentUTC()
 	dbProfile.UpdatedAt = impart.CurrentUTC()
 
-	// hide this when new notify workflow ok : begin
-	// can removed after complete QA test
-	// endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, p.DeviceToken, "")
 	// if err != nil {
 	// 	ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
 	// }
@@ -326,6 +323,14 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
 				ps.Logger().Error(impartErr.Error())
 			}
+
+			//subscribe for topic
+			endpointARN, err := ps.notificationService.GetEndPointArn(ctx, p.DeviceToken, "")
+			hiveData, err := ps.GetHive(ctx, uint64(2))
+			if err != nil {
+				return empty, impart.NewError(impart.ErrBadRequest, "unable to read user configurations")
+			}
+			ps.notificationService.SubscribeTopic(ctx, p.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
 		}
 	}
 	return *out, nil

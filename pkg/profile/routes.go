@@ -546,6 +546,12 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 				ph.logger.Error("Error while get enpoint arn", zap.Error(err))
 				return
 			}
+			// deviceDetails, devErr := ph.profileData.GetUserDevice(ctx, deviceDetails.DeviceToken, context.ImpartWealthID, "")
+			// if devErr != nil {
+			// 	ph.logger.Error("Error while get deviceDetails", zap.Error(devErr))
+			// 	return
+			// }
+			// deviceArn := deviceDetails.R.NotificationDeviceMappings[0].NotifyArn
 			ph.noticationService.SubscribeTopic(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
 
 		}
@@ -608,23 +614,22 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
 			return
 		}
-		//deviceDetails, devErr := ph.profileService.GetUserDevice(ctx, refToken, "", "")
-		// deviceDetails, devErr := ph.profileData.GetUserDevice(ctx, deviceToken, context.ImpartWealthID, "")
-		// //unsubscribe device from the topic
-		// // deviceDetails.R.
-		// fmt.Println("the r is ", deviceDetails.R.NotificationDeviceMappings, devErr)
-		// endpointARN, err := ph.noticationService.GetEndPointArn(ctx, deviceToken, "")
-		// fmt.Println("the enpoint arn is", endpointARN)
-		// hiveData, err := ph.profileService.GetHive(ctx, uint64(2))
-		// if err != nil {
-		// 	err := impart.NewError(impart.ErrBadRequest, "unable to read hive data")
-		// 	ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
-		// 	return
-		// }
-		// ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
+		// un subsribe from topic on logout
+		deviceDetails, devErr := ph.profileData.GetUserDevice(ctx, deviceToken, context.ImpartWealthID, "")
+		if devErr != nil {
+			ph.logger.Error("Error while get deviceDetails", zap.Error(devErr))
+			return
+		}
+		deviceArn := deviceDetails.R.NotificationDeviceMappings[0].NotifyArn
+		hiveData, err := ph.profileService.GetHive(ctx, uint64(2))
+		if err != nil {
+			ph.logger.Error("Error while get hiveData", zap.Error(err))
+			return
+		}
+		ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, deviceArn)
 
 		// update the notificaton status for device this user
-		err := ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
 			Ctx:            ctx,
 			ImpartWealthID: context.ImpartWealthID,
 			Token:          deviceToken,

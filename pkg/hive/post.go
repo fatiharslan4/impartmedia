@@ -335,6 +335,11 @@ func (s *service) ReviewPost(ctx context.Context, postId uint64, comment string,
 // Notifying to :
 // 		post owner
 func (s *service) SendPostNotification(input models.PostNotificationInput) impart.Error {
+	ctxUser := impart.GetCtxUser(input.Ctx)
+	if ctxUser == nil {
+		return impart.NewError(impart.ErrBadRequest, "unable to fetch context user")
+	}
+
 	dbPost, err := s.postData.GetPost(input.Ctx, input.PostID)
 	if err != nil {
 		return impart.NewError(err, "unable to fetch post for send notification")
@@ -349,6 +354,11 @@ func (s *service) SendPostNotification(input models.PostNotificationInput) impar
 	out, err := s.BuildPostNotificationData(input)
 	if err != nil {
 		return impart.NewError(err, "build post notification params")
+	}
+
+	// check the user as same
+	if ctxUser.ImpartWealthID == dbPost.ImpartWealthID {
+		return nil
 	}
 
 	s.logger.Debug("push-notification : sending post notification",

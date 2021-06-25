@@ -150,9 +150,11 @@ func (up *s3Uploader) UploadSingleFile(s *session.Session, file models.File) (mo
 
 	srcFile := bytes.NewReader(ipFile)
 	_, err = s3.New(s).PutObject(&s3.PutObjectInput{
-		Bucket: aws.String(up.BucketName),
-		Key:    aws.String(fileName),
-		Body:   srcFile,
+		Bucket:      aws.String(up.BucketName),
+		Key:         aws.String(fileName),
+		Body:        srcFile,
+		ContentType: &file.FileType,
+		ACL:         aws.String("public-read"),
 	})
 	if err != nil {
 		return models.File{}, err
@@ -173,7 +175,7 @@ func (up *s3Uploader) NewSession() (*session.Session, error) {
 
 // construct uploded file path
 func (up *s3Uploader) ConstructS3FilePath(filename string) string {
-	return fmt.Sprintf(" https://%s.s3.%s.amazonaws.com/%s", up.BucketName, up.BucketRegion, filename)
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", up.BucketName, up.BucketRegion, filename)
 }
 
 // local

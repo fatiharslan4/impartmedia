@@ -115,10 +115,13 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 
 		existingDBProfile := userToDelete.R.ImpartWealthProfile
 
+		userEmail := userToDelete.Email
+		screenName := userToDelete.ScreenName
 		userToDelete.Feedback = null.StringFromPtr(&deleteUser.Feedback)
 		currTime := time.Now().In(boil.GetLocation())
 		userToDelete.DeletedAt = null.TimeFrom(currTime)
-		userToDelete.ScreenName = fmt.Sprintf("%s%s", userToDelete.ScreenName, "-Deleted")
+		userToDelete.ScreenName = fmt.Sprintf("%s-%s", userToDelete.ScreenName, userToDelete.ImpartWealthID)
+		userToDelete.Email = fmt.Sprintf("%s-%s", userToDelete.Email, userToDelete.ImpartWealthID)
 
 		err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
 		if err != nil {
@@ -128,49 +131,37 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 			return impart.NewError(err, "User Deletion failed")
 
 		}
-
 		m, errDel := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
 		if errDel != nil {
-			ps.Logger().Error("Delete user requset failed in AUth 0", zap.String("deleteUser", userToDelete.ImpartWealthID),
-				zap.String("contextUser", contextUser.ImpartWealthID))
-
 			//revert the server update
-			screenName := strings.SplitAfter(userToDelete.ScreenName, "-")
-			userToDelete.ScreenName = screenName[0]
+			userToDelete.ScreenName = screenName
 			userToDelete.Feedback = null.String{}
 			userToDelete.DeletedAt = null.Time{}
+			userToDelete.Email = userEmail
 
 			err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
 			if err != nil {
-				ps.Logger().Error("Delete user requset reverted due to auth 0 fail", zap.String("deleteUser", userToDelete.ImpartWealthID),
-					zap.String("contextUser", contextUser.ImpartWealthID))
-
 				return impart.NewError(err, "User Deletion failed")
-
 			}
 			return impart.NewError(err, "User Deletion failed")
 
 		}
-		userEmail := fmt.Sprintf("%s%s", "Delete", userToDelete.Email)
+		userEmail = fmt.Sprintf("%s%s", userToDelete.ImpartWealthID, userEmail)
 		userUp := management.User{
 			Email: &userEmail,
 		}
+
 		errDel = m.User.Update(*&userToDelete.AuthenticationID, &userUp)
 		if errDel != nil {
-			ps.Logger().Debug("User Deleted(updated with emailid) failed in AUth0",
-				zap.Any("impartWealthID", impartWealthID))
 
 			//revert the server update
-			screenName := strings.SplitAfter(userToDelete.ScreenName, "-")
-			userToDelete.ScreenName = screenName[0]
+			userToDelete.ScreenName = screenName
 			userToDelete.Feedback = null.String{}
 			userToDelete.DeletedAt = null.Time{}
+			userToDelete.Email = userEmail
 
 			err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
 			if err != nil {
-				ps.Logger().Error("Delete user requset reverted due to auth 0 fail", zap.String("deleteUser", userToDelete.ImpartWealthID),
-					zap.String("contextUser", contextUser.ImpartWealthID))
-
 				return impart.NewError(err, "User Deletion failed")
 
 			}

@@ -30,7 +30,7 @@ type Profile struct {
 	ImpartWealthID   string     `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27"`
 	AuthenticationID string     `json:"authenticationId" conform:"trim"`
 	Email            string     `json:"email" conform:"email,lowercase" jsonschema:"format=email"`
-	ScreenName       string     `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=4,maxLength=35"`
+	ScreenName       string     `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=8,maxLength=15"`
 	Admin            bool       `json:"admin,omitempty"`
 	Attributes       Attributes `json:"attributes,omitempty"`
 	CreatedDate      time.Time  `json:"createdDate,omitempty"`
@@ -75,7 +75,7 @@ type Subscription struct {
 }
 
 type ScreenNameValidator struct {
-	ScreenName string `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=4,maxLength=15"`
+	ScreenName string `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=8,maxLength=15"`
 }
 
 type AuthenticationIDValidation struct {

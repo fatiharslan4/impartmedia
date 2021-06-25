@@ -3,12 +3,17 @@ package hive
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/otiai10/opengraph/v2"
 	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -62,13 +67,24 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		}
 
 	}
+
+	// add post files
+	post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
+	postFiles, _ := s.AddPostFiles(ctx, dbPost, post.Files)
+
 	p := models.PostFromDB(dbPost)
-	// p.Video = post.Video
-	fmt.Println("the post video", post.Video)
+
+	// add post videos
 	postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video)
 	p.Video = postvideo
 
-	// p, _ = s.AddPostVideo(ctx, p)
+	// add post videos
+	postUrl, _ := s.AddPostUrl(ctx, p.PostID, post.Url)
+	p.UrlData = postUrl
+
+	// update post files
+	p.Files = postFiles
+
 	return p, nil
 }
 
@@ -169,7 +185,8 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 	})
 	eg.Go(func() error {
 		//if we're filtering on tags, or this is a secondary page request, return early.
-		if len(gpi.TagIDs) > 0 || gpi.Offset > 0 {
+		//filtering on tags removed.
+		if gpi.Offset > 0 {
 			return nil
 		}
 		var pinnedError error
@@ -182,6 +199,18 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 			pinnedPost, pinnedError = s.postData.GetPost(ctx, hive.PinnedPostID.Uint64)
 			if pinnedError != nil {
 				s.logger.Error("unable to get pinned post", zap.Error(pinnedError))
+			}
+			if pinnedPost != nil && len(gpi.TagIDs) > 0 {
+				var pinnedPostExist bool
+				pinnedtags := pinnedPost.R.Tags
+				for _, p := range pinnedtags {
+					if uint64(p.TagID) == uint64(gpi.TagIDs[0]) {
+						pinnedPostExist = true
+					}
+				}
+				if !pinnedPostExist {
+					pinnedPost = nil
+				}
 			}
 		}
 		//returns nil so we don't fail the call if the pinned post is no longer present.
@@ -254,11 +283,11 @@ func (s *service) ReportPost(ctx context.Context, postId uint64, reason string, 
 		s.logger.Error("couldn't report post", zap.Error(err), zap.Uint64("postId", postId))
 		switch err {
 		case impart.ErrNoOp:
-			return empty, impart.NewError(impart.ErrNoOp, "post is already in the input reported state")
+			return empty, impart.NewError(impart.ErrNoOp, "You have already reported this Post")
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to report", postId))
 		case impart.ErrUnauthorized:
-			return empty, impart.NewError(err, fmt.Sprintf("could not report %v comment. It is already reviewed by admin", postId), impart.Report)
+			return empty, impart.NewError(err, "It is already reviewed by admin", impart.Report)
 		default:
 			return empty, impart.UnknownError
 		}
@@ -301,14 +330,15 @@ func (s *service) ReviewPost(ctx context.Context, postId uint64, comment string,
 	return models.PostFromDB(dbPost), nil
 }
 
-/**
- * SendPostNotification
- *
- * Send notification when a comment reported
- * Notifying to :
- *		post owner
- */
+//  SendPostNotification
+// Send notification when a comment reported
+// Notifying to :
+// 		post owner
 func (s *service) SendPostNotification(input models.PostNotificationInput) impart.Error {
+	ctxUser := impart.GetCtxUser(input.Ctx)
+	if ctxUser == nil {
+		return impart.NewError(impart.ErrBadRequest, "unable to fetch context user")
+	}
 
 	dbPost, err := s.postData.GetPost(input.Ctx, input.PostID)
 	if err != nil {
@@ -326,17 +356,34 @@ func (s *service) SendPostNotification(input models.PostNotificationInput) impar
 		return impart.NewError(err, "build post notification params")
 	}
 
-	s.logger.Debug("sending post notification", zap.Any("data", input), zap.Any("notificationData", out))
+	// check the user as same
+	if ctxUser.ImpartWealthID == dbPost.ImpartWealthID {
+		return nil
+	}
+
+	s.logger.Debug("push-notification : sending post notification",
+		zap.Any("data", models.PostNotificationInput{
+			CommentID:  input.CommentID,
+			PostID:     input.PostID,
+			ActionType: input.ActionType,
+			ActionData: input.ActionData,
+		}),
+		zap.Any("notificationData", out),
+	)
 
 	// send to comment owner
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		if strings.TrimSpace(dbPost.R.ImpartWealth.ImpartWealthID) != "" {
 			err = s.sendNotification(notificationData, out.Alert, dbPost.R.ImpartWealth.ImpartWealthID)
 			if err != nil {
-				s.logger.Error("error attempting to send post notification ", zap.Any("postData", out), zap.Error(err))
+				s.logger.Error("push-notification : error attempting to send post notification ", zap.Any("postData", out), zap.Error(err))
 			}
 		}
 	}()
+	wg.Wait()
 
 	return nil
 }
@@ -408,4 +455,115 @@ func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo mod
 		return postVideo, nil
 	}
 	return models.PostVideo{}, nil
+}
+
+func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string) (models.PostUrl, impart.Error) {
+	ctxUser := impart.GetCtxUser(ctx)
+	var imageUrl string
+	if ctxUser.Admin && (postUrl != "") {
+		ogp, err := opengraph.Fetch(postUrl)
+
+		if err != nil {
+			s.logger.Error("error attempting to fetch URL Data", zap.Any("postURL", postUrl), zap.Error(err))
+			return models.PostUrl{}, nil
+		}
+		if ogp != nil && ogp.Image != nil && len(ogp.Image) > 0 {
+			imageUrl = ogp.Image[0].URL
+		} else {
+			imageUrl = ""
+		}
+		//fmt.Println("the data", imageUrl)
+		input := &dbmodels.PostURL{
+			Title:    ogp.Title,
+			ImageUrl: imageUrl,
+			URL:      null.StringFrom(postUrl),
+			PostID:   postID,
+		}
+		inputData, err := s.postData.NewPostUrl(ctx, input)
+		if err != nil {
+			s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+			return models.PostUrl{}, nil
+		}
+		PostedUrl := models.PostUrlFromDB(inputData)
+		return PostedUrl, nil
+	}
+	return models.PostUrl{}, nil
+}
+
+// add post file
+func (s *service) AddPostFiles(ctx context.Context, post *dbmodels.Post, postFiles []models.File) ([]models.File, impart.Error) {
+	var fileResponse []models.File
+	if len(postFiles) > 0 {
+		mediaObject := media.New(media.StorageConfigurations{
+			Storage:   s.MediaStorage.Storage,
+			MediaPath: s.MediaStorage.MediaPath,
+			S3Storage: media.S3Storage{
+				BucketName:   s.MediaStorage.BucketName,
+				BucketRegion: s.MediaStorage.BucketRegion,
+			},
+		})
+		// upload multiple files
+		file, err := mediaObject.UploadMultipleFile(postFiles)
+		if err != nil {
+			s.logger.Error("error attempting to Save post file data ", zap.Any("files", file), zap.Error(err))
+			return file, impart.NewError(err, fmt.Sprintf("error on post files storage %v", err))
+		}
+
+		var postFielRelationMap []*dbmodels.PostFile
+		//upload the files to table
+		for index, f := range file {
+			fileModel := &dbmodels.File{
+				FileName: f.FileName,
+				FileType: f.FileType,
+				URL:      f.URL,
+			}
+			if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
+				s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
+			}
+
+			file[index].FID = int(fileModel.Fid)
+			postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
+				PostID: post.PostID,
+				Fid:    fileModel.Fid,
+			})
+
+			//doesnt return the content,
+			file[index].Content = ""
+			// set reponse
+			fileResponse = file
+		}
+
+		err = post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
+		if err != nil {
+			s.logger.Error("error attempting to map post files ",
+				zap.Any("data", postFielRelationMap),
+				zap.Any("err", err),
+				zap.Error(err),
+			)
+		}
+
+	}
+	return fileResponse, nil
+}
+
+//validate / replace file name
+// remove spaces,special characters,scripts..etc
+func (s *service) ValidatePostFilesName(ctx context.Context, ctxUser *dbmodels.User, postFiles []models.File) []models.File {
+	basePath := fmt.Sprintf("%s/%s/", "post", ctxUser.ScreenName)
+	pattern := `[^\[0-9A-Za-z_.-]`
+	for index := range postFiles {
+		filename := fmt.Sprintf("%d_%s_%s",
+			time.Now().Unix(),
+			ctxUser.ScreenName,
+			postFiles[index].FileName,
+		)
+
+		// var extension = filepath.Ext(postFiles[index].FileName)
+		re, _ := regexp.Compile(pattern)
+		filename = re.ReplaceAllString(filename, "")
+
+		postFiles[index].FilePath = basePath
+		postFiles[index].FileName = filename
+	}
+	return postFiles
 }

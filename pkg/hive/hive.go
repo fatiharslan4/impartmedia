@@ -53,12 +53,12 @@ func (s *service) Votes(ctx context.Context, v VoteInput) (models.PostCommentTra
 
 	if err != nil {
 		s.logger.Error("error on vote", zap.Error(err), zap.Any("vote", v))
-	}
-
-	// send notification on up,down,take votes
-	err = s.SendNotificationOnVote(ctx, actionType, v, in)
-	if err != nil {
-		s.logger.Error("error on vote notification", zap.Error(err), zap.Any("vote", v))
+	} else {
+		// send notification on up,down,take votes
+		err = s.SendNotificationOnVote(ctx, actionType, v, in)
+		if err != nil {
+			s.logger.Error("error on vote notification", zap.Error(err), zap.Any("vote", v))
+		}
 	}
 	out, err = s.reactionData.GetUserTrack(ctx, in)
 	if err != nil {
@@ -183,21 +183,17 @@ func (s *service) EditHive(ctx context.Context, hive models.Hive) (models.Hive, 
 	return out, nil
 }
 
-/**
- * SendNotificationOnVote
- *
- * vote may be to post or comment under post
- */
+// SendNotificationOnVote
+// vote may be to post or comment under post
 func (s *service) SendNotificationOnVote(ctx context.Context, actionType types.Type, v VoteInput, in data.ContentInput) error {
 	var err error
 	// check the type is comment
 	if in.Type == data.Comment {
 		err = s.SendCommentNotification(models.CommentNotificationInput{
-			Ctx:             ctx,
-			CommentID:       in.Id,
-			ActionType:      actionType,
-			ActionData:      "",
-			NotifyPostOwner: true,
+			Ctx:        ctx,
+			CommentID:  in.Id,
+			ActionType: actionType,
+			ActionData: "",
 		})
 	}
 
@@ -214,11 +210,8 @@ func (s *service) SendNotificationOnVote(ctx context.Context, actionType types.T
 	return err
 }
 
-/**
- * Get Reported User
- *
- * get post reported users list
- */
+// Get Reported User
+// get post reported users list
 func (s *service) GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error) {
 	return s.postData.GetReportedUser(ctx, posts)
 }

@@ -61,12 +61,22 @@ type Post struct {
 	Deleted             bool             `json:"deleted,omitempty"`
 	Video               PostVideo        `json:"video,omitempty"`
 	IsAdminPost         bool             `json:"isAdminPost"`
+	Files               []File           `json:"file,omitempty"`
+	Url                 string           `json:"url,omitempty"`
+	UrlData             PostUrl          `json:"urlData,omitempty"`
 }
 
 type PostVideo struct {
 	ReferenceId string `json:"referenceId,omitempty"`
 	Source      string `json:"source"`
 	Url         string `json:"url"`
+}
+
+type PostUrl struct {
+	Url         string `json:"url,omitempty"`
+	ImageUrl    string `json:"imageUrl"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
 }
 
 func (posts Posts) Latest() time.Time {
@@ -137,6 +147,21 @@ func PostVideoFromDB(p *dbmodels.PostVideo) PostVideo {
 	return out
 }
 
+func PostUrlFromDB(p *dbmodels.PostURL) PostUrl {
+	out := PostUrl{
+		Url:         p.URL.String,
+		ImageUrl:    p.ImageUrl,
+		Description: p.Description,
+		Title:       p.Title,
+	}
+
+	return out
+}
+
+func PostFilesFromDB(pfiles *dbmodels.File) []File {
+	return []File{}
+}
+
 func PostFromDB(p *dbmodels.Post) Post {
 	out := Post{
 		HiveID:              p.HiveID,
@@ -186,15 +211,32 @@ func PostFromDB(p *dbmodels.Post) Post {
 		out.Video = PostVideoFromDB(p.R.PostVideos[0])
 	}
 
+	if p.R.PostUrls != nil && len(p.R.PostUrls) > 0 {
+		out.UrlData = PostUrlFromDB(p.R.PostUrls[0])
+	}
+
 	// check the user is blocked
 	if p.R.ImpartWealth != nil && p.R.ImpartWealth.Blocked {
-		out.ScreenName = "[deleted user]"
+		out.ScreenName = types.AccountRemoved.ToString()
+	}
+	if p.R.ImpartWealth == nil {
+		out.ScreenName = types.AccountDeleted.ToString()
 	}
 	//check the user is admin
 	if p.R.ImpartWealth != nil && p.R.ImpartWealth.Admin {
 		out.IsAdminPost = true
 	} else {
 		out.IsAdminPost = false
+	}
+
+	// post files
+	if p.R.PostFiles != nil {
+		out.Files = make([]File, 0)
+		for _, f := range p.R.PostFiles {
+			if f.R.FidFile != nil {
+				out.Files = append(out.Files, PostFileToFile(f))
+			}
+		}
 	}
 	return out
 }
@@ -260,4 +302,13 @@ func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int) Posts {
 		out[i] = PostFromDB(p)
 	}
 	return out
+}
+
+func PostFileToFile(f *dbmodels.PostFile) File {
+	return File{
+		FID:      int(f.Fid),
+		FileName: f.R.FidFile.FileName,
+		FileType: f.R.FidFile.FileType,
+		URL:      f.R.FidFile.URL,
+	}
 }

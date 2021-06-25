@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -161,28 +162,16 @@ func (s *service) ReportComment(ctx context.Context, commentID uint64, reason st
 		s.logger.Error("couldn't report comment", zap.Error(err), zap.Uint64("commentId", commentID))
 		switch err {
 		case impart.ErrNoOp:
-			return empty, impart.NewError(impart.ErrNoOp, "comment is already in the input reported state", impart.Report)
+			return empty, impart.NewError(impart.ErrNoOp, "You have already reported this comment", impart.Report)
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find comment %v to report", commentID), impart.Report)
 		case impart.ErrUnauthorized:
-			return empty, impart.NewError(err, fmt.Sprintf("could not report %v comment. It is already reviewed by admin", commentID), impart.Report)
+			return empty, impart.NewError(err, "It is already reviewed by admin", impart.Report)
 		default:
 			return empty, impart.UnknownError
 		}
 	}
 
-	//send comment report notification
-	err = s.SendCommentNotification(models.CommentNotificationInput{
-		Ctx:             ctx,
-		CommentID:       commentID,
-		ActionType:      types.Report,
-		ActionData:      reason,
-		NotifyPostOwner: true,
-	})
-
-	if err != nil {
-		s.logger.Error("error happened on notify reaction", zap.Error(err))
-	}
 	out, err := s.reactionData.GetUserTrack(ctx, data.ContentInput{
 		Type: data.Comment,
 		Id:   commentID,
@@ -227,15 +216,18 @@ func (s *service) ReviewComment(ctx context.Context, commentID uint64, reason st
 	return models.CommentFromDBModel(dbComment), nil
 }
 
-/**
- * SendCommentNotification
- *
- * Send notification when a comment reported
- * Notifying to :
- *		post owner
- *		comment owner
- */
+// SendCommentNotification
+// Send notification when a comment reported
+// Notifying to :
+// 	post owner
+// 	comment owner
 func (s *service) SendCommentNotification(input models.CommentNotificationInput) impart.Error {
+
+	ctxUser := impart.GetCtxUser(input.Ctx)
+	if ctxUser == nil {
+		return impart.NewError(impart.ErrBadRequest, "unable to fetch context user")
+	}
+
 	dbComment, err := s.commentData.GetComment(input.Ctx, input.CommentID)
 	if err != nil {
 		return impart.NewError(err, "unable to fetch comment for send notification")
@@ -249,19 +241,43 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 	}
 
 	// generate notification context
-	out, err := s.BuildCommentNotificationData(input)
-	if err != nil {
+	out, err := s.BuildCommentNotificationData(ctxUser, input)
+	s.logger.Debug("push-notification : sending comment notification",
+		zap.Any("data", models.PostNotificationInput{
+			CommentID:  input.CommentID,
+			PostID:     input.PostID,
+			ActionType: input.ActionType,
+			ActionData: input.ActionData,
+		}),
+		zap.Any("notificationData", out),
+	)
+	//if not data found for report
+	if (out.Alert == impart.Alert{}) {
+		return nil
+	}
+	// check the user is same as logined user
+	if dbComment.R != nil && ctxUser.ImpartWealthID == dbComment.R.ImpartWealth.ImpartWealthID {
+		return nil
+	}
+	if err != nil && err != impart.ErrNotImplemented {
 		return impart.NewError(err, "build comment notification params")
 	}
 
-	s.logger.Debug("sending comment notification", zap.Any("data", input), zap.Any("notificationData", out))
+	var count int
+	count = 1
+	if input.NotifyPostOwner {
+		count = 2
+	}
+	var wg sync.WaitGroup
+	wg.Add(count)
 
 	// send to comment owner
 	go func() {
+		defer wg.Done()
 		if strings.TrimSpace(dbComment.R.ImpartWealth.ImpartWealthID) != "" {
 			err = s.sendNotification(notificationData, out.Alert, dbComment.R.ImpartWealth.ImpartWealthID)
 			if err != nil {
-				s.logger.Error("error attempting to send post comment notification ", zap.Any("postData", out), zap.Error(err))
+				s.logger.Error("push-notification : error attempting to send post comment notification ", zap.Any("postData", out), zap.Error(err))
 			}
 		}
 	}()
@@ -269,28 +285,28 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 	// send to post owner
 	if input.NotifyPostOwner {
 		go func() {
+			defer wg.Done()
 			if strings.TrimSpace(out.PostOwnerWealthID) != "" {
 				err = s.sendNotification(notificationData, out.PostOwnerAlert, out.PostOwnerWealthID)
 				if err != nil {
-					s.logger.Error("error attempting to send post comment notification post owner ", zap.Any("postData", out), zap.Any("postData", out), zap.Error(err))
+					s.logger.Error("push-notification : error attempting to send post comment notification post owner ", zap.Any("postData", out), zap.Any("postData", out), zap.Error(err))
 				}
 			}
 		}()
 	}
 
+	wg.Wait()
 	return nil
 }
 
 //
 // From here , all the notification action workflow
 //
-func (s *service) BuildCommentNotificationData(input models.CommentNotificationInput) (models.CommentNotificationBuildDataOutput, error) {
+func (s *service) BuildCommentNotificationData(ctxUser *dbmodels.User, input models.CommentNotificationInput) (models.CommentNotificationBuildDataOutput, error) {
 	var _, postUserIWID string
 	var alert, postOwnerAlert impart.Alert
 	var err error
 	var dbPost *dbmodels.Post
-
-	ctxUser := impart.GetCtxUser(input.Ctx)
 
 	// initialize dbPost
 	if input.NotifyPostOwner {
@@ -303,7 +319,7 @@ func (s *service) BuildCommentNotificationData(input models.CommentNotificationI
 
 	switch input.ActionType {
 	//in case of report, dislike,take like dislike
-	case types.Report, types.DownVote, types.TakeDownVote, types.TakeUpVote:
+	// case types.Report, types.DownVote, types.TakeDownVote, types.TakeUpVote:
 	// in case up vote
 	case types.UpVote:
 		// make alert
@@ -341,7 +357,7 @@ func (s *service) BuildCommentNotificationData(input models.CommentNotificationI
 			}
 		}
 	default:
-		err = impart.NewError(err, fmt.Sprintf("invalid notify option %s", input.ActionType))
+		err = impart.NewError(impart.ErrNotImplemented, fmt.Sprintf("invalid notify option %v", input.ActionType))
 	}
 
 	return models.CommentNotificationBuildDataOutput{

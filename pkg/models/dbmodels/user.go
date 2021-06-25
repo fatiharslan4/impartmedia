@@ -24,18 +24,19 @@ import (
 
 // User is an object representing the database table.
 type User struct {
-	ImpartWealthID   string    `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	AuthenticationID string    `boil:"authentication_id" json:"authentication_id" toml:"authentication_id" yaml:"authentication_id"`
-	Email            string    `boil:"email" json:"email" toml:"email" yaml:"email"`
-	ScreenName       string    `boil:"screen_name" json:"screen_name" toml:"screen_name" yaml:"screen_name"`
-	CreatedAt        time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt        time.Time `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	DeletedAt        null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
-	DeviceToken      string    `boil:"device_token" json:"device_token" toml:"device_token" yaml:"device_token"`
-	AwsSNSAppArn     string    `boil:"aws_sns_app_arn" json:"aws_sns_app_arn" toml:"aws_sns_app_arn" yaml:"aws_sns_app_arn"`
-	Admin            bool      `boil:"admin" json:"admin" toml:"admin" yaml:"admin"`
-	EmailVerified    bool      `boil:"email_verified" json:"email_verified" toml:"email_verified" yaml:"email_verified"`
-	Blocked          bool      `boil:"blocked" json:"blocked" toml:"blocked" yaml:"blocked"`
+	ImpartWealthID   string      `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
+	AuthenticationID string      `boil:"authentication_id" json:"authentication_id" toml:"authentication_id" yaml:"authentication_id"`
+	Email            string      `boil:"email" json:"email" toml:"email" yaml:"email"`
+	ScreenName       string      `boil:"screen_name" json:"screen_name" toml:"screen_name" yaml:"screen_name"`
+	CreatedAt        time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt        time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	DeletedAt        null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	DeviceToken      string      `boil:"device_token" json:"device_token" toml:"device_token" yaml:"device_token"`
+	AwsSNSAppArn     string      `boil:"aws_sns_app_arn" json:"aws_sns_app_arn" toml:"aws_sns_app_arn" yaml:"aws_sns_app_arn"`
+	Admin            bool        `boil:"admin" json:"admin" toml:"admin" yaml:"admin"`
+	EmailVerified    bool        `boil:"email_verified" json:"email_verified" toml:"email_verified" yaml:"email_verified"`
+	Blocked          bool        `boil:"blocked" json:"blocked" toml:"blocked" yaml:"blocked"`
+	Feedback         null.String `boil:"feedback" json:"feedback,omitempty" toml:"feedback" yaml:"feedback,omitempty"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -54,6 +55,7 @@ var UserColumns = struct {
 	Admin            string
 	EmailVerified    string
 	Blocked          string
+	Feedback         string
 }{
 	ImpartWealthID:   "impart_wealth_id",
 	AuthenticationID: "authentication_id",
@@ -67,6 +69,7 @@ var UserColumns = struct {
 	Admin:            "admin",
 	EmailVerified:    "email_verified",
 	Blocked:          "blocked",
+	Feedback:         "feedback",
 }
 
 var UserTableColumns = struct {
@@ -82,6 +85,7 @@ var UserTableColumns = struct {
 	Admin            string
 	EmailVerified    string
 	Blocked          string
+	Feedback         string
 }{
 	ImpartWealthID:   "user.impart_wealth_id",
 	AuthenticationID: "user.authentication_id",
@@ -95,6 +99,7 @@ var UserTableColumns = struct {
 	Admin:            "user.admin",
 	EmailVerified:    "user.email_verified",
 	Blocked:          "user.blocked",
+	Feedback:         "user.feedback",
 }
 
 // Generated where
@@ -112,6 +117,7 @@ var UserWhere = struct {
 	Admin            whereHelperbool
 	EmailVerified    whereHelperbool
 	Blocked          whereHelperbool
+	Feedback         whereHelpernull_String
 }{
 	ImpartWealthID:   whereHelperstring{field: "`user`.`impart_wealth_id`"},
 	AuthenticationID: whereHelperstring{field: "`user`.`authentication_id`"},
@@ -125,6 +131,7 @@ var UserWhere = struct {
 	Admin:            whereHelperbool{field: "`user`.`admin`"},
 	EmailVerified:    whereHelperbool{field: "`user`.`email_verified`"},
 	Blocked:          whereHelperbool{field: "`user`.`blocked`"},
+	Feedback:         whereHelpernull_String{field: "`user`.`feedback`"},
 }
 
 // UserRels is where relationship names are stored.
@@ -136,7 +143,6 @@ var UserRels = struct {
 	AdminHiveHives                         string
 	MemberHiveHives                        string
 	ImpartWealthNotificationDeviceMappings string
-	ImpartWealthNotificationSubscriptions  string
 	ImpartWealthPosts                      string
 	ImpartWealthPostEdits                  string
 	ImpartWealthPostReactions              string
@@ -151,7 +157,6 @@ var UserRels = struct {
 	AdminHiveHives:                         "AdminHiveHives",
 	MemberHiveHives:                        "MemberHiveHives",
 	ImpartWealthNotificationDeviceMappings: "ImpartWealthNotificationDeviceMappings",
-	ImpartWealthNotificationSubscriptions:  "ImpartWealthNotificationSubscriptions",
 	ImpartWealthPosts:                      "ImpartWealthPosts",
 	ImpartWealthPostEdits:                  "ImpartWealthPostEdits",
 	ImpartWealthPostReactions:              "ImpartWealthPostReactions",
@@ -169,7 +174,6 @@ type userR struct {
 	AdminHiveHives                         HiveSlice                      `boil:"AdminHiveHives" json:"AdminHiveHives" toml:"AdminHiveHives" yaml:"AdminHiveHives"`
 	MemberHiveHives                        HiveSlice                      `boil:"MemberHiveHives" json:"MemberHiveHives" toml:"MemberHiveHives" yaml:"MemberHiveHives"`
 	ImpartWealthNotificationDeviceMappings NotificationDeviceMappingSlice `boil:"ImpartWealthNotificationDeviceMappings" json:"ImpartWealthNotificationDeviceMappings" toml:"ImpartWealthNotificationDeviceMappings" yaml:"ImpartWealthNotificationDeviceMappings"`
-	ImpartWealthNotificationSubscriptions  NotificationSubscriptionSlice  `boil:"ImpartWealthNotificationSubscriptions" json:"ImpartWealthNotificationSubscriptions" toml:"ImpartWealthNotificationSubscriptions" yaml:"ImpartWealthNotificationSubscriptions"`
 	ImpartWealthPosts                      PostSlice                      `boil:"ImpartWealthPosts" json:"ImpartWealthPosts" toml:"ImpartWealthPosts" yaml:"ImpartWealthPosts"`
 	ImpartWealthPostEdits                  PostEditSlice                  `boil:"ImpartWealthPostEdits" json:"ImpartWealthPostEdits" toml:"ImpartWealthPostEdits" yaml:"ImpartWealthPostEdits"`
 	ImpartWealthPostReactions              PostReactionSlice              `boil:"ImpartWealthPostReactions" json:"ImpartWealthPostReactions" toml:"ImpartWealthPostReactions" yaml:"ImpartWealthPostReactions"`
@@ -187,8 +191,8 @@ func (*userR) NewStruct() *userR {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked"}
-	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified"}
+	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked", "feedback"}
+	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "feedback"}
 	userColumnsWithDefault    = []string{"blocked"}
 	userPrimaryKeyColumns     = []string{"impart_wealth_id"}
 )
@@ -608,27 +612,6 @@ func (o *User) ImpartWealthNotificationDeviceMappings(mods ...qm.QueryMod) notif
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"`notification_device_mapping`.*"})
-	}
-
-	return query
-}
-
-// ImpartWealthNotificationSubscriptions retrieves all the notification_subscription's NotificationSubscriptions with an executor via impart_wealth_id column.
-func (o *User) ImpartWealthNotificationSubscriptions(mods ...qm.QueryMod) notificationSubscriptionQuery {
-	var queryMods []qm.QueryMod
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("`notification_subscriptions`.`impart_wealth_id`=?", o.ImpartWealthID),
-	)
-
-	query := NotificationSubscriptions(queryMods...)
-	queries.SetFrom(query.Query, "`notification_subscriptions`")
-
-	if len(queries.GetSelect(query.Query)) == 0 {
-		queries.SetSelect(query.Query, []string{"`notification_subscriptions`.*"})
 	}
 
 	return query
@@ -1481,104 +1464,6 @@ func (userL) LoadImpartWealthNotificationDeviceMappings(ctx context.Context, e b
 				local.R.ImpartWealthNotificationDeviceMappings = append(local.R.ImpartWealthNotificationDeviceMappings, foreign)
 				if foreign.R == nil {
 					foreign.R = &notificationDeviceMappingR{}
-				}
-				foreign.R.ImpartWealth = local
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// LoadImpartWealthNotificationSubscriptions allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for a 1-M or N-M relationship.
-func (userL) LoadImpartWealthNotificationSubscriptions(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUser interface{}, mods queries.Applicator) error {
-	var slice []*User
-	var object *User
-
-	if singular {
-		object = maybeUser.(*User)
-	} else {
-		slice = *maybeUser.(*[]*User)
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &userR{}
-		}
-		args = append(args, object.ImpartWealthID)
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &userR{}
-			}
-
-			for _, a := range args {
-				if a == obj.ImpartWealthID {
-					continue Outer
-				}
-			}
-
-			args = append(args, obj.ImpartWealthID)
-		}
-	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(
-		qm.From(`notification_subscriptions`),
-		qm.WhereIn(`notification_subscriptions.impart_wealth_id in ?`, args...),
-	)
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.QueryContext(ctx, e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load notification_subscriptions")
-	}
-
-	var resultSlice []*NotificationSubscription
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice notification_subscriptions")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results in eager load on notification_subscriptions")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for notification_subscriptions")
-	}
-
-	if len(notificationSubscriptionAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
-				return err
-			}
-		}
-	}
-	if singular {
-		object.R.ImpartWealthNotificationSubscriptions = resultSlice
-		for _, foreign := range resultSlice {
-			if foreign.R == nil {
-				foreign.R = &notificationSubscriptionR{}
-			}
-			foreign.R.ImpartWealth = object
-		}
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.ImpartWealthID == foreign.ImpartWealthID {
-				local.R.ImpartWealthNotificationSubscriptions = append(local.R.ImpartWealthNotificationSubscriptions, foreign)
-				if foreign.R == nil {
-					foreign.R = &notificationSubscriptionR{}
 				}
 				foreign.R.ImpartWealth = local
 				break
@@ -2724,59 +2609,6 @@ func (o *User) AddImpartWealthNotificationDeviceMappings(ctx context.Context, ex
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &notificationDeviceMappingR{
-				ImpartWealth: o,
-			}
-		} else {
-			rel.R.ImpartWealth = o
-		}
-	}
-	return nil
-}
-
-// AddImpartWealthNotificationSubscriptions adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.ImpartWealthNotificationSubscriptions.
-// Sets related.R.ImpartWealth appropriately.
-func (o *User) AddImpartWealthNotificationSubscriptions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*NotificationSubscription) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.ImpartWealthID = o.ImpartWealthID
-			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE `notification_subscriptions` SET %s WHERE %s",
-				strmangle.SetParamNames("`", "`", 0, []string{"impart_wealth_id"}),
-				strmangle.WhereClause("`", "`", 0, notificationSubscriptionPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ImpartWealthID, rel.ImpartWealthID, rel.TopicArn}
-
-			if boil.IsDebug(ctx) {
-				writer := boil.DebugWriterFrom(ctx)
-				fmt.Fprintln(writer, updateQuery)
-				fmt.Fprintln(writer, values)
-			}
-			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.ImpartWealthID = o.ImpartWealthID
-		}
-	}
-
-	if o.R == nil {
-		o.R = &userR{
-			ImpartWealthNotificationSubscriptions: related,
-		}
-	} else {
-		o.R.ImpartWealthNotificationSubscriptions = append(o.R.ImpartWealthNotificationSubscriptions, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &notificationSubscriptionR{
 				ImpartWealth: o,
 			}
 		} else {

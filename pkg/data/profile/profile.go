@@ -17,7 +17,7 @@ type Store interface {
 	CreateUserProfile(ctx context.Context, user *dbmodels.User, profile *dbmodels.Profile) error
 	GetProfile(ctx context.Context, impartWealthId string) (*dbmodels.Profile, error)
 	UpdateProfile(ctx context.Context, user *dbmodels.User, profile *dbmodels.Profile) error
-	DeleteProfile(ctx context.Context, impartWealthID string) error
+	DeleteProfile(ctx context.Context, impartWealthID string, hardDelete bool) error
 	GetQuestionnaire(ctx context.Context, name string, version *uint) (*dbmodels.Questionnaire, error)
 	GetAllCurrentQuestionnaires(ctx context.Context) (dbmodels.QuestionnaireSlice, error)
 	GetUserQuestionnaires(ctx context.Context, impartWealthId string, questionnaireName *string) (dbmodels.QuestionnaireSlice, error)
@@ -26,16 +26,19 @@ type Store interface {
 	GetUserConfigurations(ctx context.Context, impartWealthID string) (*dbmodels.UserConfiguration, error)
 	CreateUserConfigurations(ctx context.Context, conf *dbmodels.UserConfiguration) (*dbmodels.UserConfiguration, error)
 	EditUserConfigurations(ctx context.Context, conf *dbmodels.UserConfiguration) (*dbmodels.UserConfiguration, error)
+	DeleteExceptUserDevice(ctx context.Context, impartID string, deviceToken string, refToken string) error
 
 	GetUserDevice(ctx context.Context, token string, impartWealthID string, deviceID string) (*dbmodels.UserDevice, error)
 	CreateUserDevice(ctx context.Context, device *dbmodels.UserDevice) (*dbmodels.UserDevice, error)
+	UpdateDevice(ctx context.Context, device *dbmodels.UserDevice) error
+	UpdateDeviceToken(ctx context.Context, device *dbmodels.UserDevice, deviceToken string) error
 
 	GetUserNotificationMappData(input models.MapArgumentInput) (*dbmodels.NotificationDeviceMapping, error)
 	CreateUserNotificationMappData(ctx context.Context, data *dbmodels.NotificationDeviceMapping) (*dbmodels.NotificationDeviceMapping, error)
 	DeleteUserNotificationMappData(input models.MapArgumentInput) error
 	UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) error
 
-	BlockUser(ctx context.Context, impartWealthID string, screenname string, status bool) error
+	BlockUser(ctx context.Context, user *dbmodels.User, status bool) error
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

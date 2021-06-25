@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -182,7 +183,7 @@ const (
 
 func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Questionnaire) *uint64 {
 	out := MillennialGenXWithChildrenHiveId
-	var isMillenialOrGenx, hasChildren, hasHousehold, match bool
+	var isMillenialOrGenx, hasChildren, hasHousehold, match, matchZip bool
 	match = true
 	for _, q := range questionnaire.Questions {
 		switch q.Name {
@@ -227,9 +228,13 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 	}
 	if questionnaire.ZipCode != "" {
 		match, _ = regexp.MatchString(`^\d{5}(?:[-\s]\d{4})?$`, questionnaire.ZipCode)
+		newNum, _ := strconv.Atoi(questionnaire.ZipCode)
+		if newNum > 0 && newNum <= 99950 {
+			matchZip = true
+		}
 	}
 
-	if isMillenialOrGenx && hasChildren && hasHousehold && match {
+	if isMillenialOrGenx && hasChildren && hasHousehold && match && matchZip {
 		return &out
 	}
 	return nil

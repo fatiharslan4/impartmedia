@@ -3,22 +3,6 @@
 	"$ref": "#/definitions/UserDevice",
 	"title": "UserDevice",
 	"definitions": {
-		"Time": {
-			"required": [
-				"Time",
-				"Valid"
-			],
-			"properties": {
-				"Time": {
-					"$ref": "#/definitions/Time"
-				},
-				"Valid": {
-					"type": "boolean"
-				}
-			},
-			"additionalProperties": false,
-			"type": "object"
-		},
 		"UserDevice": {
 			"required": [
 				"deviceId",
@@ -36,6 +20,9 @@
 				"deviceId": {
 					"type": "string"
 				},
+				"deviceToken": {
+					"type": "string"
+				},
 				"appVersion": {
 					"type": "string"
 				},
@@ -45,17 +32,13 @@
 				"deviceVersion": {
 					"type": "string"
 				},
-				"created_at": {
+				"createdAt": {
 					"type": "string",
 					"format": "date-time"
 				},
-				"updated_at": {
+				"updatedAt": {
 					"type": "string",
 					"format": "date-time"
-				},
-				"deleted_at": {
-					"$schema": "http://json-schema.org/draft-04/schema#",
-					"$ref": "#/definitions/Time"
 				}
 			},
 			"additionalProperties": false,

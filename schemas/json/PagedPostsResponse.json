@@ -13,6 +13,8 @@
 				"downVotes",
 				"reportedCount",
 				"obfuscated",
+				"reviewed",
+				"reviewComment",
 				"parentCommentId"
 			],
 			"properties": {
@@ -57,6 +59,12 @@
 				},
 				"obfuscated": {
 					"type": "boolean"
+				},
+				"reviewed": {
+					"type": "boolean"
+				},
+				"reviewComment": {
+					"type": "string"
 				},
 				"reviewedDatetime": {
 					"type": "string",
@@ -115,12 +123,52 @@
 			"additionalProperties": false,
 			"type": "object"
 		},
+		"File": {
+			"required": [
+				"FID",
+				"fileName",
+				"filePath",
+				"fileType",
+				"url",
+				"content"
+			],
+			"properties": {
+				"FID": {
+					"type": "integer"
+				},
+				"fileName": {
+					"type": "string"
+				},
+				"filePath": {
+					"type": "string"
+				},
+				"fileType": {
+					"type": "string"
+				},
+				"url": {
+					"type": "string"
+				},
+				"content": {
+					"type": "string"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
 		"NextPage": {
 			"required": [
-				"offset"
+				"offset",
+				"offsetPost",
+				"offsetComment"
 			],
 			"properties": {
 				"offset": {
+					"type": "integer"
+				},
+				"offsetPost": {
+					"type": "integer"
+				},
+				"offsetComment": {
 					"type": "integer"
 				}
 			},
@@ -165,7 +213,10 @@
 				"nextCommentPage",
 				"reportedCount",
 				"obfuscated",
-				"reportedUsers"
+				"reviewed",
+				"reviewComment",
+				"reportedUsers",
+				"isAdminPost"
 			],
 			"properties": {
 				"hiveId": {
@@ -241,6 +292,12 @@
 				"obfuscated": {
 					"type": "boolean"
 				},
+				"reviewed": {
+					"type": "boolean"
+				},
+				"reviewComment": {
+					"type": "string"
+				},
 				"reviewedDatetime": {
 					"type": "string",
 					"format": "date-time"
@@ -254,6 +311,27 @@
 				},
 				"deleted": {
 					"type": "boolean"
+				},
+				"video": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/PostVideo"
+				},
+				"isAdminPost": {
+					"type": "boolean"
+				},
+				"file": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/File"
+					},
+					"type": "array"
+				},
+				"url": {
+					"type": "string"
+				},
+				"urlData": {
+					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$ref": "#/definitions/PostUrl"
 				}
 			},
 			"additionalProperties": false,
@@ -294,6 +372,48 @@
 					"type": "boolean"
 				},
 				"reportedReason": {
+					"type": "string"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"PostUrl": {
+			"required": [
+				"imageUrl",
+				"title",
+				"description"
+			],
+			"properties": {
+				"url": {
+					"type": "string"
+				},
+				"imageUrl": {
+					"type": "string"
+				},
+				"title": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"PostVideo": {
+			"required": [
+				"source",
+				"url"
+			],
+			"properties": {
+				"referenceId": {
+					"type": "string"
+				},
+				"source": {
+					"type": "string"
+				},
+				"url": {
 					"type": "string"
 				}
 			},

@@ -16,6 +16,8 @@
 				"downVotes",
 				"reportedCount",
 				"obfuscated",
+				"reviewed",
+				"reviewComment",
 				"parentCommentId"
 			],
 			"properties": {
@@ -63,6 +65,12 @@
 				},
 				"obfuscated": {
 					"type": "boolean"
+				},
+				"reviewed": {
+					"type": "boolean"
+				},
+				"reviewComment": {
+					"type": "string"
 				},
 				"reviewedDatetime": {
 					"type": "string",

@@ -102,6 +102,15 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 					return
 				}
 			}
+
+			// check the status is blocked
+			if p.IsBlocked {
+				ctx.JSON(http.StatusForbidden, impart.ErrorResponse(
+					impart.NewError(impart.ErrBadRequest, "can't load blocked user profile."),
+				))
+				return
+			}
+
 			ctx.JSON(200, p)
 			return
 		}

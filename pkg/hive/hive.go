@@ -190,11 +190,10 @@ func (s *service) SendNotificationOnVote(ctx context.Context, actionType types.T
 	// check the type is comment
 	if in.Type == data.Comment {
 		err = s.SendCommentNotification(models.CommentNotificationInput{
-			Ctx:             ctx,
-			CommentID:       in.Id,
-			ActionType:      actionType,
-			ActionData:      "",
-			NotifyPostOwner: true,
+			Ctx:        ctx,
+			CommentID:  in.Id,
+			ActionType: actionType,
+			ActionData: "",
 		})
 	}
 

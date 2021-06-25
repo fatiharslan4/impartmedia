@@ -449,8 +449,7 @@ func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo mod
 
 func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string) (models.PostUrl, impart.Error) {
 	ctxUser := impart.GetCtxUser(ctx)
-	fmt.Println("the data are", postUrl, ctxUser.Admin)
-	var imageUrl, title string
+	var imageUrl string
 	if ctxUser.Admin && (postUrl != "") {
 		ogp, err := opengraph.Fetch(postUrl)
 
@@ -458,19 +457,14 @@ func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string)
 			s.logger.Error("error attempting to fetch URL Data", zap.Any("postURL", postUrl), zap.Error(err))
 			return models.PostUrl{}, nil
 		}
-		if ogp == nil {
-			imageUrl = ""
-			title = ""
+		if ogp != nil && ogp.Image != nil && len(ogp.Image) > 0 {
+			imageUrl = ogp.Image[0].URL
 		} else {
-			if ogp.Image == nil {
-				imageUrl = ogp.Image[0].URL
-			} else {
-				imageUrl = ""
-			}
-			title = ogp.Title
+			imageUrl = ""
 		}
+		//fmt.Println("the data", imageUrl)
 		input := &dbmodels.PostURL{
-			Title:    title,
+			Title:    ogp.Title,
 			ImageUrl: imageUrl,
 			URL:      null.StringFrom(postUrl),
 			PostID:   postID,

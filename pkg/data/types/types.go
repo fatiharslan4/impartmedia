@@ -29,5 +29,5 @@ var (
 
 var (
 	AccountRemoved Type = "[account removed]"
-	AccountDeleted Type = "[account Deleted]"
+	AccountDeleted Type = "[Account Deleted]"
 )

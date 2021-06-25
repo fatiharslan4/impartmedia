@@ -82,8 +82,8 @@
 					"format": "email"
 				},
 				"screenName": {
-					"maxLength": 35,
-					"minLength": 4,
+					"maxLength": 15,
+					"minLength": 8,
 					"type": "string"
 				},
 				"admin": {
@@ -127,6 +127,9 @@
 				"settings": {
 					"$schema": "http://json-schema.org/draft-04/schema#",
 					"$ref": "#/definitions/UserSettings"
+				},
+				"feedback": {
+					"type": "string"
 				}
 			},
 			"additionalProperties": false,

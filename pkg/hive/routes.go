@@ -571,13 +571,6 @@ func (hh *hiveHandler) PostCommentReactionFunc() gin.HandlerFunc {
 		if reportParam != "" {
 			reason := strings.TrimSpace(ctx.Query("reason"))
 
-			//filter profanity words from reason
-			reason, err := impart.ProfanityDetector.CensorWord(reason)
-			if err != nil {
-				impartErr := impart.NewError(impart.ErrBadRequest, "error happens on profanity filter")
-				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
-			}
-
 			report, err := strconv.ParseBool(reportParam)
 			if err != nil {
 				impartErr := impart.NewError(impart.ErrBadRequest, "could not parse 'report' query param to bool")
@@ -699,8 +692,6 @@ func (hh *hiveHandler) CreateCommentFunc() gin.HandlerFunc {
 		}
 		hh.logger.Debug("creating", zap.Any("comment", c))
 
-		c = ValidateCommentInput(c)
-
 		if c.PostID != postId {
 			err := impart.NewError(impart.ErrBadRequest, "PostID in route does not match PostID in comment body")
 			hh.logger.Error("bad request - mismatch postID", zap.Any("comment", c), zap.Error(err.Err()))
@@ -749,8 +740,6 @@ func (hh *hiveHandler) EditCommentFunc() gin.HandlerFunc {
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
-		// validate and filter the input content
-		c = ValidateCommentInput(c)
 
 		if c.PostID != postId {
 			err := impart.NewError(impart.ErrBadRequest, "PostID in route does not match PostID in comment body")

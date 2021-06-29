@@ -449,6 +449,8 @@ github.com/otiai10/opengraph/v2 v2.0.3 h1:/uevWh23Ipcca0CIhgdivl+UcKxA9lPQekvQ0c
 github.com/otiai10/opengraph/v2 v2.0.3/go.mod h1:DpNBf0lBy0CJ33Vz8jPIJ1Wp1ToDsEG3EuSzAbPhPVU=
 github.com/pcpratheesh/go-censorword v0.0.0-20210611122341-e5c647fa3d71 h1:gmSaA1VR2Rt3rHV0cmMT0CDlx6mFOXbhopYxkq1wGj8=
 github.com/pcpratheesh/go-censorword v0.0.0-20210611122341-e5c647fa3d71/go.mod h1:1egFY+SIkK2+l7498aPqncBcnhDM2PhOcJV9L2VWfAw=
+github.com/pcpratheesh/go-censorword v1.1.0 h1:iQbcNAHYKsi4tGesLc+L7ZvdqQSPRiHtBqZBy/New+4=
+github.com/pcpratheesh/go-censorword v1.1.0/go.mod h1:1egFY+SIkK2+l7498aPqncBcnhDM2PhOcJV9L2VWfAw=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pierrec/lz4 v2.0.5+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi+IEE17M5jbnwPHcY=
 github.com/pingcap/errors v0.11.4 h1:lFuQV/oaUMGcD2tqt+01ROSmJs75VG1ToEOkZIZ4nE4=

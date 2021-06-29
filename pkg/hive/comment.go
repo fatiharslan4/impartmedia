@@ -237,7 +237,8 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 
 	notificationData := impart.NotificationData{
 		EventDatetime: impart.CurrentUTC(),
-		PostID:        0,
+		PostID:        dbComment.PostID,
+		CommentID:     dbComment.CommentID,
 	}
 
 	// generate notification context

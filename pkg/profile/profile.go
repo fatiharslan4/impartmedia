@@ -115,6 +115,12 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 
 		existingDBProfile := userToDelete.R.ImpartWealthProfile
 
+		esitingUserAnser := userToDelete.R.ImpartWealthUserAnswers
+		answerIds := make([]interface{}, len(esitingUserAnser))
+		for i, a := range esitingUserAnser {
+			answerIds[i] = a.AnswerID
+		}
+
 		userEmail := userToDelete.Email
 		screenName := userToDelete.ScreenName
 		userToDelete.Feedback = null.StringFromPtr(&deleteUser.Feedback)
@@ -131,6 +137,8 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 			return impart.NewError(err, "User Deletion failed")
 
 		}
+		err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, false)
+
 		m, errDel := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
 		if errDel != nil {
 			//revert the server update
@@ -141,7 +149,13 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 
 			err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
 			if err != nil {
-				return impart.NewError(err, "User Deletion failed")
+				ps.Logger().Error("Delete user requset failed in auth 0 then revert the server", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", contextUser.ImpartWealthID))
+			}
+			err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, true)
+			if err != nil {
+				ps.Logger().Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", contextUser.ImpartWealthID))
 			}
 			return impart.NewError(err, "User Deletion failed")
 
@@ -162,8 +176,13 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 
 			err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
 			if err != nil {
-				return impart.NewError(err, "User Deletion failed")
-
+				ps.Logger().Error("Delete user requset failed in auth 0 then revert the server- user failed.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", contextUser.ImpartWealthID))
+			}
+			err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, true)
+			if err != nil {
+				ps.Logger().Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", contextUser.ImpartWealthID))
 			}
 			return impart.NewError(err, "User Deletion failed")
 		}

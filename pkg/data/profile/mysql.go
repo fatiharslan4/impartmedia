@@ -209,6 +209,19 @@ func (m *mysqlStore) SaveUserQuestionnaire(ctx context.Context, answers dbmodels
 		if err != nil {
 			return err
 		}
+
+		var userDemo dbmodels.UserDemographic
+		err = dbmodels.NewQuery(
+			qm.Select("*"),
+			qm.Where("answer_id = ?", a.AnswerID),
+			qm.From("user_demographic"),
+		).Bind(ctx, m.db, &userDemo)
+
+		if err == nil {
+			existData := &userDemo
+			existData.UserCount = existData.UserCount + 1
+			_, err = existData.Update(ctx, m.db, boil.Infer())
+		}
 	}
 	tx.Commit()
 	return nil
@@ -482,4 +495,66 @@ func (m *mysqlStore) DeleteExceptUserDevice(ctx context.Context, impartID string
 	}
 
 	return nil
+}
+
+func (m *mysqlStore) UpdateUserDemographic(ctx context.Context, answerIds []interface{}, status bool) error {
+	tx, err := m.db.BeginTx(ctx, nil)
+	if err != nil {
+		return rollbackIfError(tx, err, m.logger)
+	}
+	for _, a := range answerIds {
+		var userDemo dbmodels.UserDemographic
+		err = dbmodels.NewQuery(
+			qm.Select("*"),
+			qm.Where("answer_id = ?", a),
+			qm.From("user_demographic"),
+		).Bind(ctx, m.db, &userDemo)
+
+		if err == nil {
+			existData := &userDemo
+			if status {
+				existData.UserCount = existData.UserCount + 1
+			} else {
+				existData.UserCount = existData.UserCount - 1
+			}
+			_, err = existData.Update(ctx, m.db, boil.Infer())
+			if err != nil {
+				return rollbackIfError(tx, err, m.logger)
+			}
+		}
+	}
+	return tx.Commit()
+}
+
+func (m *mysqlStore) GetMakeUp(ctx context.Context) (dbmodels.QuestionnaireSlice, dbmodels.UserDemographicSlice, error) {
+
+	userAnswers, err := dbmodels.UserDemographics(
+		Load(Rels(dbmodels.UserDemographicRels.Answer, dbmodels.AnswerRels.Question, dbmodels.QuestionRels.Questionnaire)),
+		Load(Rels(dbmodels.UserDemographicRels.Answer, dbmodels.AnswerRels.Question, dbmodels.QuestionRels.Type)),
+	).All(ctx, m.db)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return dbmodels.QuestionnaireSlice{}, dbmodels.UserDemographicSlice{}, impart.ErrNotFound
+		}
+	}
+	dedupMap := make(map[uint]*dbmodels.Questionnaire)
+	for _, a := range userAnswers {
+		q, ok := dedupMap[a.R.Answer.R.Question.R.Questionnaire.QuestionnaireID]
+		if !ok {
+			q = a.R.Answer.R.Question.R.Questionnaire
+			dedupMap[q.QuestionnaireID] = q
+		}
+	}
+
+	//Build the output list, if we're filtering by name only include those, otherwise include all
+	out := make(dbmodels.QuestionnaireSlice, 0)
+	for _, v := range dedupMap {
+		out = append(out, v)
+	}
+
+	if len(userAnswers) == 0 {
+		return dbmodels.QuestionnaireSlice{}, dbmodels.UserDemographicSlice{}, impart.ErrNotFound
+	}
+	return out, userAnswers, nil
 }

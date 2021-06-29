@@ -113,7 +113,7 @@ func main() {
 	}
 
 	// initiate global profanity detector
-	impart.InitProfanityDetector()
+	impart.InitProfanityDetector(db)
 
 	services := setupServices(cfg, db, logger)
 

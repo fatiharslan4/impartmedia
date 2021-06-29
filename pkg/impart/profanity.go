@@ -9,6 +9,7 @@ var ProfanityDetector *gocensorword.CensorWordDetection
 func TestInitProfanityDetector() *gocensorword.CensorWordDetection {
 	ProfanityDetector = gocensorword.NewDetector().SetCensorReplaceChar("*").WithSanitizeSpecialCharacters(false)
 	ProfanityDetector.CustomCensorList(censorList)
+	ProfanityDetector.ReplaceCheckPattern = `\b%s\b`
 	return ProfanityDetector
 }
 
@@ -16,6 +17,7 @@ func InitProfanityDetector() *gocensorword.CensorWordDetection {
 	ProfanityDetector = gocensorword.NewDetector().SetCensorReplaceChar("*").WithSanitizeSpecialCharacters(false)
 	ProfanityDetector.CustomCensorList(censorList)
 	ProfanityDetector.KeepPrefixChar = true // this will keep the first letter
+	ProfanityDetector.ReplaceCheckPattern = `\b%s\b`
 	return ProfanityDetector
 }
 

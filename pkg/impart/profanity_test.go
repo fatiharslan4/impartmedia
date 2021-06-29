@@ -19,6 +19,18 @@ func TestProfanityTest(t *testing.T) {
 	require.Equal(t, resultString, "bad ***")
 }
 
+func TestProfanityTestN(t *testing.T) {
+	impart.TestInitProfanityDetector()
+
+	word := "yesterday"
+	resultString, err := impart.ProfanityDetector.CensorWord(word)
+	if err != nil {
+		panic(err)
+	}
+
+	require.Equal(t, resultString, "yesterday")
+}
+
 func TestBadWordFirstLetterKept(t *testing.T) {
 	word := "bitch"
 	resultString, err := impart.ProfanityDetector.CensorWord(word)

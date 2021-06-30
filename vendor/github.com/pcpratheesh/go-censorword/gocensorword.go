@@ -107,11 +107,6 @@ func (censor *CensorWordDetection) CensorWord(word string) (string, error) {
 	if ok := len(censor.CensorList) > 0; !ok {
 		return "", fmt.Errorf("found empty censor word list")
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered in f", r)
-		}
-	}()
 	// convert str into a slice
 	for _, forbiddenWord := range censor.CensorList {
 

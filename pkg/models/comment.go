@@ -158,7 +158,7 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 	}
 
 	// profanity detection and removal
-	out.Content.Markdown, _ = impart.ProfanityDetector.CensorWord(out.Content.Markdown)
+	out.Content.Markdown, _ = impart.CensorWord(out.Content.Markdown)
 
 	return out
 }

@@ -3,14 +3,18 @@ package impart
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	gocensorword "github.com/pcpratheesh/go-censorword"
+	"go.uber.org/zap"
 )
 
 var ProfanityDetector *gocensorword.CensorWordDetection
+var Logger *zap.Logger
 
-func InitProfanityDetector(db *sql.DB) *gocensorword.CensorWordDetection {
+func InitProfanityDetector(db *sql.DB, logger *zap.Logger) *gocensorword.CensorWordDetection {
+	Logger = logger
 	ProfanityDetector = gocensorword.NewDetector().SetCensorReplaceChar("*").WithSanitizeSpecialCharacters(false)
 	censorList := GetProfanityList(db)
 	ProfanityDetector.CustomCensorList(censorList)
@@ -28,6 +32,19 @@ func GetProfanityList(db *sql.DB) []string {
 		list = append(list, val.Word)
 	}
 	return list
+}
+
+func CensorWord(word string) (string, error) {
+	if len(ProfanityDetector.CensorList) > 0 {
+		filteredWord, err := ProfanityDetector.CensorWord(word)
+		if err != nil {
+			Logger.Error(fmt.Sprintf("error on censor %v", err))
+			return word, nil
+		}
+		return filteredWord, nil
+	}
+
+	return word, nil
 }
 
 var censorList = []string{}

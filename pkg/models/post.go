@@ -238,6 +238,11 @@ func PostFromDB(p *dbmodels.Post) Post {
 			}
 		}
 	}
+
+	// profanity detection and removal
+	out.Subject, _ = impart.ProfanityDetector.CensorWord(out.Subject)
+	out.Content.Markdown, _ = impart.ProfanityDetector.CensorWord(out.Content.Markdown)
+
 	return out
 }
 

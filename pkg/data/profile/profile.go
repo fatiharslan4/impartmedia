@@ -40,7 +40,7 @@ type Store interface {
 	UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) error
 
 	BlockUser(ctx context.Context, user *dbmodels.User, status bool) error
-	GetMakeUp(ctx context.Context) (dbmodels.QuestionnaireSlice, dbmodels.UserDemographicSlice, error)
+	GetMakeUp(ctx context.Context) (interface{}, error)
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

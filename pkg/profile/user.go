@@ -269,6 +269,12 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 		errorString := fmt.Sprintf("%v", err)
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
+	exitingUserAnser := dbUser.R.ImpartWealthUserAnswers
+	answerIds := make([]interface{}, len(exitingUserAnser))
+	for i, a := range exitingUserAnser {
+		answerIds[i] = a.AnswerID
+	}
+	err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, false)
 	return nil
 }
 

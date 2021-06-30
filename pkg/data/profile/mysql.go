@@ -527,8 +527,9 @@ func (m *mysqlStore) UpdateUserDemographic(ctx context.Context, answerIds []inte
 	return tx.Commit()
 }
 
-func (m *mysqlStore) GetMakeUp(ctx context.Context) (dbmodels.QuestionnaireSlice, dbmodels.UserDemographicSlice, error) {
+func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 
+	dataMap := make(map[int]map[string]interface{})
 	userAnswers, err := dbmodels.UserDemographics(
 		Load(Rels(dbmodels.UserDemographicRels.Answer, dbmodels.AnswerRels.Question, dbmodels.QuestionRels.Questionnaire)),
 		Load(Rels(dbmodels.UserDemographicRels.Answer, dbmodels.AnswerRels.Question, dbmodels.QuestionRels.Type)),
@@ -536,11 +537,19 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (dbmodels.QuestionnaireSlice
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return dbmodels.QuestionnaireSlice{}, dbmodels.UserDemographicSlice{}, impart.ErrNotFound
+			return dataMap, impart.ErrNotFound
 		}
 	}
 	dedupMap := make(map[uint]*dbmodels.Questionnaire)
-	dataMap := make(map[int]map[string]interface{})
+
+	totalCnt := 0
+	for _, ans := range userAnswers {
+		totalCnt = totalCnt + ans.UserCount
+	}
+
+	if len(userAnswers) == 0 {
+		return dataMap, impart.ErrNotFound
+	}
 
 	for _, a := range userAnswers {
 		q, ok := dedupMap[a.R.Answer.R.Question.R.Questionnaire.QuestionnaireID]
@@ -570,23 +579,21 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (dbmodels.QuestionnaireSlice
 		}
 
 		// set the array data
-		dataMap[qIDInt][questionIDstr].(map[string]interface{})["title"] = a.R.Answer.R.Question.QuestionName
+		dataMap[qIDInt][questionIDstr].(map[string]interface{})["name"] = a.R.Answer.R.Question.QuestionName
+		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questionText"] = a.R.Answer.R.Question.Text
+		percentage := 0.0
+		if a.UserCount > 0 {
+			percentage = (float64(a.UserCount) / float64(totalCnt)) * 100
+		}
+
 		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr] = map[string]string{
-			"id":    strconv.Itoa(int(a.R.Answer.AnswerID)),
-			"count": strconv.Itoa(a.UserCount),
-			"title": a.R.Answer.AnswerName,
+			"id":         strconv.Itoa(int(a.R.Answer.AnswerID)),
+			"title":      a.R.Answer.AnswerName,
+			"text":       a.R.Answer.Text,
+			"count":      strconv.Itoa(a.UserCount),
+			"percentage": fmt.Sprintf("%f", percentage),
 		}
 	}
-	impart.PrintAsJson("dataMap----", dataMap)
 
-	//Build the output list, if we're filtering by name only include those, otherwise include all
-	out := make(dbmodels.QuestionnaireSlice, 0)
-	for _, v := range dedupMap {
-		out = append(out, v)
-	}
-
-	if len(userAnswers) == 0 {
-		return dbmodels.QuestionnaireSlice{}, dbmodels.UserDemographicSlice{}, impart.ErrNotFound
-	}
-	return out, userAnswers, nil
+	return dataMap, nil
 }

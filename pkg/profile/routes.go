@@ -765,14 +765,11 @@ func (ph *profileHandler) DeleteUserProfileFunc() gin.HandlerFunc {
 
 func (ph *profileHandler) GetMakeUp() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-
-		userdemo, impartErr := ph.profileService.GetMakeUp(ctx)
+		makeup, impartErr := ph.profileService.GetMakeUp(ctx)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
-			//ctx.AbortWithError(err.HttpStatus(), err)
 			return
 		}
-
-		ctx.JSON(http.StatusOK, userdemo)
+		ctx.JSON(http.StatusOK, makeup)
 	}
 }

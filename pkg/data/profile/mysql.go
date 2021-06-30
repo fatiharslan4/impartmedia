@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -539,13 +540,44 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (dbmodels.QuestionnaireSlice
 		}
 	}
 	dedupMap := make(map[uint]*dbmodels.Questionnaire)
+	dataMap := make(map[int]map[string]interface{})
+
 	for _, a := range userAnswers {
 		q, ok := dedupMap[a.R.Answer.R.Question.R.Questionnaire.QuestionnaireID]
 		if !ok {
 			q = a.R.Answer.R.Question.R.Questionnaire
 			dedupMap[q.QuestionnaireID] = q
 		}
+
+		qIDInt := int(q.QuestionnaireID)
+		questionIDstr := strconv.Itoa(int(a.R.Answer.R.Question.QuestionID))
+		answerIDstr := strconv.Itoa(int(a.R.Answer.AnswerID))
+
+		// if the index not exists
+		if _, ok := dataMap[qIDInt]; !ok {
+			dataMap[qIDInt] = make(map[string]interface{})
+		}
+
+		// check questions index exists
+		if _, ok := dataMap[qIDInt][questionIDstr]; !ok {
+			dataMap[qIDInt][questionIDstr] = make(map[string]interface{})
+			dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"] = make(map[string]interface{})
+		}
+
+		// check answers index exists in
+		if _, ok := dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr]; !ok {
+			dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr] = make(map[string]interface{})
+		}
+
+		// set the array data
+		dataMap[qIDInt][questionIDstr].(map[string]interface{})["title"] = a.R.Answer.R.Question.QuestionName
+		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr] = map[string]string{
+			"id":    strconv.Itoa(int(a.R.Answer.AnswerID)),
+			"count": strconv.Itoa(a.UserCount),
+			"title": a.R.Answer.AnswerName,
+		}
 	}
+	impart.PrintAsJson("dataMap----", dataMap)
 
 	//Build the output list, if we're filtering by name only include those, otherwise include all
 	out := make(dbmodels.QuestionnaireSlice, 0)

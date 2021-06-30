@@ -1,6 +1,7 @@
 package impart
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/shopspring/decimal"
@@ -15,4 +16,10 @@ func FriendlyFormatDollars(val int) string {
 	default:
 		return "<$1K"
 	}
+}
+
+func PrintAsJson(name string, data ...interface{}) {
+	NoticeColor := "\033[1;36m%s\033[0m"
+	s, _ := json.MarshalIndent(data, "", "  ")
+	fmt.Printf(NoticeColor, name+"\n"+string(s)+"\n")
 }

@@ -135,6 +135,9 @@ func PostCommentTrackFromDB(p *dbmodels.PostReaction, c *dbmodels.CommentReactio
 			out.ReportedReason = p.ReportedReason.String
 		}
 	}
+
+	//filter profanity words from reason
+	out.ReportedReason, _ = impart.CensorWord(out.ReportedReason)
 	return out
 }
 

@@ -42,6 +42,7 @@ type NotificationService interface {
 type NotificationData struct {
 	EventDatetime time.Time `json:"eventDatetime"`
 	PostID        uint64    `json:"postId,omitempty"`
+	CommentID     uint64    `json:"commentId,omitempty"`
 }
 
 type noopNotificationService struct {
@@ -406,11 +407,14 @@ func (ns *snsAppleNotificationService) createEndpoint(ctx context.Context, devic
 }
 
 func (ns *snsAppleNotificationService) SubscribeTopic(ctx context.Context, impartWealthId, topicARN, platformEndpointARN string) error {
-	// user, err := dbmodels.Users(Where("impart_wealth_id = ?", impartWealthId)).One(ctx, ns.db)
-	// if err != nil {
-	// 	return err
+	// ctxUser := GetCtxUser(ctx)
+	// if ctxUser == nil {
+	// 	return nil
 	// }
-
+	// if ctxUser.Admin {
+	// 	ns.Debug("Admin User so Not subscribe to Topic")
+	// 	return nil
+	// }
 	currentSubscriptions, err := dbmodels.NotificationSubscriptions(
 		dbmodels.NotificationSubscriptionWhere.PlatformEndpointArn.EQ(platformEndpointARN)).All(ctx, ns.db)
 	if err != nil {

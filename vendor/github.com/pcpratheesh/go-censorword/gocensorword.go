@@ -91,7 +91,9 @@ func (censor *CensorWordDetection) SanitizeCharacter(str string) string {
 func (censor *CensorWordDetection) CensorWord(word string) (string, error) {
 
 	// sanitize with text normalization
-	word = censor.normalizeText(word)
+	if censor.TextNormalization {
+		word = censor.normalizeText(word)
+	}
 
 	if censor.SanitizeSpecialCharacters {
 		word = censor.SanitizeCharacter(word)

@@ -15,7 +15,7 @@ var Logger *zap.Logger
 
 func InitProfanityDetector(db *sql.DB, logger *zap.Logger) *gocensorword.CensorWordDetection {
 	Logger = logger
-	ProfanityDetector = gocensorword.NewDetector().SetCensorReplaceChar("*").WithSanitizeSpecialCharacters(false)
+	ProfanityDetector = gocensorword.NewDetector().SetCensorReplaceChar("*").WithSanitizeSpecialCharacters(false).WithTextNormalization(false)
 	censorList := GetProfanityList(db)
 	ProfanityDetector.CustomCensorList(censorList)
 	ProfanityDetector.KeepPrefixChar = true // this will keep the first letter

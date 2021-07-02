@@ -125,17 +125,20 @@ var AnswerWhere = struct {
 
 // AnswerRels is where relationship names are stored.
 var AnswerRels = struct {
-	Question    string
-	UserAnswers string
+	Question         string
+	UserAnswers      string
+	UserDemographics string
 }{
-	Question:    "Question",
-	UserAnswers: "UserAnswers",
+	Question:         "Question",
+	UserAnswers:      "UserAnswers",
+	UserDemographics: "UserDemographics",
 }
 
 // answerR is where relationships are stored.
 type answerR struct {
-	Question    *Question       `boil:"Question" json:"Question" toml:"Question" yaml:"Question"`
-	UserAnswers UserAnswerSlice `boil:"UserAnswers" json:"UserAnswers" toml:"UserAnswers" yaml:"UserAnswers"`
+	Question         *Question            `boil:"Question" json:"Question" toml:"Question" yaml:"Question"`
+	UserAnswers      UserAnswerSlice      `boil:"UserAnswers" json:"UserAnswers" toml:"UserAnswers" yaml:"UserAnswers"`
+	UserDemographics UserDemographicSlice `boil:"UserDemographics" json:"UserDemographics" toml:"UserDemographics" yaml:"UserDemographics"`
 }
 
 // NewStruct creates a new relationship struct
@@ -464,6 +467,27 @@ func (o *Answer) UserAnswers(mods ...qm.QueryMod) userAnswerQuery {
 	return query
 }
 
+// UserDemographics retrieves all the user_demographic's UserDemographics with an executor.
+func (o *Answer) UserDemographics(mods ...qm.QueryMod) userDemographicQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`user_demographic`.`answer_id`=?", o.AnswerID),
+	)
+
+	query := UserDemographics(queryMods...)
+	queries.SetFrom(query.Query, "`user_demographic`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`user_demographic`.*"})
+	}
+
+	return query
+}
+
 // LoadQuestion allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
 func (answerL) LoadQuestion(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAnswer interface{}, mods queries.Applicator) error {
@@ -667,6 +691,104 @@ func (answerL) LoadUserAnswers(ctx context.Context, e boil.ContextExecutor, sing
 	return nil
 }
 
+// LoadUserDemographics allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (answerL) LoadUserDemographics(ctx context.Context, e boil.ContextExecutor, singular bool, maybeAnswer interface{}, mods queries.Applicator) error {
+	var slice []*Answer
+	var object *Answer
+
+	if singular {
+		object = maybeAnswer.(*Answer)
+	} else {
+		slice = *maybeAnswer.(*[]*Answer)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &answerR{}
+		}
+		args = append(args, object.AnswerID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &answerR{}
+			}
+
+			for _, a := range args {
+				if a == obj.AnswerID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.AnswerID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`user_demographic`),
+		qm.WhereIn(`user_demographic.answer_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load user_demographic")
+	}
+
+	var resultSlice []*UserDemographic
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice user_demographic")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on user_demographic")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_demographic")
+	}
+
+	if len(userDemographicAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.UserDemographics = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &userDemographicR{}
+			}
+			foreign.R.Answer = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.AnswerID == foreign.AnswerID {
+				local.R.UserDemographics = append(local.R.UserDemographics, foreign)
+				if foreign.R == nil {
+					foreign.R = &userDemographicR{}
+				}
+				foreign.R.Answer = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetQuestion of the answer to the related item.
 // Sets o.R.Question to related.
 // Adds o to related.R.Answers.
@@ -758,6 +880,59 @@ func (o *Answer) AddUserAnswers(ctx context.Context, exec boil.ContextExecutor, 
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &userAnswerR{
+				Answer: o,
+			}
+		} else {
+			rel.R.Answer = o
+		}
+	}
+	return nil
+}
+
+// AddUserDemographics adds the given related objects to the existing relationships
+// of the answer, optionally inserting them as new records.
+// Appends related to o.R.UserDemographics.
+// Sets related.R.Answer appropriately.
+func (o *Answer) AddUserDemographics(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserDemographic) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.AnswerID = o.AnswerID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `user_demographic` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"answer_id"}),
+				strmangle.WhereClause("`", "`", 0, userDemographicPrimaryKeyColumns),
+			)
+			values := []interface{}{o.AnswerID, rel.DemographicID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.AnswerID = o.AnswerID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &answerR{
+			UserDemographics: related,
+		}
+	} else {
+		o.R.UserDemographics = append(o.R.UserDemographics, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &userDemographicR{
 				Answer: o,
 			}
 		} else {

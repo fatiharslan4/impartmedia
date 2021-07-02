@@ -157,9 +157,6 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 		out.ScreenName = types.AccountDeleted.ToString()
 	}
 
-	// profanity detection and removal
-	out.Content.Markdown, _ = impart.CensorWord(out.Content.Markdown)
-
 	return out
 }
 

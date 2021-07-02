@@ -24,37 +24,42 @@ import (
 
 // Profile is an object representing the database table.
 type Profile struct {
-	ImpartWealthID string     `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	CreatedAt      time.Time  `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt      time.Time  `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
-	Attributes     types.JSON `boil:"attributes" json:"attributes" toml:"attributes" yaml:"attributes"`
+	ImpartWealthID        string     `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
+	CreatedAt             time.Time  `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt             time.Time  `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	Attributes            types.JSON `boil:"attributes" json:"attributes" toml:"attributes" yaml:"attributes"`
+	IsUpdateReadCommunity bool       `boil:"is_update_read_community" json:"is_update_read_community" toml:"is_update_read_community" yaml:"is_update_read_community"`
 
 	R *profileR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L profileL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var ProfileColumns = struct {
-	ImpartWealthID string
-	CreatedAt      string
-	UpdatedAt      string
-	Attributes     string
+	ImpartWealthID        string
+	CreatedAt             string
+	UpdatedAt             string
+	Attributes            string
+	IsUpdateReadCommunity string
 }{
-	ImpartWealthID: "impart_wealth_id",
-	CreatedAt:      "created_at",
-	UpdatedAt:      "updated_at",
-	Attributes:     "attributes",
+	ImpartWealthID:        "impart_wealth_id",
+	CreatedAt:             "created_at",
+	UpdatedAt:             "updated_at",
+	Attributes:            "attributes",
+	IsUpdateReadCommunity: "is_update_read_community",
 }
 
 var ProfileTableColumns = struct {
-	ImpartWealthID string
-	CreatedAt      string
-	UpdatedAt      string
-	Attributes     string
+	ImpartWealthID        string
+	CreatedAt             string
+	UpdatedAt             string
+	Attributes            string
+	IsUpdateReadCommunity string
 }{
-	ImpartWealthID: "profile.impart_wealth_id",
-	CreatedAt:      "profile.created_at",
-	UpdatedAt:      "profile.updated_at",
-	Attributes:     "profile.attributes",
+	ImpartWealthID:        "profile.impart_wealth_id",
+	CreatedAt:             "profile.created_at",
+	UpdatedAt:             "profile.updated_at",
+	Attributes:            "profile.attributes",
+	IsUpdateReadCommunity: "profile.is_update_read_community",
 }
 
 // Generated where
@@ -81,15 +86,17 @@ func (w whereHelpertypes_JSON) GTE(x types.JSON) qm.QueryMod {
 }
 
 var ProfileWhere = struct {
-	ImpartWealthID whereHelperstring
-	CreatedAt      whereHelpertime_Time
-	UpdatedAt      whereHelpertime_Time
-	Attributes     whereHelpertypes_JSON
+	ImpartWealthID        whereHelperstring
+	CreatedAt             whereHelpertime_Time
+	UpdatedAt             whereHelpertime_Time
+	Attributes            whereHelpertypes_JSON
+	IsUpdateReadCommunity whereHelperbool
 }{
-	ImpartWealthID: whereHelperstring{field: "`profile`.`impart_wealth_id`"},
-	CreatedAt:      whereHelpertime_Time{field: "`profile`.`created_at`"},
-	UpdatedAt:      whereHelpertime_Time{field: "`profile`.`updated_at`"},
-	Attributes:     whereHelpertypes_JSON{field: "`profile`.`attributes`"},
+	ImpartWealthID:        whereHelperstring{field: "`profile`.`impart_wealth_id`"},
+	CreatedAt:             whereHelpertime_Time{field: "`profile`.`created_at`"},
+	UpdatedAt:             whereHelpertime_Time{field: "`profile`.`updated_at`"},
+	Attributes:            whereHelpertypes_JSON{field: "`profile`.`attributes`"},
+	IsUpdateReadCommunity: whereHelperbool{field: "`profile`.`is_update_read_community`"},
 }
 
 // ProfileRels is where relationship names are stored.
@@ -113,9 +120,9 @@ func (*profileR) NewStruct() *profileR {
 type profileL struct{}
 
 var (
-	profileAllColumns            = []string{"impart_wealth_id", "created_at", "updated_at", "attributes"}
+	profileAllColumns            = []string{"impart_wealth_id", "created_at", "updated_at", "attributes", "is_update_read_community"}
 	profileColumnsWithoutDefault = []string{"impart_wealth_id", "created_at", "updated_at", "attributes"}
-	profileColumnsWithDefault    = []string{}
+	profileColumnsWithDefault    = []string{"is_update_read_community"}
 	profilePrimaryKeyColumns     = []string{"impart_wealth_id"}
 )
 

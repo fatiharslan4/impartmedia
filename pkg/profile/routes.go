@@ -52,6 +52,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	profileRoutes.POST("/validate/screen-name", handler.ValidateScreenName())
 	profileRoutes.POST("/send-email", handler.ResentEmail())
+	profileRoutes.POST("/update-read-community", handler.UpdateReadCommunity())
 
 	questionnaireRoutes := version.Group("/questionnaires")
 	questionnaireRoutes.GET("", handler.AllQuestionnaireHandler())                     //returns a list of questionnaire; filter by `name` query param
@@ -320,6 +321,36 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
 		ctx.JSON(http.StatusOK, gin.H{
 			"status": "success",
 		})
+	}
+}
+
+func (ph *profileHandler) UpdateReadCommunity() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+		p := models.UpdateReadCommunity{}
+		stdErr := json.Unmarshal(b, &p)
+		if stdErr != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Profile")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		impartErr := ph.profileService.UpdateReadCommunity(ctx, p, ctxUser.ImpartWealthID)
+		if impartErr != nil {
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, p)
+
 	}
 }
 

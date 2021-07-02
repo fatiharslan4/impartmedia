@@ -64,8 +64,10 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	userRoutes.POST("/register-device", handler.CreateUserDevice())
 	userRoutes.GET("/notification", handler.GetConfiguration())
 	userRoutes.POST("/notification", handler.CreateNotificationConfiguration())
-
 	userRoutes.POST("/block", handler.BlockUser())
+
+	mainRoutes := version.Group("/profile")
+	mainRoutes.GET("/make-up", handler.GetMakeUp())
 
 }
 
@@ -789,5 +791,16 @@ func (ph *profileHandler) DeleteUserProfileFunc() gin.HandlerFunc {
 		}
 
 		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "profile deleted"})
+	}
+}
+
+func (ph *profileHandler) GetMakeUp() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		makeup, impartErr := ph.profileService.GetMakeUp(ctx)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, makeup)
 	}
 }

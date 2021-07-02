@@ -16,6 +16,7 @@ type QuestionnaireService interface {
 	GetQuestionnaires(ctx context.Context, name string) ([]models.Questionnaire, impart.Error)
 	GetUserQuestionnaires(ctx context.Context, impartWealthId string, name string) ([]models.Questionnaire, impart.Error)
 	SaveQuestionnaire(ctx context.Context, questionnaire models.Questionnaire) (bool, impart.Error)
+	GetMakeUp(ctx context.Context) (interface{}, impart.Error)
 }
 
 func (ps *profileService) GetQuestionnaires(ctx context.Context, name string) ([]models.Questionnaire, impart.Error) {
@@ -260,4 +261,12 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		return isnewhive, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
 	}
 	return isnewhive, nil
+}
+
+func (ps *profileService) GetMakeUp(ctx context.Context) (interface{}, impart.Error) {
+	result, err := ps.profileStore.GetMakeUp(ctx)
+	if err != nil {
+		return nil, impart.NewError(impart.ErrUnknown, "unable to fetch the details")
+	}
+	return result, nil
 }

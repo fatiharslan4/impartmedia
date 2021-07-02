@@ -266,6 +266,7 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 func (ps *profileService) GetMakeUp(ctx context.Context) (interface{}, impart.Error) {
 	result, err := ps.profileStore.GetMakeUp(ctx)
 	if err != nil {
+		ps.Logger().Error("Error in data fetching", zap.Error(err))
 		return nil, impart.NewError(impart.ErrUnknown, "unable to fetch the details")
 	}
 	return result, nil

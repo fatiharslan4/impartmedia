@@ -37,12 +37,13 @@ type Profile struct {
 	UpdatedDate      time.Time  `json:"updatedDate,omitempty"`
 	DeviceToken      string     `json:"deviceToken,omitempty"`
 	//SurveyResponses  SurveyResponses `json:"surveyResponses,omitempty"`
-	HiveMemberships HiveMemberships `json:"hives,omitempty"`
-	IsMember        bool            `json:"isMember,omitempty"`
-	IsBlocked       bool            `json:"isBlocked,omitempty"`
-	UserDevices     []UserDevice    `json:"devices,omitempty"`
-	Settings        UserSettings    `json:"settings,omitempty"`
-	Feedback        string          `json:"feedback,omitempty"`
+	HiveMemberships       HiveMemberships `json:"hives,omitempty"`
+	IsMember              bool            `json:"isMember,omitempty"`
+	IsBlocked             bool            `json:"isBlocked,omitempty"`
+	UserDevices           []UserDevice    `json:"devices,omitempty"`
+	Settings              UserSettings    `json:"settings,omitempty"`
+	Feedback              string          `json:"feedback,omitempty"`
+	IsUpdateReadCommunity bool            `json:"isUpdateReadCommunity,omitempty"`
 }
 
 // Attributes for Impart Wealth
@@ -60,6 +61,10 @@ type Address struct {
 	City        string    `json:"city,omitempty" conform:"trim,ucfirst"`
 	State       string    `json:"state,omitempty" conform:"upper" jsonschema:"minLength=2,maxLength=2"`
 	Zip         string    `json:"zip,omitempty"`
+}
+
+type UpdateReadCommunity struct {
+	IsUpdate bool `json:"isUpdate,omitempty"`
 }
 
 type NotificationProfile struct {
@@ -175,8 +180,9 @@ func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error)
 		CreatedDate: u.CreatedAt,
 		DeviceToken: u.DeviceToken,
 		//SurveyResponses:  SurveyResponses{},
-		HiveMemberships: make(HiveMemberships, len(u.R.MemberHiveHives), len(u.R.MemberHiveHives)),
-		UpdatedDate:     u.UpdatedAt,
+		HiveMemberships:       make(HiveMemberships, len(u.R.MemberHiveHives), len(u.R.MemberHiveHives)),
+		UpdatedDate:           u.UpdatedAt,
+		IsUpdateReadCommunity: p.IsUpdateReadCommunity,
 	}
 
 	for i, hive := range u.R.MemberHiveHives {

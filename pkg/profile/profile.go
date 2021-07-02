@@ -116,7 +116,7 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 		existingDBProfile := userToDelete.R.ImpartWealthProfile
 
 		exitingUserAnser := userToDelete.R.ImpartWealthUserAnswers
-		answerIds := make([]interface{}, len(exitingUserAnser))
+		answerIds := make([]uint, len(exitingUserAnser))
 		for i, a := range exitingUserAnser {
 			answerIds[i] = a.AnswerID
 		}

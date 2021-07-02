@@ -498,7 +498,7 @@ func (m *mysqlStore) DeleteExceptUserDevice(ctx context.Context, impartID string
 	return nil
 }
 
-func (m *mysqlStore) UpdateUserDemographic(ctx context.Context, answerIds []interface{}, status bool) error {
+func (m *mysqlStore) UpdateUserDemographic(ctx context.Context, answerIds []uint, status bool) error {
 	tx, err := m.db.BeginTx(ctx, nil)
 	if err != nil {
 		return rollbackIfError(tx, err, m.logger)

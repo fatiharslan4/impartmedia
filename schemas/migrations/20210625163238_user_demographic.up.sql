@@ -16,8 +16,8 @@ SELECT answer_id,0
 FROM answer;
 
 
-with cte_user_demographic
-as
+UPDATE user_demographic
+INNER JOIN
 (
 SELECT answer_id,count(answer_id) as usercount
  FROM user_answers
@@ -25,11 +25,7 @@ SELECT answer_id,count(answer_id) as usercount
  and user.deleted_at is null
  and user.blocked=0
  group by answer_id
- )
- 
-UPDATE user_demographic
-INNER JOIN
-cte_user_demographic 
+ ) cte_user_demographic
 ON cte_user_demographic.answer_id = user_demographic.answer_id 
 SET 
 user_count = cte_user_demographic.usercount;

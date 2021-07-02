@@ -270,7 +270,7 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
 	exitingUserAnser := dbUser.R.ImpartWealthUserAnswers
-	answerIds := make([]interface{}, len(exitingUserAnser))
+	answerIds := make([]uint, len(exitingUserAnser))
 	for i, a := range exitingUserAnser {
 		answerIds[i] = a.AnswerID
 	}

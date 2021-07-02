@@ -112,19 +112,18 @@ func (censor *CensorWordDetection) CensorWord(word string) (string, error) {
 	if ok := len(censor.CensorList) > 0; !ok {
 		return "", fmt.Errorf("found empty censor word list")
 	}
-	// convert str into a slice
-	for _, forbiddenWord := range censor.CensorList {
-		c, _ := utf8.DecodeRuneInString(forbiddenWord)
-		if c != '.' && c != ',' && c != '?' && c != '“' && c != '”' {
 
-		} else {
-			censor.Logger.Error("Censoring : not ok utf8 format", zap.Any("forbiddenWord", forbiddenWord), zap.Any("word", word))
+	// convert str into a slice
+	for _, fword := range censor.CensorList {
+		forbiddenWord := fword
+		forbiddenWord = strings.ToValidUTF8(forbiddenWord, "")
+		if !utf8.ValidString(forbiddenWord) {
 			continue
 		}
 
 		// should replace incase sensitive
-		censor.Logger.Info("censoring....", zap.Any("forbiddenWord", forbiddenWord), zap.Any("word", word))
-		pattern := regexp.MustCompile(fmt.Sprintf(censor.ReplaceCheckPattern, forbiddenWord))
+		patterFormat := fmt.Sprintf(censor.ReplaceCheckPattern, forbiddenWord)
+		pattern := regexp.MustCompile(patterFormat)
 		var replacePattern, prefix, suffix string
 		wordLength := len(forbiddenWord)
 

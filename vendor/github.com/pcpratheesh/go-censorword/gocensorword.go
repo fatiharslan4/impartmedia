@@ -7,8 +7,10 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/pcpratheesh/go-censorword/censor"
+	"go.uber.org/zap"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
@@ -26,6 +28,7 @@ type CensorWordDetection struct {
 	SanitizeSpecialCharacters bool
 	TextNormalization         bool
 	ReplaceCheckPattern       string
+	Logger                    *zap.Logger
 }
 
 // this will create a new CensorWordDetection object
@@ -111,8 +114,16 @@ func (censor *CensorWordDetection) CensorWord(word string) (string, error) {
 	}
 	// convert str into a slice
 	for _, forbiddenWord := range censor.CensorList {
+		c, _ := utf8.DecodeRuneInString(forbiddenWord)
+		if c != '.' && c != ',' && c != '?' && c != '“' && c != '”' {
+
+		} else {
+			censor.Logger.Error("Censoring : not ok utf8 format", zap.Any("forbiddenWord", forbiddenWord), zap.Any("word", word))
+			continue
+		}
 
 		// should replace incase sensitive
+		censor.Logger.Info("censoring....", zap.Any("forbiddenWord", forbiddenWord), zap.Any("word", word))
 		pattern := regexp.MustCompile(fmt.Sprintf(censor.ReplaceCheckPattern, forbiddenWord))
 		var replacePattern, prefix, suffix string
 		wordLength := len(forbiddenWord)

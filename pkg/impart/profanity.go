@@ -20,6 +20,7 @@ func InitProfanityDetector(db *sql.DB, logger *zap.Logger) *gocensorword.CensorW
 	ProfanityDetector.CustomCensorList(censorList)
 	ProfanityDetector.KeepPrefixChar = true // this will keep the first letter
 	ProfanityDetector.ReplaceCheckPattern = `\b%s\b`
+	ProfanityDetector.Logger = Logger
 	return ProfanityDetector
 }
 

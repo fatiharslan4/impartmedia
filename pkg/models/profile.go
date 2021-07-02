@@ -43,7 +43,7 @@ type Profile struct {
 	UserDevices           []UserDevice    `json:"devices,omitempty"`
 	Settings              UserSettings    `json:"settings,omitempty"`
 	Feedback              string          `json:"feedback,omitempty"`
-	IsUpdateReadCommunity bool            `json:"isUpdateReadCommunity,omitempty"`
+	IsUpdateReadCommunity bool            `json:"isUpdateReadCommunity"`
 }
 
 // Attributes for Impart Wealth

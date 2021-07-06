@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -208,6 +209,19 @@ func (m *mysqlStore) SaveUserQuestionnaire(ctx context.Context, answers dbmodels
 		err := a.Insert(ctx, tx, boil.Infer())
 		if err != nil {
 			return err
+		}
+
+		var userDemo dbmodels.UserDemographic
+		err = dbmodels.NewQuery(
+			qm.Select("*"),
+			qm.Where("answer_id = ?", a.AnswerID),
+			qm.From("user_demographic"),
+		).Bind(ctx, m.db, &userDemo)
+
+		if err == nil {
+			existData := &userDemo
+			existData.UserCount = existData.UserCount + 1
+			_, err = existData.Update(ctx, m.db, boil.Infer())
 		}
 	}
 	tx.Commit()
@@ -482,4 +496,104 @@ func (m *mysqlStore) DeleteExceptUserDevice(ctx context.Context, impartID string
 	}
 
 	return nil
+}
+
+func (m *mysqlStore) UpdateUserDemographic(ctx context.Context, answerIds []uint, status bool) error {
+	tx, err := m.db.BeginTx(ctx, nil)
+	if err != nil {
+		return rollbackIfError(tx, err, m.logger)
+	}
+	for _, a := range answerIds {
+		var userDemo dbmodels.UserDemographic
+		err = dbmodels.NewQuery(
+			qm.Select("*"),
+			qm.Where("answer_id = ?", a),
+			qm.From("user_demographic"),
+		).Bind(ctx, m.db, &userDemo)
+
+		if err == nil {
+			existData := &userDemo
+			if status {
+				existData.UserCount = existData.UserCount + 1
+			} else {
+				existData.UserCount = existData.UserCount - 1
+			}
+			_, err = existData.Update(ctx, m.db, boil.Infer())
+			if err != nil {
+				return rollbackIfError(tx, err, m.logger)
+			}
+		}
+	}
+	return tx.Commit()
+}
+
+func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
+
+	dataMap := make(map[int]map[string]interface{})
+	userAnswers, err := dbmodels.UserDemographics(
+		Load(Rels(dbmodels.UserDemographicRels.Answer, dbmodels.AnswerRels.Question, dbmodels.QuestionRels.Questionnaire)),
+		Load(Rels(dbmodels.UserDemographicRels.Answer, dbmodels.AnswerRels.Question, dbmodels.QuestionRels.Type)),
+	).All(ctx, m.db)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return dataMap, impart.ErrNotFound
+		}
+	}
+	dedupMap := make(map[uint]*dbmodels.Questionnaire)
+
+	totalCnt := 0
+	for _, ans := range userAnswers {
+		totalCnt = totalCnt + ans.UserCount
+	}
+
+	if len(userAnswers) == 0 {
+		return dataMap, impart.ErrNotFound
+	}
+
+	for _, a := range userAnswers {
+		q, ok := dedupMap[a.R.Answer.R.Question.R.Questionnaire.QuestionnaireID]
+		if !ok {
+			q = a.R.Answer.R.Question.R.Questionnaire
+			dedupMap[q.QuestionnaireID] = q
+		}
+
+		qIDInt := int(q.QuestionnaireID)
+		questionIDstr := strconv.Itoa(int(a.R.Answer.R.Question.QuestionID))
+		answerIDstr := strconv.Itoa(int(a.R.Answer.AnswerID))
+
+		// if the index not exists
+		if _, ok := dataMap[qIDInt]; !ok {
+			dataMap[qIDInt] = make(map[string]interface{})
+		}
+
+		// check questions index exists
+		if _, ok := dataMap[qIDInt][questionIDstr]; !ok {
+			dataMap[qIDInt][questionIDstr] = make(map[string]interface{})
+			dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"] = make(map[string]interface{})
+		}
+
+		// check answers index exists in
+		if _, ok := dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr]; !ok {
+			dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr] = make(map[string]interface{})
+		}
+
+		// set the array data
+		dataMap[qIDInt][questionIDstr].(map[string]interface{})["name"] = a.R.Answer.R.Question.QuestionName
+		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questionText"] = a.R.Answer.R.Question.Text
+		percentage := 0.0
+		if a.UserCount > 0 {
+			percentage = (float64(a.UserCount) / float64(totalCnt)) * 100
+		}
+
+		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr] = map[string]string{
+			"id":         strconv.Itoa(int(a.R.Answer.AnswerID)),
+			"title":      a.R.Answer.AnswerName,
+			"text":       a.R.Answer.Text,
+			"count":      strconv.Itoa(a.UserCount),
+			"percentage": fmt.Sprintf("%f", percentage),
+		}
+	}
+
+	return dataMap, nil
 }

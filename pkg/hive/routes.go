@@ -2,7 +2,9 @@ package hive
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +14,7 @@ import (
 	hivedata "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
+	"github.com/otiai10/opengraph/v2"
 	"go.uber.org/zap"
 	"gopkg.in/auth0.v5/management"
 )
@@ -43,6 +46,8 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	hiveRoutes.PUT("", handler.EditHiveFunc())
 	hiveRoutes.GET("/:hiveId/percentiles/:impartWealthId", handler.GetHivePercentilesFunc())
 	hiveRoutes.GET("/:hiveId/reported-list", handler.GetReportedContents())
+	//OG details
+	hiveRoutes.POST("/:hiveId/og-details", handler.CreatePostOgDetails())
 
 	//base is /:version/hives/:hiveId/posts"
 	postRoutes := hiveRoutes.Group("/:hiveId/posts")
@@ -62,6 +67,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	commentRoutes.PUT(":commentId", handler.EditCommentFunc())
 	commentRoutes.POST(":commentId", handler.PostCommentReactionFunc())
 	commentRoutes.DELETE(":commentId", handler.DeleteCommentFunc())
+
 }
 
 // RequestAuthorizationHandler Validates the bearer
@@ -572,7 +578,7 @@ func (hh *hiveHandler) PostCommentReactionFunc() gin.HandlerFunc {
 			reason := strings.TrimSpace(ctx.Query("reason"))
 
 			//filter profanity words from reason
-			reason, err := impart.ProfanityDetector.CensorWord(reason)
+			reason, err := impart.CensorWord(reason)
 			if err != nil {
 				impartErr := impart.NewError(impart.ErrBadRequest, "error happens on profanity filter")
 				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
@@ -749,6 +755,7 @@ func (hh *hiveHandler) EditCommentFunc() gin.HandlerFunc {
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
+
 		// validate and filter the input content
 		c = ValidateCommentInput(c)
 
@@ -872,4 +879,55 @@ func parseReportedLimitOffset(ctx *gin.Context) (limit int, offset int, offsetpo
 	}
 
 	return
+}
+
+func (hh *hiveHandler) CreatePostOgDetails() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var imageUrl string
+		ctxUser := impart.GetCtxUser(ctx)
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			hh.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+		p := models.OGUrl{}
+		stdErr := json.Unmarshal(b, &p)
+		if stdErr != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Profile")
+			hh.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		if ctxUser.Admin && (p.Url != "") {
+			ogp, err := opengraph.Fetch(p.Url)
+
+			if err != nil {
+				hh.logger.Error("error attempting to fetch URL Data", zap.Any("postURL", p.Url), zap.Error(err))
+				ctx.JSON(http.StatusOK, models.PostUrl{})
+				return
+			}
+			if ogp != nil && ogp.Image != nil && len(ogp.Image) > 0 {
+				imageUrl = ogp.Image[0].URL
+			} else {
+				imageUrl = ""
+			}
+			outputData := models.PostUrl{
+				Title:       ogp.Title,
+				ImageUrl:    imageUrl,
+				Url:         p.Url,
+				Description: ogp.Description,
+			}
+
+			ctx.JSON(http.StatusOK, outputData)
+		} else {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Only Admin has access for the Get Og Details Api")
+			hh.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+	}
 }

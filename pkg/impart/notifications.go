@@ -42,6 +42,7 @@ type NotificationService interface {
 type NotificationData struct {
 	EventDatetime time.Time `json:"eventDatetime"`
 	PostID        uint64    `json:"postId,omitempty"`
+	CommentID     uint64    `json:"commentId,omitempty"`
 }
 
 type noopNotificationService struct {

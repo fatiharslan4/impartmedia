@@ -49,6 +49,7 @@ type Service interface {
 	BlockUser(ctx context.Context, impartWealthID string, screenname string, status bool) impart.Error
 
 	GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, impart.Error)
+	UpdateReadCommunity(ctx context.Context, p models.UpdateReadCommunity, impartID string) impart.Error
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {
@@ -115,6 +116,12 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 
 		existingDBProfile := userToDelete.R.ImpartWealthProfile
 
+		exitingUserAnser := userToDelete.R.ImpartWealthUserAnswers
+		answerIds := make([]uint, len(exitingUserAnser))
+		for i, a := range exitingUserAnser {
+			answerIds[i] = a.AnswerID
+		}
+
 		userEmail := userToDelete.Email
 		screenName := userToDelete.ScreenName
 		userToDelete.Feedback = null.StringFromPtr(&deleteUser.Feedback)
@@ -131,6 +138,10 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 			return impart.NewError(err, "User Deletion failed")
 
 		}
+		if !userToDelete.Blocked {
+			err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, false)
+		}
+
 		m, errDel := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
 		if errDel != nil {
 			//revert the server update
@@ -141,7 +152,15 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 
 			err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
 			if err != nil {
-				return impart.NewError(err, "User Deletion failed")
+				ps.Logger().Error("Delete user requset failed in auth 0 then revert the server", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", contextUser.ImpartWealthID))
+			}
+			if !userToDelete.Blocked {
+				err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, true)
+				if err != nil {
+					ps.Logger().Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+						zap.String("contextUser", contextUser.ImpartWealthID))
+				}
 			}
 			return impart.NewError(err, "User Deletion failed")
 
@@ -162,8 +181,15 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 
 			err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
 			if err != nil {
-				return impart.NewError(err, "User Deletion failed")
-
+				ps.Logger().Error("Delete user requset failed in auth 0 then revert the server- user failed.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", contextUser.ImpartWealthID))
+			}
+			if !userToDelete.Blocked {
+				err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, true)
+				if err != nil {
+					ps.Logger().Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+						zap.String("contextUser", contextUser.ImpartWealthID))
+				}
 			}
 			return impart.NewError(err, "User Deletion failed")
 		}
@@ -412,18 +438,6 @@ func (ps *profileService) UpdateProfile(ctx context.Context, p models.Profile) (
 		return empty, impart.NewError(impart.ErrBadRequest, msg)
 	}
 
-	//unsubsribe Logic is removed from here
-	// if existingDBUser.DeviceToken != "" && strings.TrimSpace(p.DeviceToken) == "" {
-	// 	err = ps.notificationService.UnsubscribeAll(ctx, existingDBUser.ImpartWealthID)
-	// 	ps.Logger().Error("error unsusbcribing", zap.Error(err))
-	// } else if existingDBUser.DeviceToken != p.DeviceToken {
-	// 	existingDBUser.DeviceToken = p.DeviceToken
-	// 	existingDBUser.UpdatedAt = impart.CurrentUTC()
-	// 	if err := ps.SubscribeNewDeviceToken(ctx, existingDBUser); err != nil {
-	// 		return empty, impart.NewError(impart.ErrUnknown, "unknown error updating subscriptions")
-	// 	}
-	// }
-
 	tmpProfile, err := models.ProfileFromDBModel(existingDBUser, existingDBProfile)
 	if err != nil {
 		return models.Profile{}, impart.NewError(impart.ErrUnknown, "unable to generate an impart profile from existing DB profile")
@@ -487,4 +501,25 @@ func (s *profileService) GetHive(ctx context.Context, hiveID uint64) (*dbmodels.
 	}
 
 	return hive, nil
+}
+
+func (ps *profileService) UpdateReadCommunity(ctx context.Context, p models.UpdateReadCommunity, impartID string) impart.Error {
+	existingDBUser, err := ps.profileStore.GetUser(ctx, impartID)
+	if err != nil {
+		return impart.NewError(impart.ErrUnknown, "unable to fetch existing user from dB")
+	}
+	existingDBProfile := existingDBUser.R.ImpartWealthProfile
+	ps.Logger().Debug("Checking Updated Profile",
+		zap.Any("existingDBUser", *existingDBUser),
+		zap.Any("existingDBProfile", *existingDBProfile),
+		zap.Any("updated", p))
+	if p.IsUpdate != existingDBProfile.IsUpdateReadCommunity {
+		existingDBProfile.IsUpdateReadCommunity = p.IsUpdate
+	}
+	err = ps.profileStore.UpdateProfile(ctx, existingDBUser, existingDBProfile)
+	if err != nil {
+		ps.Logger().Error("Upadte Read Community  user requset failed", zap.String("UpadteReadCommunity", impartID))
+		return impart.NewError(err, "Upadte Read Community failed")
+	}
+	return nil
 }

@@ -7,8 +7,10 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/pcpratheesh/go-censorword/censor"
+	"go.uber.org/zap"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
@@ -25,6 +27,8 @@ type CensorWordDetection struct {
 	KeepSuffixChar            bool
 	SanitizeSpecialCharacters bool
 	TextNormalization         bool
+	ReplaceCheckPattern       string
+	Logger                    *zap.Logger
 }
 
 // this will create a new CensorWordDetection object
@@ -36,6 +40,7 @@ func NewDetector() *CensorWordDetection {
 		KeepSuffixChar:            false,
 		SanitizeSpecialCharacters: true,
 		TextNormalization:         true,
+		ReplaceCheckPattern:       "(?i)%s",
 	}
 }
 
@@ -89,7 +94,9 @@ func (censor *CensorWordDetection) SanitizeCharacter(str string) string {
 func (censor *CensorWordDetection) CensorWord(word string) (string, error) {
 
 	// sanitize with text normalization
-	word = censor.normalizeText(word)
+	if censor.TextNormalization {
+		word = censor.normalizeText(word)
+	}
 
 	if censor.SanitizeSpecialCharacters {
 		word = censor.SanitizeCharacter(word)
@@ -105,11 +112,18 @@ func (censor *CensorWordDetection) CensorWord(word string) (string, error) {
 	if ok := len(censor.CensorList) > 0; !ok {
 		return "", fmt.Errorf("found empty censor word list")
 	}
+
 	// convert str into a slice
-	for _, forbiddenWord := range censor.CensorList {
+	for _, fword := range censor.CensorList {
+		forbiddenWord := fword
+		forbiddenWord = strings.ToValidUTF8(forbiddenWord, "")
+		if !utf8.ValidString(forbiddenWord) {
+			continue
+		}
 
 		// should replace incase sensitive
-		pattern := regexp.MustCompile(fmt.Sprintf(`(?i)%s`, forbiddenWord))
+		patterFormat := fmt.Sprintf(censor.ReplaceCheckPattern, forbiddenWord)
+		pattern := regexp.MustCompile(patterFormat)
 		var replacePattern, prefix, suffix string
 		wordLength := len(forbiddenWord)
 
@@ -126,6 +140,7 @@ func (censor *CensorWordDetection) CensorWord(word string) (string, error) {
 			"%s%s%s", prefix, strings.Repeat(censor.CensorReplaceChar, wordLength), suffix,
 		)
 		word = pattern.ReplaceAllString(word, replacePattern)
+
 	}
 	// join the string
 	return word, nil

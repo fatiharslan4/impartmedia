@@ -135,6 +135,7 @@ func PostCommentTrackFromDB(p *dbmodels.PostReaction, c *dbmodels.CommentReactio
 			out.ReportedReason = p.ReportedReason.String
 		}
 	}
+
 	return out
 }
 

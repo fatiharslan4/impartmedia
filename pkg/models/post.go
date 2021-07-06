@@ -79,6 +79,10 @@ type PostUrl struct {
 	Description string `json:"description"`
 }
 
+type OGUrl struct {
+	Url string `json:"url"`
+}
+
 func (posts Posts) Latest() time.Time {
 	var t = time.Unix(0, 0)
 	for _, post := range posts {
@@ -238,6 +242,7 @@ func PostFromDB(p *dbmodels.Post) Post {
 			}
 		}
 	}
+
 	return out
 }
 

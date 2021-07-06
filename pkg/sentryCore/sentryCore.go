@@ -87,6 +87,7 @@ func (c *core) Write(ent zapcore.Entry, fs []zapcore.Field) error {
 	event.Level = sentrySeverity(ent.Level)
 	event.Platform = c.Sentry.Platform
 	event.ServerName = c.Sentry.ServerName
+	event.Environment = c.Sentry.Environment
 	event.Extra = clone.fields
 	event.Tags = c.cfg.Tags
 
@@ -151,8 +152,9 @@ func (c *core) with(fs []zapcore.Field) *core {
 }
 
 type SentryEventConfig struct {
-	ServerName string
-	Platform   string
+	ServerName  string
+	Platform    string
+	Environment string
 }
 
 type core struct {

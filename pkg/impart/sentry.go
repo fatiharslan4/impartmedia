@@ -38,8 +38,9 @@ func ModifyToSentryLogger(log *zap.Logger, DSN string, env string) *zap.Logger {
 		cfg,
 		sentryCore.NewSentryClientFromDSN(DSN),
 		sentryCore.SentryEventConfig{
-			ServerName: fmt.Sprintf("impart-%s", env),
-			Platform:   "Golang",
+			ServerName:  fmt.Sprintf("impart-%s", env),
+			Platform:    "Golang",
+			Environment: env,
 		},
 	)
 

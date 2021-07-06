@@ -156,6 +156,7 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 	if c.R.ImpartWealth == nil {
 		out.ScreenName = types.AccountDeleted.ToString()
 	}
+
 	return out
 }
 

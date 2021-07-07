@@ -649,6 +649,7 @@ func (ph *profileHandler) GetConfiguration() gin.HandlerFunc {
 //
 func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		var deviceArn string
 		context := impart.GetCtxUser(ctx)
 		deviceToken := impart.GetCtxDeviceToken(ctx)
 		if deviceToken == "" {
@@ -662,16 +663,18 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 			ph.logger.Error("Error while get deviceDetails", zap.Error(devErr))
 			return
 		}
-		deviceArn := deviceDetails.R.NotificationDeviceMappings[0].NotifyArn
-		hiveData, err := ph.profileService.GetHive(ctx, uint64(2))
-		if err != nil {
-			ph.logger.Error("Error while get hiveData", zap.Error(err))
-			return
+		if deviceDetails != nil && deviceDetails.R != nil && len(deviceDetails.R.NotificationDeviceMappings) > 0 {
+			deviceArn = deviceDetails.R.NotificationDeviceMappings[0].NotifyArn
+			hiveData, err := ph.profileService.GetHive(ctx, uint64(2))
+			if err != nil {
+				ph.logger.Error("Error while get hiveData", zap.Error(err))
+				return
+			}
+			ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, deviceArn)
 		}
-		ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, deviceArn)
 
 		// update the notificaton status for device this user
-		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
+		err := ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
 			Ctx:            ctx,
 			ImpartWealthID: context.ImpartWealthID,
 			Token:          deviceToken,

@@ -407,11 +407,11 @@ func (ns *snsAppleNotificationService) createEndpoint(ctx context.Context, devic
 }
 
 func (ns *snsAppleNotificationService) SubscribeTopic(ctx context.Context, impartWealthId, topicARN, platformEndpointARN string) error {
-	ctxUser := GetCtxUser(ctx)
-	if ctxUser != nil && ctxUser.Admin {
-		ns.Debug("Admin User so Not subscribe to Topic")
-		return nil
-	}
+	// ctxUser := GetCtxUser(ctx)
+	// if ctxUser != nil && ctxUser.Admin {
+	// 	ns.Debug("Admin User so Not subscribe to Topic")
+	// 	return nil
+	// }
 	currentSubscriptions, err := dbmodels.NotificationSubscriptions(
 		dbmodels.NotificationSubscriptionWhere.PlatformEndpointArn.EQ(platformEndpointARN)).All(ctx, ns.db)
 	if err != nil {

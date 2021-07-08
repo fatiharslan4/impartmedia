@@ -86,7 +86,7 @@ func (ps *profileService) GetUserConfigurations(ctx context.Context, impartWealt
 //		check it is true, then new config for notification map for true, else false
 //  if No
 //		insert with true
-func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error {
+func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud models.UserDevice, isAdmin bool) impart.Error {
 	var notifyStatus bool
 	userConfig, err := ps.GetUserConfigurations(ctx, ud.ImpartWealthID)
 	if err != nil {
@@ -149,7 +149,9 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 		return impart.NewError(impart.ErrBadRequest, "unable to read user configurations")
 	}
 	if notifyStatus {
-		ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
+		if !isAdmin {
+			ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
+		}
 	} else {
 		ps.notificationService.UnsubscribeTopicForDevice(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
 	}

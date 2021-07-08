@@ -419,6 +419,7 @@ func (ph *profileHandler) ResentEmail() gin.HandlerFunc {
 // CreateUserDevice
 func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
 		b, err := ctx.GetRawData()
 		if err != nil && err != io.EOF {
 			ph.logger.Error("error deserializing", zap.Error(err))
@@ -453,7 +454,13 @@ func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 		}
 		if userDevice.DeviceToken != "" {
 			// map for notification
-			err = ph.profileService.MapDeviceForNotification(ctx, userDevice)
+			var isAdmin bool
+			if ctxUser != nil && ctxUser.Admin {
+				isAdmin = true
+			} else {
+				isAdmin = false
+			}
+			err = ph.profileService.MapDeviceForNotification(ctx, userDevice, isAdmin)
 			if err != nil {
 				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
 				ph.logger.Error(impartErr.Error())
@@ -552,7 +559,13 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 					ph.logger.Error("unable to update device token", zap.Error(err))
 				} else {
 					deviceDetails.DeviceToken = deviceToken
-					err = ph.profileService.MapDeviceForNotification(ctx, deviceDetails)
+					var isAdmin bool
+					if context != nil && context.Admin {
+						isAdmin = true
+					} else {
+						isAdmin = false
+					}
+					err = ph.profileService.MapDeviceForNotification(ctx, deviceDetails, isAdmin)
 					if err != nil {
 						ph.logger.Error("unable to map device token", zap.Error(err))
 					}
@@ -582,19 +595,14 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 			}
 
 			///subsribe for the topic
-			//ph.profileService.
-			endpointARN, err := ph.noticationService.GetEndPointArn(ctx, deviceDetails.DeviceToken, "")
-			if err != nil {
-				ph.logger.Error("Error while get enpoint arn", zap.Error(err))
-				return
+			if context != nil && !context.Admin {
+				endpointARN, err := ph.noticationService.GetEndPointArn(ctx, deviceDetails.DeviceToken, "")
+				if err != nil {
+					ph.logger.Error("Error while get enpoint arn", zap.Error(err))
+					return
+				}
+				ph.noticationService.SubscribeTopic(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
 			}
-			// deviceDetails, devErr := ph.profileData.GetUserDevice(ctx, deviceDetails.DeviceToken, context.ImpartWealthID, "")
-			// if devErr != nil {
-			// 	ph.logger.Error("Error while get deviceDetails", zap.Error(devErr))
-			// 	return
-			// }
-			// deviceArn := deviceDetails.R.NotificationDeviceMappings[0].NotifyArn
-			ph.noticationService.SubscribeTopic(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
 
 		}
 

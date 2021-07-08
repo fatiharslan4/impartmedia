@@ -44,7 +44,7 @@ type Service interface {
 	UpdateDeviceToken(ctx context.Context, token string, deviceToken string) impart.Error
 	DeleteExceptUserDevice(ctx context.Context, impartID string, deviceToken string, refToken string) error
 
-	MapDeviceForNotification(ctx context.Context, ud models.UserDevice) impart.Error
+	MapDeviceForNotification(ctx context.Context, ud models.UserDevice, isAdmin bool) impart.Error
 	UpdateExistingNotificationMappData(input models.MapArgumentInput, notifyStatus bool) impart.Error
 	BlockUser(ctx context.Context, impartWealthID string, screenname string, status bool) impart.Error
 
@@ -335,19 +335,17 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 		// check the device id exists
 		if p.UserDevices[0].DeviceToken != "" {
 			// map for notification
-			err = ps.MapDeviceForNotification(ctx, userDevice)
+			var isAdmin bool
+			if ctxUser != nil && ctxUser.Admin {
+				isAdmin = true
+			} else {
+				isAdmin = false
+			}
+			err = ps.MapDeviceForNotification(ctx, userDevice, isAdmin)
 			if err != nil {
 				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("an error occured in update mapping for notification %v", err))
 				ps.Logger().Error(impartErr.Error())
 			}
-
-			//subscribe for topic
-			endpointARN, err := ps.notificationService.GetEndPointArn(ctx, p.DeviceToken, "")
-			hiveData, err := ps.GetHive(ctx, uint64(2))
-			if err != nil {
-				return empty, impart.NewError(impart.ErrBadRequest, "unable to read user configurations")
-			}
-			ps.notificationService.SubscribeTopic(ctx, p.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
 		}
 	}
 	return *out, nil
@@ -466,34 +464,11 @@ func (ps *profileService) UpdateProfile(ctx context.Context, p models.Profile) (
 	return *up, nil
 }
 
-func (ps *profileService) SubscribeNewDeviceToken(ctx context.Context, user *dbmodels.User) error {
-	endpointARN, err := ps.notificationService.SyncTokenEndpoint(ctx, user.DeviceToken, user.AwsSNSAppArn)
-	if err != nil {
-		return err
-	}
-	user.AwsSNSAppArn = endpointARN
-	user.UpdatedAt = impart.CurrentUTC()
-	if _, err := user.Update(ctx, ps.db, boil.Infer()); err != nil {
-		return err
-	}
-
-	subs, err := dbmodels.NotificationSubscriptions(
-		dbmodels.NotificationSubscriptionWhere.ImpartWealthID.EQ(user.ImpartWealthID)).All(ctx, ps.db)
-
-	for _, sub := range subs {
-		if err := ps.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, sub.TopicArn, ""); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 type DeleteProfileInput struct {
 	ImpartWealthID, Feedback string
 }
 
 func (s *profileService) GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, impart.Error) {
-
 	hive, err := dbmodels.Hives(
 		dbmodels.HiveWhere.HiveID.EQ(hiveID)).One(ctx, s.db)
 	if err != nil {

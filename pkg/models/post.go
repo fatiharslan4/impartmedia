@@ -73,7 +73,7 @@ type PostVideo struct {
 }
 
 type PostUrl struct {
-	Url         string `json:"url,omitempty"`
+	Url         string `json:"url"`
 	ImageUrl    string `json:"imageUrl"`
 	Title       string `json:"title"`
 	Description string `json:"description"`

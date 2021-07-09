@@ -370,6 +370,7 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 		var hiveId uint64
 		var impartErr impart.Error
 		if hiveId, impartErr = ctxUint64Param(ctx, "hiveId"); impartErr != nil {
+			hh.logger.Error("Unable to parse hiveID", zap.Error(impartErr))
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
@@ -377,6 +378,9 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 		p := models.Post{}
 		err := ctx.ShouldBindJSON(&p)
 		if err != nil {
+			hh.logger.Error("Unable to Deserialize JSON Body",
+				zap.Error(err),
+			)
 			impartErr = impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Post")
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return

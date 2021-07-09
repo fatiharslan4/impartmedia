@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -369,6 +370,7 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 		var hiveId uint64
 		var impartErr impart.Error
 		if hiveId, impartErr = ctxUint64Param(ctx, "hiveId"); impartErr != nil {
+			hh.logger.Error("Unable to parse hiveID", zap.Error(impartErr))
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
@@ -376,6 +378,9 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 		p := models.Post{}
 		err := ctx.ShouldBindJSON(&p)
 		if err != nil {
+			hh.logger.Error("Unable to Deserialize JSON Body",
+				zap.Error(err),
+			)
 			impartErr = impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Post")
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
@@ -902,6 +907,10 @@ func (hh *hiveHandler) CreatePostOgDetails() gin.HandlerFunc {
 		}
 
 		if ctxUser.Admin && (p.Url != "") {
+			match, _ := regexp.MatchString(`^(?:f|ht)tps?://`, p.Url)
+			if !match {
+				p.Url = "http://" + p.Url
+			}
 			ogp, err := opengraph.Fetch(p.Url)
 
 			if err != nil {

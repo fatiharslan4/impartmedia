@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -902,6 +903,10 @@ func (hh *hiveHandler) CreatePostOgDetails() gin.HandlerFunc {
 		}
 
 		if ctxUser.Admin && (p.Url != "") {
+			match, _ := regexp.MatchString(`^(?:f|ht)tps?://`, p.Url)
+			if !match {
+				p.Url = "http://" + p.Url
+			}
 			ogp, err := opengraph.Fetch(p.Url)
 
 			if err != nil {

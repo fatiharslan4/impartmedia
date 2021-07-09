@@ -462,6 +462,10 @@ func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string)
 	ctxUser := impart.GetCtxUser(ctx)
 	var imageUrl string
 	if ctxUser.Admin && (postUrl != "") {
+		match, _ := regexp.MatchString(`^(?:f|ht)tps?://`, postUrl)
+		if !match {
+			postUrl = "http://" + postUrl
+		}
 		ogp, err := opengraph.Fetch(postUrl)
 
 		if err != nil {

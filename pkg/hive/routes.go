@@ -374,14 +374,11 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 			return
 		}
 
-		b, rawErr := ctx.GetRawData()
 		p := models.Post{}
 		err := ctx.ShouldBindJSON(&p)
 		if err != nil {
 			hh.logger.Error("Unable to Deserialize JSON Body",
 				zap.Error(err),
-				zap.Any("err", rawErr),
-				zap.Any("raw", b),
 			)
 			impartErr = impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Post")
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))

@@ -476,10 +476,11 @@ func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string)
 		//fmt.Println("the data", imageUrl)
 
 		input := &dbmodels.PostURL{
-			Title:    ogp.Title,
-			ImageUrl: imageUrl,
-			URL:      null.StringFrom(postUrl),
-			PostID:   postID,
+			Title:       ogp.Title,
+			ImageUrl:    imageUrl,
+			URL:         null.StringFrom(postUrl),
+			PostID:      postID,
+			Description: ogp.Description,
 		}
 		inputData, err := s.postData.NewPostUrl(ctx, input)
 		if err != nil {

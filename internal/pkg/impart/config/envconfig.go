@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -79,7 +80,8 @@ func GetImpart() (*Impart, error) {
 
 func (ic Impart) GetHttpServer() *http.Server {
 	server := graceful.WithDefaults(&http.Server{
-		Addr: fmt.Sprintf(":%v", ic.Port),
+		Addr:        fmt.Sprintf(":%v", ic.Port),
+		ReadTimeout: time.Second * 20,
 	})
 	return server
 }

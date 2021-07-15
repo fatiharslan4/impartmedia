@@ -63,10 +63,11 @@ func (d *mysqlHiveData) GetComments(ctx context.Context, postID uint64, limit in
 	} else if limit > maxPostLimit {
 		limit = maxPostLimit
 	}
-
+	orderByMod := qm.OrderBy("comment_id desc")
 	comments, err := dbmodels.Comments(dbmodels.CommentWhere.PostID.EQ(postID),
 		qm.Offset(offset),
 		qm.Limit(limit),
+		orderByMod,
 		qm.Load(dbmodels.CommentRels.ImpartWealth),
 		qm.Load(dbmodels.CommentRels.CommentReactions, dbmodels.CommentReactionWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)),
 	).All(ctx, d.db)

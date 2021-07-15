@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -397,24 +395,14 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 				zap.Error(err),
 				zap.Any("request", b),
 			)
-
-			file, err := os.Create("/tmp/error-log-file")
-			defer file.Close()
-
-			//store tthe error log into s3
-			if err == nil {
-				file.Write(b)
-
-				fileBytes, _ := ioutil.ReadAll(file)
-
-				hh.hiveService.UploadFile([]models.File{
-					{
-						FileName: fmt.Sprintf("error/error-log-%v.txt", time.Now().Unix()),
-						FileType: ".txt",
-						Content:  base64.StdEncoding.EncodeToString(fileBytes),
-					},
-				})
-			}
+			//store the error log into s3
+			hh.hiveService.UploadFile([]models.File{
+				{
+					FileName: fmt.Sprintf("errors/create-post-log-%v.txt", time.Now().Unix()),
+					FileType: ".txt",
+					Content:  base64.StdEncoding.EncodeToString(b),
+				},
+			})
 
 			impartErr = impart.NewError(impart.ErrBadRequest, "Unable to unmarshal JSON Body to a Post")
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))

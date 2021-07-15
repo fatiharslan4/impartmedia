@@ -574,3 +574,23 @@ func (s *service) ValidatePostFilesName(ctx context.Context, ctxUser *dbmodels.U
 	}
 	return postFiles
 }
+
+// upload file
+func (s *service) UploadFile(files []models.File) error {
+	mediaObject := media.New(media.StorageConfigurations{
+		Storage:   s.MediaStorage.Storage,
+		MediaPath: s.MediaStorage.MediaPath,
+		S3Storage: media.S3Storage{
+			BucketName:   s.MediaStorage.BucketName,
+			BucketRegion: s.MediaStorage.BucketRegion,
+		},
+	})
+	// upload multiple files
+	_, err := mediaObject.UploadMultipleFile(files)
+	if err != nil {
+		s.logger.Error("error attempting to upload file data ", zap.Error(err))
+		return err
+	}
+
+	return nil
+}

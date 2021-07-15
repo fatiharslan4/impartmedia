@@ -383,6 +383,15 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 			hh.logger.Error("Unable to Deserialize JSON Body",
 				zap.Error(err),
 			)
+			//store the error log into s3
+			hh.hiveService.UploadFile([]models.File{
+				{
+					FileName: fmt.Sprintf("errors/create-post-get-raw-log-%v.txt", time.Now().Unix()),
+					FileType: ".txt",
+					Content:  base64.StdEncoding.EncodeToString(b),
+				},
+			})
+
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
 				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
 			))

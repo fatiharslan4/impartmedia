@@ -669,16 +669,17 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 		deviceDetails, devErr := ph.profileData.GetUserDevice(ctx, deviceToken, context.ImpartWealthID, "")
 		if devErr != nil {
 			ph.logger.Error("Error while get deviceDetails", zap.Error(devErr))
-			return
+			//return
 		}
 		if deviceDetails != nil && deviceDetails.R != nil && len(deviceDetails.R.NotificationDeviceMappings) > 0 {
 			deviceArn = deviceDetails.R.NotificationDeviceMappings[0].NotifyArn
 			hiveData, err := ph.profileService.GetHive(ctx, uint64(2))
 			if err != nil {
 				ph.logger.Error("Error while get hiveData", zap.Error(err))
-				return
+				//return
+			} else {
+				ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, deviceArn)
 			}
-			ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, deviceArn)
 		}
 
 		// update the notificaton status for device this user
@@ -689,9 +690,8 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 		}, false)
 		if err != nil {
 			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
-			return
+			//return
 		}
-
 		ctx.JSON(http.StatusCreated, gin.H{
 			"status":  true,
 			"message": "successfully logout from device",

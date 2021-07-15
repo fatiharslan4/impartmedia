@@ -2,13 +2,17 @@ package hive
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
@@ -374,14 +378,45 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
+		// err := ctx.ShouldBindJSON(&p)
 
-		p := models.Post{}
-		err := ctx.ShouldBindJSON(&p)
-		if err != nil {
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
 			hh.logger.Error("Unable to Deserialize JSON Body",
 				zap.Error(err),
 			)
-			impartErr = impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Post")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		p := models.Post{}
+		err = json.Unmarshal(b, &p)
+		if err != nil {
+			hh.logger.Error("Unable to unmarshal JSON Body",
+				zap.Error(err),
+				zap.Any("request", b),
+			)
+
+			file, err := os.Create("/tmp/error-log-file")
+			defer file.Close()
+
+			//store tthe error log into s3
+			if err == nil {
+				file.Write(b)
+
+				fileBytes, _ := ioutil.ReadAll(file)
+
+				hh.hiveService.UploadFile([]models.File{
+					{
+						FileName: fmt.Sprintf("error/error-log-%v.txt", time.Now().Unix()),
+						FileType: ".txt",
+						Content:  base64.StdEncoding.EncodeToString(fileBytes),
+					},
+				})
+			}
+
+			impartErr = impart.NewError(impart.ErrBadRequest, "Unable to unmarshal JSON Body to a Post")
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}

@@ -81,7 +81,7 @@ func GetImpart() (*Impart, error) {
 func (ic Impart) GetHttpServer() *http.Server {
 	server := graceful.WithDefaults(&http.Server{
 		Addr:        fmt.Sprintf(":%v", ic.Port),
-		ReadTimeout: time.Second * 20,
+		ReadTimeout: time.Second * 60,
 	})
 	return server
 }

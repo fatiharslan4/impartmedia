@@ -598,7 +598,7 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 			"text":  a.R.Answer.Text,
 			"count": strconv.Itoa(a.UserCount),
 			// "percentage": fmt.Sprintf("%f", percentage),
-			"percentage": fmt.Sprintf("%.1f", percentage),
+			"percentage": fmt.Sprintf("%.2f", percentage),
 		}
 	}
 

@@ -51,6 +51,8 @@ type Service interface {
 
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 	GetReportedContents(ctx context.Context, getInput data.GetPostsInput) (models.PostComments, *models.NextPage, error)
+
+	UploadFile(files []models.File) error
 }
 
 const maxNotificationLength = 512

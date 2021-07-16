@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -549,6 +548,8 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 		return dataMap, impart.ErrNotFound
 	}
 
+	indexes := make(map[uint]int)
+
 	for _, a := range userAnswers {
 		q, ok := dedupMap[a.R.Answer.R.Question.R.Questionnaire.QuestionnaireID]
 		if !ok {
@@ -573,6 +574,7 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 					totalCnt = totalCnt + ans.UserCount
 				}
 			}
+			indexes[uint(a.R.Answer.R.Question.QuestionID)] = totalCnt
 			dataMap[qIDInt][questionIDstr] = make(map[string]interface{})
 			dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"] = make(map[string]interface{})
 		}
@@ -587,16 +589,16 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questionText"] = a.R.Answer.R.Question.Text
 		percentage := 0.0
 		if a.UserCount > 0 {
-			percentage = math.Round((float64(a.UserCount) / float64(totalCnt))) * 100
-			// percentage = math.Round(percentage)
+			percentage = float64(a.UserCount) / float64(indexes[uint(a.R.Answer.R.Question.QuestionID)]) * 100
 		}
 
 		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr] = map[string]string{
-			"id":         strconv.Itoa(int(a.R.Answer.AnswerID)),
-			"title":      a.R.Answer.AnswerName,
-			"text":       a.R.Answer.Text,
-			"count":      strconv.Itoa(a.UserCount),
-			"percentage": fmt.Sprintf("%f", percentage),
+			"id":    strconv.Itoa(int(a.R.Answer.AnswerID)),
+			"title": a.R.Answer.AnswerName,
+			"text":  a.R.Answer.Text,
+			"count": strconv.Itoa(a.UserCount),
+			// "percentage": fmt.Sprintf("%f", percentage),
+			"percentage": fmt.Sprintf("%.1f", percentage),
 		}
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -543,9 +544,6 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 	dedupMap := make(map[uint]*dbmodels.Questionnaire)
 
 	totalCnt := 0
-	for _, ans := range userAnswers {
-		totalCnt = totalCnt + ans.UserCount
-	}
 
 	if len(userAnswers) == 0 {
 		return dataMap, impart.ErrNotFound
@@ -569,6 +567,12 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 
 		// check questions index exists
 		if _, ok := dataMap[qIDInt][questionIDstr]; !ok {
+			totalCnt = 0
+			for _, ans := range userAnswers {
+				if ans.R.Answer.R.Question.QuestionID == uint(a.R.Answer.R.Question.QuestionID) {
+					totalCnt = totalCnt + ans.UserCount
+				}
+			}
 			dataMap[qIDInt][questionIDstr] = make(map[string]interface{})
 			dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"] = make(map[string]interface{})
 		}
@@ -584,6 +588,7 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 		percentage := 0.0
 		if a.UserCount > 0 {
 			percentage = (float64(a.UserCount) / float64(totalCnt)) * 100
+			percentage = math.Round(percentage)
 		}
 
 		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr] = map[string]string{

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -588,7 +587,7 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 		percentage := 0.0
 		if a.UserCount > 0 {
 			percentage = (float64(a.UserCount) / float64(totalCnt)) * 100
-			percentage = math.Round(percentage)
+			// percentage = math.Round(percentage)
 		}
 
 		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr] = map[string]string{

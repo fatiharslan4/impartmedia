@@ -543,6 +543,7 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 	dedupMap := make(map[uint]*dbmodels.Questionnaire)
 
 	totalCnt := 0
+	percentageTotal := 0.0
 
 	if len(userAnswers) == 0 {
 		return dataMap, impart.ErrNotFound
@@ -569,6 +570,7 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 		// check questions index exists
 		if _, ok := dataMap[qIDInt][questionIDstr]; !ok {
 			totalCnt = 0
+			percentageTotal = 0.0
 			for _, ans := range userAnswers {
 				if ans.R.Answer.R.Question.QuestionID == uint(a.R.Answer.R.Question.QuestionID) {
 					totalCnt = totalCnt + ans.UserCount
@@ -591,14 +593,19 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 		if a.UserCount > 0 {
 			percentage = float64(a.UserCount) / float64(indexes[uint(a.R.Answer.R.Question.QuestionID)]) * 100
 		}
-
+		per, _ := strconv.ParseFloat(fmt.Sprintf("%.1f", percentage), 64)
+		percentageTotal = percentageTotal + per
+		if percentageTotal > 100 {
+			dif := 100 - per
+			per = per - dif
+		}
 		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr] = map[string]string{
 			"id":    strconv.Itoa(int(a.R.Answer.AnswerID)),
 			"title": a.R.Answer.AnswerName,
 			"text":  a.R.Answer.Text,
 			"count": strconv.Itoa(a.UserCount),
 			// "percentage": fmt.Sprintf("%f", percentage),
-			"percentage": fmt.Sprintf("%.1f", percentage),
+			"percentage": fmt.Sprintf("%.1f", per),
 		}
 	}
 

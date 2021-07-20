@@ -593,10 +593,11 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 		if a.UserCount > 0 {
 			percentage = float64(a.UserCount) / float64(indexes[uint(a.R.Answer.R.Question.QuestionID)]) * 100
 		}
+
 		per, _ := strconv.ParseFloat(fmt.Sprintf("%.1f", percentage), 64)
 		percentageTotal = percentageTotal + per
 		if percentageTotal > 100 {
-			dif := 100 - per
+			dif := percentageTotal - 100
 			per = per - dif
 		}
 		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr] = map[string]string{

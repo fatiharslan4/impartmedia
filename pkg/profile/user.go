@@ -295,3 +295,12 @@ func (ps *profileService) UpdateDeviceToken(ctx context.Context, token string, d
 func (ps *profileService) DeleteExceptUserDevice(ctx context.Context, impartID string, deviceToken string, refToken string) error {
 	return ps.profileStore.DeleteExceptUserDevice(ctx, impartID, deviceToken, refToken)
 }
+
+func (ps *profileService) GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, impart.Error) {
+	result, nextPage, err := ps.profileStore.GetUsersDetails(ctx, gpi)
+	if err != nil {
+		ps.Logger().Error("Error in data fetching", zap.Error(err))
+		return nil, nextPage, impart.NewError(impart.ErrUnknown, "unable to fetch the details")
+	}
+	return result, nextPage, nil
+}

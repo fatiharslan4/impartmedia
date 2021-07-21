@@ -50,6 +50,7 @@ type Service interface {
 
 	GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, impart.Error)
 	UpdateReadCommunity(ctx context.Context, p models.UpdateReadCommunity, impartID string) impart.Error
+	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, impart.Error)
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {

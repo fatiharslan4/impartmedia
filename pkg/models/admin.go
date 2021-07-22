@@ -33,7 +33,7 @@ type UserDetail struct {
 	Gender         string    `json:"gender" `
 	Race           string    `json:"race" `
 	FinancialGoals string    `json:"financialGoals" `
-	LastloginAt    null.Time `json:"lastlogin_at"`
+	LastLoginAt    null.Time `json:"last_login_at"`
 }
 
 type PagedUserResponse struct {

@@ -30,7 +30,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					user.screen_name,
 					user.email,
 					user.created_at,
-					user.lastlogin_at,
+					user.lastlogin_at as last_login_at,
 					user.admin,
 					COUNT(post.post_id) as post,
 					CASE WHEN hivedata.hives IS NULL THEN '' 

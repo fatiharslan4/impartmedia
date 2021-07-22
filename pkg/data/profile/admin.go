@@ -36,17 +36,17 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					CASE WHEN hivedata.hives IS NULL THEN '' 
 								ELSE hivedata.hives END AS hive,
 					CASE WHEN makeup.Household IS NULL THEN '' 
-								ELSE makeup.Household END AS Household,
+								ELSE makeup.Household END AS household,
 					CASE WHEN makeup.Dependents IS NULL THEN '' 
-								ELSE makeup.Dependents END AS Dependents,
+								ELSE makeup.Dependents END AS dependents,
 					CASE WHEN makeup.Generation IS NULL THEN '' 
-								ELSE makeup.Generation END AS Generation,
+								ELSE makeup.Generation END AS generation,
 					CASE WHEN makeup.Gender IS NULL THEN '' 
-								ELSE makeup.Gender END AS Gender,
+								ELSE makeup.Gender END AS gender,
 					CASE WHEN makeup.Race IS NULL THEN '' 
-								ELSE makeup.Race END AS Race,
+								ELSE makeup.Race END AS race,
 					CASE WHEN makeup.FinancialGoals IS NULL THEN '' 
-								ELSE makeup.FinancialGoals END AS FinancialGoals
+								ELSE makeup.FinancialGoals END AS financialgoals
 					FROM user
 					left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
 					

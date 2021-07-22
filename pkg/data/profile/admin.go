@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/impartwealthapp/backend/pkg/models"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
 
 const defaultLimit = 100
@@ -28,6 +30,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					user.screen_name,
 					user.email,
 					user.created_at,
+					user.lastlogin_at,
 					user.admin,
 					COUNT(post.post_id) as post,
 					CASE WHEN hivedata.hives IS NULL THEN '' 
@@ -133,5 +136,46 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		outOffset.Offset += len(userDetails)
 	}
 	return userDetails, outOffset, nil
+
+}
+
+func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, error) {
+	outOffset := &models.NextPage{
+		Offset: gpi.Offset,
+	}
+
+	if gpi.Limit <= 0 {
+		gpi.Limit = defaultLimit
+	} else if gpi.Limit > maxLimit {
+		gpi.Limit = maxLimit
+	}
+	orderByMod := qm.OrderBy("created_at desc, post_id desc")
+
+	clause := qm.Where(fmt.Sprintf("post.deleted_at is null"))
+	queryMods := []qm.QueryMod{
+		clause,
+		qm.Offset(gpi.Offset),
+		qm.Limit(gpi.Limit),
+		orderByMod,
+		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
+	}
+	if gpi.SearchKey != "" {
+		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id 
+		and (user.screen_name like ? or user.email like ? ) `)
+		queryMods = append(queryMods, qm.InnerJoin(where, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%"))
+	}
+	posts, err := dbmodels.Posts(queryMods...).All(ctx, m.db)
+
+	out := models.PostsData(posts)
+
+	if err != nil {
+		return out, outOffset, err
+	}
+	if len(posts) < gpi.Limit {
+		outOffset = nil
+	} else {
+		outOffset.Offset += len(posts)
+	}
+	return out, outOffset, nil
 
 }

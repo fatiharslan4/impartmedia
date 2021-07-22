@@ -72,7 +72,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	adminRoutes := version.Group("/admin")
 	adminRoutes.GET("/users", handler.GetUsersDetails())
-
+	adminRoutes.GET("/posts", handler.GetPostDetails())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -822,7 +822,7 @@ func (ph *profileHandler) GetMakeUp() gin.HandlerFunc {
 func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctxUser := impart.GetCtxUser(ctx)
-		if !ctxUser.Admin {
+		if !ctxUser.Admin || ctxUser.Blocked {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
 				impart.NewError(impart.ErrBadRequest, "Current user does not have the permission."),
 			))
@@ -831,10 +831,9 @@ func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 		gpi := models.GetAdminInputs{}
 		params := ctx.Request.URL.Query()
 
-		if search := strings.TrimSpace(params.Get("view")); search != "" {
-			gpi.SearchKey = strings.TrimSpace(params.Get("view"))
+		if search := strings.TrimSpace(params.Get("q")); search != "" {
+			gpi.SearchKey = strings.TrimSpace(params.Get("q"))
 		}
-
 		var err error
 		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
 		if err != nil {
@@ -848,8 +847,44 @@ func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
 			return
 		}
-		ctx.JSON(http.StatusOK, models.PageduserResponse{
+		ctx.JSON(http.StatusOK, models.PagedUserResponse{
 			UserDetails: users,
+			NextPage:    nextPage,
+		})
+	}
+}
+
+func (ph *profileHandler) GetPostDetails() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
+		if !ctxUser.Admin || ctxUser.Blocked {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "Current user does not have the permission."),
+			))
+			return
+		}
+		gpi := models.GetAdminInputs{}
+		params := ctx.Request.URL.Query()
+
+		if search := strings.TrimSpace(params.Get("q")); search != "" {
+			gpi.SearchKey = strings.TrimSpace(params.Get("q"))
+		}
+
+		var err error
+		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrUnknown, "couldn't parse limit and offset")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		posts, nextPage, impartErr := ph.profileService.GetPostDetails(ctx, gpi)
+		if impartErr != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, models.PagedPostResponse{
+			PostDetails: posts,
 			NextPage:    nextPage,
 		})
 	}

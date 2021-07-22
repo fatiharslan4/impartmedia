@@ -51,6 +51,7 @@ type Service interface {
 	GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, impart.Error)
 	UpdateReadCommunity(ctx context.Context, p models.UpdateReadCommunity, impartID string) impart.Error
 	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, impart.Error)
+	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, impart.Error)
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {
@@ -122,7 +123,6 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 		for i, a := range exitingUserAnser {
 			answerIds[i] = a.AnswerID
 		}
-
 		userEmail := userToDelete.Email
 		screenName := userToDelete.ScreenName
 		userToDelete.Feedback = null.StringFromPtr(&deleteUser.Feedback)

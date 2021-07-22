@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/segmentio/ksuid"
@@ -69,6 +70,9 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	mainRoutes := version.Group("/profile")
 	mainRoutes.GET("/make-up", handler.GetMakeUp())
 
+	adminRoutes := version.Group("/admin")
+	adminRoutes.GET("/users", handler.GetUsersDetails())
+	adminRoutes.GET("/posts", handler.GetPostDetails())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -814,4 +818,94 @@ func (ph *profileHandler) GetMakeUp() gin.HandlerFunc {
 		}
 		ctx.JSON(http.StatusOK, makeup)
 	}
+}
+func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
+		if !ctxUser.Admin || ctxUser.Blocked {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "Current user does not have the permission."),
+			))
+			return
+		}
+		gpi := models.GetAdminInputs{}
+		params := ctx.Request.URL.Query()
+
+		if search := strings.TrimSpace(params.Get("q")); search != "" {
+			gpi.SearchKey = strings.TrimSpace(params.Get("q"))
+		}
+		var err error
+		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrUnknown, "couldn't parse limit and offset")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		users, nextPage, impartErr := ph.profileService.GetUsersDetails(ctx, gpi)
+		if impartErr != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, models.PagedUserResponse{
+			UserDetails: users,
+			NextPage:    nextPage,
+		})
+	}
+}
+
+func (ph *profileHandler) GetPostDetails() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
+		if !ctxUser.Admin || ctxUser.Blocked {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "Current user does not have the permission."),
+			))
+			return
+		}
+		gpi := models.GetAdminInputs{}
+		params := ctx.Request.URL.Query()
+
+		if search := strings.TrimSpace(params.Get("q")); search != "" {
+			gpi.SearchKey = strings.TrimSpace(params.Get("q"))
+		}
+
+		var err error
+		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrUnknown, "couldn't parse limit and offset")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		posts, nextPage, impartErr := ph.profileService.GetPostDetails(ctx, gpi)
+		if impartErr != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, models.PagedPostResponse{
+			PostDetails: posts,
+			NextPage:    nextPage,
+		})
+	}
+}
+
+func parseLimitOffset(ctx *gin.Context) (limit int, offset int, err error) {
+	params := ctx.Request.URL.Query()
+
+	if limitParam := strings.TrimSpace(params.Get("limit")); limitParam != "" {
+		if limit, err = strconv.Atoi(limitParam); err != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impart.NewError(err, "invalid limit passed in")))
+			return
+		}
+	}
+
+	if offsetParam := strings.TrimSpace(params.Get("offset")); offsetParam != "" {
+		if offset, err = strconv.Atoi(offsetParam); err != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impart.NewError(err, "invalid limit passed in")))
+			return
+		}
+	}
+
+	return
 }

@@ -27,12 +27,12 @@ type UserDetail struct {
 	Admin          bool      `json:"admin" `
 	Post           uint64    `json:"post" `
 	Hive           string    `json:"hive" `
-	HouseHold      string    `json:"household" `
+	Household      string    `json:"household" `
 	Dependents     string    `json:"dependents" `
 	Generation     string    `json:"generation" `
 	Gender         string    `json:"gender" `
 	Race           string    `json:"race" `
-	FinancialGoals string    `json:"financialGoals" `
+	Financialgoals string    `json:"financialgoals" `
 	LastLoginAt    null.Time `json:"last_login_at"`
 }
 

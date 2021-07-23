@@ -27,7 +27,8 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	var err error
 	inputQuery := fmt.Sprintf(`SELECT 
 					user.impart_wealth_id,
-					user.screen_name,
+					CASE WHEN user.blocked = 1 THEN 'Account Deleted' 
+             			ELSE user.screen_name END AS screen_name,
 					user.email,
 					user.created_at,
 					user.lastlogin_at as last_login_at,

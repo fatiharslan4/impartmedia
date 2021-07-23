@@ -55,6 +55,7 @@ type PostDetail struct {
 	ImpartWealthID string    `json:"impartWealthId"`
 	Subject        string    `json:"subject" `
 	IsAdminPost    bool      `json:"adminpost" `
+	Reviewed       bool      `json:"reviewed"`
 }
 
 func PostsData(dbPosts dbmodels.PostSlice) PostDetails {
@@ -75,6 +76,7 @@ func PostsDataFromDB(p *dbmodels.Post) PostDetail {
 		Subject:        p.Subject,
 		PostContent:    p.Content,
 		CommentCount:   p.CommentCount,
+		Reviewed:       p.Reviewed,
 	}
 	if p.ReportedCount > 0 {
 		out.Reported = true

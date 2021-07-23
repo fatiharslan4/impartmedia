@@ -41,6 +41,8 @@ type Store interface {
 
 	BlockUser(ctx context.Context, user *dbmodels.User, status bool) error
 	GetMakeUp(ctx context.Context) (interface{}, error)
+	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, error)
+	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, error)
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

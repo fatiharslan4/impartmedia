@@ -26,7 +26,7 @@ type Posts interface {
 	//GetPostsImpartWealthID(ctx context.Context, impartWealthID string, limit int64, offset time.Time) (models.Posts, error)
 	GetPost(ctx context.Context, postID uint64) (*dbmodels.Post, error)
 	NewPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice) (*dbmodels.Post, error)
-	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool) (*dbmodels.Post, error)
+	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL) (*dbmodels.Post, error)
 	DeletePost(ctx context.Context, postID uint64) error
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 	NewPostVideo(ctx context.Context, post *dbmodels.PostVideo) (*dbmodels.PostVideo, error)
@@ -81,7 +81,7 @@ func (d *mysqlHiveData) NewPost(ctx context.Context, post *dbmodels.Post, tags d
 }
 
 // EditPost takes an incoming Post, and modifies the record to match.
-func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool) (*dbmodels.Post, error) {
+func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL) (*dbmodels.Post, error) {
 	//you can only edit content and subject
 	existing, err := dbmodels.FindPost(ctx, d.db, post.PostID)
 	if err != nil {
@@ -98,7 +98,54 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 	if post.Subject != "" && post.Subject != existing.Subject {
 		existing.Subject = post.Subject
 	}
+
 	_, err = existing.Update(ctx, d.db, boil.Infer())
+
+	if shouldPin {
+		existingPost, err0 := d.GetPost(ctx, existing.PostID)
+		if err0 != nil {
+			d.logger.Error("error attempting to fetching post  data ", zap.Any("postVideo", postVideo), zap.Error(err))
+		} else {
+			if postVideo != nil {
+				if existingPost.R.PostVideos == nil && len(existingPost.R.PostVideos) == 0 {
+					if err := postVideo.Insert(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+					}
+				} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 {
+					existingPost.R.PostVideos[0].ReferenceID = postVideo.ReferenceID
+					existingPost.R.PostVideos[0].URL = postVideo.URL
+					existingPost.R.PostVideos[0].Source = postVideo.Source
+					if _, err := existingPost.R.PostVideos[0].Update(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Update post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+					}
+				}
+			} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 && postVideo == nil {
+				if _, err := existing.R.PostVideos[0].Delete(ctx, d.db); err != nil {
+					d.logger.Error("error attempting to delete post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+				}
+			}
+			if postUrl != nil {
+				if existingPost.R.PostUrls == nil && len(existingPost.R.PostUrls) == 0 {
+					if err := postUrl.Insert(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Save post url data ", zap.Any("PostUrls", postUrl), zap.Error(err))
+					}
+				} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 {
+					existingPost.R.PostUrls[0].Title = postUrl.Title
+					existingPost.R.PostUrls[0].URL = postUrl.URL
+					existingPost.R.PostUrls[0].ImageUrl = postUrl.ImageUrl
+					existingPost.R.PostUrls[0].Description = postUrl.Description
+					if _, err := existingPost.R.PostUrls[0].Update(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Update postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
+					}
+				}
+			} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 && postUrl == nil {
+				if _, err := existing.R.PostUrls[0].Delete(ctx, d.db); err != nil {
+					d.logger.Error("error attempting to delete postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
+				}
+			}
+		}
+
+	}
 
 	if shouldPin && post.Pinned != existing.Pinned {
 		err = d.PinPost(ctx, post.HiveID, post.PostID, post.Pinned)

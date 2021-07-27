@@ -88,13 +88,15 @@ type FakeHiveService struct {
 		result1 *dbmodels.Hive
 		result2 error
 	}
-	EditPostStub        func(context.Context, *dbmodels.Post, dbmodels.TagSlice, bool) (*dbmodels.Post, error)
+	EditPostStub        func(context.Context, *dbmodels.Post, dbmodels.TagSlice, bool, *dbmodels.PostVideo, *dbmodels.PostURL) (*dbmodels.Post, error)
 	editPostMutex       sync.RWMutex
 	editPostArgsForCall []struct {
 		arg1 context.Context
 		arg2 *dbmodels.Post
 		arg3 dbmodels.TagSlice
 		arg4 bool
+		arg5 *dbmodels.PostVideo
+		arg6 *dbmodels.PostURL
 	}
 	editPostReturns struct {
 		result1 *dbmodels.Post
@@ -868,7 +870,7 @@ func (fake *FakeHiveService) EditHiveReturnsOnCall(i int, result1 *dbmodels.Hive
 	}{result1, result2}
 }
 
-func (fake *FakeHiveService) EditPost(arg1 context.Context, arg2 *dbmodels.Post, arg3 dbmodels.TagSlice, arg4 bool) (*dbmodels.Post, error) {
+func (fake *FakeHiveService) EditPost(arg1 context.Context, arg2 *dbmodels.Post, arg3 dbmodels.TagSlice, arg4 bool, arg5 *dbmodels.PostVideo, arg6 *dbmodels.PostURL) (*dbmodels.Post, error) {
 	fake.editPostMutex.Lock()
 	ret, specificReturn := fake.editPostReturnsOnCall[len(fake.editPostArgsForCall)]
 	fake.editPostArgsForCall = append(fake.editPostArgsForCall, struct {
@@ -876,13 +878,15 @@ func (fake *FakeHiveService) EditPost(arg1 context.Context, arg2 *dbmodels.Post,
 		arg2 *dbmodels.Post
 		arg3 dbmodels.TagSlice
 		arg4 bool
-	}{arg1, arg2, arg3, arg4})
+		arg5 *dbmodels.PostVideo
+		arg6 *dbmodels.PostURL
+	}{arg1, arg2, arg3, arg4, arg5, arg6})
 	stub := fake.EditPostStub
 	fakeReturns := fake.editPostReturns
-	fake.recordInvocation("EditPost", []interface{}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("EditPost", []interface{}{arg1, arg2, arg3, arg4, arg5, arg6})
 	fake.editPostMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3, arg4)
+		return stub(arg1, arg2, arg3, arg4, arg5, arg6)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -896,17 +900,17 @@ func (fake *FakeHiveService) EditPostCallCount() int {
 	return len(fake.editPostArgsForCall)
 }
 
-func (fake *FakeHiveService) EditPostCalls(stub func(context.Context, *dbmodels.Post, dbmodels.TagSlice, bool) (*dbmodels.Post, error)) {
+func (fake *FakeHiveService) EditPostCalls(stub func(context.Context, *dbmodels.Post, dbmodels.TagSlice, bool, *dbmodels.PostVideo, *dbmodels.PostURL) (*dbmodels.Post, error)) {
 	fake.editPostMutex.Lock()
 	defer fake.editPostMutex.Unlock()
 	fake.EditPostStub = stub
 }
 
-func (fake *FakeHiveService) EditPostArgsForCall(i int) (context.Context, *dbmodels.Post, dbmodels.TagSlice, bool) {
+func (fake *FakeHiveService) EditPostArgsForCall(i int) (context.Context, *dbmodels.Post, dbmodels.TagSlice, bool, *dbmodels.PostVideo, *dbmodels.PostURL) {
 	fake.editPostMutex.RLock()
 	defer fake.editPostMutex.RUnlock()
 	argsForCall := fake.editPostArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5, argsForCall.arg6
 }
 
 func (fake *FakeHiveService) EditPostReturns(result1 *dbmodels.Post, result2 error) {

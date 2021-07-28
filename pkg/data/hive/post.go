@@ -111,17 +111,23 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 					if err := postVideo.Insert(ctx, d.db, boil.Infer()); err != nil {
 						d.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
 					}
-				} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 {
-					existingPost.R.PostVideos[0].ReferenceID = postVideo.ReferenceID
-					existingPost.R.PostVideos[0].URL = postVideo.URL
-					existingPost.R.PostVideos[0].Source = postVideo.Source
+				} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 && postVideo.URL != "" {
+					if existingPost.R.PostVideos[0].ReferenceID != postVideo.ReferenceID {
+						existingPost.R.PostVideos[0].ReferenceID = postVideo.ReferenceID
+					}
+					if existingPost.R.PostVideos[0].URL != postVideo.URL {
+						existingPost.R.PostVideos[0].URL = postVideo.URL
+					}
+					if existingPost.R.PostVideos[0].Source != postVideo.Source {
+						existingPost.R.PostVideos[0].Source = postVideo.Source
+					}
 					if _, err := existingPost.R.PostVideos[0].Update(ctx, d.db, boil.Infer()); err != nil {
 						d.logger.Error("error attempting to Update post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
 					}
-				}
-			} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 && postVideo == nil {
-				if _, err := existing.R.PostVideos[0].Delete(ctx, d.db); err != nil {
-					d.logger.Error("error attempting to delete post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+				} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 && postVideo.URL == "" {
+					if _, err := existingPost.R.PostVideos[0].Delete(ctx, d.db); err != nil {
+						d.logger.Error("error attempting to delete post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+					}
 				}
 			}
 			if postUrl != nil {
@@ -129,7 +135,7 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 					if err := postUrl.Insert(ctx, d.db, boil.Infer()); err != nil {
 						d.logger.Error("error attempting to Save post url data ", zap.Any("PostUrls", postUrl), zap.Error(err))
 					}
-				} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 {
+				} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 && postUrl.Title != "" {
 					existingPost.R.PostUrls[0].Title = postUrl.Title
 					existingPost.R.PostUrls[0].URL = postUrl.URL
 					existingPost.R.PostUrls[0].ImageUrl = postUrl.ImageUrl
@@ -137,10 +143,10 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 					if _, err := existingPost.R.PostUrls[0].Update(ctx, d.db, boil.Infer()); err != nil {
 						d.logger.Error("error attempting to Update postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
 					}
-				}
-			} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 && postUrl == nil {
-				if _, err := existing.R.PostUrls[0].Delete(ctx, d.db); err != nil {
-					d.logger.Error("error attempting to delete postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
+				} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 && postUrl.Title == "" {
+					if _, err := existingPost.R.PostUrls[0].Delete(ctx, d.db); err != nil {
+						d.logger.Error("error attempting to delete postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
+					}
 				}
 			}
 		}

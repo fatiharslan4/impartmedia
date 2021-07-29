@@ -3,8 +3,10 @@ package data
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -26,7 +28,7 @@ type Posts interface {
 	//GetPostsImpartWealthID(ctx context.Context, impartWealthID string, limit int64, offset time.Time) (models.Posts, error)
 	GetPost(ctx context.Context, postID uint64) (*dbmodels.Post, error)
 	NewPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice) (*dbmodels.Post, error)
-	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool) (*dbmodels.Post, error)
+	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, files []models.File) (*dbmodels.Post, error)
 	DeletePost(ctx context.Context, postID uint64) error
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 	NewPostVideo(ctx context.Context, post *dbmodels.PostVideo) (*dbmodels.PostVideo, error)
@@ -81,7 +83,7 @@ func (d *mysqlHiveData) NewPost(ctx context.Context, post *dbmodels.Post, tags d
 }
 
 // EditPost takes an incoming Post, and modifies the record to match.
-func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool) (*dbmodels.Post, error) {
+func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, file []models.File) (*dbmodels.Post, error) {
 	//you can only edit content and subject
 	existing, err := dbmodels.FindPost(ctx, d.db, post.PostID)
 	if err != nil {
@@ -98,7 +100,87 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 	if post.Subject != "" && post.Subject != existing.Subject {
 		existing.Subject = post.Subject
 	}
+
 	_, err = existing.Update(ctx, d.db, boil.Infer())
+
+	if shouldPin {
+		existingPost, err0 := d.GetPost(ctx, existing.PostID)
+		if err0 != nil {
+			d.logger.Error("error attempting to fetching post  data ", zap.Any("postVideo", postVideo), zap.Error(err))
+		} else {
+			if postVideo != nil {
+				if existingPost.R.PostVideos == nil && len(existingPost.R.PostVideos) == 0 {
+					if err := postVideo.Insert(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+					}
+				} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 && postVideo.URL != "" {
+					if existingPost.R.PostVideos[0].ReferenceID != postVideo.ReferenceID {
+						existingPost.R.PostVideos[0].ReferenceID = postVideo.ReferenceID
+					}
+					if existingPost.R.PostVideos[0].URL != postVideo.URL {
+						existingPost.R.PostVideos[0].URL = postVideo.URL
+					}
+					if existingPost.R.PostVideos[0].Source != postVideo.Source {
+						existingPost.R.PostVideos[0].Source = postVideo.Source
+					}
+					if _, err := existingPost.R.PostVideos[0].Update(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Update post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+					}
+				} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 && postVideo.URL == "" {
+					if _, err := existingPost.R.PostVideos[0].Delete(ctx, d.db); err != nil {
+						d.logger.Error("error attempting to delete post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+					}
+				}
+			}
+			if postUrl != nil {
+				if existingPost.R.PostUrls == nil && len(existingPost.R.PostUrls) == 0 {
+					if err := postUrl.Insert(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Save post url data ", zap.Any("PostUrls", postUrl), zap.Error(err))
+					}
+				} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 && postUrl.Title != "" {
+					existingPost.R.PostUrls[0].Title = postUrl.Title
+					existingPost.R.PostUrls[0].URL = postUrl.URL
+					existingPost.R.PostUrls[0].ImageUrl = postUrl.ImageUrl
+					existingPost.R.PostUrls[0].Description = postUrl.Description
+					if _, err := existingPost.R.PostUrls[0].Update(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Update postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
+					}
+				} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 && postUrl.Title == "" {
+					if _, err := existingPost.R.PostUrls[0].Delete(ctx, d.db); err != nil {
+						d.logger.Error("error attempting to delete postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
+					}
+				}
+			}
+			if len(file) > 0 {
+				if len(existingPost.R.PostFiles) == 0 { //insert
+					_, _ = d.AddPostFilesEdit(ctx, existingPost, file)
+				} else if len(existingPost.R.PostFiles) >= 0 && file[0].FileName != "" {
+					existingfile, err := dbmodels.FindFile(ctx, d.db, existingPost.R.PostFiles[0].Fid)
+					if err != nil {
+						d.logger.Error("error attempting to fetching file  data ", zap.Any("postVideo", existingPost.R.PostFiles[0].Fid), zap.Error(err))
+					} else {
+						if existingfile.FileName != file[0].FileName && file[0].FileName != "" {
+							existingfile.FileName = file[0].FileName
+						} else if existingfile.FileType != file[0].FileType && file[0].FileType != "" {
+							existingfile.FileType = file[0].FileType
+						} else if existingfile.URL != file[0].URL && file[0].URL != "" {
+							existingfile.URL = file[0].URL
+						}
+						_, err = existingfile.Update(ctx, d.db, boil.Infer())
+					}
+				} else if len(existingPost.R.PostFiles) >= 0 && file[0].FileName == "" {
+					existingfile, err := dbmodels.FindFile(ctx, d.db, existingPost.R.PostFiles[0].Fid)
+					if err != nil {
+						d.logger.Error("error attempting to fetching file  data ", zap.Any("postVideo", existingPost.R.PostFiles[0].Fid), zap.Error(err))
+					} else {
+						_, err = existingPost.R.PostFiles[0].Delete(ctx, d.db)
+						_, err = existingfile.Delete(ctx, d.db)
+					}
+				}
+			}
+		}
+
+	}
 
 	if shouldPin && post.Pinned != existing.Pinned {
 		err = d.PinPost(ctx, post.HiveID, post.PostID, post.Pinned)
@@ -226,4 +308,59 @@ func (d *mysqlHiveData) NewPostUrl(ctx context.Context, postUrl *dbmodels.PostUR
 		return nil, err
 	}
 	return postUrl, nil
+}
+
+func (s *mysqlHiveData) AddPostFilesEdit(ctx context.Context, post *dbmodels.Post, postFiles []models.File) ([]models.File, impart.Error) {
+	var fileResponse []models.File
+	if len(postFiles) > 0 {
+		mediaObject := media.New(media.StorageConfigurations{
+			Storage:   s.MediaStorage.Storage,
+			MediaPath: s.MediaStorage.MediaPath,
+			S3Storage: media.S3Storage{
+				BucketName:   s.MediaStorage.BucketName,
+				BucketRegion: s.MediaStorage.BucketRegion,
+			},
+		})
+		// upload multiple files
+		file, err := mediaObject.UploadMultipleFile(postFiles)
+		if err != nil {
+			s.logger.Error("error attempting to Save post file data ", zap.Any("files", file), zap.Error(err))
+			return file, impart.NewError(err, fmt.Sprintf("error on post files storage %v", err))
+		}
+
+		var postFielRelationMap []*dbmodels.PostFile
+		//upload the files to table
+		for index, f := range file {
+			fileModel := &dbmodels.File{
+				FileName: f.FileName,
+				FileType: f.FileType,
+				URL:      f.URL,
+			}
+			if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
+				s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
+			}
+
+			file[index].FID = int(fileModel.Fid)
+			postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
+				PostID: post.PostID,
+				Fid:    fileModel.Fid,
+			})
+
+			//doesnt return the content,
+			file[index].Content = ""
+			// set reponse
+			fileResponse = file
+		}
+
+		err = post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
+		if err != nil {
+			s.logger.Error("error attempting to map post files ",
+				zap.Any("data", postFielRelationMap),
+				zap.Any("err", err),
+				zap.Error(err),
+			)
+		}
+
+	}
+	return fileResponse, nil
 }

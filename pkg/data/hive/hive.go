@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
@@ -19,8 +20,9 @@ var _ Hives = &mysqlHiveData{}
 var _ HiveService = &mysqlHiveData{}
 
 type mysqlHiveData struct {
-	logger *zap.Logger
-	db     *sql.DB
+	logger       *zap.Logger
+	db           *sql.DB
+	MediaStorage media.StorageConfigurations
 }
 
 //counterfeiter:generate . HiveService

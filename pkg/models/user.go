@@ -110,3 +110,7 @@ type DeleteUserInput struct {
 	ImpartWealthID string `json:"impartWealthID,omitempty"`
 	Feedback       string `json:"feedback,omitempty"`
 }
+
+type WaitListUserInput struct {
+	ImpartWealthID string `json:"impartWealthID,omitempty"`
+}

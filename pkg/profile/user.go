@@ -329,3 +329,12 @@ func (ps *profileService) GetPostDetails(ctx context.Context, gpi models.GetAdmi
 	}
 	return result, nextPage, nil
 }
+
+func (ps *profileService) AddWaitList(ctx context.Context, gpi models.WaitListUserInput) impart.Error {
+	err := ps.profileStore.AddWaitList(ctx, gpi)
+	if err != nil {
+		ps.Logger().Error("Error in adding waitlist", zap.Error(err))
+		return impart.NewError(impart.ErrUnknown, "Unable to add to waitlist")
+	}
+	return nil
+}

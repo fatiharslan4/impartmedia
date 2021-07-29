@@ -137,6 +137,9 @@
 				"lastLoginDate": {
 					"type": "string",
 					"format": "date-time"
+				},
+				"superAdmin": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

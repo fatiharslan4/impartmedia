@@ -201,3 +201,15 @@ func (m *mysqlStore) AddWaitList(ctx context.Context, gpi models.WaitListUserInp
 	return nil
 
 }
+func (m *mysqlStore) AddUserToAdmin(ctx context.Context, gpi models.WaitListUserInput) error {
+	userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+	existingDBProfile := userToUpdate.R.ImpartWealthProfile
+	userToUpdate.Admin = true
+	err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
+	if err != nil {
+		return impart.NewError(impart.ErrUnknown, "unable to set the member as user")
+	}
+
+	return nil
+
+}

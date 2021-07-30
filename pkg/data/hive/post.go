@@ -155,12 +155,10 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 			}
 			if len(file) > 0 {
 				if len(existingPost.R.PostFiles) == 0 { //insert
-					ctxUser := impart.GetCtxUser(ctx)
-					newFiles := d.ValidatePostFilesNameEdit(ctx, ctxUser, file)
-					postFiles, err0 := d.AddPostFilesEdit(ctx, existingPost, newFiles)
-					postFiles, err0 = d.AddPostFilesDBEdit(ctx, existingPost, newFiles, postFiles)
-					if err0 != nil {
-
+					postFiles, err := d.AddPostFilesDBEdit(ctx, existingPost, file)
+					if err != nil {
+					}
+					if postFiles != nil {
 					}
 					// _, _ = d.AddPostFilesEdit(ctx, existingPost, file)
 				} else if len(existingPost.R.PostFiles) >= 0 && file[0].FileName != "" {
@@ -360,9 +358,9 @@ func (s *mysqlHiveData) ValidatePostFilesNameEdit(ctx context.Context, ctxUser *
 	return postFiles
 }
 
-func (s *mysqlHiveData) AddPostFilesDBEdit(ctx context.Context, post *dbmodels.Post, postFiles []models.File, file []models.File) ([]models.File, impart.Error) {
+func (s *mysqlHiveData) AddPostFilesDBEdit(ctx context.Context, post *dbmodels.Post, file []models.File) ([]models.File, impart.Error) {
 	var fileResponse []models.File
-	if len(postFiles) > 0 {
+	if len(file) > 0 {
 		var postFielRelationMap []*dbmodels.PostFile
 		//upload the files to table
 		for index, f := range file {

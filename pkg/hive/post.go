@@ -114,7 +114,7 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 		postFiles = s.ValidatePostFilesName(ctx, ctxUser, inPost.Files)
 		postFiles, _ = s.AddPostFiles(ctx, postFiles)
 	}
-	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin, postVideo, postUrl, postFiles)
+	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin, postVideo, postUrl, postFiles, inPost.Files)
 	if err != nil {
 		return models.Post{}, impart.UnknownError
 	}

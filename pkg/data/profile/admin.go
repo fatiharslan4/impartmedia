@@ -188,28 +188,37 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 
 }
 
-func (m *mysqlStore) AddWaitList(ctx context.Context, gpi models.WaitListUserInput) error {
-	hives := dbmodels.HiveSlice{
-		&dbmodels.Hive{HiveID: DefaultHiveId},
+func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, error) {
+	msg := ""
+	if gpi.Type == "addto_waitlist" {
+		hives := dbmodels.HiveSlice{
+			&dbmodels.Hive{HiveID: DefaultHiveId},
+		}
+		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+		err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
+		if err != nil {
+			return msg, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
+		}
+		msg = "User added to Waitlist."
+	} else if gpi.Type == "addto_admin" {
+		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+		existingDBProfile := userToUpdate.R.ImpartWealthProfile
+		userToUpdate.Admin = true
+		err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
+		if err != nil {
+			return msg, impart.NewError(impart.ErrUnknown, "unable to set the member as user")
+		}
+		msg = "User role changed to admin."
+	} else if gpi.Type == "addto_hive" {
+		hives := dbmodels.HiveSlice{
+			&dbmodels.Hive{HiveID: gpi.HiveID},
+		}
+		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+		err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
+		if err != nil {
+			return msg, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
+		}
+		msg = "User Added to hive."
 	}
-	userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
-	err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
-	if err != nil {
-		return impart.NewError(impart.ErrUnknown, "unable to set the member hive")
-	}
-
-	return nil
-
-}
-func (m *mysqlStore) AddUserToAdmin(ctx context.Context, gpi models.WaitListUserInput) error {
-	userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
-	existingDBProfile := userToUpdate.R.ImpartWealthProfile
-	userToUpdate.Admin = true
-	err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
-	if err != nil {
-		return impart.NewError(impart.ErrUnknown, "unable to set the member as user")
-	}
-
-	return nil
-
+	return msg, nil
 }

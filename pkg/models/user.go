@@ -113,4 +113,6 @@ type DeleteUserInput struct {
 
 type WaitListUserInput struct {
 	ImpartWealthID string `json:"impartWealthID,omitempty"`
+	Type           string `json:"type,omitempty"`
+	HiveID         uint64 `json:"hiveID,omitempty"`
 }

@@ -157,8 +157,9 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 				if len(existingPost.R.PostFiles) == 0 { //insert
 					ctxUser := impart.GetCtxUser(ctx)
 					newFiles := d.ValidatePostFilesNameEdit(ctx, ctxUser, file)
-					postFiles, _ := d.AddPostFilesEdit(ctx, existingPost, newFiles)
-					if postFiles != nil {
+					postFiles, err0 := d.AddPostFilesEdit(ctx, existingPost, newFiles)
+					postFiles, err0 = d.AddPostFilesDBEdit(ctx, existingPost, newFiles, postFiles)
+					if err0 != nil {
 
 					}
 					// _, _ = d.AddPostFilesEdit(ctx, existingPost, file)
@@ -332,42 +333,10 @@ func (s *mysqlHiveData) AddPostFilesEdit(ctx context.Context, post *dbmodels.Pos
 		// upload multiple files
 		file, err := mediaObject.UploadMultipleFile(postFiles)
 		if err != nil {
-			s.logger.Error("error attempting to Save post file data ", zap.Any("files", file), zap.Error(err))
+			s.logger.Error("error attempting to Save post file data ", zap.Any("postFiles", postFiles), zap.Error(err))
 			return file, impart.NewError(err, fmt.Sprintf("error on post files storage %v", err))
 		}
-
-		var postFielRelationMap []*dbmodels.PostFile
-		//upload the files to table
-		for index, f := range file {
-			fileModel := &dbmodels.File{
-				FileName: f.FileName,
-				FileType: f.FileType,
-				URL:      f.URL,
-			}
-			if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
-				s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
-			}
-
-			file[index].FID = int(fileModel.Fid)
-			postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
-				PostID: post.PostID,
-				Fid:    fileModel.Fid,
-			})
-
-			//doesnt return the content,
-			file[index].Content = ""
-			// set reponse
-			fileResponse = file
-		}
-		err = post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
-		if err != nil {
-			s.logger.Error("error attempting to map post files ",
-				zap.Any("data", postFielRelationMap),
-				zap.Any("err", err),
-				zap.Error(err),
-			)
-		}
-
+		return file, nil
 	}
 	return fileResponse, nil
 }
@@ -381,7 +350,6 @@ func (s *mysqlHiveData) ValidatePostFilesNameEdit(ctx context.Context, ctxUser *
 			ctxUser.ScreenName,
 			postFiles[index].FileName,
 		)
-
 		// var extension = filepath.Ext(postFiles[index].FileName)
 		re, _ := regexp.Compile(pattern)
 		filename = re.ReplaceAllString(filename, "")
@@ -390,4 +358,41 @@ func (s *mysqlHiveData) ValidatePostFilesNameEdit(ctx context.Context, ctxUser *
 		postFiles[index].FileName = filename
 	}
 	return postFiles
+}
+
+func (s *mysqlHiveData) AddPostFilesDBEdit(ctx context.Context, post *dbmodels.Post, postFiles []models.File, file []models.File) ([]models.File, impart.Error) {
+	var fileResponse []models.File
+	if len(postFiles) > 0 {
+		var postFielRelationMap []*dbmodels.PostFile
+		//upload the files to table
+		for index, f := range file {
+			fileModel := &dbmodels.File{
+				FileName: f.FileName,
+				FileType: f.FileType,
+				URL:      f.URL,
+			}
+			if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
+				s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
+			}
+			file[index].FID = int(fileModel.Fid)
+			postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
+				PostID: post.PostID,
+				Fid:    fileModel.Fid,
+			})
+			////doesnt return the content,
+			file[index].Content = ""
+			// //set reponse
+			fileResponse = file
+		}
+		err := post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
+		if err != nil {
+			s.logger.Error("error attempting to map post files ",
+				zap.Any("data", postFielRelationMap),
+				zap.Any("err", err),
+				zap.Error(err),
+			)
+		}
+
+	}
+	return fileResponse, nil
 }

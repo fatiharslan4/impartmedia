@@ -3,12 +3,8 @@ package data
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"regexp"
-	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
-	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -30,7 +26,7 @@ type Posts interface {
 	//GetPostsImpartWealthID(ctx context.Context, impartWealthID string, limit int64, offset time.Time) (models.Posts, error)
 	GetPost(ctx context.Context, postID uint64) (*dbmodels.Post, error)
 	NewPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice) (*dbmodels.Post, error)
-	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, files []models.File) (*dbmodels.Post, error)
+	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, files []models.File, inputFiles []models.File) (*dbmodels.Post, error)
 	DeletePost(ctx context.Context, postID uint64) error
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 	NewPostVideo(ctx context.Context, post *dbmodels.PostVideo) (*dbmodels.PostVideo, error)
@@ -85,7 +81,7 @@ func (d *mysqlHiveData) NewPost(ctx context.Context, post *dbmodels.Post, tags d
 }
 
 // EditPost takes an incoming Post, and modifies the record to match.
-func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, file []models.File) (*dbmodels.Post, error) {
+func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, file []models.File, inputFiles []models.File) (*dbmodels.Post, error) {
 	//you can only edit content and subject
 	existing, err := dbmodels.FindPost(ctx, d.db, post.PostID)
 	if err != nil {
@@ -175,14 +171,15 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 						}
 						_, err = existingfile.Update(ctx, d.db, boil.Infer())
 					}
-				} else if len(existingPost.R.PostFiles) >= 0 && file[0].FileName == "" {
-					existingfile, err := dbmodels.FindFile(ctx, d.db, existingPost.R.PostFiles[0].Fid)
-					if err != nil {
-						d.logger.Error("error attempting to fetching file  data ", zap.Any("postVideo", existingPost.R.PostFiles[0].Fid), zap.Error(err))
-					} else {
-						_, err = existingPost.R.PostFiles[0].Delete(ctx, d.db)
-						_, err = existingfile.Delete(ctx, d.db)
-					}
+				}
+			}
+			if len(existingPost.R.PostFiles) >= 0 && inputFiles[0].FileName == "" {
+				existingfile, err := dbmodels.FindFile(ctx, d.db, existingPost.R.PostFiles[0].Fid)
+				if err != nil {
+					d.logger.Error("error attempting to fetching file  data ", zap.Any("postVideo", existingPost.R.PostFiles[0].Fid), zap.Error(err))
+				} else {
+					_, err = existingPost.R.PostFiles[0].Delete(ctx, d.db)
+					_, err = existingfile.Delete(ctx, d.db)
 				}
 			}
 		}
@@ -315,47 +312,6 @@ func (d *mysqlHiveData) NewPostUrl(ctx context.Context, postUrl *dbmodels.PostUR
 		return nil, err
 	}
 	return postUrl, nil
-}
-
-func (s *mysqlHiveData) AddPostFilesEdit(ctx context.Context, post *dbmodels.Post, postFiles []models.File) ([]models.File, impart.Error) {
-	var fileResponse []models.File
-	if len(postFiles) > 0 {
-		mediaObject := media.New(media.StorageConfigurations{
-			Storage:   s.MediaStorage.Storage,
-			MediaPath: s.MediaStorage.MediaPath,
-			S3Storage: media.S3Storage{
-				BucketName:   s.MediaStorage.BucketName,
-				BucketRegion: s.MediaStorage.BucketRegion,
-			},
-		})
-		// upload multiple files
-		file, err := mediaObject.UploadMultipleFile(postFiles)
-		if err != nil {
-			s.logger.Error("error attempting to Save post file data ", zap.Any("postFiles", postFiles), zap.Error(err))
-			return file, impart.NewError(err, fmt.Sprintf("error on post files storage %v", err))
-		}
-		return file, nil
-	}
-	return fileResponse, nil
-}
-
-func (s *mysqlHiveData) ValidatePostFilesNameEdit(ctx context.Context, ctxUser *dbmodels.User, postFiles []models.File) []models.File {
-	basePath := fmt.Sprintf("%s/%s/", "post", ctxUser.ScreenName)
-	pattern := `[^\[0-9A-Za-z_.-]`
-	for index := range postFiles {
-		filename := fmt.Sprintf("%d_%s_%s",
-			time.Now().Unix(),
-			ctxUser.ScreenName,
-			postFiles[index].FileName,
-		)
-		// var extension = filepath.Ext(postFiles[index].FileName)
-		re, _ := regexp.Compile(pattern)
-		filename = re.ReplaceAllString(filename, "")
-
-		postFiles[index].FilePath = basePath
-		postFiles[index].FileName = filename
-	}
-	return postFiles
 }
 
 func (s *mysqlHiveData) AddPostFilesDBEdit(ctx context.Context, post *dbmodels.Post, file []models.File) ([]models.File, impart.Error) {

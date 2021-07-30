@@ -71,7 +71,7 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	// add post files
 	post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
 	postFiles, _ := s.AddPostFiles(ctx, post.Files)
-	postFiles, _ = s.AddPostFilesDB(ctx, dbPost, post.Files, postFiles)
+	postFiles, _ = s.AddPostFilesDB(ctx, dbPost, postFiles)
 
 	p := models.PostFromDB(dbPost)
 
@@ -570,9 +570,9 @@ func (s *service) UploadFile(files []models.File) error {
 	return nil
 }
 
-func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File, postFiles []models.File) ([]models.File, impart.Error) {
+func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File) ([]models.File, impart.Error) {
 	var fileResponse []models.File
-	if len(postFiles) > 0 {
+	if len(file) > 0 {
 		var postFielRelationMap []*dbmodels.PostFile
 		//upload the files to table
 		for index, f := range file {

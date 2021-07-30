@@ -53,6 +53,7 @@ type Service interface {
 	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, impart.Error)
 	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, impart.Error)
 	AddWaitList(ctx context.Context, gpi models.WaitListUserInput) impart.Error
+	AddUserToAdmin(ctx context.Context, gpi models.WaitListUserInput) impart.Error
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {

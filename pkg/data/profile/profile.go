@@ -43,6 +43,8 @@ type Store interface {
 	GetMakeUp(ctx context.Context) (interface{}, error)
 	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, error)
 	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, error)
+	AddWaitList(ctx context.Context, gpi models.WaitListUserInput) error
+	AddUserToAdmin(ctx context.Context, gpi models.WaitListUserInput) error
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

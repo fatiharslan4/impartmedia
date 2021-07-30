@@ -329,3 +329,55 @@ func (ps *profileService) GetPostDetails(ctx context.Context, gpi models.GetAdmi
 	}
 	return result, nextPage, nil
 }
+
+func (ps *profileService) AddWaitList(ctx context.Context, gpi models.WaitListUserInput) impart.Error {
+	userToUpdate, err := ps.profileStore.GetUser(ctx, gpi.ImpartWealthID)
+	if err != nil {
+		ps.Logger().Error("Cannot Find the user", zap.Error(err))
+		return impart.NewError(impart.ErrNotFound, "Cannot Find the user")
+	}
+	if userToUpdate.Blocked {
+		ps.Logger().Error("Blocked user", zap.Error(err))
+		return impart.NewError(impart.ErrNotFound, "Blocked user")
+	}
+	if userToUpdate.SuperAdmin {
+		ps.Logger().Error("Selected user is super admin.", zap.Error(err))
+		return impart.NewError(impart.ErrNotFound, "Selected user is super admin.")
+	}
+	if userToUpdate.Admin {
+		ps.Logger().Error("Selected user is  admin.", zap.Error(err))
+		return impart.NewError(impart.ErrNotFound, "Selected user is  admin.")
+	}
+	err = ps.profileStore.AddWaitList(ctx, gpi)
+	if err != nil {
+		ps.Logger().Error("Error in adding waitlist", zap.Error(err))
+		return impart.NewError(impart.ErrUnknown, "Unable to add to waitlist")
+	}
+	return nil
+}
+
+func (ps *profileService) AddUserToAdmin(ctx context.Context, gpi models.WaitListUserInput) impart.Error {
+	userToUpdate, err := ps.profileStore.GetUser(ctx, gpi.ImpartWealthID)
+	if err != nil {
+		ps.Logger().Error("Cannot Find the user", zap.Error(err))
+		return impart.NewError(impart.ErrNotFound, "Cannot Find the user")
+	}
+	if userToUpdate.Blocked {
+		ps.Logger().Error("Blocked user", zap.Error(err))
+		return impart.NewError(impart.ErrNotFound, "Blocked user")
+	}
+	if userToUpdate.SuperAdmin {
+		ps.Logger().Error("Selected user is super admin.", zap.Error(err))
+		return impart.NewError(impart.ErrNotFound, "Selected user is super admin.")
+	}
+	if userToUpdate.Admin {
+		ps.Logger().Error("Selected user is admin.", zap.Error(err))
+		return impart.NewError(impart.ErrNotFound, "Selected user is admin.")
+	}
+	err = ps.profileStore.AddUserToAdmin(ctx, gpi)
+	if err != nil {
+		ps.Logger().Error("Error in adding waitlist", zap.Error(err))
+		return impart.NewError(impart.ErrUnknown, "Unable to add to waitlist")
+	}
+	return nil
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/sqlboiler/v4/queries"
@@ -12,6 +13,11 @@ import (
 
 const defaultLimit = 100
 const maxLimit = 256
+
+const (
+	DefaultHiveId                    uint64 = 1
+	MillennialGenXWithChildrenHiveId uint64 = 2
+)
 
 func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, error) {
 	var userDetails []models.UserDetail
@@ -179,5 +185,31 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		outOffset.Offset += len(posts)
 	}
 	return out, outOffset, nil
+
+}
+
+func (m *mysqlStore) AddWaitList(ctx context.Context, gpi models.WaitListUserInput) error {
+	hives := dbmodels.HiveSlice{
+		&dbmodels.Hive{HiveID: DefaultHiveId},
+	}
+	userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+	err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
+	if err != nil {
+		return impart.NewError(impart.ErrUnknown, "unable to set the member hive")
+	}
+
+	return nil
+
+}
+func (m *mysqlStore) AddUserToAdmin(ctx context.Context, gpi models.WaitListUserInput) error {
+	userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+	existingDBProfile := userToUpdate.R.ImpartWealthProfile
+	userToUpdate.Admin = true
+	err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
+	if err != nil {
+		return impart.NewError(impart.ErrUnknown, "unable to set the member as user")
+	}
+
+	return nil
 
 }

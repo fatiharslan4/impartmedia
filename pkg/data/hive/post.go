@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
+	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/media"
@@ -153,7 +155,13 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 			}
 			if len(file) > 0 {
 				if len(existingPost.R.PostFiles) == 0 { //insert
-					_, _ = d.AddPostFilesEdit(ctx, existingPost, file)
+					ctxUser := impart.GetCtxUser(ctx)
+					newFiles := d.ValidatePostFilesNameEdit(ctx, ctxUser, file)
+					postFiles, _ := d.AddPostFilesEdit(ctx, existingPost, newFiles)
+					if postFiles != nil {
+
+					}
+					// _, _ = d.AddPostFilesEdit(ctx, existingPost, file)
 				} else if len(existingPost.R.PostFiles) >= 0 && file[0].FileName != "" {
 					existingfile, err := dbmodels.FindFile(ctx, d.db, existingPost.R.PostFiles[0].Fid)
 					if err != nil {
@@ -351,7 +359,6 @@ func (s *mysqlHiveData) AddPostFilesEdit(ctx context.Context, post *dbmodels.Pos
 			// set reponse
 			fileResponse = file
 		}
-
 		err = post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
 		if err != nil {
 			s.logger.Error("error attempting to map post files ",
@@ -363,4 +370,24 @@ func (s *mysqlHiveData) AddPostFilesEdit(ctx context.Context, post *dbmodels.Pos
 
 	}
 	return fileResponse, nil
+}
+
+func (s *mysqlHiveData) ValidatePostFilesNameEdit(ctx context.Context, ctxUser *dbmodels.User, postFiles []models.File) []models.File {
+	basePath := fmt.Sprintf("%s/%s/", "post", ctxUser.ScreenName)
+	pattern := `[^\[0-9A-Za-z_.-]`
+	for index := range postFiles {
+		filename := fmt.Sprintf("%d_%s_%s",
+			time.Now().Unix(),
+			ctxUser.ScreenName,
+			postFiles[index].FileName,
+		)
+
+		// var extension = filepath.Ext(postFiles[index].FileName)
+		re, _ := regexp.Compile(pattern)
+		filename = re.ReplaceAllString(filename, "")
+
+		postFiles[index].FilePath = basePath
+		postFiles[index].FileName = filename
+	}
+	return postFiles
 }

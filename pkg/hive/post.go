@@ -93,7 +93,6 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 	existingPost, err := s.postData.GetPost(ctx, inPost.PostID)
 	var postVideo *dbmodels.PostVideo
 	var postUrl *dbmodels.PostURL
-	// var postFile []models.File
 	var shouldPin bool
 	if err != nil {
 		s.logger.Error("error fetching post trying to edit", zap.Error(err))
@@ -110,8 +109,6 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 		shouldPin = true
 		postVideo = inPost.Video.PostVideoToDBModel(inPost.PostID)
 		postUrl = inPost.UrlData.PostUrlToDBModel(inPost.PostID, inPost.Url)
-		// postFile = inPost.Files
-		inPost.Files = s.ValidatePostFilesName(ctx, ctxUser, inPost.Files)
 	}
 	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin, postVideo, postUrl, inPost.Files)
 	if err != nil {

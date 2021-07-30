@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/models"
-	"go.uber.org/zap"
 )
 
 //
@@ -30,7 +29,6 @@ type StorageConfigurations struct {
 //uploader
 type FileUpload struct {
 	StorageConfigurations
-	logger *zap.Logger
 }
 
 func New(opt StorageConfigurations) *FileUpload {
@@ -77,12 +75,10 @@ func (fp *FileUpload) UploadMultipleFile(files []models.File) ([]models.File, er
 
 	switch fp.Storage {
 	case "", "local":
-		fp.logger.Info("UploadMultipleFile-storage-local", zap.Any("input", "local"))
 		uploaderService = &localUploader{
 			StorageConfigurations: fp.StorageConfigurations,
 		}
 	case "s3":
-		fp.logger.Info("UploadMultipleFile-storage-s3", zap.Any("input", "s3"))
 		uploaderService = &s3Uploader{
 			StorageConfigurations: fp.StorageConfigurations,
 		}

@@ -52,6 +52,7 @@ type Service interface {
 	UpdateReadCommunity(ctx context.Context, p models.UpdateReadCommunity, impartID string) impart.Error
 	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, impart.Error)
 	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, impart.Error)
+	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error)
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {

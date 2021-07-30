@@ -91,6 +91,8 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post, impart.Error) {
 	ctxUser := impart.GetCtxUser(ctx)
 	existingPost, err := s.postData.GetPost(ctx, inPost.PostID)
+	var postVideo *dbmodels.PostVideo
+	var postUrl *dbmodels.PostURL
 	var shouldPin bool
 	if err != nil {
 		s.logger.Error("error fetching post trying to edit", zap.Error(err))
@@ -105,8 +107,10 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 	}
 	if ctxUser.Admin {
 		shouldPin = true
+		postVideo = inPost.Video.PostVideoToDBModel(inPost.PostID)
+		postUrl = inPost.UrlData.PostUrlToDBModel(inPost.PostID, inPost.Url)
 	}
-	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin)
+	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin, postVideo, postUrl, inPost.Files)
 	if err != nil {
 		return models.Post{}, impart.UnknownError
 	}

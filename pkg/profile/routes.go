@@ -73,6 +73,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	adminRoutes := version.Group("/admin")
 	adminRoutes.GET("/users", handler.GetUsersDetails())
 	adminRoutes.GET("/posts", handler.GetPostDetails())
+	adminRoutes.PUT("/:impartWealthId", handler.EditUserDetails())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -822,7 +823,7 @@ func (ph *profileHandler) GetMakeUp() gin.HandlerFunc {
 func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctxUser := impart.GetCtxUser(ctx)
-		if !ctxUser.Admin || ctxUser.Blocked {
+		if !ctxUser.SuperAdmin {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
 				impart.NewError(impart.ErrBadRequest, "Current user does not have the permission."),
 			))
@@ -857,7 +858,7 @@ func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 func (ph *profileHandler) GetPostDetails() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctxUser := impart.GetCtxUser(ctx)
-		if !ctxUser.Admin || ctxUser.Blocked {
+		if !ctxUser.SuperAdmin {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
 				impart.NewError(impart.ErrBadRequest, "Current user does not have the permission."),
 			))
@@ -908,4 +909,45 @@ func parseLimitOffset(ctx *gin.Context) (limit int, offset int, err error) {
 	}
 
 	return
+}
+
+func (ph *profileHandler) EditUserDetails() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		rawData, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		ctxUser := impart.GetCtxUser(ctx)
+		if !ctxUser.SuperAdmin {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "Current user does not have the permission."),
+			))
+			return
+		}
+
+		input := models.WaitListUserInput{}
+		input.ImpartWealthID = ctx.Param("impartWealthId")
+		err = json.Unmarshal(rawData, &input)
+		if err != nil {
+			ph.logger.Error("input json parse error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+		if input.ImpartWealthID == "" {
+			err := impart.NewError(impart.ErrBadRequest, "please provide user information")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+		msg, impartErr := ph.profileService.EditUserDetails(ctx, input)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": msg})
+	}
 }

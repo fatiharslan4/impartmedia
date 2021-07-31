@@ -117,6 +117,7 @@ func main() {
 	services := setupServices(cfg, db, logger)
 
 	r := gin.New()
+	r.Use(CORS)
 	r.RedirectTrailingSlash = true
 	r.Use(ginzap.RecoveryWithZap(logger, true))      // panics don't stop server
 	r.Use(ginzap.Ginzap(logger, time.RFC3339, true)) // logs all requests
@@ -196,4 +197,27 @@ func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services
 	svcs.MediaStorage = media.LoadMediaConfig(cfg)
 	svcs.Hive = hive.New(cfg, db, logger, svcs.MediaStorage)
 	return svcs
+}
+
+func CORS(c *gin.Context) {
+
+	// First, we add the headers with need to enable CORS
+	// Make sure to adjust these headers to your needs
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Allow-Methods", "*")
+	c.Header("Access-Control-Allow-Headers", "*")
+	c.Header("Content-Type", "application/json")
+	// Second, we handle the OPTIONS problem
+	if c.Request.Method != "OPTIONS" {
+
+		c.Next()
+
+	} else {
+
+		// Everytime we receive an OPTIONS request,
+		// we just return an HTTP 200 Status Code
+		// Like this, Angular can now do the real
+		// request using any other method than OPTIONS
+		c.AbortWithStatus(http.StatusOK)
+	}
 }

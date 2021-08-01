@@ -26,7 +26,7 @@ type Posts interface {
 	//GetPostsImpartWealthID(ctx context.Context, impartWealthID string, limit int64, offset time.Time) (models.Posts, error)
 	GetPost(ctx context.Context, postID uint64) (*dbmodels.Post, error)
 	NewPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice) (*dbmodels.Post, error)
-	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, files []models.File, inputFiles []models.File) (*dbmodels.Post, error)
+	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, files []models.File, fileName string) (*dbmodels.Post, error)
 	DeletePost(ctx context.Context, postID uint64) error
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 	NewPostVideo(ctx context.Context, post *dbmodels.PostVideo) (*dbmodels.PostVideo, error)
@@ -81,7 +81,7 @@ func (d *mysqlHiveData) NewPost(ctx context.Context, post *dbmodels.Post, tags d
 }
 
 // EditPost takes an incoming Post, and modifies the record to match.
-func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, file []models.File, inputFiles []models.File) (*dbmodels.Post, error) {
+func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, file []models.File, fileName string) (*dbmodels.Post, error) {
 	//you can only edit content and subject
 	existing, err := dbmodels.FindPost(ctx, d.db, post.PostID)
 	if err != nil {
@@ -173,7 +173,7 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 					}
 				}
 			}
-			if len(existingPost.R.PostFiles) >= 0 && inputFiles[0].FileName == "" {
+			if len(existingPost.R.PostFiles) > 0 && fileName == "" {
 				existingfile, err := dbmodels.FindFile(ctx, d.db, existingPost.R.PostFiles[0].Fid)
 				if err != nil {
 					d.logger.Error("error attempting to fetching file  data ", zap.Any("postVideo", existingPost.R.PostFiles[0].Fid), zap.Error(err))

@@ -250,10 +250,12 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 	//call all the hive assignment funcs
 	if id := ps.isAssignedMillenialWithChildren(questionnaire); id != nil {
 		// hives = append(hives, &dbmodels.Hive{HiveID: *id})
-		isnewhive = true
-		hives = dbmodels.HiveSlice{
-			&dbmodels.Hive{HiveID: *id},
-		}
+
+		//// APP-208 all users moved to default hive
+		// isnewhive = true
+		// hives = dbmodels.HiveSlice{
+		// 	&dbmodels.Hive{HiveID: *id},
+		// }
 	}
 	err := ctxUser.SetMemberHiveHives(ctx, ps.db, false, hives...)
 	if err != nil {

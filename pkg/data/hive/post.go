@@ -129,7 +129,12 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 						d.logger.Error("error attempting to delete post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
 					}
 				}
+			} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 && postVideo == nil {
+				if _, err := existingPost.R.PostVideos[0].Delete(ctx, d.db); err != nil {
+					d.logger.Error("error attempting to delete post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+				}
 			}
+
 			if postUrl != nil {
 				if existingPost.R.PostUrls == nil && len(existingPost.R.PostUrls) == 0 {
 					if err := postUrl.Insert(ctx, d.db, boil.Infer()); err != nil {
@@ -147,6 +152,10 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 					if _, err := existingPost.R.PostUrls[0].Delete(ctx, d.db); err != nil {
 						d.logger.Error("error attempting to delete postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
 					}
+				}
+			} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 && postUrl == nil {
+				if _, err := existingPost.R.PostUrls[0].Delete(ctx, d.db); err != nil {
+					d.logger.Error("error attempting to delete postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
 				}
 			}
 			if len(file) > 0 {
@@ -173,7 +182,7 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 					}
 				}
 			}
-			if len(existingPost.R.PostFiles) > 0 && fileName == "" {
+			if (len(existingPost.R.PostFiles) > 0 && fileName == "") || (len(existingPost.R.PostFiles) > 0 && len(file) == 0) {
 				existingfile, err := dbmodels.FindFile(ctx, d.db, existingPost.R.PostFiles[0].Fid)
 				if err != nil {
 					d.logger.Error("error attempting to fetching file  data ", zap.Any("postVideo", existingPost.R.PostFiles[0].Fid), zap.Error(err))

@@ -861,7 +861,7 @@ func (hh *hiveHandler) GetReportedContents() gin.HandlerFunc {
 				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			}
 		}
-		gpi := hivedata.GetPostsInput{}
+		gpi := hivedata.GetReportedContentInput{}
 		gpi.HiveID = hiveId
 
 		gpi.Limit, gpi.Offset, gpi.OffsetPost, gpi.OffsetComment, err = parseReportedLimitOffset(ctx)

@@ -74,6 +74,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	adminRoutes.GET("/users", handler.GetUsersDetails())
 	adminRoutes.GET("/posts", handler.GetPostDetails())
 	adminRoutes.PUT("/:impartWealthId", handler.EditUserDetails())
+	adminRoutes.DELETE("/:impartWealthId", handler.DeleteUserByAdmin())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -221,7 +222,7 @@ func (ph *profileHandler) DeleteProfileFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		impartWealthID := ctx.Param("impartWealthId")
 
-		impartErr := ph.profileService.DeleteProfile(ctx, impartWealthID, false, DeleteProfileInput{})
+		impartErr := ph.profileService.DeleteProfile(ctx, impartWealthID, false, models.DeleteUserInput{})
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			//ctx.AbortWithError(err.HttpStatus(), err)
@@ -795,11 +796,12 @@ func (ph *profileHandler) DeleteUserProfileFunc() gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
 			return
 		}
+		input.DeleteByAdmin = false
 
-		gpi := DeleteProfileInput{ImpartWealthID: input.ImpartWealthID,
-			Feedback: input.Feedback}
+		// gpi := DeleteProfileInput{ImpartWealthID: input.ImpartWealthID,
+		// 	Feedback: input.Feedback}
 
-		impartErr := ph.profileService.DeleteProfile(ctx, input.ImpartWealthID, false, gpi)
+		impartErr := ph.profileService.DeleteProfile(ctx, input.ImpartWealthID, false, input)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			//ctx.AbortWithError(err.HttpStatus(), err)
@@ -949,5 +951,28 @@ func (ph *profileHandler) EditUserDetails() gin.HandlerFunc {
 		}
 
 		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": msg})
+	}
+}
+
+func (ph *profileHandler) DeleteUserByAdmin() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		input := models.DeleteUserInput{}
+
+		input.ImpartWealthID = ctx.Param("impartWealthId")
+		if input.ImpartWealthID == "" {
+			err := impart.NewError(impart.ErrBadRequest, "please provide user information")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+		input.DeleteByAdmin = true
+
+		impartErr := ph.profileService.DeleteUserByAdmin(ctx, false, input)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			//ctx.AbortWithError(err.HttpStatus(), err)
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "profile deleted"})
 	}
 }

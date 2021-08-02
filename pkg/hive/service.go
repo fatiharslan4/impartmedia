@@ -51,7 +51,7 @@ type Service interface {
 	SendPostNotification(input models.PostNotificationInput) impart.Error
 
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
-	GetReportedContents(ctx context.Context, getInput data.GetPostsInput) (models.PostComments, *models.NextPage, error)
+	GetReportedContents(ctx context.Context, getInput data.GetReportedContentInput) (models.PostComments, *models.NextPage, error)
 
 	UploadFile(files []models.File) error
 }

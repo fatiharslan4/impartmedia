@@ -109,6 +109,7 @@ type BlockUserInput struct {
 type DeleteUserInput struct {
 	ImpartWealthID string `json:"impartWealthID,omitempty"`
 	Feedback       string `json:"feedback,omitempty"`
+	DeleteByAdmin  bool   `json:"deleteByAdmin,omitempty"`
 }
 
 type WaitListUserInput struct {

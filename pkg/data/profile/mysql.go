@@ -5,15 +5,18 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
+	"gopkg.in/auth0.v5/management"
 )
 
 var _ Store = &mysqlStore{}
@@ -22,6 +25,11 @@ type mysqlStore struct {
 	logger *zap.Logger
 	db     *sql.DB
 }
+
+const impartDomain = "impartwealth.auth0.com"
+const integrationConnectionPrefix = "impart"
+const auth0managementClient = "wK78yrI3H2CSoWr0iscR5lItcZdjcLBA"
+const auth0managementClientSecret = "X3bXip3IZTQcLRoYIQ5VkMfSQdqcSZdJtdZpQd8w5-D22wK3vCt5HjMBo3Et93cJ"
 
 func (m *mysqlStore) GetProfile(ctx context.Context, impartWealthId string) (*dbmodels.Profile, error) {
 	out, err := dbmodels.Profiles(dbmodels.ProfileWhere.ImpartWealthID.EQ(impartWealthId)).One(ctx, m.db)
@@ -611,4 +619,100 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 	}
 
 	return dataMap, nil
+}
+
+func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUserInput, hardDelete bool) error {
+	userToDelete, err := m.GetUser(ctx, gpi.ImpartWealthID)
+	if err != nil {
+		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", gpi.ImpartWealthID))
+	}
+
+	if hardDelete {
+		err = m.DeleteProfile(ctx, gpi.ImpartWealthID, hardDelete)
+		if err != nil {
+			return impart.NewError(err, "unable to retrieve profile")
+		}
+		return nil
+	}
+	existingDBProfile := userToDelete.R.ImpartWealthProfile
+	exitingUserAnser := userToDelete.R.ImpartWealthUserAnswers
+	answerIds := make([]uint, len(exitingUserAnser))
+	for i, a := range exitingUserAnser {
+		answerIds[i] = a.AnswerID
+	}
+	userEmail := userToDelete.Email
+	screenName := userToDelete.ScreenName
+	userToDelete.Feedback = null.StringFromPtr(&gpi.Feedback)
+	currTime := time.Now().In(boil.GetLocation())
+	userToDelete.DeletedAt = null.TimeFrom(currTime)
+	userToDelete.ScreenName = fmt.Sprintf("%s-%s", userToDelete.ScreenName, userToDelete.ImpartWealthID)
+	userToDelete.Email = fmt.Sprintf("%s-%s", userToDelete.Email, userToDelete.ImpartWealthID)
+	userToDelete.DeletedByAdmin = gpi.DeleteByAdmin
+
+	err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
+	if err != nil {
+		m.logger.Error("Delete user requset failed", zap.String("deleteUser", userToDelete.ImpartWealthID),
+			zap.String("contextUser", userToDelete.ImpartWealthID))
+
+		return impart.NewError(err, "User Deletion failed")
+
+	}
+	if !userToDelete.Blocked {
+		err = m.UpdateUserDemographic(ctx, answerIds, false)
+	}
+
+	mngmnt, errDel := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
+	if errDel != nil {
+		////revert the server update
+		userToDelete.ScreenName = screenName
+		userToDelete.Feedback = null.String{}
+		userToDelete.DeletedAt = null.Time{}
+		userToDelete.Email = userEmail
+		userToDelete.DeletedByAdmin = false
+
+		err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
+		if err != nil {
+			m.logger.Error("Delete user requset failed in auth 0 then revert the server", zap.String("deleteUser", userToDelete.ImpartWealthID),
+				zap.String("contextUser", userToDelete.ImpartWealthID))
+		}
+		if !userToDelete.Blocked {
+			err = m.UpdateUserDemographic(ctx, answerIds, true)
+			if err != nil {
+				m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", userToDelete.ImpartWealthID))
+			}
+		}
+		return impart.NewError(err, "User Deletion failed")
+
+	}
+	userEmail = fmt.Sprintf("%s%s", userToDelete.ImpartWealthID, userEmail)
+	userUp := management.User{
+		Email: &userEmail,
+	}
+
+	errDel = mngmnt.User.Update(*&userToDelete.AuthenticationID, &userUp)
+	if errDel != nil {
+
+		//revert the server update
+		userToDelete.ScreenName = screenName
+		userToDelete.Feedback = null.String{}
+		userToDelete.DeletedAt = null.Time{}
+		userToDelete.Email = userEmail
+		userToDelete.DeletedByAdmin = false
+
+		err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
+		if err != nil {
+			m.logger.Error("Delete user requset failed in auth 0 then revert the server- user failed.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+				zap.String("contextUser", userToDelete.ImpartWealthID))
+		}
+		if !userToDelete.Blocked {
+			err = m.UpdateUserDemographic(ctx, answerIds, true)
+			if err != nil {
+				m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", userToDelete.ImpartWealthID))
+			}
+		}
+		return impart.NewError(err, "User Deletion failed")
+	}
+	return nil
 }

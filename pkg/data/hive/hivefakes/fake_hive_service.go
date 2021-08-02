@@ -232,11 +232,11 @@ type FakeHiveService struct {
 		result2 models.NextPage
 		result3 error
 	}
-	GetReportedContentsStub        func(context.Context, data.GetPostsInput) (models.PostComments, *models.NextPage, error)
+	GetReportedContentsStub        func(context.Context, data.GetReportedContentInput) (models.PostComments, *models.NextPage, error)
 	getReportedContentsMutex       sync.RWMutex
 	getReportedContentsArgsForCall []struct {
 		arg1 context.Context
-		arg2 data.GetPostsInput
+		arg2 data.GetReportedContentInput
 	}
 	getReportedContentsReturns struct {
 		result1 models.PostComments
@@ -1484,12 +1484,12 @@ func (fake *FakeHiveService) GetPostsWithUnreviewedCommentsReturnsOnCall(i int, 
 	}{result1, result2, result3}
 }
 
-func (fake *FakeHiveService) GetReportedContents(arg1 context.Context, arg2 data.GetPostsInput) (models.PostComments, *models.NextPage, error) {
+func (fake *FakeHiveService) GetReportedContents(arg1 context.Context, arg2 data.GetReportedContentInput) (models.PostComments, *models.NextPage, error) {
 	fake.getReportedContentsMutex.Lock()
 	ret, specificReturn := fake.getReportedContentsReturnsOnCall[len(fake.getReportedContentsArgsForCall)]
 	fake.getReportedContentsArgsForCall = append(fake.getReportedContentsArgsForCall, struct {
 		arg1 context.Context
-		arg2 data.GetPostsInput
+		arg2 data.GetReportedContentInput
 	}{arg1, arg2})
 	stub := fake.GetReportedContentsStub
 	fakeReturns := fake.getReportedContentsReturns
@@ -1510,13 +1510,13 @@ func (fake *FakeHiveService) GetReportedContentsCallCount() int {
 	return len(fake.getReportedContentsArgsForCall)
 }
 
-func (fake *FakeHiveService) GetReportedContentsCalls(stub func(context.Context, data.GetPostsInput) (models.PostComments, *models.NextPage, error)) {
+func (fake *FakeHiveService) GetReportedContentsCalls(stub func(context.Context, data.GetReportedContentInput) (models.PostComments, *models.NextPage, error)) {
 	fake.getReportedContentsMutex.Lock()
 	defer fake.getReportedContentsMutex.Unlock()
 	fake.GetReportedContentsStub = stub
 }
 
-func (fake *FakeHiveService) GetReportedContentsArgsForCall(i int) (context.Context, data.GetPostsInput) {
+func (fake *FakeHiveService) GetReportedContentsArgsForCall(i int) (context.Context, data.GetReportedContentInput) {
 	fake.getReportedContentsMutex.RLock()
 	defer fake.getReportedContentsMutex.RUnlock()
 	argsForCall := fake.getReportedContentsArgsForCall[i]

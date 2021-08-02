@@ -38,22 +38,23 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					CASE WHEN user.blocked = 1 THEN '[Account Deleted]' 
 						ELSE user.email END AS email,
 					user.created_at,
-					user.lastlogin_at as last_login_at,
+					CASE WHEN user.lastlogin_at  is null  then 'NA'
+						ELSE  user.lastlogin_at END as last_login_at ,
 					user.admin,
 					COUNT(post.post_id) as post,
-					CASE WHEN hivedata.hives IS NULL THEN '' 
+					CASE WHEN hivedata.hives IS NULL THEN 'N.A' 
 								ELSE hivedata.hives END AS hive,
-					CASE WHEN makeup.Household IS NULL THEN '' 
+					CASE WHEN makeup.Household IS NULL THEN 'NA' 
 								ELSE makeup.Household END AS household,
-					CASE WHEN makeup.Dependents IS NULL THEN '' 
+					CASE WHEN makeup.Dependents IS NULL THEN 'NA' 
 								ELSE makeup.Dependents END AS dependents,
-					CASE WHEN makeup.Generation IS NULL THEN '' 
+					CASE WHEN makeup.Generation IS NULL THEN 'NA' 
 								ELSE makeup.Generation END AS generation,
-					CASE WHEN makeup.Gender IS NULL THEN '' 
+					CASE WHEN makeup.Gender IS NULL THEN 'NA' 
 								ELSE makeup.Gender END AS gender,
-					CASE WHEN makeup.Race IS NULL THEN '' 
+					CASE WHEN makeup.Race IS NULL THEN 'NA' 
 								ELSE makeup.Race END AS race,
-					CASE WHEN makeup.FinancialGoals IS NULL THEN '' 
+					CASE WHEN makeup.FinancialGoals IS NULL THEN 'NA' 
 								ELSE makeup.FinancialGoals END AS financialgoals
 					FROM user
 					left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
@@ -123,7 +124,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 
 	orderby := fmt.Sprintf(`			
 			group by user.impart_wealth_id
-			order by created_at desc
+			order by user.email asc
 			LIMIT ? OFFSET ?`)
 	if gpi.SearchKey != "" {
 		search := fmt.Sprintf(`and user.screen_name like ? or user.email like ? `)

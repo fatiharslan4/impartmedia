@@ -5,7 +5,6 @@ import (
 
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/volatiletech/null/v8"
 )
 
 // GetAdminInputs is the input necessary
@@ -33,7 +32,7 @@ type UserDetail struct {
 	Gender         string    `json:"gender" `
 	Race           string    `json:"race" `
 	Financialgoals string    `json:"financialgoals" `
-	LastLoginAt    null.Time `json:"last_login_at"`
+	LastLoginAt    string    `json:"last_login_at"`
 }
 
 type PagedUserResponse struct {

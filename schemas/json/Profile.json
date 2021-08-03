@@ -140,6 +140,9 @@
 				},
 				"superAdmin": {
 					"type": "boolean"
+				},
+				"deletedByAdmin": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

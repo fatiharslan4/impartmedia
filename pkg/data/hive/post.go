@@ -223,6 +223,18 @@ type GetPostsInput struct {
 	OffsetComment int
 }
 
+// GetPostsInput is the input necessary
+type GetReportedContentInput struct {
+	// HiveID is the ID that should be queried for posts
+	HiveID uint64
+	// Limit is the maximum number of records that should be returns.  The API can optionally return
+	// less than Limit, if DynamoDB decides the items read were too large.
+	Limit         int
+	Offset        int
+	OffsetPost    int
+	OffsetComment int
+}
+
 // GetPosts takes a set GetPostsInput, and decides based on this input how to query DynamoDB.
 func (d *mysqlHiveData) GetPosts(ctx context.Context, gpi GetPostsInput) (dbmodels.PostSlice, *models.NextPage, error) {
 	ctxUser := impart.GetCtxUser(ctx)

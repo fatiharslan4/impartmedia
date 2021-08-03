@@ -14,18 +14,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
+	authdata "github.com/impartwealthapp/backend/pkg/data/auth"
 	hivedata "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/otiai10/opengraph/v2"
 	"go.uber.org/zap"
-	"gopkg.in/auth0.v5/management"
 )
-
-const impartDomain = "impartwealth.auth0.com"
-const integrationConnectionPrefix = "impart"
-const auth0managementClient = "wK78yrI3H2CSoWr0iscR5lItcZdjcLBA"
-const auth0managementClientSecret = "X3bXip3IZTQcLRoYIQ5VkMfSQdqcSZdJtdZpQd8w5-D22wK3vCt5HjMBo3Et93cJ"
 
 type hiveHandler struct {
 	hiveData    hivedata.Hives
@@ -238,8 +233,7 @@ func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 		var hiveId uint64
 		var impartErr impart.Error
 		ctxUser := impart.GetCtxUser(ctx)
-		m, err0 := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
-		// res2B, _ := json.Marshal(m)
+		m, err0 := authdata.NewImpartManagementClient()
 		if err0 != nil {
 		}
 		existingUsers, err2 := m.User.ListByEmail(ctxUser.Email)

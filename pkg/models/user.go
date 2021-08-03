@@ -2,9 +2,12 @@ package models
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
 type UserDevice struct {
@@ -116,4 +119,23 @@ type WaitListUserInput struct {
 	ImpartWealthID string `json:"impartWealthID,omitempty"`
 	Type           string `json:"type,omitempty"`
 	HiveID         uint64 `json:"hiveID,omitempty"`
+}
+
+func UpdateToUserDB(userToDelete *dbmodels.User, gpi DeleteUserInput, isDelete bool, screenName string, userEmail string) *dbmodels.User {
+	if isDelete {
+		userToDelete.Feedback = null.StringFromPtr(&gpi.Feedback)
+		currTime := time.Now().In(boil.GetLocation())
+		userToDelete.DeletedAt = null.TimeFrom(currTime)
+		userToDelete.ScreenName = fmt.Sprintf("%s-%s", userToDelete.ScreenName, userToDelete.ImpartWealthID)
+		userToDelete.Email = fmt.Sprintf("%s-%s", userToDelete.Email, userToDelete.ImpartWealthID)
+		userToDelete.DeletedByAdmin = gpi.DeleteByAdmin
+	} else {
+		userToDelete.ScreenName = screenName
+		userToDelete.Feedback = null.String{}
+		userToDelete.DeletedAt = null.Time{}
+		userToDelete.Email = userEmail
+		userToDelete.DeletedByAdmin = false
+	}
+	return userToDelete
+
 }

@@ -5,13 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/google/uuid"
+	authdata "github.com/impartwealthapp/backend/pkg/data/auth"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -25,11 +24,6 @@ type mysqlStore struct {
 	logger *zap.Logger
 	db     *sql.DB
 }
-
-const impartDomain = "impartwealth.auth0.com"
-const integrationConnectionPrefix = "impart"
-const auth0managementClient = "wK78yrI3H2CSoWr0iscR5lItcZdjcLBA"
-const auth0managementClientSecret = "X3bXip3IZTQcLRoYIQ5VkMfSQdqcSZdJtdZpQd8w5-D22wK3vCt5HjMBo3Et93cJ"
 
 func (m *mysqlStore) GetProfile(ctx context.Context, impartWealthId string) (*dbmodels.Profile, error) {
 	out, err := dbmodels.Profiles(dbmodels.ProfileWhere.ImpartWealthID.EQ(impartWealthId)).One(ctx, m.db)
@@ -635,20 +629,14 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		return nil
 	}
 	existingDBProfile := userToDelete.R.ImpartWealthProfile
-	exitingUserAnser := userToDelete.R.ImpartWealthUserAnswers
-	answerIds := make([]uint, len(exitingUserAnser))
-	for i, a := range exitingUserAnser {
+	exitingUserAnswer := userToDelete.R.ImpartWealthUserAnswers
+	answerIds := make([]uint, len(exitingUserAnswer))
+	for i, a := range exitingUserAnswer {
 		answerIds[i] = a.AnswerID
 	}
 	userEmail := userToDelete.Email
 	screenName := userToDelete.ScreenName
-	userToDelete.Feedback = null.StringFromPtr(&gpi.Feedback)
-	currTime := time.Now().In(boil.GetLocation())
-	userToDelete.DeletedAt = null.TimeFrom(currTime)
-	userToDelete.ScreenName = fmt.Sprintf("%s-%s", userToDelete.ScreenName, userToDelete.ImpartWealthID)
-	userToDelete.Email = fmt.Sprintf("%s-%s", userToDelete.Email, userToDelete.ImpartWealthID)
-	userToDelete.DeletedByAdmin = gpi.DeleteByAdmin
-
+	userToDelete = models.UpdateToUserDB(userToDelete, gpi, true, screenName, userEmail)
 	err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
 	if err != nil {
 		m.logger.Error("Delete user requset failed", zap.String("deleteUser", userToDelete.ImpartWealthID),
@@ -661,14 +649,10 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		err = m.UpdateUserDemographic(ctx, answerIds, false)
 	}
 
-	mngmnt, errDel := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
-	if errDel != nil {
+	mngmnt, err := authdata.NewImpartManagementClient()
+	if err != nil {
 		////revert the server update
-		userToDelete.ScreenName = screenName
-		userToDelete.Feedback = null.String{}
-		userToDelete.DeletedAt = null.Time{}
-		userToDelete.Email = userEmail
-		userToDelete.DeletedByAdmin = false
+		userToDelete = models.UpdateToUserDB(userToDelete, gpi, false, screenName, userEmail)
 
 		err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
 		if err != nil {
@@ -690,15 +674,11 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		Email: &userEmail,
 	}
 
-	errDel = mngmnt.User.Update(*&userToDelete.AuthenticationID, &userUp)
+	errDel := mngmnt.User.Update(*&userToDelete.AuthenticationID, &userUp)
 	if errDel != nil {
 
 		//revert the server update
-		userToDelete.ScreenName = screenName
-		userToDelete.Feedback = null.String{}
-		userToDelete.DeletedAt = null.Time{}
-		userToDelete.Email = userEmail
-		userToDelete.DeletedByAdmin = false
+		userToDelete = models.UpdateToUserDB(userToDelete, gpi, true, screenName, userEmail)
 
 		err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
 		if err != nil {

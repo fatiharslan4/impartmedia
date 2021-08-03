@@ -13,17 +13,13 @@ import (
 	"gopkg.in/auth0.v5/management"
 
 	"github.com/gin-gonic/gin"
+	auth "github.com/impartwealthapp/backend/pkg/data/auth"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"go.uber.org/zap"
 )
-
-const impartDomain = "impartwealth.auth0.com"
-const integrationConnectionPrefix = "impart"
-const auth0managementClient = "wK78yrI3H2CSoWr0iscR5lItcZdjcLBA"
-const auth0managementClientSecret = "X3bXip3IZTQcLRoYIQ5VkMfSQdqcSZdJtdZpQd8w5-D22wK3vCt5HjMBo3Et93cJ"
 
 type profileHandler struct {
 	profileData          profiledata.Store
@@ -397,7 +393,7 @@ func (ph *profileHandler) ResentEmail() gin.HandlerFunc {
 			return
 		}
 
-		mgmnt, err := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
+		mgmnt, err := auth.NewImpartManagementClient()
 		if err != nil {
 			impartErr := impart.NewError(impart.ErrBadRequest, "Resent email sending failed.")
 			ph.logger.Error(impartErr.Error())
@@ -969,7 +965,6 @@ func (ph *profileHandler) DeleteUserByAdmin() gin.HandlerFunc {
 		impartErr := ph.profileService.DeleteUserByAdmin(ctx, false, input)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
-			//ctx.AbortWithError(err.HttpStatus(), err)
 			return
 		}
 

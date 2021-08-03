@@ -18,6 +18,7 @@ type Store interface {
 	GetProfile(ctx context.Context, impartWealthId string) (*dbmodels.Profile, error)
 	UpdateProfile(ctx context.Context, user *dbmodels.User, profile *dbmodels.Profile) error
 	DeleteProfile(ctx context.Context, impartWealthID string, hardDelete bool) error
+	DeleteUserProfile(ctx context.Context, gpi models.DeleteUserInput, hardDelete bool) error
 	GetQuestionnaire(ctx context.Context, name string, version *uint) (*dbmodels.Questionnaire, error)
 	GetAllCurrentQuestionnaires(ctx context.Context) (dbmodels.QuestionnaireSlice, error)
 	GetUserQuestionnaires(ctx context.Context, impartWealthId string, questionnaireName *string) (dbmodels.QuestionnaireSlice, error)

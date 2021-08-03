@@ -46,6 +46,7 @@ type Profile struct {
 	IsUpdateReadCommunity bool            `json:"isUpdateReadCommunity,omitempty"`
 	LastLoginDate         time.Time       `json:"lastLoginDate,omitempty"`
 	SuperAdmin            bool            `json:"superAdmin,omitempty"`
+	DeletedByAdmin        bool            `json:"deletedByAdmin,omitempty"`
 }
 
 // Attributes for Impart Wealth
@@ -186,6 +187,7 @@ func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error)
 		UpdatedDate:           u.UpdatedAt,
 		IsUpdateReadCommunity: p.IsUpdateReadCommunity,
 		SuperAdmin:            u.SuperAdmin,
+		DeletedByAdmin:        u.DeletedByAdmin,
 	}
 
 	for i, hive := range u.R.MemberHiveHives {

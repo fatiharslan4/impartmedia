@@ -39,6 +39,7 @@ type User struct {
 	Feedback         null.String `boil:"feedback" json:"feedback,omitempty" toml:"feedback" yaml:"feedback,omitempty"`
 	LastloginAt      null.Time   `boil:"lastlogin_at" json:"lastlogin_at,omitempty" toml:"lastlogin_at" yaml:"lastlogin_at,omitempty"`
 	SuperAdmin       bool        `boil:"super_admin" json:"super_admin" toml:"super_admin" yaml:"super_admin"`
+	DeletedByAdmin   bool        `boil:"deleted_by_admin" json:"deleted_by_admin" toml:"deleted_by_admin" yaml:"deleted_by_admin"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -60,6 +61,7 @@ var UserColumns = struct {
 	Feedback         string
 	LastloginAt      string
 	SuperAdmin       string
+	DeletedByAdmin   string
 }{
 	ImpartWealthID:   "impart_wealth_id",
 	AuthenticationID: "authentication_id",
@@ -76,6 +78,7 @@ var UserColumns = struct {
 	Feedback:         "feedback",
 	LastloginAt:      "lastlogin_at",
 	SuperAdmin:       "super_admin",
+	DeletedByAdmin:   "deleted_by_admin",
 }
 
 var UserTableColumns = struct {
@@ -94,6 +97,7 @@ var UserTableColumns = struct {
 	Feedback         string
 	LastloginAt      string
 	SuperAdmin       string
+	DeletedByAdmin   string
 }{
 	ImpartWealthID:   "user.impart_wealth_id",
 	AuthenticationID: "user.authentication_id",
@@ -110,6 +114,7 @@ var UserTableColumns = struct {
 	Feedback:         "user.feedback",
 	LastloginAt:      "user.lastlogin_at",
 	SuperAdmin:       "user.super_admin",
+	DeletedByAdmin:   "user.deleted_by_admin",
 }
 
 // Generated where
@@ -130,6 +135,7 @@ var UserWhere = struct {
 	Feedback         whereHelpernull_String
 	LastloginAt      whereHelpernull_Time
 	SuperAdmin       whereHelperbool
+	DeletedByAdmin   whereHelperbool
 }{
 	ImpartWealthID:   whereHelperstring{field: "`user`.`impart_wealth_id`"},
 	AuthenticationID: whereHelperstring{field: "`user`.`authentication_id`"},
@@ -146,6 +152,7 @@ var UserWhere = struct {
 	Feedback:         whereHelpernull_String{field: "`user`.`feedback`"},
 	LastloginAt:      whereHelpernull_Time{field: "`user`.`lastlogin_at`"},
 	SuperAdmin:       whereHelperbool{field: "`user`.`super_admin`"},
+	DeletedByAdmin:   whereHelperbool{field: "`user`.`deleted_by_admin`"},
 }
 
 // UserRels is where relationship names are stored.
@@ -205,9 +212,9 @@ func (*userR) NewStruct() *userR {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked", "feedback", "lastlogin_at", "super_admin"}
+	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked", "feedback", "lastlogin_at", "super_admin", "deleted_by_admin"}
 	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "feedback", "lastlogin_at"}
-	userColumnsWithDefault    = []string{"blocked", "super_admin"}
+	userColumnsWithDefault    = []string{"blocked", "super_admin", "deleted_by_admin"}
 	userPrimaryKeyColumns     = []string{"impart_wealth_id"}
 )
 

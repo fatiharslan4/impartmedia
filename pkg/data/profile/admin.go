@@ -128,7 +128,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 			order by user.email asc
 			LIMIT ? OFFSET ?`)
 	if gpi.SearchKey != "" {
-		search := fmt.Sprintf(`and user.screen_name like ? or user.email like ? `)
+		search := fmt.Sprintf(`and user.blocked=0 and user.screen_name like ? or user.email like ? `)
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, search)
 		inputQuery = inputQuery + orderby
 		err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)

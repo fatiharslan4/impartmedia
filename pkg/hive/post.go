@@ -67,7 +67,7 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		}
 
 	}
-	fmt.Println("the length of the file is", len(post.Files[0].Content))
+
 	// add post files
 	post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
 	postFiles, _ := s.AddPostFiles(ctx, post.Files)

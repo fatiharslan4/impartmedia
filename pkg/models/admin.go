@@ -33,6 +33,7 @@ type UserDetail struct {
 	Race           string    `json:"race" `
 	Financialgoals string    `json:"financialgoals" `
 	LastLoginAt    string    `json:"last_login_at"`
+	SuperAdmin     bool      `json:"super_admin"`
 }
 
 type PagedUserResponse struct {

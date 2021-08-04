@@ -41,6 +41,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					CASE WHEN user.lastlogin_at  is null  then 'NA'
 						ELSE  user.lastlogin_at END as last_login_at ,
 					user.admin,
+					user.super_admin,
 					COUNT(post.post_id) as post,
 					CASE WHEN hivedata.hives IS NULL THEN 'N.A' 
 								ELSE hivedata.hives END AS hive,

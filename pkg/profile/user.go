@@ -341,10 +341,6 @@ func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitLi
 		ps.Logger().Error("Blocked user", zap.Error(err))
 		return msg, impart.NewError(impart.ErrNotFound, "Blocked user")
 	}
-	if userToUpdate.SuperAdmin {
-		ps.Logger().Error("Selected user is super admin.", zap.Error(err))
-		return msg, impart.NewError(impart.ErrNotFound, "Selected user is super admin.")
-	}
 	if userToUpdate.Admin {
 		ps.Logger().Error("Selected user is  admin.", zap.Error(err))
 		return msg, impart.NewError(impart.ErrNotFound, "Selected user is  admin.")

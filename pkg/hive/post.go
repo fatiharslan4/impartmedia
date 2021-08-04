@@ -67,7 +67,7 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		}
 
 	}
-
+	fmt.Println("the length of the file is", len(post.Files[0].Content))
 	// add post files
 	post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
 	postFiles, _ := s.AddPostFiles(ctx, post.Files)
@@ -96,7 +96,6 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 	var postUrl *dbmodels.PostURL
 	var postFiles []models.File
 	var shouldPin bool
-	name := ""
 	if err != nil {
 		s.logger.Error("error fetching post trying to edit", zap.Error(err))
 		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "error fetching post trying to edit")
@@ -112,15 +111,10 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 		shouldPin = true
 		postVideo = inPost.Video.PostVideoToDBModel(inPost.PostID)
 		postUrl = inPost.UrlData.PostUrlToDBModel(inPost.PostID, inPost.Url)
-		if len(inPost.Files) > 0 {
-			name = inPost.Files[0].FileName
-		} else {
-			name = "nofile"
-		}
 		postFiles = s.ValidatePostFilesName(ctx, ctxUser, inPost.Files)
 		postFiles, _ = s.AddPostFiles(ctx, postFiles)
 	}
-	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin, postVideo, postUrl, postFiles, name)
+	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin, postVideo, postUrl, postFiles, inPost.Files)
 	if err != nil {
 		return models.Post{}, impart.UnknownError
 	}

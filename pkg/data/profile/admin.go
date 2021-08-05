@@ -197,6 +197,11 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			&dbmodels.Hive{HiveID: DefaultHiveId},
 		}
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+		for _, h := range userToUpdate.R.MemberHiveHives {
+			if h.HiveID == DefaultHiveId {
+				return msg, impart.NewError(impart.UnknownError, "User is already on waitlist.")
+			}
+		}
 		err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
 		if err != nil {
 			return msg, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
@@ -205,6 +210,9 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 	} else if gpi.Type == "addto_admin" {
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		existingDBProfile := userToUpdate.R.ImpartWealthProfile
+		if userToUpdate.Admin {
+			return msg, impart.NewError(impart.UnknownError, "User is already admin.")
+		}
 		userToUpdate.Admin = true
 		err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
 		if err != nil {
@@ -216,6 +224,11 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			&dbmodels.Hive{HiveID: gpi.HiveID},
 		}
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+		for _, h := range userToUpdate.R.MemberHiveHives {
+			if h.HiveID == gpi.HiveID {
+				return msg, impart.NewError(impart.UnknownError, "User is already on hive.")
+			}
+		}
 		err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
 		if err != nil {
 			return msg, impart.NewError(impart.ErrUnknown, "unable to set the member hive")

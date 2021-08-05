@@ -332,23 +332,18 @@ func (ps *profileService) GetPostDetails(ctx context.Context, gpi models.GetAdmi
 
 func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error) {
 	userToUpdate, err := ps.profileStore.GetUser(ctx, gpi.ImpartWealthID)
-	msg := ""
 	if err != nil {
 		ps.Logger().Error("Cannot Find the user", zap.Error(err))
-		return msg, impart.NewError(impart.ErrNotFound, "Cannot Find the user")
+		return "", impart.NewError(impart.ErrNotFound, "Cannot Find the user")
 	}
 	if userToUpdate.Blocked {
 		ps.Logger().Error("Blocked user", zap.Error(err))
-		return msg, impart.NewError(impart.ErrNotFound, "Blocked user")
+		return "", impart.NewError(impart.ErrNotFound, "Blocked user")
 	}
-	if userToUpdate.Admin {
-		ps.Logger().Error("Selected user is  admin.", zap.Error(err))
-		return msg, impart.NewError(impart.ErrNotFound, "Selected user is  admin.")
-	}
-	msg, err = ps.profileStore.EditUserDetails(ctx, gpi)
-	if err != nil {
+	msg, err0 := ps.profileStore.EditUserDetails(ctx, gpi)
+	if err0 != nil {
 		ps.Logger().Error("Error in adding waitlist", zap.Error(err))
-		return msg, impart.NewError(impart.ErrUnknown, "Unable to add to waitlist")
+		return msg, err0
 	}
 	return msg, nil
 }

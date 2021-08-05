@@ -190,25 +190,33 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 
 }
 
-func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, error) {
+func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error) {
 	msg := ""
 	if gpi.Type == "addto_waitlist" {
 		hives := dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: DefaultHiveId},
 		}
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+		for _, h := range userToUpdate.R.MemberHiveHives {
+			if h.HiveID == DefaultHiveId {
+				return msg, impart.NewError(impart.ErrBadRequest, "User is already on waitlist.")
+			}
+		}
 		err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
 		if err != nil {
-			return msg, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
+			return msg, impart.NewError(impart.ErrBadRequest, "unable to set the member hive")
 		}
 		msg = "User added to Waitlist."
 	} else if gpi.Type == "addto_admin" {
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		existingDBProfile := userToUpdate.R.ImpartWealthProfile
+		if userToUpdate.Admin {
+			return msg, impart.NewError(impart.ErrBadRequest, "User is already admin.")
+		}
 		userToUpdate.Admin = true
 		err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
 		if err != nil {
-			return msg, impart.NewError(impart.ErrUnknown, "unable to set the member as user")
+			return msg, impart.NewError(impart.ErrBadRequest, "unable to set the member as user")
 		}
 		msg = "User role changed to admin."
 	} else if gpi.Type == "addto_hive" {
@@ -216,9 +224,14 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			&dbmodels.Hive{HiveID: gpi.HiveID},
 		}
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+		for _, h := range userToUpdate.R.MemberHiveHives {
+			if h.HiveID == gpi.HiveID {
+				return msg, impart.NewError(impart.ErrBadRequest, "User is already on hive.")
+			}
+		}
 		err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
 		if err != nil {
-			return msg, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
+			return msg, impart.NewError(impart.ErrBadRequest, "unable to set the member hive")
 		}
 		msg = "User Added to hive."
 	}

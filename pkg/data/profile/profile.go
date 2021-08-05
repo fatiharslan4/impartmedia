@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"go.uber.org/zap"
@@ -44,7 +45,7 @@ type Store interface {
 	GetMakeUp(ctx context.Context) (interface{}, error)
 	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, error)
 	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, error)
-	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, error)
+	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error)
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

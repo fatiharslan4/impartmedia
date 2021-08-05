@@ -942,7 +942,7 @@ func (ph *profileHandler) EditUserDetails() gin.HandlerFunc {
 		}
 		msg, impartErr := ph.profileService.EditUserDetails(ctx, input)
 		if impartErr != nil {
-			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
 			return
 		}
 

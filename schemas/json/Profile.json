@@ -137,6 +137,12 @@
 				"lastLoginDate": {
 					"type": "string",
 					"format": "date-time"
+				},
+				"superAdmin": {
+					"type": "boolean"
+				},
+				"deletedByAdmin": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

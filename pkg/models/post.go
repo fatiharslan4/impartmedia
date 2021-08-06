@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"math"
 	"reflect"
+	"regexp"
 	"sort"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/otiai10/opengraph/v2"
 	"github.com/volatiletech/null/v8"
 
 	r "github.com/Pallinder/go-randomdata"
@@ -316,4 +318,38 @@ func PostFileToFile(f *dbmodels.PostFile) File {
 		FileType: f.R.FidFile.FileType,
 		URL:      f.R.FidFile.URL,
 	}
+}
+
+func (p PostVideo) PostVideoToDBModel(postId uint64) *dbmodels.PostVideo {
+	out := &dbmodels.PostVideo{
+		Source:      p.Source,
+		ReferenceID: null.StringFrom(p.ReferenceId),
+		URL:         p.Url,
+		PostID:      postId,
+	}
+	return out
+}
+func (p PostUrl) PostUrlToDBModel(postId uint64, postUrl string) *dbmodels.PostURL {
+	match, _ := regexp.MatchString(`^(?:f|ht)tps?://`, postUrl)
+	var imageUrl string
+	if !match && postUrl != "" {
+		postUrl = "http://" + postUrl
+	}
+	ogp, err := opengraph.Fetch(postUrl)
+
+	if err != nil {
+	}
+	if ogp != nil && ogp.Image != nil && len(ogp.Image) > 0 {
+		imageUrl = ogp.Image[0].URL
+	} else {
+		imageUrl = ""
+	}
+	out := &dbmodels.PostURL{
+		Title:       ogp.Title,
+		ImageUrl:    imageUrl,
+		URL:         null.StringFrom(postUrl),
+		PostID:      postId,
+		Description: ogp.Description,
+	}
+	return out
 }

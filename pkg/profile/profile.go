@@ -6,13 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"gopkg.in/auth0.v5/management"
-
-	"github.com/volatiletech/null/v8"
-	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	profile_data "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -27,7 +22,7 @@ type Service interface {
 	NewProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
 	GetProfile(ctx context.Context, getProfileInput GetProfileInput) (models.Profile, impart.Error)
 	UpdateProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
-	DeleteProfile(ctx context.Context, impartWealthID string, hardtDelete bool, deleteUser DeleteProfileInput) impart.Error
+	DeleteProfile(ctx context.Context, impartWealthID string, hardtDelete bool, deleteUser models.DeleteUserInput) impart.Error
 	ScreenNameExists(ctx context.Context, screenName string) bool
 
 	ValidateSchema(document gojsonschema.JSONLoader) []impart.Error
@@ -52,6 +47,9 @@ type Service interface {
 	UpdateReadCommunity(ctx context.Context, p models.UpdateReadCommunity, impartID string) impart.Error
 	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, impart.Error)
 	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, impart.Error)
+	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error)
+
+	DeleteUserByAdmin(ctx context.Context, hardtDelete bool, deleteUser models.DeleteUserInput) impart.Error
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {
@@ -86,7 +84,7 @@ func (ps *profileService) Logger() *zap.Logger {
 	return ps.Desugar()
 }
 
-func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID string, hardDelete bool, deleteUser DeleteProfileInput) impart.Error {
+func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID string, hardDelete bool, deleteUser models.DeleteUserInput) impart.Error {
 	if strings.TrimSpace(impartWealthID) == "" {
 		return impart.NewError(impart.ErrBadRequest, "impartWealthID is empty")
 	}
@@ -106,100 +104,17 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 	}
 
 	// admin removed- APP-144
-	if contextUser.ImpartWealthID == userToDelete.ImpartWealthID {
-		ps.Logger().Info("request to delete a user passed validation", zap.String("deleteUser", userToDelete.ImpartWealthID),
+	if contextUser.ImpartWealthID != userToDelete.ImpartWealthID {
+		ps.Logger().Info("request to delete a user failed validation", zap.String("deleteUser", userToDelete.ImpartWealthID),
 			zap.String("contextUser", contextUser.ImpartWealthID))
-		if hardDelete {
-			err = ps.profileStore.DeleteProfile(ctx, impartWealthID, hardDelete)
-			if err != nil {
-				return impart.NewError(err, "unable to retrieve profile")
-			}
-		}
 
-		existingDBProfile := userToDelete.R.ImpartWealthProfile
-
-		exitingUserAnser := userToDelete.R.ImpartWealthUserAnswers
-		answerIds := make([]uint, len(exitingUserAnser))
-		for i, a := range exitingUserAnser {
-			answerIds[i] = a.AnswerID
-		}
-		userEmail := userToDelete.Email
-		screenName := userToDelete.ScreenName
-		userToDelete.Feedback = null.StringFromPtr(&deleteUser.Feedback)
-		currTime := time.Now().In(boil.GetLocation())
-		userToDelete.DeletedAt = null.TimeFrom(currTime)
-		userToDelete.ScreenName = fmt.Sprintf("%s-%s", userToDelete.ScreenName, userToDelete.ImpartWealthID)
-		userToDelete.Email = fmt.Sprintf("%s-%s", userToDelete.Email, userToDelete.ImpartWealthID)
-
-		err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
-		if err != nil {
-			ps.Logger().Error("Delete user requset failed", zap.String("deleteUser", userToDelete.ImpartWealthID),
-				zap.String("contextUser", contextUser.ImpartWealthID))
-
-			return impart.NewError(err, "User Deletion failed")
-
-		}
-		if !userToDelete.Blocked {
-			err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, false)
-		}
-
-		m, errDel := management.New(impartDomain, management.WithClientCredentials(auth0managementClient, auth0managementClientSecret))
-		if errDel != nil {
-			//revert the server update
-			userToDelete.ScreenName = screenName
-			userToDelete.Feedback = null.String{}
-			userToDelete.DeletedAt = null.Time{}
-			userToDelete.Email = userEmail
-
-			err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
-			if err != nil {
-				ps.Logger().Error("Delete user requset failed in auth 0 then revert the server", zap.String("deleteUser", userToDelete.ImpartWealthID),
-					zap.String("contextUser", contextUser.ImpartWealthID))
-			}
-			if !userToDelete.Blocked {
-				err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, true)
-				if err != nil {
-					ps.Logger().Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
-						zap.String("contextUser", contextUser.ImpartWealthID))
-				}
-			}
-			return impart.NewError(err, "User Deletion failed")
-
-		}
-		userEmail = fmt.Sprintf("%s%s", userToDelete.ImpartWealthID, userEmail)
-		userUp := management.User{
-			Email: &userEmail,
-		}
-
-		errDel = m.User.Update(*&userToDelete.AuthenticationID, &userUp)
-		if errDel != nil {
-
-			//revert the server update
-			userToDelete.ScreenName = screenName
-			userToDelete.Feedback = null.String{}
-			userToDelete.DeletedAt = null.Time{}
-			userToDelete.Email = userEmail
-
-			err = ps.profileStore.UpdateProfile(ctx, userToDelete, existingDBProfile)
-			if err != nil {
-				ps.Logger().Error("Delete user requset failed in auth 0 then revert the server- user failed.", zap.String("deleteUser", userToDelete.ImpartWealthID),
-					zap.String("contextUser", contextUser.ImpartWealthID))
-			}
-			if !userToDelete.Blocked {
-				err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, true)
-				if err != nil {
-					ps.Logger().Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
-						zap.String("contextUser", contextUser.ImpartWealthID))
-				}
-			}
-			return impart.NewError(err, "User Deletion failed")
-		}
-
-		return nil
+		return impart.NewError(impart.ErrUnauthorized, "user is not authorized")
 	}
-
-	return impart.NewError(impart.ErrUnauthorized, "user is not authorized")
-
+	err = ps.profileStore.DeleteUserProfile(ctx, deleteUser, hardDelete)
+	if err != nil {
+		return impart.NewError(impart.ErrBadRequest, "User delete failed.")
+	}
+	return nil
 }
 
 func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error) {
@@ -465,10 +380,6 @@ func (ps *profileService) UpdateProfile(ctx context.Context, p models.Profile) (
 	return *up, nil
 }
 
-type DeleteProfileInput struct {
-	ImpartWealthID, Feedback string
-}
-
 func (s *profileService) GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, impart.Error) {
 	hive, err := dbmodels.Hives(
 		dbmodels.HiveWhere.HiveID.EQ(hiveID)).One(ctx, s.db)
@@ -496,6 +407,40 @@ func (ps *profileService) UpdateReadCommunity(ctx context.Context, p models.Upda
 	if err != nil {
 		ps.Logger().Error("Upadte Read Community  user requset failed", zap.String("UpadteReadCommunity", impartID))
 		return impart.NewError(err, "Upadte Read Community failed")
+	}
+	return nil
+}
+
+func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool, deleteUser models.DeleteUserInput) impart.Error {
+	if strings.TrimSpace(deleteUser.ImpartWealthID) == "" {
+		return impart.NewError(impart.ErrBadRequest, "impartWealthID is empty")
+	}
+	contextUser := impart.GetCtxUser(ctx)
+	if contextUser == nil || contextUser.ImpartWealthID == "" {
+		return impart.NewError(impart.ErrBadRequest, "context user not found")
+	}
+	if !contextUser.SuperAdmin {
+		errorString := "Current user doesn't have the permission"
+		ps.Logger().Error(errorString, zap.Any("error", errorString))
+		return impart.NewError(impart.ErrUnauthorized, errorString)
+	}
+	userToDelete, err := ps.profileStore.GetUser(ctx, deleteUser.ImpartWealthID)
+	if err != nil {
+		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", deleteUser.ImpartWealthID))
+	}
+	if userToDelete.Admin {
+		errorString := "You cant delete the admin"
+		ps.Logger().Error(errorString, zap.Any("error", errorString))
+		return impart.NewError(impart.ErrUnauthorized, errorString)
+	}
+	if userToDelete.SuperAdmin {
+		errorString := "You cant delete the super admin"
+		ps.Logger().Error(errorString, zap.Any("error", errorString))
+		return impart.NewError(impart.ErrUnauthorized, errorString)
+	}
+	err = ps.profileStore.DeleteUserProfile(ctx, deleteUser, hardDelete)
+	if err != nil {
+		return impart.NewError(impart.ErrBadRequest, "User delete failed.")
 	}
 	return nil
 }

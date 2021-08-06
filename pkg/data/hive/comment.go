@@ -7,6 +7,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
@@ -143,7 +144,9 @@ func (d *mysqlHiveData) DeleteComment(ctx context.Context, commentID uint64) err
 		return err
 	}
 	defer impart.CommitRollbackLogger(tx, err, d.logger)
-
+	if (existingComment.DeletedAt != null.Time{}) {
+		return impart.ErrNotFound
+	}
 	_, err = existingComment.Delete(ctx, tx, false)
 	if err != nil {
 		if err == sql.ErrNoRows {

@@ -26,7 +26,7 @@ type Posts interface {
 	//GetPostsImpartWealthID(ctx context.Context, impartWealthID string, limit int64, offset time.Time) (models.Posts, error)
 	GetPost(ctx context.Context, postID uint64) (*dbmodels.Post, error)
 	NewPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice) (*dbmodels.Post, error)
-	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool) (*dbmodels.Post, error)
+	EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, files []models.File, fileName string) (*dbmodels.Post, error)
 	DeletePost(ctx context.Context, postID uint64) error
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 	NewPostVideo(ctx context.Context, post *dbmodels.PostVideo) (*dbmodels.PostVideo, error)
@@ -81,7 +81,7 @@ func (d *mysqlHiveData) NewPost(ctx context.Context, post *dbmodels.Post, tags d
 }
 
 // EditPost takes an incoming Post, and modifies the record to match.
-func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool) (*dbmodels.Post, error) {
+func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags dbmodels.TagSlice, shouldPin bool, postVideo *dbmodels.PostVideo, postUrl *dbmodels.PostURL, file []models.File, fileName string) (*dbmodels.Post, error) {
 	//you can only edit content and subject
 	existing, err := dbmodels.FindPost(ctx, d.db, post.PostID)
 	if err != nil {
@@ -98,7 +98,102 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 	if post.Subject != "" && post.Subject != existing.Subject {
 		existing.Subject = post.Subject
 	}
+
 	_, err = existing.Update(ctx, d.db, boil.Infer())
+
+	if shouldPin {
+		existingPost, err0 := d.GetPost(ctx, existing.PostID)
+		if err0 != nil {
+			d.logger.Error("error attempting to fetching post  data ", zap.Any("postVideo", postVideo), zap.Error(err))
+		} else {
+			if postVideo != nil {
+				if existingPost.R.PostVideos == nil && len(existingPost.R.PostVideos) == 0 {
+					if err := postVideo.Insert(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+					}
+				} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 && postVideo.URL != "" {
+					if existingPost.R.PostVideos[0].ReferenceID != postVideo.ReferenceID {
+						existingPost.R.PostVideos[0].ReferenceID = postVideo.ReferenceID
+					}
+					if existingPost.R.PostVideos[0].URL != postVideo.URL {
+						existingPost.R.PostVideos[0].URL = postVideo.URL
+					}
+					if existingPost.R.PostVideos[0].Source != postVideo.Source {
+						existingPost.R.PostVideos[0].Source = postVideo.Source
+					}
+					if _, err := existingPost.R.PostVideos[0].Update(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Update post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+					}
+				} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 && postVideo.URL == "" {
+					if _, err := existingPost.R.PostVideos[0].Delete(ctx, d.db); err != nil {
+						d.logger.Error("error attempting to delete post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+					}
+				}
+			} else if existingPost.R.PostVideos != nil && len(existingPost.R.PostVideos) > 0 && postVideo == nil {
+				if _, err := existingPost.R.PostVideos[0].Delete(ctx, d.db); err != nil {
+					d.logger.Error("error attempting to delete post video data ", zap.Any("postVideo", postVideo), zap.Error(err))
+				}
+			}
+
+			if postUrl != nil {
+				if existingPost.R.PostUrls == nil && len(existingPost.R.PostUrls) == 0 {
+					if err := postUrl.Insert(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Save post url data ", zap.Any("PostUrls", postUrl), zap.Error(err))
+					}
+				} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 && postUrl.Title != "" {
+					existingPost.R.PostUrls[0].Title = postUrl.Title
+					existingPost.R.PostUrls[0].URL = postUrl.URL
+					existingPost.R.PostUrls[0].ImageUrl = postUrl.ImageUrl
+					existingPost.R.PostUrls[0].Description = postUrl.Description
+					if _, err := existingPost.R.PostUrls[0].Update(ctx, d.db, boil.Infer()); err != nil {
+						d.logger.Error("error attempting to Update postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
+					}
+				} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 && postUrl.Title == "" {
+					if _, err := existingPost.R.PostUrls[0].Delete(ctx, d.db); err != nil {
+						d.logger.Error("error attempting to delete postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
+					}
+				}
+			} else if existingPost.R.PostUrls != nil && len(existingPost.R.PostUrls) > 0 && postUrl == nil {
+				if _, err := existingPost.R.PostUrls[0].Delete(ctx, d.db); err != nil {
+					d.logger.Error("error attempting to delete postUrl data ", zap.Any("postUrl", postUrl), zap.Error(err))
+				}
+			}
+			if len(file) > 0 {
+				if len(existingPost.R.PostFiles) == 0 { //insert
+					postFiles, err := d.AddPostFilesDBEdit(ctx, existingPost, file)
+					if err != nil {
+					}
+					if postFiles != nil {
+					}
+					// _, _ = d.AddPostFilesEdit(ctx, existingPost, file)
+				} else if len(existingPost.R.PostFiles) >= 0 && file[0].FileName != "" {
+					existingfile, err := dbmodels.FindFile(ctx, d.db, existingPost.R.PostFiles[0].Fid)
+					if err != nil {
+						d.logger.Error("error attempting to fetching file  data ", zap.Any("postVideo", existingPost.R.PostFiles[0].Fid), zap.Error(err))
+					} else {
+						if existingfile.FileName != file[0].FileName && file[0].FileName != "" {
+							existingfile.FileName = file[0].FileName
+						} else if existingfile.FileType != file[0].FileType && file[0].FileType != "" {
+							existingfile.FileType = file[0].FileType
+						} else if existingfile.URL != file[0].URL && file[0].URL != "" {
+							existingfile.URL = file[0].URL
+						}
+						_, err = existingfile.Update(ctx, d.db, boil.Infer())
+					}
+				}
+			}
+			if (len(existingPost.R.PostFiles) > 0 && fileName == "") || (len(existingPost.R.PostFiles) > 0 && len(file) == 0) {
+				existingfile, err := dbmodels.FindFile(ctx, d.db, existingPost.R.PostFiles[0].Fid)
+				if err != nil {
+					d.logger.Error("error attempting to fetching file  data ", zap.Any("postVideo", existingPost.R.PostFiles[0].Fid), zap.Error(err))
+				} else {
+					_, err = existingPost.R.PostFiles[0].Delete(ctx, d.db)
+					_, err = existingfile.Delete(ctx, d.db)
+				}
+			}
+		}
+
+	}
 
 	if shouldPin && post.Pinned != existing.Pinned {
 		err = d.PinPost(ctx, post.HiveID, post.PostID, post.Pinned)
@@ -124,6 +219,18 @@ type GetPostsInput struct {
 	// Tags is the optional list of tags to filter on
 	TagIDs []int
 
+	OffsetPost    int
+	OffsetComment int
+}
+
+// GetPostsInput is the input necessary
+type GetReportedContentInput struct {
+	// HiveID is the ID that should be queried for posts
+	HiveID uint64
+	// Limit is the maximum number of records that should be returns.  The API can optionally return
+	// less than Limit, if DynamoDB decides the items read were too large.
+	Limit         int
+	Offset        int
 	OffsetPost    int
 	OffsetComment int
 }
@@ -226,4 +333,41 @@ func (d *mysqlHiveData) NewPostUrl(ctx context.Context, postUrl *dbmodels.PostUR
 		return nil, err
 	}
 	return postUrl, nil
+}
+
+func (s *mysqlHiveData) AddPostFilesDBEdit(ctx context.Context, post *dbmodels.Post, file []models.File) ([]models.File, impart.Error) {
+	var fileResponse []models.File
+	if len(file) > 0 {
+		var postFielRelationMap []*dbmodels.PostFile
+		//upload the files to table
+		for index, f := range file {
+			fileModel := &dbmodels.File{
+				FileName: f.FileName,
+				FileType: f.FileType,
+				URL:      f.URL,
+			}
+			if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
+				s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
+			}
+			file[index].FID = int(fileModel.Fid)
+			postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
+				PostID: post.PostID,
+				Fid:    fileModel.Fid,
+			})
+			////doesnt return the content,
+			file[index].Content = ""
+			// //set reponse
+			fileResponse = file
+		}
+		err := post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
+		if err != nil {
+			s.logger.Error("error attempting to map post files ",
+				zap.Any("data", postFielRelationMap),
+				zap.Any("err", err),
+				zap.Error(err),
+			)
+		}
+
+	}
+	return fileResponse, nil
 }

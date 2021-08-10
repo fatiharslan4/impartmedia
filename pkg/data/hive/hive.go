@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
@@ -19,8 +20,9 @@ var _ Hives = &mysqlHiveData{}
 var _ HiveService = &mysqlHiveData{}
 
 type mysqlHiveData struct {
-	logger *zap.Logger
-	db     *sql.DB
+	logger       *zap.Logger
+	db           *sql.DB
+	MediaStorage media.StorageConfigurations
 }
 
 //counterfeiter:generate . HiveService
@@ -49,7 +51,7 @@ type Hives interface {
 	GetUnreviewedReportedPosts(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetPostsWithUnreviewedComments(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetPostsWithReviewedComments(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error)
-	GetReportedContents(ctx context.Context, getInput GetPostsInput) (models.PostComments, *models.NextPage, error)
+	GetReportedContents(ctx context.Context, getInput GetReportedContentInput) (models.PostComments, *models.NextPage, error)
 }
 
 func (d *mysqlHiveData) GetHives(ctx context.Context) (dbmodels.HiveSlice, error) {

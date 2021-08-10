@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"go.uber.org/zap"
 )
 
@@ -65,6 +68,19 @@ func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.U
 		}
 		ud = exists
 	}
+
+	userToUpdate, err := ps.profileStore.GetUser(ctx, contextUser.ImpartWealthID)
+	if err == nil {
+		existingDBProfile := userToUpdate.R.ImpartWealthProfile
+		currTime := time.Now().In(boil.GetLocation())
+		userToUpdate.LastloginAt = null.TimeFrom(currTime)
+		err = ps.profileStore.UpdateProfile(ctx, userToUpdate, existingDBProfile)
+		if err != nil {
+			ps.Logger().Error("Update user last login requset failed", zap.String("Update", userToUpdate.ImpartWealthID),
+				zap.String("contextUser", contextUser.ImpartWealthID))
+		}
+	}
+
 	return models.UserDeviceFromDBModel(ud), nil
 }
 
@@ -294,4 +310,40 @@ func (ps *profileService) UpdateDeviceToken(ctx context.Context, token string, d
 
 func (ps *profileService) DeleteExceptUserDevice(ctx context.Context, impartID string, deviceToken string, refToken string) error {
 	return ps.profileStore.DeleteExceptUserDevice(ctx, impartID, deviceToken, refToken)
+}
+
+func (ps *profileService) GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, impart.Error) {
+	result, nextPage, err := ps.profileStore.GetUsersDetails(ctx, gpi)
+	if err != nil {
+		ps.Logger().Error("Error in data fetching", zap.Error(err))
+		return nil, nextPage, impart.NewError(impart.ErrUnknown, "unable to fetch the details")
+	}
+	return result, nextPage, nil
+}
+
+func (ps *profileService) GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, impart.Error) {
+	result, nextPage, err := ps.profileStore.GetPostDetails(ctx, gpi)
+	if err != nil {
+		ps.Logger().Error("Error in data fetching", zap.Error(err))
+		return nil, nextPage, impart.NewError(impart.ErrUnknown, "unable to fetch the details")
+	}
+	return result, nextPage, nil
+}
+
+func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error) {
+	userToUpdate, err := ps.profileStore.GetUser(ctx, gpi.ImpartWealthID)
+	if err != nil {
+		ps.Logger().Error("Cannot Find the user", zap.Error(err))
+		return "", impart.NewError(impart.ErrNotFound, "Cannot Find the user")
+	}
+	if userToUpdate.Blocked {
+		ps.Logger().Error("Blocked user", zap.Error(err))
+		return "", impart.NewError(impart.ErrNotFound, "Blocked user")
+	}
+	msg, err0 := ps.profileStore.EditUserDetails(ctx, gpi)
+	if err0 != nil {
+		ps.Logger().Error("Error in adding waitlist", zap.Error(err))
+		return msg, err0
+	}
+	return msg, nil
 }

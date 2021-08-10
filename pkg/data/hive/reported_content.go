@@ -227,7 +227,7 @@ FROM (
 	return posts, nextPage, nil
 }
 
-func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetPostsInput) (models.PostComments, *models.NextPage, error) {
+func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetReportedContentInput) (models.PostComments, *models.NextPage, error) {
 	var postCnt int
 	var cmntCnt int
 

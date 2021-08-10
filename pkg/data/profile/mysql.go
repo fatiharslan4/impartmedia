@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
+	authdata "github.com/impartwealthapp/backend/pkg/data/auth"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -14,6 +15,7 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
+	"gopkg.in/auth0.v5/management"
 )
 
 var _ Store = &mysqlStore{}
@@ -543,13 +545,13 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 	dedupMap := make(map[uint]*dbmodels.Questionnaire)
 
 	totalCnt := 0
-	for _, ans := range userAnswers {
-		totalCnt = totalCnt + ans.UserCount
-	}
+	percentageTotal := 0.0
 
 	if len(userAnswers) == 0 {
 		return dataMap, impart.ErrNotFound
 	}
+
+	indexes := make(map[uint]int)
 
 	for _, a := range userAnswers {
 		q, ok := dedupMap[a.R.Answer.R.Question.R.Questionnaire.QuestionnaireID]
@@ -569,6 +571,14 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 
 		// check questions index exists
 		if _, ok := dataMap[qIDInt][questionIDstr]; !ok {
+			totalCnt = 0
+			percentageTotal = 0.0
+			for _, ans := range userAnswers {
+				if ans.R.Answer.R.Question.QuestionID == uint(a.R.Answer.R.Question.QuestionID) {
+					totalCnt = totalCnt + ans.UserCount
+				}
+			}
+			indexes[uint(a.R.Answer.R.Question.QuestionID)] = totalCnt
 			dataMap[qIDInt][questionIDstr] = make(map[string]interface{})
 			dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"] = make(map[string]interface{})
 		}
@@ -583,17 +593,106 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questionText"] = a.R.Answer.R.Question.Text
 		percentage := 0.0
 		if a.UserCount > 0 {
-			percentage = (float64(a.UserCount) / float64(totalCnt)) * 100
+			percentage = float64(a.UserCount) / float64(indexes[uint(a.R.Answer.R.Question.QuestionID)]) * 100
 		}
 
+		per, _ := strconv.ParseFloat(fmt.Sprintf("%.1f", percentage), 64)
+		percentageTotal = percentageTotal + per
+		if percentageTotal > 100 {
+			dif := percentageTotal - 100
+			per = per - dif
+		}
 		dataMap[qIDInt][questionIDstr].(map[string]interface{})["questions"].(map[string]interface{})[answerIDstr] = map[string]string{
-			"id":         strconv.Itoa(int(a.R.Answer.AnswerID)),
-			"title":      a.R.Answer.AnswerName,
-			"text":       a.R.Answer.Text,
-			"count":      strconv.Itoa(a.UserCount),
-			"percentage": fmt.Sprintf("%f", percentage),
+			"id":    strconv.Itoa(int(a.R.Answer.AnswerID)),
+			"title": a.R.Answer.AnswerName,
+			"text":  a.R.Answer.Text,
+			"count": strconv.Itoa(a.UserCount),
+			// "percentage": fmt.Sprintf("%f", percentage),
+			"percentage": fmt.Sprintf("%.1f", per),
 		}
 	}
 
 	return dataMap, nil
+}
+
+func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUserInput, hardDelete bool) error {
+	userToDelete, err := m.GetUser(ctx, gpi.ImpartWealthID)
+	if err != nil {
+		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", gpi.ImpartWealthID))
+	}
+
+	if hardDelete {
+		err = m.DeleteProfile(ctx, gpi.ImpartWealthID, hardDelete)
+		if err != nil {
+			return impart.NewError(err, "unable to retrieve profile")
+		}
+		return nil
+	}
+	existingDBProfile := userToDelete.R.ImpartWealthProfile
+	exitingUserAnswer := userToDelete.R.ImpartWealthUserAnswers
+	answerIds := make([]uint, len(exitingUserAnswer))
+	for i, a := range exitingUserAnswer {
+		answerIds[i] = a.AnswerID
+	}
+	userEmail := userToDelete.Email
+	screenName := userToDelete.ScreenName
+	userToDelete = models.UpdateToUserDB(userToDelete, gpi, true, screenName, userEmail)
+	err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
+	if err != nil {
+		m.logger.Error("Delete user requset failed", zap.String("deleteUser", userToDelete.ImpartWealthID),
+			zap.String("contextUser", userToDelete.ImpartWealthID))
+
+		return impart.NewError(err, "User Deletion failed")
+
+	}
+	if !userToDelete.Blocked {
+		err = m.UpdateUserDemographic(ctx, answerIds, false)
+	}
+
+	mngmnt, err := authdata.NewImpartManagementClient()
+	if err != nil {
+		////revert the server update
+		userToDelete = models.UpdateToUserDB(userToDelete, gpi, false, screenName, userEmail)
+
+		err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
+		if err != nil {
+			m.logger.Error("Delete user requset failed in auth 0 then revert the server", zap.String("deleteUser", userToDelete.ImpartWealthID),
+				zap.String("contextUser", userToDelete.ImpartWealthID))
+		}
+		if !userToDelete.Blocked {
+			err = m.UpdateUserDemographic(ctx, answerIds, true)
+			if err != nil {
+				m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", userToDelete.ImpartWealthID))
+			}
+		}
+		return impart.NewError(err, "User Deletion failed")
+
+	}
+	userEmail = fmt.Sprintf("%s%s", userToDelete.ImpartWealthID, userEmail)
+	userUp := management.User{
+		Email: &userEmail,
+	}
+
+	errDel := mngmnt.User.Update(*&userToDelete.AuthenticationID, &userUp)
+	if errDel != nil {
+
+		//revert the server update
+		userToDelete = models.UpdateToUserDB(userToDelete, gpi, true, screenName, userEmail)
+
+		err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
+		if err != nil {
+			m.logger.Error("Delete user requset failed in auth 0 then revert the server- user failed.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+				zap.String("contextUser", userToDelete.ImpartWealthID))
+		}
+		if !userToDelete.Blocked {
+			err = m.UpdateUserDemographic(ctx, answerIds, true)
+			if err != nil {
+				m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+					zap.String("contextUser", userToDelete.ImpartWealthID))
+			}
+		}
+		return impart.NewError(err, "User Deletion failed")
+	}
+	return nil
 }

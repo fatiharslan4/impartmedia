@@ -70,7 +70,8 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 
 	// add post files
 	post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
-	postFiles, _ := s.AddPostFiles(ctx, dbPost, post.Files)
+	postFiles, _ := s.AddPostFiles(ctx, post.Files)
+	postFiles, _ = s.AddPostFilesDB(ctx, dbPost, postFiles)
 
 	p := models.PostFromDB(dbPost)
 
@@ -91,7 +92,11 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post, impart.Error) {
 	ctxUser := impart.GetCtxUser(ctx)
 	existingPost, err := s.postData.GetPost(ctx, inPost.PostID)
+	var postVideo *dbmodels.PostVideo
+	var postUrl *dbmodels.PostURL
+	var postFiles []models.File
 	var shouldPin bool
+	name := ""
 	if err != nil {
 		s.logger.Error("error fetching post trying to edit", zap.Error(err))
 		return models.Post{}, impart.NewError(impart.ErrUnauthorized, "error fetching post trying to edit")
@@ -105,8 +110,17 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 	}
 	if ctxUser.Admin {
 		shouldPin = true
+		postVideo = inPost.Video.PostVideoToDBModel(inPost.PostID)
+		postUrl = inPost.UrlData.PostUrlToDBModel(inPost.PostID, inPost.Url)
+		if len(inPost.Files) > 0 {
+			name = inPost.Files[0].FileName
+		} else {
+			name = "nofile"
+		}
+		postFiles = s.ValidatePostFilesName(ctx, ctxUser, inPost.Files)
+		postFiles, _ = s.AddPostFiles(ctx, postFiles)
 	}
-	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin)
+	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin, postVideo, postUrl, postFiles, name)
 	if err != nil {
 		return models.Post{}, impart.UnknownError
 	}
@@ -498,7 +512,7 @@ func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string)
 }
 
 // add post file
-func (s *service) AddPostFiles(ctx context.Context, post *dbmodels.Post, postFiles []models.File) ([]models.File, impart.Error) {
+func (s *service) AddPostFiles(ctx context.Context, postFiles []models.File) ([]models.File, impart.Error) {
 	var fileResponse []models.File
 	if len(postFiles) > 0 {
 		mediaObject := media.New(media.StorageConfigurations{
@@ -515,40 +529,7 @@ func (s *service) AddPostFiles(ctx context.Context, post *dbmodels.Post, postFil
 			s.logger.Error("error attempting to Save post file data ", zap.Any("files", file), zap.Error(err))
 			return file, impart.NewError(err, fmt.Sprintf("error on post files storage %v", err))
 		}
-
-		var postFielRelationMap []*dbmodels.PostFile
-		//upload the files to table
-		for index, f := range file {
-			fileModel := &dbmodels.File{
-				FileName: f.FileName,
-				FileType: f.FileType,
-				URL:      f.URL,
-			}
-			if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
-				s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
-			}
-
-			file[index].FID = int(fileModel.Fid)
-			postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
-				PostID: post.PostID,
-				Fid:    fileModel.Fid,
-			})
-
-			//doesnt return the content,
-			file[index].Content = ""
-			// set reponse
-			fileResponse = file
-		}
-
-		err = post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
-		if err != nil {
-			s.logger.Error("error attempting to map post files ",
-				zap.Any("data", postFielRelationMap),
-				zap.Any("err", err),
-				zap.Error(err),
-			)
-		}
-
+		return file, nil
 	}
 	return fileResponse, nil
 }
@@ -593,4 +574,44 @@ func (s *service) UploadFile(files []models.File) error {
 	}
 
 	return nil
+}
+
+func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File) ([]models.File, impart.Error) {
+	var fileResponse []models.File
+	if len(file) > 0 {
+		var postFielRelationMap []*dbmodels.PostFile
+		//upload the files to table
+		for index, f := range file {
+			fileModel := &dbmodels.File{
+				FileName: f.FileName,
+				FileType: f.FileType,
+				URL:      f.URL,
+			}
+			if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
+				s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
+			}
+
+			file[index].FID = int(fileModel.Fid)
+			postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
+				PostID: post.PostID,
+				Fid:    fileModel.Fid,
+			})
+
+			//doesnt return the content,
+			file[index].Content = ""
+			// set reponse
+			fileResponse = file
+		}
+
+		err := post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
+		if err != nil {
+			s.logger.Error("error attempting to map post files ",
+				zap.Any("data", postFielRelationMap),
+				zap.Any("err", err),
+				zap.Error(err),
+			)
+		}
+
+	}
+	return fileResponse, nil
 }

@@ -16,6 +16,8 @@ const AuthIDRequestContextKey = "AuthIDRequestContextKey{}"
 const UserRequestContextKey = "UserRequestContextKey{}"
 const HiveMembershipsContextKey = "HiveMembershipsContextKey{}"
 const DeviceAuthorizationContextKey = "DeviceAuthorizationContextKey{}"
+const ClientIdentificationHeaderKey = "ClientIdentificationHeaderKey{}"
+const ClientId = "web"
 
 func GetCtxAuthID(ctx context.Context) string {
 	return ctx.Value(AuthIDRequestContextKey).(string)
@@ -67,6 +69,14 @@ func CommitRollbackLogger(tx *sql.Tx, err error, logger *zap.Logger) {
 
 func GetCtxDeviceToken(ctx context.Context) string {
 	val := ctx.Value(DeviceAuthorizationContextKey)
+	if val != nil {
+		return val.(string)
+	}
+	return ""
+}
+
+func GetCtxClientID(ctx context.Context) string {
+	val := ctx.Value(ClientIdentificationHeaderKey)
 	if val != nil {
 		return val.(string)
 	}

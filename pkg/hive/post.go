@@ -278,9 +278,14 @@ func (s *service) DeletePost(ctx context.Context, postID uint64) impart.Error {
 	existingPost, err := s.postData.GetPost(ctx, postID)
 	if err != nil {
 		s.logger.Error("error fetching post trying to edit", zap.Error(err))
-		return impart.UnknownError
+		return impart.NewError(impart.ErrBadRequest, "unable to find the post")
 	}
-	if !ctxUser.Admin && existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
+	clientId := impart.GetCtxClientID(ctx)
+	if clientId == impart.ClientId {
+		if !ctxUser.SuperAdmin {
+			return impart.NewError(impart.ErrUnauthorized, "Cannot delete a post unless you are a hive super admin.")
+		}
+	} else if !ctxUser.Admin && existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
 		return impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours")
 	}
 

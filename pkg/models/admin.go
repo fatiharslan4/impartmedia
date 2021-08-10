@@ -80,7 +80,8 @@ func PostsDataFromDB(p *dbmodels.Post) PostDetail {
 	}
 	if p.ReportedCount > 0 {
 		out.Reported = true
-	} else {
+	}
+	if p.Reviewed {
 		out.Reported = false
 	}
 	if p.R.ImpartWealth != nil {

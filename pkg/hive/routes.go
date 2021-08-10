@@ -572,8 +572,15 @@ func (hh *hiveHandler) PostCommentReactionFunc() gin.HandlerFunc {
 
 		// admin is reviewd
 		if reviewParam != "" {
-			if !ctxUser.Admin {
-				impartErr := impart.NewError(impart.ErrUnauthorized, "cannot review a post unless you are a hive admin")
+			clientId := impart.GetCtxClientID(ctx)
+			if clientId == impart.ClientId {
+				if !ctxUser.SuperAdmin {
+					impartErr := impart.NewError(impart.ErrUnauthorized, "cannot review a post unless you are a hive super admin.")
+					ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(impartErr))
+					return
+				}
+			} else if !ctxUser.Admin {
+				impartErr := impart.NewError(impart.ErrUnauthorized, "cannot review a post unless you are a hive admin.")
 				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(impartErr))
 				return
 			}

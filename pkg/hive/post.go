@@ -36,8 +36,18 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		return models.Post{}, impart.NewError(impart.ErrBadRequest, "post is less than 10 characters", impart.Content)
 	}
 	shouldPin := false
+	isAdminActivity := false
+	clientId := impart.GetCtxClientID(ctx)
+	if clientId == impart.ClientId {
+		if ctxUser.SuperAdmin {
+			isAdminActivity = true
+		}
+	} else if ctxUser.Admin {
+		isAdminActivity = true
+	}
+
 	if post.IsPinnedPost {
-		if ctxUser.Admin {
+		if isAdminActivity {
 			shouldPin = true
 		} else {
 			post.IsPinnedPost = false
@@ -67,24 +77,24 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		}
 
 	}
-
-	// add post files
-	post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
-	postFiles, _ := s.AddPostFiles(ctx, post.Files)
-	postFiles, _ = s.AddPostFilesDB(ctx, dbPost, postFiles)
-
 	p := models.PostFromDB(dbPost)
+	// add post files
+	if isAdminActivity {
+		post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
+		postFiles, _ := s.AddPostFiles(ctx, post.Files)
+		postFiles, _ = s.AddPostFilesDB(ctx, dbPost, postFiles, isAdminActivity)
 
-	// add post videos
-	postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video)
-	p.Video = postvideo
+		// add post videos
+		postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video, isAdminActivity)
+		p.Video = postvideo
 
-	// add post videos
-	postUrl, _ := s.AddPostUrl(ctx, p.PostID, post.Url)
-	p.UrlData = postUrl
+		// add post videos
+		postUrl, _ := s.AddPostUrl(ctx, p.PostID, post.Url, isAdminActivity)
+		p.UrlData = postUrl
 
-	// update post files
-	p.Files = postFiles
+		// update post files
+		p.Files = postFiles
+	}
 
 	return p, nil
 }
@@ -268,9 +278,14 @@ func (s *service) DeletePost(ctx context.Context, postID uint64) impart.Error {
 	existingPost, err := s.postData.GetPost(ctx, postID)
 	if err != nil {
 		s.logger.Error("error fetching post trying to edit", zap.Error(err))
-		return impart.UnknownError
+		return impart.NewError(impart.ErrBadRequest, "unable to find the post")
 	}
-	if !ctxUser.Admin && existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
+	clientId := impart.GetCtxClientID(ctx)
+	if clientId == impart.ClientId {
+		if !ctxUser.SuperAdmin {
+			return impart.NewError(impart.ErrUnauthorized, "Cannot delete a post unless you are a hive super admin.")
+		}
+	} else if !ctxUser.Admin && existingPost.ImpartWealthID != ctxUser.ImpartWealthID {
 		return impart.NewError(impart.ErrUnauthorized, "unable to edit a post that's not yours")
 	}
 
@@ -452,9 +467,8 @@ func (s *service) BuildPostNotificationData(input models.PostNotificationInput) 
 	}, err
 }
 
-func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo models.PostVideo) (models.PostVideo, impart.Error) {
-	ctxUser := impart.GetCtxUser(ctx)
-	if ctxUser.Admin && (postVideo != models.PostVideo{}) {
+func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo models.PostVideo, isAdminActivity bool) (models.PostVideo, impart.Error) {
+	if isAdminActivity && (postVideo != models.PostVideo{}) {
 		input := &dbmodels.PostVideo{
 			Source:      postVideo.Source,
 			ReferenceID: null.StringFrom(postVideo.ReferenceId),
@@ -472,10 +486,9 @@ func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo mod
 	return models.PostVideo{}, nil
 }
 
-func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string) (models.PostUrl, impart.Error) {
-	ctxUser := impart.GetCtxUser(ctx)
+func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string, isAdminActivity bool) (models.PostUrl, impart.Error) {
 	var imageUrl string
-	if ctxUser.Admin && (postUrl != "") {
+	if isAdminActivity && (postUrl != "") {
 		match, _ := regexp.MatchString(`^(?:f|ht)tps?://`, postUrl)
 		if !match {
 			postUrl = "http://" + postUrl
@@ -576,42 +589,45 @@ func (s *service) UploadFile(files []models.File) error {
 	return nil
 }
 
-func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File) ([]models.File, impart.Error) {
+func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File, isAdminActivity bool) ([]models.File, impart.Error) {
 	var fileResponse []models.File
-	if len(file) > 0 {
-		var postFielRelationMap []*dbmodels.PostFile
-		//upload the files to table
-		for index, f := range file {
-			fileModel := &dbmodels.File{
-				FileName: f.FileName,
-				FileType: f.FileType,
-				URL:      f.URL,
+	if isAdminActivity {
+
+		if len(file) > 0 {
+			var postFielRelationMap []*dbmodels.PostFile
+			//upload the files to table
+			for index, f := range file {
+				fileModel := &dbmodels.File{
+					FileName: f.FileName,
+					FileType: f.FileType,
+					URL:      f.URL,
+				}
+				if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
+					s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
+				}
+
+				file[index].FID = int(fileModel.Fid)
+				postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
+					PostID: post.PostID,
+					Fid:    fileModel.Fid,
+				})
+
+				//doesnt return the content,
+				file[index].Content = ""
+				// set reponse
+				fileResponse = file
 			}
-			if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
-				s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
+
+			err := post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
+			if err != nil {
+				s.logger.Error("error attempting to map post files ",
+					zap.Any("data", postFielRelationMap),
+					zap.Any("err", err),
+					zap.Error(err),
+				)
 			}
 
-			file[index].FID = int(fileModel.Fid)
-			postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
-				PostID: post.PostID,
-				Fid:    fileModel.Fid,
-			})
-
-			//doesnt return the content,
-			file[index].Content = ""
-			// set reponse
-			fileResponse = file
 		}
-
-		err := post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
-		if err != nil {
-			s.logger.Error("error attempting to map post files ",
-				zap.Any("data", postFielRelationMap),
-				zap.Any("err", err),
-				zap.Error(err),
-			)
-		}
-
 	}
 	return fileResponse, nil
 }

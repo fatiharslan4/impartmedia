@@ -654,10 +654,10 @@ func (hh *hiveHandler) DeletePostFunc() gin.HandlerFunc {
 			return
 		}
 
-		err := hh.hiveService.DeletePost(ctx, postId)
-		if err != nil {
+		impartErr = hh.hiveService.DeletePost(ctx, postId)
+		if impartErr != nil {
 			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
-			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 

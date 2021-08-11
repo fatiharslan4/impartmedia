@@ -170,7 +170,7 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
 	}
 	if gpi.SearchKey != "" {
-		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id 
+		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null 
 		and (user.screen_name like ? or user.email like ? ) `)
 		queryMods = append(queryMods, qm.InnerJoin(where, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%"))
 	}

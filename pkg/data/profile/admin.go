@@ -204,9 +204,9 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 		err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
 		if err != nil {
-			return msg, impart.NewError(impart.ErrBadRequest, "unable to set the member hive")
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member hive")
 		}
-		msg = "User added to Waitlist."
+		msg = "User added to waitlist."
 	} else if gpi.Type == "addto_admin" {
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		existingDBProfile := userToUpdate.R.ImpartWealthProfile
@@ -233,7 +233,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if err != nil {
 			return msg, impart.NewError(impart.ErrBadRequest, "unable to set the member hive")
 		}
-		msg = "User Added to hive."
+		msg = "User added to hive."
 	}
 	return msg, nil
 }

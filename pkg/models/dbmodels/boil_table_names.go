@@ -24,6 +24,7 @@ var TableNames = struct {
 	PostTag                   string
 	PostUrls                  string
 	PostVideos                string
+	ProfanityWordsList        string
 	Profile                   string
 	Question                  string
 	QuestionType              string
@@ -55,6 +56,7 @@ var TableNames = struct {
 	PostTag:                   "post_tag",
 	PostUrls:                  "post_urls",
 	PostVideos:                "post_videos",
+	ProfanityWordsList:        "profanity_words_list",
 	Profile:                   "profile",
 	Question:                  "question",
 	QuestionType:              "question_type",

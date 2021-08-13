@@ -62,6 +62,7 @@ func (m *mysqlStore) getUser(ctx context.Context, impartID, authID, email, scree
 		Load(dbmodels.UserRels.MemberHiveHives),
 		Load(dbmodels.UserRels.ImpartWealthUserDevices),
 		Load(dbmodels.UserRels.ImpartWealthUserConfigurations),
+		Load(dbmodels.UserRels.ImpartWealthUserAnswers),
 	}
 
 	u, err := dbmodels.Users(usersWhere...).One(ctx, m.db)
@@ -646,19 +647,9 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		return nil
 	}
 	existingDBProfile := userToDelete.R.ImpartWealthProfile
-	// exitingUserAnswer := userToDelete.R.ImpartWealthUserAnswers
-	var clause QueryMod
-	clause = Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.ImpartWealthID), gpi.ImpartWealthID)
-	usersWhere := []QueryMod{
-		clause,
-		Load(dbmodels.UserRels.ImpartWealthProfile),
-		Load(dbmodels.UserRels.MemberHiveHives),
-		Load(dbmodels.UserRels.ImpartWealthUserAnswers),
-	}
-
-	u, err := dbmodels.Users(usersWhere...).One(ctx, m.db)
-	answerIds := make([]uint, len(u.R.ImpartWealthUserAnswers))
-	for i, a := range u.R.ImpartWealthUserAnswers {
+	exitingUserAnswer := userToDelete.R.ImpartWealthUserAnswers
+	answerIds := make([]uint, len(exitingUserAnswer))
+	for i, a := range exitingUserAnswer {
 		answerIds[i] = a.AnswerID
 	}
 	userEmail := userToDelete.Email

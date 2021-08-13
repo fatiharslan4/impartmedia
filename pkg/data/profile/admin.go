@@ -3,10 +3,12 @@ package profile
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
@@ -145,6 +147,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	} else {
 		outOffset.Offset += len(userDetails)
 	}
+
 	return userDetails, outOffset, nil
 
 }
@@ -236,4 +239,58 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		msg = "User added to hive."
 	}
 	return msg, nil
+}
+
+func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, error) {
+	outOffset := &models.NextPage{
+		Offset: gpi.Offset,
+	}
+
+	if gpi.Limit <= 0 {
+		gpi.Limit = defaultLimit
+	} else if gpi.Limit > maxLimit {
+		gpi.Limit = maxLimit
+	}
+	orderByMod := qm.OrderBy("hive_id")
+	queryMods := []qm.QueryMod{
+		qm.Offset(gpi.Offset),
+		qm.Limit(gpi.Limit),
+		orderByMod,
+		qm.Load(dbmodels.HiveUserDemographicRels.Answer),
+		qm.Load(dbmodels.HiveUserDemographicRels.Question),
+		qm.Load(dbmodels.HiveUserDemographicRels.Hive),
+	}
+	demographic, err := dbmodels.HiveUserDemographics(queryMods...).All(ctx, m.db)
+	if err != nil {
+		return nil, outOffset, nil
+	}
+	hiveId := 0
+	preHiveId := 0
+	i := 0
+	totalCnt := 0
+	hives := make([]map[string]string, 2, 2)
+	hive := make(map[string]string)
+	for _, p := range demographic {
+		hiveId = int(p.HiveID)
+		if hiveId != preHiveId && preHiveId != 0 {
+			hives[i] = hive
+			hive = make(map[string]string)
+			i = i + 1
+			totalCnt = 0
+		}
+		hive["hive_id"] = strconv.Itoa(hiveId)
+		if (p.R.Hive.CreatedAt == null.Time{}) {
+			hive["created_at"] = "NA"
+		} else {
+			hive["created_at"] = fmt.Sprintf("%v", p.R.Hive.CreatedAt)
+		}
+		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.AnswerName)] = strconv.Itoa(int(p.UserCount))
+		totalCnt = totalCnt + int(p.UserCount)
+		hive["users"] = strconv.Itoa(totalCnt)
+		preHiveId = int(p.HiveID)
+	}
+	hives[i] = hive
+
+	return hives, outOffset, nil
+
 }

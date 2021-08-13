@@ -111,3 +111,8 @@ type PagedPostResponse struct {
 	PostDetails PostDetails `json:"posts"`
 	NextPage    *NextPage   `json:"nextPage"`
 }
+
+type PagedHiveResponse struct {
+	Hive     []map[string]string `json:"hives"`
+	NextPage *NextPage           `json:"nextPage"`
+}

@@ -225,6 +225,20 @@ func (m *mysqlStore) SaveUserQuestionnaire(ctx context.Context, answers dbmodels
 			existData.UserCount = existData.UserCount + 1
 			_, err = existData.Update(ctx, m.db, boil.Infer())
 		}
+
+		var hiveUserdemo dbmodels.HiveUserDemographic
+		err = dbmodels.NewQuery(
+			qm.Select("*"),
+			qm.Where("answer_id = ?", a.AnswerID),
+			qm.Where("hive_id = ?", DefaultHiveId),
+			qm.From("hive_user_demographic"),
+		).Bind(ctx, m.db, &hiveUserdemo)
+
+		if err == nil {
+			existUserData := &hiveUserdemo
+			existUserData.UserCount = existUserData.UserCount + 1
+			_, err = existUserData.Update(ctx, m.db, boil.Infer())
+		}
 	}
 	tx.Commit()
 	return nil
@@ -620,7 +634,10 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 	if err != nil {
 		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", gpi.ImpartWealthID))
 	}
-
+	hiveid := DefaultHiveId
+	for _, h := range userToDelete.R.MemberHiveHives {
+		hiveid = h.HiveID
+	}
 	if hardDelete {
 		err = m.DeleteProfile(ctx, gpi.ImpartWealthID, hardDelete)
 		if err != nil {
@@ -629,9 +646,19 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		return nil
 	}
 	existingDBProfile := userToDelete.R.ImpartWealthProfile
-	exitingUserAnswer := userToDelete.R.ImpartWealthUserAnswers
-	answerIds := make([]uint, len(exitingUserAnswer))
-	for i, a := range exitingUserAnswer {
+	// exitingUserAnswer := userToDelete.R.ImpartWealthUserAnswers
+	var clause QueryMod
+	clause = Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.ImpartWealthID), gpi.ImpartWealthID)
+	usersWhere := []QueryMod{
+		clause,
+		Load(dbmodels.UserRels.ImpartWealthProfile),
+		Load(dbmodels.UserRels.MemberHiveHives),
+		Load(dbmodels.UserRels.ImpartWealthUserAnswers),
+	}
+
+	u, err := dbmodels.Users(usersWhere...).One(ctx, m.db)
+	answerIds := make([]uint, len(u.R.ImpartWealthUserAnswers))
+	for i, a := range u.R.ImpartWealthUserAnswers {
 		answerIds[i] = a.AnswerID
 	}
 	userEmail := userToDelete.Email
@@ -647,6 +674,7 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 	}
 	if !userToDelete.Blocked {
 		err = m.UpdateUserDemographic(ctx, answerIds, false)
+		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
 	}
 
 	mngmnt, err := authdata.NewImpartManagementClient()
@@ -665,6 +693,7 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 				m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
 					zap.String("contextUser", userToDelete.ImpartWealthID))
 			}
+			err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
 		}
 		return impart.NewError(err, "User Deletion failed")
 
@@ -691,8 +720,40 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 				m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
 					zap.String("contextUser", userToDelete.ImpartWealthID))
 			}
+			err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
 		}
 		return impart.NewError(err, "User Deletion failed")
 	}
 	return nil
+}
+
+func (m *mysqlStore) UpdateHiveUserDemographic(ctx context.Context, answerIds []uint, status bool, hiveId uint64) error {
+	tx, err := m.db.BeginTx(ctx, nil)
+	if err != nil {
+		return rollbackIfError(tx, err, m.logger)
+	}
+	for _, a := range answerIds {
+		var userDemo dbmodels.HiveUserDemographic
+		err = dbmodels.NewQuery(
+			qm.Select("*"),
+			qm.Where("answer_id = ?", a),
+			qm.Where("hive_id = ?", int(hiveId)),
+			qm.From("hive_user_demographic"),
+		).Bind(ctx, m.db, &userDemo)
+		if err != nil {
+		}
+		if err == nil {
+			existData := &userDemo
+			if status {
+				existData.UserCount = existData.UserCount + 1
+			} else {
+				existData.UserCount = existData.UserCount - 1
+			}
+			_, err = existData.Update(ctx, m.db, boil.Infer())
+			if err != nil {
+				return rollbackIfError(tx, err, m.logger)
+			}
+		}
+	}
+	return tx.Commit()
 }

@@ -347,6 +347,8 @@ func (s *service) ReviewPost(ctx context.Context, postId uint64, comment string,
 			return empty, impart.NewError(impart.ErrNoOp, "post is already in the input reviewd state")
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to review", postId))
+		case impart.ErrBadRequest:
+			return empty, impart.NewError(err, "Post is not reported.")
 		default:
 			return empty, impart.UnknownError
 		}

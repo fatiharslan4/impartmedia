@@ -499,6 +499,7 @@ func (q postQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bool,
 func (o *Post) Hive(mods ...qm.QueryMod) hiveQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`hive_id` = ?", o.HiveID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -719,6 +720,7 @@ func (postL) LoadHive(ctx context.Context, e boil.ContextExecutor, singular bool
 	query := NewQuery(
 		qm.From(`hive`),
 		qm.WhereIn(`hive.hive_id in ?`, args...),
+		qmhelper.WhereIsNull(`hive.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)

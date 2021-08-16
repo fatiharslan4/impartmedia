@@ -50,6 +50,7 @@ type Service interface {
 	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error)
 
 	DeleteUserByAdmin(ctx context.Context, hardtDelete bool, deleteUser models.DeleteUserInput) impart.Error
+	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, impart.Error)
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {

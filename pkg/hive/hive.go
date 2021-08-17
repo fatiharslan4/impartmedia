@@ -222,7 +222,7 @@ func (s *service) GetReportedContents(ctx context.Context, gpi data.GetReportedC
 
 func (s *service) DeleteHive(ctx context.Context, hiveID uint64) impart.Error {
 	if hiveID == impart.DefaultHiveID {
-		return impart.NewError(impart.ErrBadRequest, "You cant delete the default hive.")
+		return impart.NewError(impart.ErrBadRequest, "You cannot delete the default hive.")
 	}
 	ctxUser := impart.GetCtxUser(ctx)
 	_, err := s.hiveData.GetHive(ctx, hiveID)
@@ -233,7 +233,7 @@ func (s *service) DeleteHive(ctx context.Context, hiveID uint64) impart.Error {
 	clientId := impart.GetCtxClientID(ctx)
 	if clientId == impart.ClientId {
 		if !ctxUser.SuperAdmin {
-			return impart.NewError(impart.ErrUnauthorized, "Cannot delete a hive unless you are a hive super admin.")
+			return impart.NewError(impart.ErrUnauthorized, "Only super admin can delete hive.")
 		}
 	} else {
 		return impart.NewError(impart.ErrUnauthorized, "You have no permisson to delete hive")

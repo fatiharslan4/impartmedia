@@ -339,7 +339,7 @@ func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitLi
 	userToUpdate, err := ps.profileStore.GetUser(ctx, gpi.ImpartWealthID)
 	if err != nil {
 		ps.Logger().Error("Cannot Find the user", zap.Error(err))
-		return "", impart.NewError(impart.ErrNotFound, "Cannot Find the user")
+		return "", impart.NewError(impart.ErrNotFound, "Cannot find the user")
 	}
 	if userToUpdate.Blocked {
 		ps.Logger().Error("Blocked user", zap.Error(err))

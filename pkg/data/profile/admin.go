@@ -198,12 +198,19 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 
 func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error) {
 	msg := ""
+	var existingHiveId uint64
 	if gpi.Type == "addto_waitlist" {
 		hives := dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: DefaultHiveId},
 		}
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+		exitingUserAnswer := userToUpdate.R.ImpartWealthUserAnswers
+		answerIds := make([]uint, len(exitingUserAnswer))
+		for i, a := range exitingUserAnswer {
+			answerIds[i] = a.AnswerID
+		}
 		for _, h := range userToUpdate.R.MemberHiveHives {
+			existingHiveId = h.HiveID
 			if h.HiveID == DefaultHiveId {
 				return msg, impart.NewError(impart.ErrBadRequest, "User is already on waitlist.")
 			}
@@ -212,6 +219,8 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if err != nil {
 			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member hive")
 		}
+		err = m.UpdateHiveUserDemographic(ctx, answerIds, true, DefaultHiveId)
+		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		msg = "User added to waitlist."
 	} else if gpi.Type == "addto_admin" {
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
@@ -238,11 +247,19 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		for _, h := range userToUpdate.R.MemberHiveHives {
+			existingHiveId = h.HiveID
 			if h.HiveID == gpi.HiveID {
 				return msg, impart.NewError(impart.ErrBadRequest, "User is already on hive.")
 			}
 		}
+		exitingUserAnswer := userToUpdate.R.ImpartWealthUserAnswers
+		answerIds := make([]uint, len(exitingUserAnswer))
+		for i, a := range exitingUserAnswer {
+			answerIds[i] = a.AnswerID
+		}
 		err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
+		err = m.UpdateHiveUserDemographic(ctx, answerIds, true, gpi.HiveID)
+		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		if err != nil {
 			return msg, impart.NewError(impart.ErrBadRequest, "unable to set the member hive")
 		}

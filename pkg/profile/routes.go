@@ -977,8 +977,8 @@ func (ph *profileHandler) GetHiveDetails() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctxUser := impart.GetCtxUser(ctx)
 		if !ctxUser.SuperAdmin {
-			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
-				impart.NewError(impart.ErrBadRequest, "Current user does not have the permission."),
+			ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(
+				impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission."),
 			))
 			return
 		}

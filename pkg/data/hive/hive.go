@@ -13,6 +13,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
 	"go.uber.org/zap"
 )
 
@@ -52,6 +53,7 @@ type Hives interface {
 	GetPostsWithUnreviewedComments(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetPostsWithReviewedComments(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetReportedContents(ctx context.Context, getInput GetReportedContentInput) (models.PostComments, *models.NextPage, error)
+	DeleteHive(ctx context.Context, hiveID uint64) error
 }
 
 func (d *mysqlHiveData) GetHives(ctx context.Context) (dbmodels.HiveSlice, error) {
@@ -156,4 +158,38 @@ func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin 
 		_, err = hive.Update(ctx, tx, boil.Whitelist(dbmodels.HiveColumns.PinnedPostID))
 		return err
 	}
+}
+
+func (d *mysqlHiveData) DeleteHive(ctx context.Context, hiveID uint64) error {
+	p, err := dbmodels.FindHive(ctx, d.db, hiveID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return err
+	}
+
+	var memberHives []models.MemberHive
+	err = queries.Raw(`
+	SELECT member_hive_id,user.impart_wealth_id  FROM hive_members 
+	join user on hive_members.member_impart_wealth_id=user.impart_wealth_id
+	where user.deleted_at is null and member_hive_id=?
+	`, hiveID).Bind(ctx, d.db, &memberHives)
+
+	if _, err = p.Delete(ctx, d.db, false); err != nil {
+		if err == sql.ErrNoRows {
+			return impart.ErrNotFound
+		}
+		return err
+	}
+	for _, i := range memberHives {
+		q := `
+		update  hive_members set member_hive_id= ? where 
+		member_impart_wealth_id= ?`
+		_, err = queries.Raw(q, impart.DefaultHiveID, i.ImpartWealthID).ExecContext(ctx, d.db)
+		if err != nil {
+		}
+	}
+
+	return nil
 }

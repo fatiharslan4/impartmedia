@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 
@@ -172,6 +173,8 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		orderByMod,
 		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
 	}
+	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null `)
+	queryMods = append(queryMods, qm.InnerJoin(where))
 	if gpi.SearchKey != "" {
 		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null 
 		and (user.screen_name like ? or user.email like ? ) `)
@@ -219,10 +222,17 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		userToUpdate.Admin = true
 		err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
 		if err != nil {
-			return msg, impart.NewError(impart.ErrBadRequest, "unable to set the member as user")
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as user")
 		}
 		msg = "User role changed to admin."
 	} else if gpi.Type == "addto_hive" {
+		_, err := dbmodels.FindHive(ctx, m.db, gpi.HiveID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return msg, impart.NewError(impart.ErrNotFound, "Could not find the hive.")
+			}
+			return msg, impart.NewError(impart.ErrNotFound, "Could not find the hive.")
+		}
 		hives := dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: gpi.HiveID},
 		}
@@ -251,6 +261,7 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 	} else if gpi.Limit > maxLimit {
 		gpi.Limit = maxLimit
 	}
+	// clause := qm.Where(fmt.Sprintf("hive.deleted_at is null"))
 	orderByMod := qm.OrderBy("hive_id")
 	queryMods := []qm.QueryMod{
 		qm.Offset(gpi.Offset),
@@ -260,6 +271,8 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 		qm.Load(dbmodels.HiveUserDemographicRels.Question),
 		qm.Load(dbmodels.HiveUserDemographicRels.Hive),
 	}
+	where := fmt.Sprintf(`hive on hive_user_demographic.hive_id=hive.hive_id and hive.deleted_at is null `)
+	queryMods = append(queryMods, qm.InnerJoin(where))
 	demographic, err := dbmodels.HiveUserDemographics(queryMods...).All(ctx, m.db)
 	if err != nil {
 		return nil, outOffset, nil
@@ -268,7 +281,15 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 	preHiveId := 0
 	i := 0
 	totalCnt := 0
-	hives := make([]map[string]string, 2, 2)
+	lenHive := 0
+	for _, p := range demographic {
+		if int(p.HiveID) != preHiveId {
+			lenHive = lenHive + 1
+		}
+		preHiveId = int(p.HiveID)
+	}
+	preHiveId = 0
+	hives := make([]map[string]string, lenHive, lenHive)
 	hive := make(map[string]string)
 	for _, p := range demographic {
 		hiveId = int(p.HiveID)

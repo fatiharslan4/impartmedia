@@ -48,6 +48,18 @@ type FakeHiveService struct {
 	deleteCommentReturnsOnCall map[int]struct {
 		result1 error
 	}
+	DeleteHiveStub        func(context.Context, uint64) error
+	deleteHiveMutex       sync.RWMutex
+	deleteHiveArgsForCall []struct {
+		arg1 context.Context
+		arg2 uint64
+	}
+	deleteHiveReturns struct {
+		result1 error
+	}
+	deleteHiveReturnsOnCall map[int]struct {
+		result1 error
+	}
 	DeletePostStub        func(context.Context, uint64) error
 	deletePostMutex       sync.RWMutex
 	deletePostArgsForCall []struct {
@@ -676,6 +688,68 @@ func (fake *FakeHiveService) DeleteCommentReturnsOnCall(i int, result1 error) {
 		})
 	}
 	fake.deleteCommentReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) DeleteHive(arg1 context.Context, arg2 uint64) error {
+	fake.deleteHiveMutex.Lock()
+	ret, specificReturn := fake.deleteHiveReturnsOnCall[len(fake.deleteHiveArgsForCall)]
+	fake.deleteHiveArgsForCall = append(fake.deleteHiveArgsForCall, struct {
+		arg1 context.Context
+		arg2 uint64
+	}{arg1, arg2})
+	stub := fake.DeleteHiveStub
+	fakeReturns := fake.deleteHiveReturns
+	fake.recordInvocation("DeleteHive", []interface{}{arg1, arg2})
+	fake.deleteHiveMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeHiveService) DeleteHiveCallCount() int {
+	fake.deleteHiveMutex.RLock()
+	defer fake.deleteHiveMutex.RUnlock()
+	return len(fake.deleteHiveArgsForCall)
+}
+
+func (fake *FakeHiveService) DeleteHiveCalls(stub func(context.Context, uint64) error) {
+	fake.deleteHiveMutex.Lock()
+	defer fake.deleteHiveMutex.Unlock()
+	fake.DeleteHiveStub = stub
+}
+
+func (fake *FakeHiveService) DeleteHiveArgsForCall(i int) (context.Context, uint64) {
+	fake.deleteHiveMutex.RLock()
+	defer fake.deleteHiveMutex.RUnlock()
+	argsForCall := fake.deleteHiveArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeHiveService) DeleteHiveReturns(result1 error) {
+	fake.deleteHiveMutex.Lock()
+	defer fake.deleteHiveMutex.Unlock()
+	fake.DeleteHiveStub = nil
+	fake.deleteHiveReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) DeleteHiveReturnsOnCall(i int, result1 error) {
+	fake.deleteHiveMutex.Lock()
+	defer fake.deleteHiveMutex.Unlock()
+	fake.DeleteHiveStub = nil
+	if fake.deleteHiveReturnsOnCall == nil {
+		fake.deleteHiveReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.deleteHiveReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -2665,6 +2739,8 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.addUpVoteMutex.RUnlock()
 	fake.deleteCommentMutex.RLock()
 	defer fake.deleteCommentMutex.RUnlock()
+	fake.deleteHiveMutex.RLock()
+	defer fake.deleteHiveMutex.RUnlock()
 	fake.deletePostMutex.RLock()
 	defer fake.deletePostMutex.RUnlock()
 	fake.editCommentMutex.RLock()

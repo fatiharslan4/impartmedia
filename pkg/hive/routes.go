@@ -44,6 +44,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	hiveRoutes.PUT("", handler.EditHiveFunc())
 	hiveRoutes.GET("/:hiveId/percentiles/:impartWealthId", handler.GetHivePercentilesFunc())
 	hiveRoutes.GET("/:hiveId/reported-list", handler.GetReportedContents())
+	hiveRoutes.DELETE("/:hiveId", handler.DeleteHiveFunc())
 	//OG details
 	hiveRoutes.POST("/:hiveId/og-details", handler.CreatePostOgDetails())
 
@@ -971,5 +972,33 @@ func (hh *hiveHandler) CreatePostOgDetails() gin.HandlerFunc {
 			return
 		}
 
+	}
+}
+
+func (hh *hiveHandler) DeleteHiveFunc() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+
+		hiveIDstr := ctx.Param("hiveId")
+
+		if hiveIDstr == "" {
+			iErr := impart.NewError(impart.ErrBadRequest, "hiveId must be an integer", impart.HiveID)
+			ctx.JSON(iErr.HttpStatus(), impart.ErrorResponse(iErr))
+			return
+		}
+
+		hiveId, err := strconv.ParseUint(hiveIDstr, 10, 64)
+		if err != nil {
+			iErr := impart.NewError(impart.ErrBadRequest, "hiveId must be an integer", impart.HiveID)
+			ctx.JSON(iErr.HttpStatus(), impart.ErrorResponse(iErr))
+			return
+		}
+
+		impartRrr := hh.hiveService.DeleteHive(ctx, hiveId)
+		if err != nil {
+			ctx.JSON(impartRrr.HttpStatus(), impart.ErrorResponse(impartRrr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Hive deleted"})
 	}
 }

@@ -219,3 +219,29 @@ func (s *service) GetReportedUser(ctx context.Context, posts models.Posts) (mode
 func (s *service) GetReportedContents(ctx context.Context, gpi data.GetReportedContentInput) (models.PostComments, *models.NextPage, error) {
 	return s.hiveData.GetReportedContents(ctx, gpi)
 }
+
+func (s *service) DeleteHive(ctx context.Context, hiveID uint64) impart.Error {
+	if hiveID == impart.DefaultHiveID {
+		return impart.NewError(impart.ErrBadRequest, "You cant delete the default hive.")
+	}
+	ctxUser := impart.GetCtxUser(ctx)
+	_, err := s.hiveData.GetHive(ctx, hiveID)
+	if err != nil {
+		s.logger.Error("error fetching hive trying to edit", zap.Error(err))
+		return impart.NewError(impart.ErrBadRequest, "Unable to find the hive.")
+	}
+	clientId := impart.GetCtxClientID(ctx)
+	if clientId == impart.ClientId {
+		if !ctxUser.SuperAdmin {
+			return impart.NewError(impart.ErrUnauthorized, "Cannot delete a hive unless you are a hive super admin.")
+		}
+	} else {
+		return impart.NewError(impart.ErrUnauthorized, "You have no permisson to delete hive")
+	}
+	err = s.hiveData.DeleteHive(ctx, hiveID)
+	if err != nil {
+		return impart.UnknownError
+	}
+
+	return nil
+}

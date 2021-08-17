@@ -18,6 +18,7 @@ const HiveMembershipsContextKey = "HiveMembershipsContextKey{}"
 const DeviceAuthorizationContextKey = "DeviceAuthorizationContextKey{}"
 const ClientIdentificationHeaderKey = "ClientIdentificationHeaderKey{}"
 const ClientId = "web"
+const DefaultHiveID uint64 = 1
 
 func GetCtxAuthID(ctx context.Context) string {
 	return ctx.Value(AuthIDRequestContextKey).(string)

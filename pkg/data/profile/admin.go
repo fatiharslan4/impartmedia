@@ -251,6 +251,7 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 	} else if gpi.Limit > maxLimit {
 		gpi.Limit = maxLimit
 	}
+	// clause := qm.Where(fmt.Sprintf("hive.deleted_at is null"))
 	orderByMod := qm.OrderBy("hive_id")
 	queryMods := []qm.QueryMod{
 		qm.Offset(gpi.Offset),
@@ -260,6 +261,8 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 		qm.Load(dbmodels.HiveUserDemographicRels.Question),
 		qm.Load(dbmodels.HiveUserDemographicRels.Hive),
 	}
+	where := fmt.Sprintf(`hive on hive_user_demographic.hive_id=hive.hive_id and hive.deleted_at is null `)
+	queryMods = append(queryMods, qm.InnerJoin(where))
 	demographic, err := dbmodels.HiveUserDemographics(queryMods...).All(ctx, m.db)
 	if err != nil {
 		return nil, outOffset, nil
@@ -268,7 +271,15 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 	preHiveId := 0
 	i := 0
 	totalCnt := 0
-	hives := make([]map[string]string, 2, 2)
+	lenHive := 0
+	for _, p := range demographic {
+		if int(p.HiveID) != preHiveId {
+			lenHive = lenHive + 1
+		}
+		preHiveId = int(p.HiveID)
+	}
+	preHiveId = 0
+	hives := make([]map[string]string, lenHive, lenHive)
 	hive := make(map[string]string)
 	for _, p := range demographic {
 		hiveId = int(p.HiveID)

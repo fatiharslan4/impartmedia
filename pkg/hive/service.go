@@ -24,6 +24,7 @@ type Service interface {
 	CreateHive(ctx context.Context, hive models.Hive) (models.Hive, impart.Error)
 	EditHive(ctx context.Context, hive models.Hive) (models.Hive, impart.Error)
 	HiveProfilePercentiles(ctx context.Context, hiveID uint64) (tags.TagComparisons, impart.Error)
+	DeleteHive(ctx context.Context, hiveID uint64) impart.Error
 
 	NewPost(ctx context.Context, post models.Post) (models.Post, impart.Error)
 	EditPost(ctx context.Context, post models.Post) (models.Post, impart.Error)

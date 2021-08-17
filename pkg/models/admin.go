@@ -116,3 +116,9 @@ type PagedHiveResponse struct {
 	Hive     []map[string]string `json:"hives"`
 	NextPage *NextPage           `json:"nextPage"`
 }
+
+type MemberHives []MemberHive
+type MemberHive struct {
+	ImpartWealthID string `json:"impartWealthId"`
+	MemberHiveId   uint64 `json:"member_hive_id"  `
+}

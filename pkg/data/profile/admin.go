@@ -299,6 +299,21 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 	i := 0
 	totalCnt := 0
 	lenHive := 0
+	indexes := make(map[uint]string)
+	var memberHives []models.DemographicHivesCount
+	err = queries.Raw(`
+	select member_hive_id , count(member_hive_id) count
+	from hive_members
+	join user on hive_members.member_impart_wealth_id=user.impart_wealth_id
+	join hive on hive.hive_id=hive_members.member_hive_id
+	where hive.deleted_at is null and user.deleted_at is null and user.blocked=0
+	group by hive_members.member_hive_id
+	`).Bind(ctx, m.db, &memberHives)
+
+	for _, i := range memberHives {
+		indexes[uint(i.MemberHiveId)] = i.Count
+	}
+
 	for _, p := range demographic {
 		if int(p.HiveID) != preHiveId {
 			lenHive = lenHive + 1
@@ -324,7 +339,7 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 		}
 		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.AnswerName)] = strconv.Itoa(int(p.UserCount))
 		totalCnt = totalCnt + int(p.UserCount)
-		hive["users"] = strconv.Itoa(totalCnt)
+		hive["users"] = indexes[uint(p.HiveID)]
 		preHiveId = int(p.HiveID)
 	}
 	hives[i] = hive

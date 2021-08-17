@@ -122,3 +122,9 @@ type MemberHive struct {
 	ImpartWealthID string `json:"impartWealthId"`
 	MemberHiveId   uint64 `json:"member_hive_id"  `
 }
+
+type DemographicHivesCounts []DemographicHivesCount
+type DemographicHivesCount struct {
+	Count        string `json:"count"`
+	MemberHiveId uint64 `json:"member_hive_id"  `
+}

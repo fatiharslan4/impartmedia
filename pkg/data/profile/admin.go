@@ -301,9 +301,9 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 		}
 		hive["hive_id"] = strconv.Itoa(hiveId)
 		if (p.R.Hive.CreatedAt == null.Time{}) {
-			hive["created_at"] = "NA"
+			hive["date created"] = "NA"
 		} else {
-			hive["created_at"] = fmt.Sprintf("%v", p.R.Hive.CreatedAt)
+			hive["date created"] = fmt.Sprintf("%s", p.R.Hive.CreatedAt.Time)
 		}
 		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.AnswerName)] = strconv.Itoa(int(p.UserCount))
 		totalCnt = totalCnt + int(p.UserCount)

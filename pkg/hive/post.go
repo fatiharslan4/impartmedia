@@ -344,7 +344,7 @@ func (s *service) ReviewPost(ctx context.Context, postId uint64, comment string,
 		s.logger.Error("couldn't review post", zap.Error(err), zap.Uint64("postId", postId))
 		switch err {
 		case impart.ErrNoOp:
-			return empty, impart.NewError(impart.ErrNoOp, "post is already in the input reviewd state")
+			return empty, impart.NewError(impart.ErrNoOp, "Post is not reported.")
 		case impart.ErrNotFound:
 			return empty, impart.NewError(err, fmt.Sprintf("could not find post %v to review", postId))
 		case impart.ErrBadRequest:

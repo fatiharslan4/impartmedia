@@ -56,6 +56,12 @@ type PostDetail struct {
 	Subject        string    `json:"subject" `
 	IsAdminPost    bool      `json:"adminpost" `
 	Reviewed       bool      `json:"reviewed"`
+	ImagePath      string    `json:"image_path" `
+	VideoType      string    `json:"video_type" `
+	VideoUrl       string    `json:"video_url" `
+	UrlTitle       string    `json:"url_title" `
+	UrlImage       string    `json:"url_image" `
+	UrlDescription string    `json:"url_description" `
 }
 
 func PostsData(dbPosts dbmodels.PostSlice) PostDetails {
@@ -103,6 +109,24 @@ func PostsDataFromDB(p *dbmodels.Post) PostDetail {
 		out.IsAdminPost = true
 	} else {
 		out.IsAdminPost = false
+	}
+	out.VideoType = "NA"
+	out.VideoUrl = "NA"
+	out.UrlImage = "NA"
+	out.UrlTitle = "NA"
+	out.UrlDescription = "NA"
+	out.ImagePath = "NA"
+	if p.R.PostVideos != nil && len(p.R.PostVideos) > 0 {
+		out.VideoType = p.R.PostVideos[0].Source
+		out.VideoUrl = p.R.PostVideos[0].URL
+	}
+	if p.R.PostUrls != nil && len(p.R.PostUrls) > 0 {
+		out.UrlImage = p.R.PostUrls[0].ImageUrl
+		out.UrlTitle = p.R.PostUrls[0].Title
+		out.UrlDescription = p.R.PostUrls[0].Description
+	}
+	if p.R.PostFiles != nil && len(p.R.PostFiles) > 0 {
+		out.ImagePath = p.R.PostFiles[0].R.FidFile.URL
 	}
 	return out
 }

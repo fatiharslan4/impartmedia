@@ -172,6 +172,10 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		qm.Limit(gpi.Limit),
 		orderByMod,
 		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
+		qm.Load(dbmodels.PostRels.PostFiles),
+		qm.Load(dbmodels.PostRels.PostVideos),
+		qm.Load(dbmodels.PostRels.PostUrls),
+		qm.Load("PostFiles.FidFile"), // get files
 	}
 	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null `)
 	queryMods = append(queryMods, qm.InnerJoin(where))

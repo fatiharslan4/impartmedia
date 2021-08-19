@@ -285,8 +285,6 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 	// clause := qm.Where(fmt.Sprintf("hive.deleted_at is null"))
 	orderByMod := qm.OrderBy("hive_id")
 	queryMods := []qm.QueryMod{
-		qm.Offset(gpi.Offset),
-		qm.Limit(gpi.Limit),
 		orderByMod,
 		qm.Load(dbmodels.HiveUserDemographicRels.Answer),
 		qm.Load(dbmodels.HiveUserDemographicRels.Question),

@@ -5,6 +5,7 @@ package data
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -14,6 +15,7 @@ import (
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
 
@@ -191,5 +193,56 @@ func (d *mysqlHiveData) DeleteHive(ctx context.Context, hiveID uint64) error {
 		}
 	}
 
+	answer, err := dbmodels.HiveUserDemographics(
+		dbmodels.HiveUserDemographicWhere.HiveID.EQ(hiveID),
+	).All(ctx, d.db)
+	answerIds := make([]uint, len(answer))
+	for i, a := range answer {
+		if a.UserCount > 0 {
+			answerIds[i] = a.AnswerID
+		}
+	}
+	err = d.UpdateHiveUserDemographic(ctx, answerIds, true, impart.DefaultHiveID)
+	err = d.UpdateHiveUserDemographic(ctx, answerIds, false, hiveID)
 	return nil
+}
+
+func rollbackIfError(tx *sql.Tx, err error, logger *zap.Logger) error {
+	rErr := tx.Rollback()
+	if rErr != nil {
+		logger.Error("unable to rollback transaction", zap.Error(rErr))
+		return fmt.Errorf(rErr.Error(), err)
+	}
+	return err
+}
+
+func (m *mysqlHiveData) UpdateHiveUserDemographic(ctx context.Context, answerIds []uint, status bool, hiveId uint64) error {
+	tx, err := m.db.BeginTx(ctx, nil)
+	if err != nil {
+		return rollbackIfError(tx, err, m.logger)
+	}
+	for _, a := range answerIds {
+		var userDemo dbmodels.HiveUserDemographic
+		err = dbmodels.NewQuery(
+			qm.Select("*"),
+			qm.Where("answer_id = ?", a),
+			qm.Where("hive_id = ?", int(hiveId)),
+			qm.From("hive_user_demographic"),
+		).Bind(ctx, m.db, &userDemo)
+		if err != nil {
+		}
+		if err == nil {
+			existData := &userDemo
+			if status {
+				existData.UserCount = existData.UserCount + 1
+			} else {
+				existData.UserCount = existData.UserCount - 1
+			}
+			_, err = existData.Update(ctx, m.db, boil.Infer())
+			if err != nil {
+				return rollbackIfError(tx, err, m.logger)
+			}
+		}
+	}
+	return tx.Commit()
 }

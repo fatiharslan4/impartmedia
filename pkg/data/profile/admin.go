@@ -3,7 +3,6 @@ package profile
 import (
 	"context"
 	"database/sql"
-	"strings"
 
 	"fmt"
 	"strconv"
@@ -37,11 +36,11 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	}
 	var err error
 	extraQery := ""
-	inParamValues := make([]interface{}, len(gpi.SearchIDs), len(gpi.SearchIDs))
-	// inParamValues := types.Array{}
-	// param := types.Array([]int{1, 2, 3})
-	// param := types.Array(inParamValues)
-	var IDs []string
+	// inParamValues := make([]interface{}, len(gpi.SearchIDs), len(gpi.SearchIDs))
+	// // inParamValues := types.Array{}
+	// // param := types.Array([]int{1, 2, 3})
+	// // param := types.Array(inParamValues)
+	// var IDs []string
 	inputQuery := fmt.Sprintf(`SELECT 
 					user.impart_wealth_id,
 					CASE WHEN user.blocked = 1 THEN '[Account Deleted]' 
@@ -129,17 +128,8 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					inner join answer on user_answers.answer_id=answer.answer_id
 					inner join question on answer.question_id=question.question_id
 					`)
-	if len(gpi.SearchIDs) > 0 {
-
-		for _, i := range gpi.SearchIDs {
-			IDs = append(IDs, strconv.Itoa(i))
-		}
-		for i, id := range gpi.SearchIDs {
-			inParamValues[i] = id
-		}
-
-		// param = types.Array(inParamValues)
-		extraQery = fmt.Sprintf(` where user_answers.answer_id  in ?`)
+	if gpi.SearchIDs != "" {
+		extraQery = fmt.Sprintf(` where user_answers.answer_id  in (?)`)
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 	}
 	extraQery = fmt.Sprintf(`			
@@ -157,15 +147,15 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		extraQery = fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 		inputQuery = inputQuery + orderby
-		if len(gpi.SearchIDs) > 0 {
-			err = queries.Raw(inputQuery, inParamValues, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+		if gpi.SearchIDs != "" {
+			err = queries.Raw(inputQuery, gpi.SearchIDs, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		} else {
 			err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		}
 	} else {
 		inputQuery = inputQuery + orderby
 		if len(gpi.SearchIDs) > 0 {
-			err = queries.Raw(inputQuery, strings.Join(IDs, ", "), gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+			err = queries.Raw(inputQuery, gpi.SearchIDs, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		} else {
 			err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		}

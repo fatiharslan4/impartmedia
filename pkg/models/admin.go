@@ -16,7 +16,7 @@ type GetAdminInputs struct {
 	Offset int
 	// search is the optional to filter on
 	SearchKey string
-	SearchIDs []int
+	SearchIDs string
 }
 
 type UserDetails []UserDetail

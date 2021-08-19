@@ -3,6 +3,8 @@ package profile
 import (
 	"context"
 	"database/sql"
+	"strings"
+
 	"fmt"
 	"strconv"
 
@@ -34,6 +36,12 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		gpi.Limit = maxLimit
 	}
 	var err error
+	extraQery := ""
+	inParamValues := make([]interface{}, len(gpi.SearchIDs), len(gpi.SearchIDs))
+	// inParamValues := types.Array{}
+	// param := types.Array([]int{1, 2, 3})
+	// param := types.Array(inParamValues)
+	var IDs []string
 	inputQuery := fmt.Sprintf(`SELECT 
 					user.impart_wealth_id,
 					CASE WHEN user.blocked = 1 THEN '[Account Deleted]' 
@@ -120,24 +128,47 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					FROM user_answers
 					inner join answer on user_answers.answer_id=answer.answer_id
 					inner join question on answer.question_id=question.question_id
-					GROUP BY impart_wealth_id
+					`)
+	if len(gpi.SearchIDs) > 0 {
+
+		for _, i := range gpi.SearchIDs {
+			IDs = append(IDs, strconv.Itoa(i))
+		}
+		for i, id := range gpi.SearchIDs {
+			inParamValues[i] = id
+		}
+
+		// param = types.Array(inParamValues)
+		extraQery = fmt.Sprintf(` where user_answers.answer_id  in ?`)
+		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+	}
+	extraQery = fmt.Sprintf(`			
+	GROUP BY impart_wealth_id
 					) AS makeup
 					ON makeup.impart_wealth_id = user.impart_wealth_id
 					
 					where user.deleted_at is null`)
-
+	inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 	orderby := fmt.Sprintf(`			
 			group by user.impart_wealth_id
 			order by user.email asc
 			LIMIT ? OFFSET ?`)
 	if gpi.SearchKey != "" {
-		search := fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
-		inputQuery = fmt.Sprintf("%s %s", inputQuery, search)
+		extraQery = fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
+		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 		inputQuery = inputQuery + orderby
-		err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+		if len(gpi.SearchIDs) > 0 {
+			err = queries.Raw(inputQuery, inParamValues, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+		} else {
+			err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+		}
 	} else {
 		inputQuery = inputQuery + orderby
-		err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+		if len(gpi.SearchIDs) > 0 {
+			err = queries.Raw(inputQuery, strings.Join(IDs, ", "), gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+		} else {
+			err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+		}
 	}
 
 	if err != nil {
@@ -350,4 +381,11 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 
 	return hives, outOffset, nil
 
+}
+func (m *mysqlStore) GetFilterDetails(ctx context.Context) ([]byte, error) {
+	result, err := impart.FilterData()
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }

@@ -72,6 +72,9 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	adminRoutes.PUT("/:impartWealthId", handler.EditUserDetails())
 	adminRoutes.DELETE("/:impartWealthId", handler.DeleteUserByAdmin())
 	adminRoutes.GET("/hives", handler.GetHiveDetails())
+
+	filterRoutes := version.Group("/filter")
+	filterRoutes.GET("", handler.GetFilterDetails())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -841,6 +844,18 @@ func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
+		filterId, inMap := params["filters"]
+		fmt.Println(filterId)
+		if inMap {
+			for _, s := range filterId {
+				parsed, err := strconv.Atoi(s)
+				if err == nil {
+					gpi.SearchIDs = append(gpi.SearchIDs, parsed)
+				}
+			}
+			fmt.Println("1")
+			fmt.Println(len(gpi.SearchIDs))
+		}
 
 		users, nextPage, impartErr := ph.profileService.GetUsersDetails(ctx, gpi)
 		if impartErr != nil {
@@ -1001,5 +1016,29 @@ func (ph *profileHandler) GetHiveDetails() gin.HandlerFunc {
 			Hive:     hives,
 			NextPage: nextPage,
 		})
+	}
+}
+func (ph *profileHandler) GetFilterDetails() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
+		if !ctxUser.SuperAdmin {
+			ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(
+				impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission."),
+			))
+			return
+		}
+		result, impartErr := ph.profileService.GetFilterDetails(ctx)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		var obj interface{}
+		err := json.Unmarshal(result, &obj)
+		if err != nil {
+			impartErr = impart.NewError(impart.ErrBadRequest, "Data fetching failed.")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"filter": obj})
 	}
 }

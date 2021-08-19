@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/data/types"
+	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 )
 
@@ -15,6 +16,7 @@ type GetAdminInputs struct {
 	Offset int
 	// search is the optional to filter on
 	SearchKey string
+	SearchIDs []int
 }
 
 type UserDetails []UserDetail
@@ -151,4 +153,8 @@ type DemographicHivesCounts []DemographicHivesCount
 type DemographicHivesCount struct {
 	Count        string `json:"count"`
 	MemberHiveId uint64 `json:"member_hive_id"  `
+}
+
+type PagedFilterResponse struct {
+	Filter impart.FilterEnum `json:"filter"`
 }

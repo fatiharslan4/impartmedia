@@ -361,3 +361,11 @@ func (ps *profileService) GetHiveDetails(ctx context.Context, gpi models.GetAdmi
 	}
 	return result, nextPage, nil
 }
+
+func (ps *profileService) GetFilterDetails(ctx context.Context) ([]byte, impart.Error) {
+	result, err := ps.profileStore.GetFilterDetails(ctx)
+	if err != nil {
+		return nil, impart.NewError(impart.ErrNotFound, "Filter data fetching failed.")
+	}
+	return result, nil
+}

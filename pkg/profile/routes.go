@@ -71,6 +71,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	adminRoutes.GET("/posts", handler.GetPostDetails())
 	adminRoutes.PUT("/:impartWealthId", handler.EditUserDetails())
 	adminRoutes.DELETE("/:impartWealthId", handler.DeleteUserByAdmin())
+	adminRoutes.GET("/hives", handler.GetHiveDetails())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -969,5 +970,36 @@ func (ph *profileHandler) DeleteUserByAdmin() gin.HandlerFunc {
 		}
 
 		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "profile deleted"})
+	}
+}
+
+func (ph *profileHandler) GetHiveDetails() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
+		if !ctxUser.SuperAdmin {
+			ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(
+				impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission."),
+			))
+			return
+		}
+		gpi := models.GetAdminInputs{}
+
+		var err error
+		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrUnknown, "couldn't parse limit and offset")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		hives, nextPage, impartErr := ph.profileService.GetHiveDetails(ctx, gpi)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, models.PagedHiveResponse{
+			Hive:     hives,
+			NextPage: nextPage,
+		})
 	}
 }

@@ -533,12 +533,23 @@ func (d *mysqlHiveData) ReviewPost(ctx context.Context, postId uint64, reason *s
 	// update the post review status
 	dbPost, err := dbmodels.Posts(
 		dbmodels.PostWhere.PostID.EQ(postId),
+		qm.Load(dbmodels.PostRels.PostReactions),
 	).One(ctx, d.db)
 
 	if err != nil {
 		return err
 	}
-
+	reported := false
+	if dbPost.R.PostReactions != nil && len(dbPost.R.PostReactions) > 0 {
+		for _, p := range dbPost.R.PostReactions {
+			if p.Reported {
+				reported = true
+			}
+		}
+	}
+	if !reported {
+		return impart.ErrBadRequest
+	}
 	//alter the reaction first
 	if remove {
 		if !dbPost.Reviewed {

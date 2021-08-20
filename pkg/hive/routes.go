@@ -44,6 +44,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	hiveRoutes.PUT("", handler.EditHiveFunc())
 	hiveRoutes.GET("/:hiveId/percentiles/:impartWealthId", handler.GetHivePercentilesFunc())
 	hiveRoutes.GET("/:hiveId/reported-list", handler.GetReportedContents())
+	hiveRoutes.DELETE("/:hiveId", handler.DeleteHiveFunc())
 	//OG details
 	hiveRoutes.POST("/:hiveId/og-details", handler.CreatePostOgDetails())
 
@@ -572,8 +573,15 @@ func (hh *hiveHandler) PostCommentReactionFunc() gin.HandlerFunc {
 
 		// admin is reviewd
 		if reviewParam != "" {
-			if !ctxUser.Admin {
-				impartErr := impart.NewError(impart.ErrUnauthorized, "cannot review a post unless you are a hive admin")
+			clientId := impart.GetCtxClientID(ctx)
+			if clientId == impart.ClientId {
+				if !ctxUser.SuperAdmin {
+					impartErr := impart.NewError(impart.ErrUnauthorized, "cannot review a post unless you are a hive super admin.")
+					ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(impartErr))
+					return
+				}
+			} else if !ctxUser.Admin {
+				impartErr := impart.NewError(impart.ErrUnauthorized, "cannot review a post unless you are a hive admin.")
 				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(impartErr))
 				return
 			}
@@ -647,14 +655,14 @@ func (hh *hiveHandler) DeletePostFunc() gin.HandlerFunc {
 			return
 		}
 
-		err := hh.hiveService.DeletePost(ctx, postId)
-		if err != nil {
+		impartErr = hh.hiveService.DeletePost(ctx, postId)
+		if impartErr != nil {
 			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
-			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 
-		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "post deleted"})
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Post deleted"})
 	}
 }
 
@@ -964,5 +972,33 @@ func (hh *hiveHandler) CreatePostOgDetails() gin.HandlerFunc {
 			return
 		}
 
+	}
+}
+
+func (hh *hiveHandler) DeleteHiveFunc() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+
+		hiveIDstr := ctx.Param("hiveId")
+
+		if hiveIDstr == "" {
+			iErr := impart.NewError(impart.ErrBadRequest, "hiveId must be an integer", impart.HiveID)
+			ctx.JSON(iErr.HttpStatus(), impart.ErrorResponse(iErr))
+			return
+		}
+
+		hiveId, err := strconv.ParseUint(hiveIDstr, 10, 64)
+		if err != nil {
+			iErr := impart.NewError(impart.ErrBadRequest, "hiveId must be an integer", impart.HiveID)
+			ctx.JSON(iErr.HttpStatus(), impart.ErrorResponse(iErr))
+			return
+		}
+
+		impartRrr := hh.hiveService.DeleteHive(ctx, hiveId)
+		if err != nil {
+			ctx.JSON(impartRrr.HttpStatus(), impart.ErrorResponse(impartRrr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Hive deleted"})
 	}
 }

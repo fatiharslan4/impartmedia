@@ -24,6 +24,7 @@ type Service interface {
 	CreateHive(ctx context.Context, hive models.Hive) (models.Hive, impart.Error)
 	EditHive(ctx context.Context, hive models.Hive) (models.Hive, impart.Error)
 	HiveProfilePercentiles(ctx context.Context, hiveID uint64) (tags.TagComparisons, impart.Error)
+	DeleteHive(ctx context.Context, hiveID uint64) impart.Error
 
 	NewPost(ctx context.Context, post models.Post) (models.Post, impart.Error)
 	EditPost(ctx context.Context, post models.Post) (models.Post, impart.Error)
@@ -34,9 +35,9 @@ type Service interface {
 	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) impart.Error
 	ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
 	ReviewPost(ctx context.Context, postId uint64, comment string, remove bool) (models.Post, impart.Error)
-	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo) (models.PostVideo, impart.Error)
+	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo, isAdminActivity bool) (models.PostVideo, impart.Error)
 	AddPostFiles(ctx context.Context, postFiles []models.File) ([]models.File, impart.Error)
-	AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File) ([]models.File, impart.Error)
+	AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File, isAdminActivity bool) ([]models.File, impart.Error)
 	ValidatePostFilesName(ctx context.Context, ctxUser *dbmodels.User, postFiles []models.File) []models.File
 
 	GetComments(ctx context.Context, postID uint64, limit, offset int) (models.Comments, *models.NextPage, impart.Error)

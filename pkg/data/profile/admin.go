@@ -2,11 +2,14 @@ package profile
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"strconv"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
@@ -145,6 +148,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	} else {
 		outOffset.Offset += len(userDetails)
 	}
+
 	return userDetails, outOffset, nil
 
 }
@@ -168,9 +172,15 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		qm.Limit(gpi.Limit),
 		orderByMod,
 		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
+		qm.Load(dbmodels.PostRels.PostFiles),
+		qm.Load(dbmodels.PostRels.PostVideos),
+		qm.Load(dbmodels.PostRels.PostUrls),
+		qm.Load("PostFiles.FidFile"), // get files
 	}
+	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null `)
+	queryMods = append(queryMods, qm.InnerJoin(where))
 	if gpi.SearchKey != "" {
-		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id 
+		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null 
 		and (user.screen_name like ? or user.email like ? ) `)
 		queryMods = append(queryMods, qm.InnerJoin(where, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%"))
 	}
@@ -192,21 +202,30 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 
 func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error) {
 	msg := ""
+	var existingHiveId uint64
 	if gpi.Type == "addto_waitlist" {
 		hives := dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: DefaultHiveId},
 		}
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+		exitingUserAnswer := userToUpdate.R.ImpartWealthUserAnswers
+		answerIds := make([]uint, len(exitingUserAnswer))
+		for i, a := range exitingUserAnswer {
+			answerIds[i] = a.AnswerID
+		}
 		for _, h := range userToUpdate.R.MemberHiveHives {
+			existingHiveId = h.HiveID
 			if h.HiveID == DefaultHiveId {
 				return msg, impart.NewError(impart.ErrBadRequest, "User is already on waitlist.")
 			}
 		}
 		err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
 		if err != nil {
-			return msg, impart.NewError(impart.ErrBadRequest, "unable to set the member hive")
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member hive")
 		}
-		msg = "User added to Waitlist."
+		err = m.UpdateHiveUserDemographic(ctx, answerIds, true, DefaultHiveId)
+		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
+		msg = "User added to waitlist."
 	} else if gpi.Type == "addto_admin" {
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		existingDBProfile := userToUpdate.R.ImpartWealthProfile
@@ -216,24 +235,117 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		userToUpdate.Admin = true
 		err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
 		if err != nil {
-			return msg, impart.NewError(impart.ErrBadRequest, "unable to set the member as user")
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as user")
 		}
 		msg = "User role changed to admin."
 	} else if gpi.Type == "addto_hive" {
+		_, err := dbmodels.FindHive(ctx, m.db, gpi.HiveID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return msg, impart.NewError(impart.ErrNotFound, "Could not find the hive.")
+			}
+			return msg, impart.NewError(impart.ErrNotFound, "Could not find the hive.")
+		}
 		hives := dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: gpi.HiveID},
 		}
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		for _, h := range userToUpdate.R.MemberHiveHives {
+			existingHiveId = h.HiveID
 			if h.HiveID == gpi.HiveID {
 				return msg, impart.NewError(impart.ErrBadRequest, "User is already on hive.")
 			}
 		}
+		exitingUserAnswer := userToUpdate.R.ImpartWealthUserAnswers
+		answerIds := make([]uint, len(exitingUserAnswer))
+		for i, a := range exitingUserAnswer {
+			answerIds[i] = a.AnswerID
+		}
 		err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
+		err = m.UpdateHiveUserDemographic(ctx, answerIds, true, gpi.HiveID)
+		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		if err != nil {
 			return msg, impart.NewError(impart.ErrBadRequest, "unable to set the member hive")
 		}
-		msg = "User Added to hive."
+		msg = "User added to hive."
 	}
 	return msg, nil
+}
+
+func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, error) {
+	outOffset := &models.NextPage{
+		Offset: gpi.Offset,
+	}
+
+	if gpi.Limit <= 0 {
+		gpi.Limit = defaultLimit
+	} else if gpi.Limit > maxLimit {
+		gpi.Limit = maxLimit
+	}
+	// clause := qm.Where(fmt.Sprintf("hive.deleted_at is null"))
+	orderByMod := qm.OrderBy("hive_id")
+	queryMods := []qm.QueryMod{
+		orderByMod,
+		qm.Load(dbmodels.HiveUserDemographicRels.Answer),
+		qm.Load(dbmodels.HiveUserDemographicRels.Question),
+		qm.Load(dbmodels.HiveUserDemographicRels.Hive),
+	}
+	where := fmt.Sprintf(`hive on hive_user_demographic.hive_id=hive.hive_id and hive.deleted_at is null `)
+	queryMods = append(queryMods, qm.InnerJoin(where))
+	demographic, err := dbmodels.HiveUserDemographics(queryMods...).All(ctx, m.db)
+	if err != nil {
+		return nil, outOffset, nil
+	}
+	hiveId := 0
+	preHiveId := 0
+	i := 0
+	totalCnt := 0
+	lenHive := 0
+	indexes := make(map[uint]string)
+	var memberHives []models.DemographicHivesCount
+	err = queries.Raw(`
+	select member_hive_id , count(member_hive_id) count
+	from hive_members
+	join user on hive_members.member_impart_wealth_id=user.impart_wealth_id
+	join hive on hive.hive_id=hive_members.member_hive_id
+	where hive.deleted_at is null and user.deleted_at is null and user.blocked=0
+	group by hive_members.member_hive_id
+	`).Bind(ctx, m.db, &memberHives)
+
+	for _, i := range memberHives {
+		indexes[uint(i.MemberHiveId)] = i.Count
+	}
+
+	for _, p := range demographic {
+		if int(p.HiveID) != preHiveId {
+			lenHive = lenHive + 1
+		}
+		preHiveId = int(p.HiveID)
+	}
+	preHiveId = 0
+	hives := make([]map[string]string, lenHive, lenHive)
+	hive := make(map[string]string)
+	for _, p := range demographic {
+		hiveId = int(p.HiveID)
+		if hiveId != preHiveId && preHiveId != 0 {
+			hives[i] = hive
+			hive = make(map[string]string)
+			i = i + 1
+			totalCnt = 0
+		}
+		hive["hive_id"] = strconv.Itoa(hiveId)
+		if (p.R.Hive.CreatedAt == null.Time{}) {
+			hive["date created"] = "NA"
+		} else {
+			hive["date created"] = fmt.Sprintf("%s", p.R.Hive.CreatedAt.Time)
+		}
+		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.AnswerName)] = strconv.Itoa(int(p.UserCount))
+		totalCnt = totalCnt + int(p.UserCount)
+		hive["users"] = indexes[uint(p.HiveID)]
+		preHiveId = int(p.HiveID)
+	}
+	hives[i] = hive
+
+	return hives, outOffset, nil
+
 }

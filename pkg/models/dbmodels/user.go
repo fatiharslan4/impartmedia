@@ -710,19 +710,16 @@ func (o *User) ImpartWealthUserAnswers(mods ...qm.QueryMod) userAnswerQuery {
 	if len(mods) != 0 {
 		queryMods = append(queryMods, mods...)
 	}
-
 	queryMods = append(queryMods,
 		qm.Where("`user_answers`.`impart_wealth_id`=?", o.ImpartWealthID),
 		qmhelper.WhereIsNull("`user_answers`.`deleted_at`"),
 	)
-
 	query := UserAnswers(queryMods...)
 	queries.SetFrom(query.Query, "`user_answers`")
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"`user_answers`.*"})
 	}
-
 	return query
 }
 
@@ -1207,10 +1204,11 @@ func (userL) LoadAdminHiveHives(ctx context.Context, e boil.ContextExecutor, sin
 	}
 
 	query := NewQuery(
-		qm.Select("`hive`.hive_id, `hive`.name, `hive`.description, `hive`.pinned_post_id, `hive`.tag_comparisons, `hive`.notification_topic_arn, `hive`.hive_distributions, `a`.`admin_impart_wealth_id`"),
+		qm.Select("`hive`.hive_id, `hive`.name, `hive`.description, `hive`.pinned_post_id, `hive`.tag_comparisons, `hive`.notification_topic_arn, `hive`.hive_distributions, `hive`.created_at, `hive`.deleted_at, `a`.`admin_impart_wealth_id`"),
 		qm.From("`hive`"),
 		qm.InnerJoin("`hive_admins` as `a` on `hive`.`hive_id` = `a`.`admin_hive_id`"),
 		qm.WhereIn("`a`.`admin_impart_wealth_id` in ?", args...),
+		qmhelper.WhereIsNull("`hive`.`deleted_at`"),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -1228,7 +1226,7 @@ func (userL) LoadAdminHiveHives(ctx context.Context, e boil.ContextExecutor, sin
 		one := new(Hive)
 		var localJoinCol string
 
-		err = results.Scan(&one.HiveID, &one.Name, &one.Description, &one.PinnedPostID, &one.TagComparisons, &one.NotificationTopicArn, &one.HiveDistributions, &localJoinCol)
+		err = results.Scan(&one.HiveID, &one.Name, &one.Description, &one.PinnedPostID, &one.TagComparisons, &one.NotificationTopicArn, &one.HiveDistributions, &one.CreatedAt, &one.DeletedAt, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for hive")
 		}
@@ -1322,10 +1320,11 @@ func (userL) LoadMemberHiveHives(ctx context.Context, e boil.ContextExecutor, si
 	}
 
 	query := NewQuery(
-		qm.Select("`hive`.hive_id, `hive`.name, `hive`.description, `hive`.pinned_post_id, `hive`.tag_comparisons, `hive`.notification_topic_arn, `hive`.hive_distributions, `a`.`member_impart_wealth_id`"),
+		qm.Select("`hive`.hive_id, `hive`.name, `hive`.description, `hive`.pinned_post_id, `hive`.tag_comparisons, `hive`.notification_topic_arn, `hive`.hive_distributions, `hive`.created_at, `hive`.deleted_at, `a`.`member_impart_wealth_id`"),
 		qm.From("`hive`"),
 		qm.InnerJoin("`hive_members` as `a` on `hive`.`hive_id` = `a`.`member_hive_id`"),
 		qm.WhereIn("`a`.`member_impart_wealth_id` in ?", args...),
+		qmhelper.WhereIsNull("`hive`.`deleted_at`"),
 	)
 	if mods != nil {
 		mods.Apply(query)
@@ -1343,7 +1342,7 @@ func (userL) LoadMemberHiveHives(ctx context.Context, e boil.ContextExecutor, si
 		one := new(Hive)
 		var localJoinCol string
 
-		err = results.Scan(&one.HiveID, &one.Name, &one.Description, &one.PinnedPostID, &one.TagComparisons, &one.NotificationTopicArn, &one.HiveDistributions, &localJoinCol)
+		err = results.Scan(&one.HiveID, &one.Name, &one.Description, &one.PinnedPostID, &one.TagComparisons, &one.NotificationTopicArn, &one.HiveDistributions, &one.CreatedAt, &one.DeletedAt, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for hive")
 		}

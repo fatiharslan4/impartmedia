@@ -19,11 +19,13 @@ const ImpartAPIKeyHeaderName = "x-api-key"
 const AuthorizationHeader = "Authorization"
 const AuthorizationHeaderBearerType = "Bearer"
 const DeviceAuthorizationHeader = "x-device-identity"
+const ClientIdentificationHeader = "x-client-identity"
 
 type Service interface {
 	RequestAuthorizationHandler() gin.HandlerFunc
 	APIKeyHandler() gin.HandlerFunc
 	DeviceIdentificationHandler() gin.HandlerFunc
+	ClientIdentificationHandler() gin.HandlerFunc
 }
 
 type authService struct {
@@ -119,6 +121,15 @@ func (a *authService) DeviceIdentificationHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if ctx.GetHeader(DeviceAuthorizationHeader) != "" {
 			ctx.Set(impart.DeviceAuthorizationContextKey, ctx.GetHeader(DeviceAuthorizationHeader))
+		}
+		ctx.Next()
+	}
+}
+
+func (a *authService) ClientIdentificationHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if ctx.GetHeader(ClientIdentificationHeader) != "" {
+			ctx.Set(impart.ClientIdentificationHeaderKey, ctx.GetHeader(ClientIdentificationHeader))
 		}
 		ctx.Next()
 	}

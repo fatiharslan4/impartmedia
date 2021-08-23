@@ -50,6 +50,7 @@ type Service interface {
 	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error)
 
 	DeleteUserByAdmin(ctx context.Context, hardtDelete bool, deleteUser models.DeleteUserInput) impart.Error
+	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, impart.Error)
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {
@@ -413,28 +414,28 @@ func (ps *profileService) UpdateReadCommunity(ctx context.Context, p models.Upda
 
 func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool, deleteUser models.DeleteUserInput) impart.Error {
 	if strings.TrimSpace(deleteUser.ImpartWealthID) == "" {
-		return impart.NewError(impart.ErrBadRequest, "impartWealthID is empty")
+		return impart.NewError(impart.ErrBadRequest, "impartWealthID is empty.")
 	}
 	contextUser := impart.GetCtxUser(ctx)
 	if contextUser == nil || contextUser.ImpartWealthID == "" {
-		return impart.NewError(impart.ErrBadRequest, "context user not found")
+		return impart.NewError(impart.ErrBadRequest, "context user not found.")
 	}
 	if !contextUser.SuperAdmin {
-		errorString := "Current user doesn't have the permission"
+		errorString := "Current user does not have the permission."
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
 		return impart.NewError(impart.ErrUnauthorized, errorString)
 	}
 	userToDelete, err := ps.profileStore.GetUser(ctx, deleteUser.ImpartWealthID)
 	if err != nil {
-		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", deleteUser.ImpartWealthID))
+		return impart.NewError(err, fmt.Sprintf("could not find profile for impartWealthID %s", deleteUser.ImpartWealthID))
 	}
 	if userToDelete.Admin {
-		errorString := "You cant delete the admin"
+		errorString := "You cannot delete the admin."
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
 		return impart.NewError(impart.ErrUnauthorized, errorString)
 	}
 	if userToDelete.SuperAdmin {
-		errorString := "You cant delete the super admin"
+		errorString := "You cannot delete the super admin."
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
 		return impart.NewError(impart.ErrUnauthorized, errorString)
 	}

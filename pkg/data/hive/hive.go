@@ -5,6 +5,7 @@ package data
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -13,6 +14,8 @@ import (
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
 
@@ -52,6 +55,7 @@ type Hives interface {
 	GetPostsWithUnreviewedComments(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetPostsWithReviewedComments(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetReportedContents(ctx context.Context, getInput GetReportedContentInput) (models.PostComments, *models.NextPage, error)
+	DeleteHive(ctx context.Context, hiveID uint64) error
 }
 
 func (d *mysqlHiveData) GetHives(ctx context.Context) (dbmodels.HiveSlice, error) {
@@ -156,4 +160,89 @@ func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin 
 		_, err = hive.Update(ctx, tx, boil.Whitelist(dbmodels.HiveColumns.PinnedPostID))
 		return err
 	}
+}
+
+func (d *mysqlHiveData) DeleteHive(ctx context.Context, hiveID uint64) error {
+	p, err := dbmodels.FindHive(ctx, d.db, hiveID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return err
+	}
+
+	var memberHives []models.MemberHive
+	err = queries.Raw(`
+	SELECT member_hive_id,user.impart_wealth_id  FROM hive_members 
+	join user on hive_members.member_impart_wealth_id=user.impart_wealth_id
+	where user.deleted_at is null and member_hive_id=?
+	`, hiveID).Bind(ctx, d.db, &memberHives)
+
+	if _, err = p.Delete(ctx, d.db, false); err != nil {
+		if err == sql.ErrNoRows {
+			return impart.ErrNotFound
+		}
+		return err
+	}
+	for _, i := range memberHives {
+		q := `
+		update  hive_members set member_hive_id= ? where 
+		member_impart_wealth_id= ?`
+		_, err = queries.Raw(q, impart.DefaultHiveID, i.ImpartWealthID).ExecContext(ctx, d.db)
+		if err != nil {
+		}
+	}
+
+	answer, err := dbmodels.HiveUserDemographics(
+		dbmodels.HiveUserDemographicWhere.HiveID.EQ(hiveID),
+	).All(ctx, d.db)
+	answerIds := make([]uint, len(answer))
+	for i, a := range answer {
+		if a.UserCount > 0 {
+			answerIds[i] = a.AnswerID
+		}
+	}
+	err = d.UpdateHiveUserDemographic(ctx, answerIds, true, impart.DefaultHiveID)
+	err = d.UpdateHiveUserDemographic(ctx, answerIds, false, hiveID)
+	return nil
+}
+
+func rollbackIfError(tx *sql.Tx, err error, logger *zap.Logger) error {
+	rErr := tx.Rollback()
+	if rErr != nil {
+		logger.Error("unable to rollback transaction", zap.Error(rErr))
+		return fmt.Errorf(rErr.Error(), err)
+	}
+	return err
+}
+
+func (m *mysqlHiveData) UpdateHiveUserDemographic(ctx context.Context, answerIds []uint, status bool, hiveId uint64) error {
+	tx, err := m.db.BeginTx(ctx, nil)
+	if err != nil {
+		return rollbackIfError(tx, err, m.logger)
+	}
+	for _, a := range answerIds {
+		var userDemo dbmodels.HiveUserDemographic
+		err = dbmodels.NewQuery(
+			qm.Select("*"),
+			qm.Where("answer_id = ?", a),
+			qm.Where("hive_id = ?", int(hiveId)),
+			qm.From("hive_user_demographic"),
+		).Bind(ctx, m.db, &userDemo)
+		if err != nil {
+		}
+		if err == nil {
+			existData := &userDemo
+			if status {
+				existData.UserCount = existData.UserCount + 1
+			} else {
+				existData.UserCount = existData.UserCount - 1
+			}
+			_, err = existData.Update(ctx, m.db, boil.Infer())
+			if err != nil {
+				return rollbackIfError(tx, err, m.logger)
+			}
+		}
+	}
+	return tx.Commit()
 }

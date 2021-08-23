@@ -292,7 +292,12 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 	for i, a := range exitingUserAnser {
 		answerIds[i] = a.AnswerID
 	}
+	hiveid := DefaultHiveId
+	for _, h := range dbUser.R.MemberHiveHives {
+		hiveid = h.HiveID
+	}
 	err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, false)
+	err = ps.profileStore.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
 	return nil
 }
 
@@ -334,7 +339,7 @@ func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitLi
 	userToUpdate, err := ps.profileStore.GetUser(ctx, gpi.ImpartWealthID)
 	if err != nil {
 		ps.Logger().Error("Cannot Find the user", zap.Error(err))
-		return "", impart.NewError(impart.ErrNotFound, "Cannot Find the user")
+		return "", impart.NewError(impart.ErrNotFound, "Cannot find the user")
 	}
 	if userToUpdate.Blocked {
 		ps.Logger().Error("Blocked user", zap.Error(err))
@@ -346,4 +351,13 @@ func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitLi
 		return msg, err0
 	}
 	return msg, nil
+}
+
+func (ps *profileService) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, impart.Error) {
+	result, nextPage, err := ps.profileStore.GetHiveDetails(ctx, gpi)
+	if err != nil {
+		ps.Logger().Error("Error in data fetching", zap.Error(err))
+		return nil, nextPage, impart.NewError(impart.ErrUnknown, "unable to fetch the details")
+	}
+	return result, nextPage, nil
 }

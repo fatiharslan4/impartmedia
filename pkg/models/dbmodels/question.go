@@ -86,20 +86,23 @@ var QuestionWhere = struct {
 
 // QuestionRels is where relationship names are stored.
 var QuestionRels = struct {
-	Questionnaire string
-	Type          string
-	Answers       string
+	Questionnaire        string
+	Type                 string
+	Answers              string
+	HiveUserDemographics string
 }{
-	Questionnaire: "Questionnaire",
-	Type:          "Type",
-	Answers:       "Answers",
+	Questionnaire:        "Questionnaire",
+	Type:                 "Type",
+	Answers:              "Answers",
+	HiveUserDemographics: "HiveUserDemographics",
 }
 
 // questionR is where relationships are stored.
 type questionR struct {
-	Questionnaire *Questionnaire `boil:"Questionnaire" json:"Questionnaire" toml:"Questionnaire" yaml:"Questionnaire"`
-	Type          *QuestionType  `boil:"Type" json:"Type" toml:"Type" yaml:"Type"`
-	Answers       AnswerSlice    `boil:"Answers" json:"Answers" toml:"Answers" yaml:"Answers"`
+	Questionnaire        *Questionnaire           `boil:"Questionnaire" json:"Questionnaire" toml:"Questionnaire" yaml:"Questionnaire"`
+	Type                 *QuestionType            `boil:"Type" json:"Type" toml:"Type" yaml:"Type"`
+	Answers              AnswerSlice              `boil:"Answers" json:"Answers" toml:"Answers" yaml:"Answers"`
+	HiveUserDemographics HiveUserDemographicSlice `boil:"HiveUserDemographics" json:"HiveUserDemographics" toml:"HiveUserDemographics" yaml:"HiveUserDemographics"`
 }
 
 // NewStruct creates a new relationship struct
@@ -441,6 +444,27 @@ func (o *Question) Answers(mods ...qm.QueryMod) answerQuery {
 	return query
 }
 
+// HiveUserDemographics retrieves all the hive_user_demographic's HiveUserDemographics with an executor.
+func (o *Question) HiveUserDemographics(mods ...qm.QueryMod) hiveUserDemographicQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`hive_user_demographic`.`question_id`=?", o.QuestionID),
+	)
+
+	query := HiveUserDemographics(queryMods...)
+	queries.SetFrom(query.Query, "`hive_user_demographic`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`hive_user_demographic`.*"})
+	}
+
+	return query
+}
+
 // LoadQuestionnaire allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
 func (questionL) LoadQuestionnaire(ctx context.Context, e boil.ContextExecutor, singular bool, maybeQuestion interface{}, mods queries.Applicator) error {
@@ -747,6 +771,104 @@ func (questionL) LoadAnswers(ctx context.Context, e boil.ContextExecutor, singul
 	return nil
 }
 
+// LoadHiveUserDemographics allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (questionL) LoadHiveUserDemographics(ctx context.Context, e boil.ContextExecutor, singular bool, maybeQuestion interface{}, mods queries.Applicator) error {
+	var slice []*Question
+	var object *Question
+
+	if singular {
+		object = maybeQuestion.(*Question)
+	} else {
+		slice = *maybeQuestion.(*[]*Question)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &questionR{}
+		}
+		args = append(args, object.QuestionID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &questionR{}
+			}
+
+			for _, a := range args {
+				if a == obj.QuestionID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.QuestionID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`hive_user_demographic`),
+		qm.WhereIn(`hive_user_demographic.question_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load hive_user_demographic")
+	}
+
+	var resultSlice []*HiveUserDemographic
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice hive_user_demographic")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on hive_user_demographic")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for hive_user_demographic")
+	}
+
+	if len(hiveUserDemographicAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.HiveUserDemographics = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &hiveUserDemographicR{}
+			}
+			foreign.R.Question = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.QuestionID == foreign.QuestionID {
+				local.R.HiveUserDemographics = append(local.R.HiveUserDemographics, foreign)
+				if foreign.R == nil {
+					foreign.R = &hiveUserDemographicR{}
+				}
+				foreign.R.Question = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetQuestionnaire of the question to the related item.
 // Sets o.R.Questionnaire to related.
 // Adds o to related.R.Questions.
@@ -885,6 +1007,59 @@ func (o *Question) AddAnswers(ctx context.Context, exec boil.ContextExecutor, in
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &answerR{
+				Question: o,
+			}
+		} else {
+			rel.R.Question = o
+		}
+	}
+	return nil
+}
+
+// AddHiveUserDemographics adds the given related objects to the existing relationships
+// of the question, optionally inserting them as new records.
+// Appends related to o.R.HiveUserDemographics.
+// Sets related.R.Question appropriately.
+func (o *Question) AddHiveUserDemographics(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*HiveUserDemographic) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.QuestionID = o.QuestionID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `hive_user_demographic` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"question_id"}),
+				strmangle.WhereClause("`", "`", 0, hiveUserDemographicPrimaryKeyColumns),
+			)
+			values := []interface{}{o.QuestionID, rel.HiveID, rel.QuestionID, rel.AnswerID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.QuestionID = o.QuestionID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &questionR{
+			HiveUserDemographics: related,
+		}
+	} else {
+		o.R.HiveUserDemographics = append(o.R.HiveUserDemographics, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &hiveUserDemographicR{
 				Question: o,
 			}
 		} else {

@@ -36,11 +36,6 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	}
 	var err error
 	extraQery := ""
-	// inParamValues := make([]interface{}, len(gpi.SearchIDs), len(gpi.SearchIDs))
-	// // inParamValues := types.Array{}
-	// // param := types.Array([]int{1, 2, 3})
-	// // param := types.Array(inParamValues)
-	// var IDs []string
 	inputQuery := fmt.Sprintf(`SELECT 
 					user.impart_wealth_id,
 					CASE WHEN user.blocked = 1 THEN '[Account Deleted]' 
@@ -122,23 +117,26 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 								THEN answer.text
 								ELSE NULL 
 							END
-						) AS 'FinancialGoals'
+						) AS 'FinancialGoals',
+
+						GROUP_CONCAT(
+							answer.answer_id
+						) AS 'answer_ids'
 					
+
 					FROM user_answers
 					inner join answer on user_answers.answer_id=answer.answer_id
 					inner join question on answer.question_id=question.question_id
-					`)
-	if gpi.SearchIDs != "" {
-		extraQery = fmt.Sprintf(` where user_answers.answer_id  in (?)`)
-		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
-	}
-	extraQery = fmt.Sprintf(`			
-	GROUP BY impart_wealth_id
+					GROUP BY impart_wealth_id
 					) AS makeup
 					ON makeup.impart_wealth_id = user.impart_wealth_id
 					
-					where user.deleted_at is null`)
-	inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+					where user.deleted_at is null
+					`)
+	if gpi.SearchIDs != "" {
+		extraQery = fmt.Sprintf(` and CONCAT(",", makeup.answer_ids, ",") REGEXP ?`)
+		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+	}
 	orderby := fmt.Sprintf(`			
 			group by user.impart_wealth_id
 			order by user.email asc
@@ -148,14 +146,15 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 		inputQuery = inputQuery + orderby
 		if gpi.SearchIDs != "" {
-			err = queries.Raw(inputQuery, gpi.SearchIDs, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+			err = queries.Raw(inputQuery, "("+gpi.SearchIDs+")", "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		} else {
 			err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		}
 	} else {
 		inputQuery = inputQuery + orderby
-		if len(gpi.SearchIDs) > 0 {
-			err = queries.Raw(inputQuery, gpi.SearchIDs, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+		fmt.Println(inputQuery)
+		if gpi.SearchIDs != "" {
+			err = queries.Raw(inputQuery, ",("+gpi.SearchIDs+"),", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		} else {
 			err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		}

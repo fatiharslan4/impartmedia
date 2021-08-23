@@ -847,14 +847,11 @@ func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 		filterId, inMap := params["filters"]
 		fmt.Println(filterId)
 		if inMap {
-			for _, s := range filterId {
-				parsed, err := strconv.Atoi(s)
-				if err == nil {
-					gpi.SearchIDs = append(gpi.SearchIDs, parsed)
-				}
-			}
-			fmt.Println("1")
-			fmt.Println(len(gpi.SearchIDs))
+			newStr := strings.Join(filterId, " ")
+			newStr = strings.ReplaceAll(newStr, ",", "|")
+			gpi.SearchIDs = newStr
+			fmt.Println("gpi.SearchIDs")
+			fmt.Println(gpi.SearchIDs)
 		}
 
 		users, nextPage, impartErr := ph.profileService.GetUsersDetails(ctx, gpi)

@@ -48,6 +48,7 @@ type Store interface {
 	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, error)
 	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error)
 	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, error)
+	GetFilterDetails(ctx context.Context) ([]byte, error)
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

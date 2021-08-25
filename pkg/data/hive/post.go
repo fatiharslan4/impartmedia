@@ -184,7 +184,7 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 					}
 				}
 			}
-			if (len(existingPost.R.PostFiles) > 0 && fileName == "") || (len(existingPost.R.PostFiles) > 0 && len(file) == 0 && fileName != "nochange") {
+			if (len(existingPost.R.PostFiles) > 0 && fileName == "") || (len(existingPost.R.PostFiles) > 0 && len(file) == 0 && fileName != "noUpdate") {
 				existingfile, err := dbmodels.FindFile(ctx, d.db, existingPost.R.PostFiles[0].Fid)
 				if err != nil {
 					d.logger.Error("error attempting to fetching file  data ", zap.Any("postVideo", existingPost.R.PostFiles[0].Fid), zap.Error(err))

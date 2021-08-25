@@ -171,13 +171,9 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 					if err != nil {
 						d.logger.Error("error attempting to fetching file  data ", zap.Any("postVideo", existingPost.R.PostFiles[0].Fid), zap.Error(err))
 					} else {
-						if existingfile.FileName != file[0].FileName && file[0].FileName != "" {
-							existingfile.FileName = file[0].FileName
-						} else if existingfile.FileType != file[0].FileType && file[0].FileType != "" {
-							existingfile.FileType = file[0].FileType
-						} else if existingfile.URL != file[0].URL && file[0].URL != "" {
-							existingfile.URL = file[0].URL
-						}
+						existingfile.FileName = file[0].FileName
+						existingfile.FileType = file[0].FileType
+						existingfile.URL = file[0].URL
 						_, err = existingfile.Update(ctx, d.db, boil.Infer())
 					}
 				}

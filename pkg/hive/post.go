@@ -124,11 +124,14 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 		postUrl = inPost.UrlData.PostUrlToDBModel(inPost.PostID, inPost.Url)
 		if len(inPost.Files) > 0 {
 			name = inPost.Files[0].FileName
+			if inPost.Files[0].Content != "" {
+				name = "nochange"
+				postFiles = s.ValidatePostFilesName(ctx, ctxUser, inPost.Files)
+				postFiles, _ = s.AddPostFiles(ctx, postFiles)
+			}
 		} else {
 			name = "nofile"
 		}
-		postFiles = s.ValidatePostFilesName(ctx, ctxUser, inPost.Files)
-		postFiles, _ = s.AddPostFiles(ctx, postFiles)
 	}
 	p, err := s.postData.EditPost(ctx, inPost.ToDBModel(), tagsSlice, shouldPin, postVideo, postUrl, postFiles, name)
 	if err != nil {

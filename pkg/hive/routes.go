@@ -243,7 +243,7 @@ func (hh *hiveHandler) GetPostsFunc() gin.HandlerFunc {
 		cfg, err2 := config.GetImpart()
 		for _, users := range existingUsers {
 			if false == *users.EmailVerified && *users.Identities[0].Connection == fmt.Sprintf("impart-%s", string(cfg.Env)) {
-				ctx.JSON(http.StatusUnauthorized, impart.ErrorResponse(
+				ctx.JSON(http.StatusForbidden, impart.ErrorResponse(
 					impart.NewError(impart.ErrUnauthorized, "Email not verified"),
 				))
 				return

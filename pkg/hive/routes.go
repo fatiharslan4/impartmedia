@@ -67,6 +67,10 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	commentRoutes.POST(":commentId", handler.PostCommentReactionFunc())
 	commentRoutes.DELETE(":commentId", handler.DeleteCommentFunc())
 
+	adminRoutes := version.Group("/admin")
+	adminRoutes.PATCH("/posts", handler.EditBulkPostDetails())
+	adminRoutes.PATCH("/hives", handler.HiveBulkOperations())
+
 }
 
 // RequestAuthorizationHandler Validates the bearer
@@ -1000,5 +1004,81 @@ func (hh *hiveHandler) DeleteHiveFunc() gin.HandlerFunc {
 		}
 
 		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Hive deleted"})
+	}
+}
+
+func (ph *hiveHandler) EditBulkPostDetails() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		rawData, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		ctxUser := impart.GetCtxUser(ctx)
+		if ctxUser == nil {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		if !ctxUser.SuperAdmin {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		input := models.PostUpdate{}
+		err = json.Unmarshal(rawData, &input)
+		if err != nil {
+			ph.logger.Error("input json parse error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+		userOutput := ph.hiveService.EditBulkPostDetails(ctx, input)
+
+		ctx.JSON(http.StatusOK, models.PagedPostUpdateResponse{
+			Posts: userOutput,
+		})
+	}
+}
+
+func (hh *hiveHandler) HiveBulkOperations() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+
+		rawData, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			hh.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		ctxUser := impart.GetCtxUser(ctx)
+		if ctxUser == nil {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		if !ctxUser.SuperAdmin {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		input := models.HiveUpdate{}
+		err = json.Unmarshal(rawData, &input)
+		if err != nil {
+			hh.logger.Error("input json parse error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+		hiveOutput := hh.hiveService.HiveBulkOperations(ctx, input)
+
+		ctx.JSON(http.StatusOK, models.PagedHiveUpdateResponse{
+			Hives: hiveOutput,
+		})
+
 	}
 }

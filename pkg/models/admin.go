@@ -67,6 +67,41 @@ type PostDetail struct {
 	UrlDescription string    `json:"url_description" `
 }
 
+type UserUpdate struct {
+	Type   string     `json:"type,omitempty"`
+	Action string     `json:"action"`
+	HiveID uint64     `json:"hiveID,omitempty"`
+	Users  []UserData `json:"users,omitempty"`
+}
+
+type UserData struct {
+	ImpartWealthID string `json:"impartWealthId"`
+	Status         string `json:"status,omitempty"`
+	Message        string `json:"message,omitempty"`
+}
+
+type PostUpdate struct {
+	Action string     `json:"action"`
+	Posts  []PostData `json:"posts,omitempty"`
+}
+
+type PostData struct {
+	PostID  uint64 `json:"postID,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+type HiveUpdate struct {
+	Action string     `json:"action"`
+	Hives  []HiveData `json:"hives,omitempty"`
+}
+
+type HiveData struct {
+	HiveID  uint64 `json:"hiveID,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
 func PostsData(dbPosts dbmodels.PostSlice) PostDetails {
 	out := make(PostDetails, len(dbPosts), len(dbPosts))
 	for i, p := range dbPosts {
@@ -158,4 +193,16 @@ type DemographicHivesCount struct {
 
 type PagedFilterResponse struct {
 	Filter impart.FilterEnum `json:"filter"`
+}
+
+type PagedUserUpdateResponse struct {
+	Users UserUpdate `json:"users"`
+}
+
+type PagedPostUpdateResponse struct {
+	Posts PostUpdate `json:"posts"`
+}
+
+type PagedHiveUpdateResponse struct {
+	Hives HiveUpdate `json:"hives"`
 }

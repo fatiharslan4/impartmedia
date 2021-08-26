@@ -245,3 +245,38 @@ func (s *service) DeleteHive(ctx context.Context, hiveID uint64) impart.Error {
 
 	return nil
 }
+
+func (s *service) HiveBulkOperations(ctx context.Context, hiveUpdates models.HiveUpdate) models.HiveUpdate {
+	postOutput := models.HiveUpdate{}
+	hiveDatas := make([]models.HiveData, len(hiveUpdates.Hives), len(hiveUpdates.Hives))
+	postOutput.Action = hiveUpdates.Action
+	for i, hive := range hiveUpdates.Hives {
+		hives := models.HiveData{}
+		hives.HiveID = hive.HiveID
+		if hive.HiveID == impart.DefaultHiveID {
+			hives.Message = "You cannot delete the default hive."
+			hives.Status = "false"
+			hiveDatas[i] = hives
+			continue
+		}
+		_, err := s.hiveData.GetHive(ctx, hive.HiveID)
+		if err != nil {
+			hives.Message = "Unable to find the hive."
+			hives.Status = "false"
+			hiveDatas[i] = hives
+			continue
+		}
+		err = s.hiveData.DeleteHive(ctx, hive.HiveID)
+		if err != nil {
+			hives.Message = "Unable to delete the hive."
+			hives.Status = "false"
+			hiveDatas[i] = hives
+			continue
+		}
+		hives.Message = "Hive deleted"
+		hives.Status = "true"
+		hiveDatas[i] = hives
+	}
+	postOutput.Hives = hiveDatas
+	return postOutput
+}

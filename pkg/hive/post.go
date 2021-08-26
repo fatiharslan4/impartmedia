@@ -638,3 +638,34 @@ func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file 
 	}
 	return fileResponse, nil
 }
+
+func (s *service) EditBulkPostDetails(ctx context.Context, postUpdate models.PostUpdate) models.PostUpdate {
+
+	postOutput := models.PostUpdate{}
+	postDatas := make([]models.PostData, len(postUpdate.Posts), len(postUpdate.Posts))
+	postOutput.Action = postUpdate.Action
+
+	for i, post := range postUpdate.Posts {
+		posts := models.PostData{}
+		posts.PostID = post.PostID
+		_, err := s.postData.GetPost(ctx, post.PostID)
+		if err != nil {
+			posts.Message = "Unable to find the post"
+			posts.Status = "false"
+			postDatas[i] = posts
+			continue
+		}
+		err = s.postData.DeletePost(ctx, post.PostID)
+		if err != nil {
+			posts.Message = "Unable to delete the post"
+			posts.Status = "false"
+			postDatas[i] = posts
+			continue
+		}
+		posts.Message = "Post Deleted"
+		posts.Status = "true"
+		postDatas[i] = posts
+	}
+	postOutput.Posts = postDatas
+	return postOutput
+}

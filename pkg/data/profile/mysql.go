@@ -630,7 +630,7 @@ func (m *mysqlStore) GetMakeUp(ctx context.Context) (interface{}, error) {
 	return dataMap, nil
 }
 
-func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUserInput, hardDelete bool) error {
+func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUserInput, hardDelete bool) impart.Error {
 	userToDelete, err := m.GetUser(ctx, gpi.ImpartWealthID)
 	if err != nil {
 		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", gpi.ImpartWealthID))

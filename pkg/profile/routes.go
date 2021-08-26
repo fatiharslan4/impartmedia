@@ -72,6 +72,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	adminRoutes.PUT("/:impartWealthId", handler.EditUserDetails())
 	adminRoutes.DELETE("/:impartWealthId", handler.DeleteUserByAdmin())
 	adminRoutes.GET("/hives", handler.GetHiveDetails())
+	adminRoutes.PATCH("/users", handler.EditBulkUserDetails())
 
 	filterRoutes := version.Group("/filter")
 	filterRoutes.GET("", handler.GetFilterDetails())
@@ -826,9 +827,8 @@ func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctxUser := impart.GetCtxUser(ctx)
 		if !ctxUser.SuperAdmin {
-			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
-				impart.NewError(impart.ErrBadRequest, "Current user does not have the permission."),
-			))
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 		gpi := models.GetAdminInputs{}
@@ -870,9 +870,8 @@ func (ph *profileHandler) GetPostDetails() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctxUser := impart.GetCtxUser(ctx)
 		if !ctxUser.SuperAdmin {
-			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
-				impart.NewError(impart.ErrBadRequest, "Current user does not have the permission."),
-			))
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 		gpi := models.GetAdminInputs{}
@@ -934,9 +933,8 @@ func (ph *profileHandler) EditUserDetails() gin.HandlerFunc {
 
 		ctxUser := impart.GetCtxUser(ctx)
 		if !ctxUser.SuperAdmin {
-			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
-				impart.NewError(impart.ErrBadRequest, "Current user does not have the permission."),
-			))
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 
@@ -1037,5 +1035,45 @@ func (ph *profileHandler) GetFilterDetails() gin.HandlerFunc {
 			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{"filter": obj})
+	}
+}
+
+func (ph *profileHandler) EditBulkUserDetails() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		rawData, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		ctxUser := impart.GetCtxUser(ctx)
+		if ctxUser == nil {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		if !ctxUser.SuperAdmin {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		input := models.UserUpdate{}
+		err = json.Unmarshal(rawData, &input)
+		if err != nil {
+			ph.logger.Error("input json parse error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+		input, impartErr := ph.profileService.EditBulkUserDetails(ctx, input)
+		if impartErr != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, models.PagedUserUpdateResponse{
+			Users: input,
+		})
 	}
 }

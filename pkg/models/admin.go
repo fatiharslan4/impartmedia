@@ -17,6 +17,8 @@ type GetAdminInputs struct {
 	// search is the optional to filter on
 	SearchKey string
 	SearchIDs string
+	SortBy    string
+	SortOrder string
 }
 
 type UserDetails []UserDetail

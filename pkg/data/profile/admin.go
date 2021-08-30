@@ -36,6 +36,10 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	}
 	var err error
 	extraQery := ""
+	if gpi.SortBy == "" {
+		gpi.SortBy = "user.email"
+		gpi.SortOrder = "asc"
+	}
 	inputQuery := fmt.Sprintf(`SELECT 
 					user.impart_wealth_id,
 					CASE WHEN user.blocked = 1 THEN '[Account Deleted]' 
@@ -138,25 +142,27 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 	}
 	orderby := fmt.Sprintf(`			
-			group by user.impart_wealth_id
-			order by user.email asc
-			LIMIT ? OFFSET ?`)
+	group by user.impart_wealth_id
+	order by ? ? 
+	LIMIT ? OFFSET ?`)
+	orderby = fmt.Sprintf("%s LIMIT ? OFFSET ?", orderby)
 	if gpi.SearchKey != "" {
 		extraQery = fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 		inputQuery = inputQuery + orderby
 		if gpi.SearchIDs != "" {
-			err = queries.Raw(inputQuery, "("+gpi.SearchIDs+")", "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+			err = queries.Raw(inputQuery, "("+gpi.SearchIDs+")", "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.SortBy, gpi.SortOrder, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		} else {
-			err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+			err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.SortBy, gpi.SortOrder, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		}
 	} else {
 		inputQuery = inputQuery + orderby
 		fmt.Println(inputQuery)
 		if gpi.SearchIDs != "" {
-			err = queries.Raw(inputQuery, ",("+gpi.SearchIDs+"),", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+			err = queries.Raw(inputQuery, ",("+gpi.SearchIDs+"),", gpi.SortBy, gpi.SortOrder, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		} else {
-			err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+			err = queries.Raw(inputQuery, gpi.SortBy, gpi.SortOrder, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+			fmt.Println(err)
 		}
 	}
 

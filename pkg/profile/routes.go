@@ -845,15 +845,15 @@ func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 			return
 		}
 		filterId, inMap := params["filters"]
-		fmt.Println(filterId)
 		if inMap {
 			newStr := strings.Join(filterId, " ")
 			newStr = strings.ReplaceAll(newStr, ",", "|")
 			gpi.SearchIDs = newStr
-			fmt.Println("gpi.SearchIDs")
-			fmt.Println(gpi.SearchIDs)
 		}
-
+		if sort := strings.TrimSpace(params.Get("sort_by")); sort != "" {
+			gpi.SortBy = strings.TrimSpace(params.Get("sort_by"))
+			gpi.SortOrder = strings.TrimSpace(params.Get("order"))
+		}
 		users, nextPage, impartErr := ph.profileService.GetUsersDetails(ctx, gpi)
 		if impartErr != nil {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))

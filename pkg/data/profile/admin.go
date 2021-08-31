@@ -37,8 +37,9 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	var err error
 	extraQery := ""
 	if gpi.SortBy == "" {
-		gpi.SortBy = "user.email"
-		gpi.SortOrder = "asc"
+		gpi.SortBy = fmt.Sprintf(`email asc`)
+	} else {
+		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
 	}
 	inputQuery := fmt.Sprintf(`SELECT 
 					user.impart_wealth_id,
@@ -143,26 +144,23 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	}
 	orderby := fmt.Sprintf(`			
 	group by user.impart_wealth_id
-	order by ? ? 
-	LIMIT ? OFFSET ?`)
+	order by %s `, gpi.SortBy)
 	orderby = fmt.Sprintf("%s LIMIT ? OFFSET ?", orderby)
 	if gpi.SearchKey != "" {
 		extraQery = fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 		inputQuery = inputQuery + orderby
 		if gpi.SearchIDs != "" {
-			err = queries.Raw(inputQuery, "("+gpi.SearchIDs+")", "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.SortBy, gpi.SortOrder, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+			err = queries.Raw(inputQuery, "("+gpi.SearchIDs+")", "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		} else {
-			err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.SortBy, gpi.SortOrder, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+			err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		}
 	} else {
 		inputQuery = inputQuery + orderby
-		fmt.Println(inputQuery)
 		if gpi.SearchIDs != "" {
-			err = queries.Raw(inputQuery, ",("+gpi.SearchIDs+"),", gpi.SortBy, gpi.SortOrder, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+			err = queries.Raw(inputQuery, ",("+gpi.SearchIDs+"),", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		} else {
-			err = queries.Raw(inputQuery, gpi.SortBy, gpi.SortOrder, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
-			fmt.Println(err)
+			err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		}
 	}
 
@@ -189,19 +187,45 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 	} else if gpi.Limit > maxLimit {
 		gpi.Limit = maxLimit
 	}
-	orderByMod := qm.OrderBy("created_at desc, post_id desc")
-
 	clause := qm.Where(fmt.Sprintf("post.deleted_at is null"))
 	queryMods := []qm.QueryMod{
 		clause,
 		qm.Offset(gpi.Offset),
 		qm.Limit(gpi.Limit),
-		orderByMod,
+		// orderByMod,
 		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
 		qm.Load(dbmodels.PostRels.PostFiles),
 		qm.Load(dbmodels.PostRels.PostVideos),
 		qm.Load(dbmodels.PostRels.PostUrls),
 		qm.Load("PostFiles.FidFile"), // get files
+	}
+	sortByUser := false
+	if gpi.SortBy == "" {
+		queryMods = append(queryMods, qm.OrderBy("created_at desc, post_id desc"))
+	} else {
+		if gpi.SortBy == "subject" || gpi.SortBy == "hive_id" || gpi.SortBy == "content" || gpi.SortBy == "created_at" || gpi.SortBy == "pinned" || gpi.SortBy == "comment_count" {
+			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+		} else if gpi.SortBy == "email" || gpi.SortBy == "screen_name" {
+			sortByUser = true
+		} else if gpi.SortBy == "title" || gpi.SortBy == "description" || gpi.SortBy == "imageUrl" {
+			where := fmt.Sprintf(`post_urls on post_urls.post_id=post.post_id `)
+			queryMods = append(queryMods, qm.InnerJoin(where))
+			gpi.SortBy = fmt.Sprintf("post_urls.%s %s", gpi.SortBy, gpi.SortOrder)
+			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+		} else if gpi.SortBy == "source" || gpi.SortBy == "url" {
+			where := fmt.Sprintf(`post_videos on post_videos.post_id=post.post_id `)
+			queryMods = append(queryMods, qm.InnerJoin(where))
+			gpi.SortBy = fmt.Sprintf("post_videos.%s %s", gpi.SortBy, gpi.SortOrder)
+			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+		} else if gpi.SortBy == "image_path" {
+			where := fmt.Sprintf(`post_files on post_files.post_id=post.post_id `)
+			queryMods = append(queryMods, qm.InnerJoin(where))
+			where = fmt.Sprintf(`files on files.fid=post_files.fid `)
+			queryMods = append(queryMods, qm.InnerJoin(where))
+			gpi.SortBy = fmt.Sprintf("files.url %s", gpi.SortOrder)
+			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+		}
 	}
 	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null `)
 	queryMods = append(queryMods, qm.InnerJoin(where))
@@ -209,6 +233,15 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null 
 		and (user.screen_name like ? or user.email like ? ) `)
 		queryMods = append(queryMods, qm.InnerJoin(where, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%"))
+		if sortByUser {
+			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+		}
+	} else if gpi.SortBy != "" && sortByUser {
+		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null `)
+		queryMods = append(queryMods, qm.InnerJoin(where))
+		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+		queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
 	}
 	posts, err := dbmodels.Posts(queryMods...).All(ctx, m.db)
 

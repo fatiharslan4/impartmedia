@@ -882,6 +882,11 @@ func (ph *profileHandler) GetPostDetails() gin.HandlerFunc {
 			gpi.SearchKey = strings.TrimSpace(params.Get("q"))
 		}
 
+		if sort := strings.TrimSpace(params.Get("sort_by")); sort != "" {
+			gpi.SortBy = strings.TrimSpace(params.Get("sort_by"))
+			gpi.SortOrder = strings.TrimSpace(params.Get("order"))
+		}
+
 		var err error
 		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
 		if err != nil {

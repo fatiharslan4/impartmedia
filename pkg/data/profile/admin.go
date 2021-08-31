@@ -209,23 +209,6 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
 		} else if gpi.SortBy == "email" || gpi.SortBy == "screen_name" {
 			sortByUser = true
-		} else if gpi.SortBy == "title" || gpi.SortBy == "description" || gpi.SortBy == "imageUrl" {
-			where := fmt.Sprintf(`post_urls on post_urls.post_id=post.post_id `)
-			queryMods = append(queryMods, qm.InnerJoin(where))
-			gpi.SortBy = fmt.Sprintf("post_urls.%s %s", gpi.SortBy, gpi.SortOrder)
-			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
-		} else if gpi.SortBy == "source" || gpi.SortBy == "url" {
-			where := fmt.Sprintf(`post_videos on post_videos.post_id=post.post_id `)
-			queryMods = append(queryMods, qm.InnerJoin(where))
-			gpi.SortBy = fmt.Sprintf("post_videos.%s %s", gpi.SortBy, gpi.SortOrder)
-			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
-		} else if gpi.SortBy == "image_path" {
-			where := fmt.Sprintf(`post_files on post_files.post_id=post.post_id `)
-			queryMods = append(queryMods, qm.InnerJoin(where))
-			where = fmt.Sprintf(`files on files.fid=post_files.fid `)
-			queryMods = append(queryMods, qm.InnerJoin(where))
-			gpi.SortBy = fmt.Sprintf("files.url %s", gpi.SortOrder)
-			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
 		}
 	}
 	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null `)

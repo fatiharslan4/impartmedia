@@ -6,6 +6,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 )
 
 // GetAdminInputs is the input necessary
@@ -46,25 +47,26 @@ type PagedUserResponse struct {
 
 type PostDetails []PostDetail
 type PostDetail struct {
-	PostID         uint64    `json:"postid"`
-	ScreenName     string    `json:"screenName"  `
-	Email          string    `json:"email" `
-	PostDatetime   time.Time `json:"created_at" `
-	HiveID         uint64    `json:"hiveid" `
-	Pinned         bool      `json:"pinned" `
-	Reported       bool      `json:"reported" `
-	CommentCount   int       `json:"commentcount" `
-	PostContent    string    `json:"postcontent" `
-	ImpartWealthID string    `json:"impartWealthId"`
-	Subject        string    `json:"subject" `
-	IsAdminPost    bool      `json:"adminpost" `
-	Reviewed       bool      `json:"reviewed"`
-	ImagePath      string    `json:"image_path" `
-	VideoType      string    `json:"video_type" `
-	VideoUrl       string    `json:"video_url" `
-	UrlTitle       string    `json:"url_title" `
-	UrlImage       string    `json:"url_image" `
-	UrlDescription string    `json:"url_description" `
+	PostID         uint64      `json:"postid"`
+	ScreenName     string      `json:"screenName"  `
+	Email          string      `json:"email" `
+	PostDatetime   time.Time   `json:"created_at" `
+	HiveID         uint64      `json:"hiveid" `
+	Pinned         bool        `json:"pinned" `
+	Reported       bool        `json:"reported" `
+	CommentCount   int         `json:"commentcount" `
+	PostContent    string      `json:"postcontent" `
+	ImpartWealthID string      `json:"impartWealthId"`
+	Subject        string      `json:"subject" `
+	IsAdminPost    bool        `json:"adminpost" `
+	Reviewed       bool        `json:"reviewed"`
+	ImagePath      string      `json:"image_path" `
+	VideoType      string      `json:"video_type" `
+	VideoUrl       string      `json:"video_url" `
+	UrlTitle       string      `json:"url_title" `
+	UrlImage       string      `json:"url_image" `
+	UrlDescription string      `json:"url_description" `
+	UrlPostUrl     null.String `json:"url_post_url" `
 }
 
 func PostsData(dbPosts dbmodels.PostSlice) PostDetails {
@@ -127,6 +129,7 @@ func PostsDataFromDB(p *dbmodels.Post) PostDetail {
 		out.UrlImage = p.R.PostUrls[0].ImageUrl
 		out.UrlTitle = p.R.PostUrls[0].Title
 		out.UrlDescription = p.R.PostUrls[0].Description
+		out.UrlPostUrl = p.R.PostUrls[0].URL
 	}
 	if p.R.PostFiles != nil && len(p.R.PostFiles) > 0 {
 		out.ImagePath = p.R.PostFiles[0].R.FidFile.URL

@@ -1008,7 +1008,11 @@ func (ph *profileHandler) GetHiveDetails() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-
+		params := ctx.Request.URL.Query()
+		if sort := strings.TrimSpace(params.Get("sort_by")); sort != "" {
+			gpi.SortBy = strings.TrimSpace(params.Get("sort_by"))
+			gpi.SortOrder = strings.TrimSpace(params.Get("order"))
+		}
 		hives, nextPage, impartErr := ph.profileService.GetHiveDetails(ctx, gpi)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))

@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 	"database/sql"
+	"sort"
 
 	"fmt"
 	"strconv"
@@ -404,7 +405,18 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 		preHiveId = int(p.HiveID)
 	}
 	hives[i] = hive
-
+	if gpi.SortBy != "" {
+		fmt.Println(gpi.SortBy)
+		if gpi.SortOrder == "desc" {
+			sort.Slice(hives, func(i, j int) bool {
+				return hives[i][gpi.SortBy] > hives[j][gpi.SortBy]
+			})
+		} else {
+			sort.Slice(hives, func(i, j int) bool {
+				return hives[i][gpi.SortBy] < hives[j][gpi.SortBy]
+			})
+		}
+	}
 	return hives, outOffset, nil
 
 }

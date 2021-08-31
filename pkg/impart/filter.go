@@ -7,70 +7,126 @@ import (
 type FilterEnum int
 
 const (
-	Gender_Man                        FilterEnum = 17
-	Gender_NonBinary                  FilterEnum = 18
-	Gender_NotListed                  FilterEnum = 19
-	Gender_Woman                      FilterEnum = 16
-	Generation_Boomer                 FilterEnum = 15
-	Generation_GenX                   FilterEnum = 14
-	Generation_GenZ                   FilterEnum = 12
-	Generation_Millennial             FilterEnum = 13
-	Household_Married                 FilterEnum = 4
-	Household_Partner                 FilterEnum = 3
-	Household_SharedCustody           FilterEnum = 5
-	Household_Single                  FilterEnum = 1
-	Household_SingleRoommates         FilterEnum = 2
-	Race_AmIndianAlNative             FilterEnum = 20
-	Race_AsianPacIslander             FilterEnum = 21
-	Race_Black                        FilterEnum = 22
-	Race_Hispanic                     FilterEnum = 23
-	Race_SWAsianNAfrican              FilterEnum = 24
-	Race_White                        FilterEnum = 25
-	Dependents_None                   FilterEnum = 6
-	Dependents_Other                  FilterEnum = 11
-	Dependents_Parents                FilterEnum = 10
-	Dependents_PostSchool             FilterEnum = 9
-	Dependents_PreSchool              FilterEnum = 7
-	Dependents_SchoolAge              FilterEnum = 8
-	FinancialGoals_GenerationalWealth FilterEnum = 30
-	FinancialGoals_House              FilterEnum = 28
-	FinancialGoals_Philanthropy       FilterEnum = 29
-	FinancialGoals_Retirement         FilterEnum = 26
-	FinancialGoals_SaveCollege        FilterEnum = 27
+	Gender_Man                            FilterEnum = 17
+	Gender_NonBinary                                 = 18
+	Gender_NotListed                                 = 19
+	Gender_Woman                                     = 16
+	Generation_Boomer                                = 15
+	Generation_GenX                                  = 14
+	Generation_GenZ                                  = 12
+	Generation_Millennial                            = 13
+	Household_Married                                = 4
+	Household_Partner                                = 3
+	Household_SharedCustody                          = 5
+	Household_Single                                 = 1
+	Household_SingleRoommates                        = 2
+	Race_AmIndianAlNative                            = 20
+	Race_AsianPacIslander                            = 21
+	Race_Black                                       = 22
+	Race_Hispanic                                    = 23
+	Race_SWAsianNAfrican                             = 24
+	Race_White                                       = 25
+	Dependents_None                                  = 6
+	Dependents_Other                                 = 11
+	Dependents_Parents                               = 10
+	Dependents_PostSchool                            = 9
+	Dependents_PreSchool                             = 7
+	Dependents_SchoolAge                             = 8
+	FinancialGoals_GenerationalWealth                = 30
+	FinancialGoals_House                             = 28
+	FinancialGoals_Philanthropy                      = 29
+	FinancialGoals_Retirement                        = 26
+	FinancialGoals_SaveCollege                       = 27
+	Industry_Agriculture                             = 31
+	Industry_Business                                = 32
+	Industry_Construction                            = 33
+	Industry_Education                               = 34
+	Industry_EntertainmentGaming                     = 35
+	Industry_Financensurance                         = 36
+	Industry_FoodHospitality                         = 37
+	Industry_GovernmentPublicServices                = 38
+	Industry_HealthServices                          = 39
+	Industry_Legal                                   = 40
+	Industry_NaturalResources                        = 41
+	Industry_PersonalProfessionalServices            = 42
+	Industry_RealEstateHousing                       = 43
+	Industry_RetaileCommerce                         = 44
+	Industry_SafetySecurity                          = 45
+	Industry_Transportation                          = 46
+	Career_Entrylevel                                = 47
+	Career_Midlevel                                  = 47
+	Career_Management                                = 49
+	Career_UpperManagement                           = 50
+	Career_BusinessOwner                             = 51
+	Career_Other                                     = 52
+	Income_Income0                                   = 53
+	Income_Income1                                   = 54
+	Income_Income2                                   = 55
+	Income_Income3                                   = 56
+	Income_Income4                                   = 57
+	Income_Income5                                   = 58
 )
 
 func FilterData() ([]byte, error) {
 	out, err := json.Marshal(map[string]FilterEnum{
-		"Gender-Man":                        Gender_Man,
-		"Gender-NonBinary":                  Gender_NonBinary,
-		"Gender-Woman":                      Gender_Woman,
-		"Gender-NotListed":                  Gender_NotListed,
-		"Generation-Boomer":                 Generation_Boomer,
-		"Generation-GenX":                   Generation_GenX,
-		"Generation-GenZ":                   Generation_GenZ,
-		"Generation-Millennial":             Generation_Millennial,
-		"Household-Married":                 Household_Married,
-		"Household-Partner":                 Household_Partner,
-		"Household-SharedCustody":           Household_SharedCustody,
-		"Household-Single":                  Household_Single,
-		"Household-SingleRoommates":         Household_SingleRoommates,
-		"Race-AmIndianAlNative":             Race_AmIndianAlNative,
-		"Race-AsianPacIslander":             Race_AsianPacIslander,
-		"Race-Black":                        Race_Black,
-		"Race-Hispanic":                     Race_Hispanic,
-		"Race-SWAsianNAfrican":              Race_SWAsianNAfrican,
-		"Race-White":                        Race_White,
-		"Dependents-None":                   Dependents_None,
-		"Dependents-Other":                  Dependents_Other,
-		"Dependents-Parents":                Dependents_Parents,
-		"Dependents-PostSchool":             Dependents_PostSchool,
-		"Dependents-PreSchool":              Dependents_PreSchool,
-		"Dependents-SchoolAge":              Dependents_SchoolAge,
-		"FinancialGoals-GenerationalWealth": FinancialGoals_GenerationalWealth,
-		"FinancialGoals-House":              FinancialGoals_House,
-		"FinancialGoals-Philanthropy":       FinancialGoals_Philanthropy,
-		"FinancialGoals-Retirement":         FinancialGoals_Retirement,
-		"FinancialGoals-SaveCollege":        FinancialGoals_SaveCollege,
+		"Gender-Man":                                  Gender_Man,
+		"Gender-NonBinary":                            Gender_NonBinary,
+		"Gender-Woman":                                Gender_Woman,
+		"Gender-NotListed":                            Gender_NotListed,
+		"Generation-Boomer":                           Generation_Boomer,
+		"Generation-GenX":                             Generation_GenX,
+		"Generation-GenZ":                             Generation_GenZ,
+		"Generation-Millennial":                       Generation_Millennial,
+		"Household-Married":                           Household_Married,
+		"Household-Partner":                           Household_Partner,
+		"Household-SharedCustody":                     Household_SharedCustody,
+		"Household-Single":                            Household_Single,
+		"Household-SingleRoommates":                   Household_SingleRoommates,
+		"Race-AmIndianAlNative":                       Race_AmIndianAlNative,
+		"Race-AsianPacIslander":                       Race_AsianPacIslander,
+		"Race-Black":                                  Race_Black,
+		"Race-Hispanic":                               Race_Hispanic,
+		"Race-SWAsianNAfrican":                        Race_SWAsianNAfrican,
+		"Race-White":                                  Race_White,
+		"Dependents-None":                             Dependents_None,
+		"Dependents-Other":                            Dependents_Other,
+		"Dependents-Parents":                          Dependents_Parents,
+		"Dependents-PostSchool":                       Dependents_PostSchool,
+		"Dependents-PreSchool":                        Dependents_PreSchool,
+		"Dependents-SchoolAge":                        Dependents_SchoolAge,
+		"FinancialGoals-GenerationalWealth":           FinancialGoals_GenerationalWealth,
+		"FinancialGoals-House":                        FinancialGoals_House,
+		"FinancialGoals-Philanthropy":                 FinancialGoals_Philanthropy,
+		"FinancialGoals-Retirement":                   FinancialGoals_Retirement,
+		"FinancialGoals-SaveCollege":                  FinancialGoals_SaveCollege,
+		"Industry-Agriculture & Forestry/Wildlife":    Industry_Agriculture,
+		"Industry-Business & Technology":              Industry_Business,
+		"Industry-Construction/Utilities/Contracting": Industry_Construction,
+		"Industry-Education":                          Industry_Education,
+		"Industry-Entertainment & Gaming":             Industry_EntertainmentGaming,
+		"Industry-Finance & Insurance":                Industry_Financensurance,
+		"Industry-Food & Hospitality":                 Industry_FoodHospitality,
+		"Industry-Government & Public Services":       Industry_GovernmentPublicServices,
+		"Industry-Health Services & Healthcare":       Industry_HealthServices,
+		"Industry-Legal":                              Industry_Legal,
+		"Industry-Natural Resources/Environmental":    Industry_NaturalResources,
+		"Industry-Personal & Professional Services":   Industry_PersonalProfessionalServices,
+		"Industry-Real Estate & Housing":              Industry_RealEstateHousing,
+		"Industry-Retail & eCommerce":                 Industry_RealEstateHousing,
+		"Industry-Safety & Security":                  Industry_SafetySecurity,
+		"Industry-Transportation":                     Industry_Transportation,
+		"Career-Entry-level":                          Career_Entrylevel,
+		"Career-Mid-level":                            Career_Midlevel,
+		"Career-Management":                           Career_Management,
+		"Career-Upper Managementl":                    Career_UpperManagement,
+		"Career-Business Owner":                       Career_BusinessOwner,
+		"Career-Other":                                Career_Other,
+		"Income-Less than $20,000":                    Income_Income0,
+		"Income-$20,000 - $50,000":                    Income_Income1,
+		"Income-$50,000 - $100,000":                   Income_Income2,
+		"Income-$100,000 - $150,000":                  Income_Income3,
+		"Income-$150,000 - $250,000":                  Income_Income4,
+		"Income-$250,000+":                            Income_Income5,
 	})
 	if err != nil {
 		return nil, err

@@ -61,7 +61,13 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					CASE WHEN makeup.Race IS NULL THEN 'NA' 
 								ELSE makeup.Race END AS race,
 					CASE WHEN makeup.FinancialGoals IS NULL THEN 'NA' 
-								ELSE makeup.FinancialGoals END AS financialgoals
+								ELSE makeup.FinancialGoals END AS financialgoals,
+					CASE WHEN makeup.Industry IS NULL THEN 'NA' 
+								ELSE makeup.Industry END AS industry,
+					CASE WHEN makeup.Career IS NULL THEN 'NA' 
+								ELSE makeup.Career END AS career,
+					CASE WHEN makeup.Income IS NULL THEN 'NA' 
+								ELSE makeup.Income END AS income
 					FROM user
 					left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
 					
@@ -118,7 +124,27 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 								ELSE NULL 
 							END
 						) AS 'FinancialGoals',
-
+						GROUP_CONCAT(
+							CASE 
+								WHEN question.question_name = 'Industry' 
+								THEN answer.text
+								ELSE NULL 
+							END
+						) AS 'Industry',
+						GROUP_CONCAT(
+							CASE 
+								WHEN question.question_name = 'Career' 
+								THEN answer.text
+								ELSE NULL 
+							END
+						) AS 'Career',
+						GROUP_CONCAT(
+							CASE 
+								WHEN question.question_name = 'Income' 
+								THEN answer.text
+								ELSE NULL 
+							END
+						) AS 'Income',
 						GROUP_CONCAT(
 							answer.answer_id
 						) AS 'answer_ids'

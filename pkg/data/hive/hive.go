@@ -16,7 +16,6 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
-	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
 
@@ -166,7 +165,7 @@ func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin 
 }
 
 func (d *mysqlHiveData) DeleteHive(ctx context.Context, hiveID uint64) error {
-	p, err := dbmodels.FindHive(ctx, d.db, hiveID)
+	hives, err := dbmodels.FindHive(ctx, d.db, hiveID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil
@@ -181,32 +180,52 @@ func (d *mysqlHiveData) DeleteHive(ctx context.Context, hiveID uint64) error {
 	where user.deleted_at is null and member_hive_id=?
 	`, hiveID).Bind(ctx, d.db, &memberHives)
 
-	if _, err = p.Delete(ctx, d.db, false); err != nil {
+	if _, err = hives.Delete(ctx, d.db, false); err != nil {
 		if err == sql.ErrNoRows {
 			return impart.ErrNotFound
 		}
 		return err
 	}
-	for _, i := range memberHives {
-		q := `
-		update  hive_members set member_hive_id= ? where 
-		member_impart_wealth_id= ?`
-		_, err = queries.Raw(q, impart.DefaultHiveID, i.ImpartWealthID).ExecContext(ctx, d.db)
-		if err != nil {
+	updatememberhives := ""
+	updateHiveDemographic := ""
+	userHiveDemo := make(map[uint64]map[uint64]int)
+	for _, member := range memberHives {
+		query := fmt.Sprintf("update hive_members set member_hive_id=%d where member_impart_wealth_id='%s';", impart.DefaultHiveID, member.ImpartWealthID)
+		updatememberhives = fmt.Sprintf("%s %s", updatememberhives, query)
+	}
+	hive_lst := []uint64{hiveID, impart.DefaultHiveID}
+	answer, err := dbmodels.HiveUserDemographics(
+		dbmodels.HiveUserDemographicWhere.HiveID.IN(hive_lst),
+	).All(ctx, d.db)
+
+	for _, demohive := range answer {
+		data := userHiveDemo[uint64(demohive.HiveID)]
+		if data == nil {
+			count := make(map[uint64]int)
+			count[uint64(demohive.AnswerID)] = int(demohive.UserCount)
+			userHiveDemo[uint64(demohive.HiveID)] = count
+		} else {
+			data[uint64(demohive.AnswerID)] = int(demohive.UserCount)
+		}
+	}
+	for _, demohive := range answer {
+		if demohive.HiveID == hiveID {
+			userHiveDemo[impart.DefaultHiveID][uint64(demohive.AnswerID)] = userHiveDemo[impart.DefaultHiveID][uint64(demohive.AnswerID)] + userHiveDemo[demohive.HiveID][uint64(demohive.AnswerID)]
+			userHiveDemo[demohive.HiveID][uint64(demohive.AnswerID)] = 0
+		}
+	}
+	for hive, demo := range userHiveDemo {
+		for answer, cnt := range demo {
+			query := fmt.Sprintf("update hive_user_demographic set user_count=%d where hive_id=%d and answer_id=%d;", cnt, hive, answer)
+			updateHiveDemographic = fmt.Sprintf("%s %s", updateHiveDemographic, query)
 		}
 	}
 
-	answer, err := dbmodels.HiveUserDemographics(
-		dbmodels.HiveUserDemographicWhere.HiveID.EQ(hiveID),
-	).All(ctx, d.db)
-	answerIds := make([]uint, len(answer))
-	for i, a := range answer {
-		if a.UserCount > 0 {
-			answerIds[i] = a.AnswerID
-		}
+	if updateHiveDemographic != "" || updatememberhives != "" {
+		query := fmt.Sprintf("%s %s", updateHiveDemographic, updatememberhives)
+		_, _ = queries.Raw(query).ExecContext(ctx, d.db)
 	}
-	err = d.UpdateHiveUserDemographic(ctx, answerIds, true, impart.DefaultHiveID)
-	err = d.UpdateHiveUserDemographic(ctx, answerIds, false, hiveID)
+
 	return nil
 }
 
@@ -249,14 +268,14 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
 	userHiveDemo := make(map[uint64]map[uint64]int)
 	dbhiveUserDemographic, _ := dbmodels.HiveUserDemographics().All(ctx, d.db)
-	for _, p := range dbhiveUserDemographic {
-		data := userHiveDemo[uint64(p.HiveID)]
+	for _, demohive := range dbhiveUserDemographic {
+		data := userHiveDemo[uint64(demohive.HiveID)]
 		if data == nil {
 			count := make(map[uint64]int)
-			count[uint64(p.AnswerID)] = int(p.UserCount)
-			userHiveDemo[uint64(p.HiveID)] = count
+			count[uint64(demohive.AnswerID)] = int(demohive.UserCount)
+			userHiveDemo[uint64(demohive.HiveID)] = count
 		} else {
-			data[uint64(p.AnswerID)] = int(p.UserCount)
+			data[uint64(demohive.AnswerID)] = int(demohive.UserCount)
 		}
 	}
 
@@ -264,7 +283,7 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 		if hive.HiveID == impart.DefaultHiveID {
 			continue
 		}
-		query := fmt.Sprintf("Update hive set deleted_at='%s' where hive_id='%s';", golangDateTime, hive.HiveID)
+		query := fmt.Sprintf("Update hive set deleted_at='%s' where hive_id='%d';", golangDateTime, hive.HiveID)
 		updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
 		exitingmembers := hive.R.MemberImpartWealthUsers
 		for _, member := range exitingmembers {
@@ -302,19 +321,19 @@ func rollbackIfError(tx *sql.Tx, err error, logger *zap.Logger) error {
 }
 
 func (d *mysqlHiveData) GetHiveFromList(ctx context.Context, hiveIds []interface{}) (dbmodels.HiveSlice, error) {
-	clause := WhereIn(fmt.Sprintf("%s in ?", dbmodels.HiveColumns.HiveID), hiveIds...)
-	usersWhere := []QueryMod{
-		clause,
-		Load(dbmodels.HiveRels.HiveUserDemographics),
-		Load(dbmodels.HiveRels.MemberImpartWealthUsers),
+	orderByMod := qm.WhereIn("hive_id in ?", hiveIds...)
+	queryMods := []qm.QueryMod{
+		orderByMod,
+		qm.Load(dbmodels.HiveRels.MemberImpartWealthUsers),
+		qm.Load(dbmodels.HiveRels.HiveUserDemographics),
+		qm.Load(dbmodels.HiveRels.AdminImpartWealthUsers),
 	}
-
-	u, err := dbmodels.Hives(usersWhere...).All(ctx, d.db)
+	hives, err := dbmodels.Hives(queryMods...).All(ctx, d.db)
 	if err == sql.ErrNoRows {
 		return nil, impart.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
-	return u, err
+	return hives, err
 }

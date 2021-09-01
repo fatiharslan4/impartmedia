@@ -266,10 +266,13 @@ func (s *service) HiveBulkOperations(ctx context.Context, hiveUpdates models.Hiv
 
 	hivesop, err := s.hiveData.GetHiveFromList(ctx, HiveIds)
 
-	if err != nil || len(hivesop) > 0 {
+	if err != nil || len(hivesop) == 0 {
 		return hiveOutputRslt
 	}
 	err = s.hiveData.DeleteBulkHive(ctx, hivesop)
+	if err != nil {
+		return hiveOutputRslt
+	}
 	lenhive := len(hiveOutputRslt.Hives)
 	for _, hive := range hivesop {
 		for cnt := 0; cnt < lenhive; cnt++ {

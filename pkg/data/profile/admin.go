@@ -379,151 +379,85 @@ func (m *mysqlStore) GetFilterDetails(ctx context.Context) ([]byte, error) {
 	return result, nil
 }
 
-func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) models.UserUpdate {
-	inputType := userUpdatesInput.Type
-	var existingHiveId uint64
+func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) *models.UserUpdate {
 	userOutput := models.UserUpdate{}
 	userDatas := make([]models.UserData, len(userUpdatesInput.Users), len(userUpdatesInput.Users))
 	userOutput.Type = userUpdatesInput.Type
 	userOutput.HiveID = userUpdatesInput.HiveID
 	userOutput.Action = userUpdatesInput.Action
+	impartWealthIDs := make([]interface{}, 0, len(userUpdatesInput.Users))
+
 	for i, user := range userUpdatesInput.Users {
-		userData := models.UserData{}
+		userData := &models.UserData{}
 		userData.ImpartWealthID = user.ImpartWealthID
-		userToUpdate, err := m.GetUser(ctx, user.ImpartWealthID)
-		if err != nil {
-			userData.Message = "Cannot find the user."
-			userData.Status = "false"
-			userDatas[i] = userData
-			continue
+		userData.Status = false
+		userData.Message = "No update activity."
+		userData.Value = 0
+		if user.ImpartWealthID != "" {
+			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
 		}
-		if userToUpdate.Blocked {
-			userData.Message = "Blocked User."
-			userData.Status = "false"
-			userDatas[i] = userData
-			continue
-		}
-		if inputType == "addto_admin" {
-			existingDBProfile := userToUpdate.R.ImpartWealthProfile
-			if userToUpdate.Admin {
-				userData.Message = "User is already admin."
-				userData.Status = "false"
-				userDatas[i] = userData
-				continue
-			}
-			userToUpdate.Admin = true
-			err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
-			if err != nil {
-				userData.Message = "Unable to set the member as user."
-				userData.Status = "false"
-				userDatas[i] = userData
-				continue
-			}
-
-			userData.Message = "User role changed to admin"
-			userData.Status = "true"
-			userDatas[i] = userData
-
-		} else if inputType == "addto_waitlist" {
-			hives := dbmodels.HiveSlice{
-				&dbmodels.Hive{HiveID: DefaultHiveId},
-			}
-			exitingUserAnswer := userToUpdate.R.ImpartWealthUserAnswers
-			answerIds := make([]uint, len(exitingUserAnswer))
-			for i, a := range exitingUserAnswer {
-				answerIds[i] = a.AnswerID
-			}
-			for _, h := range userToUpdate.R.MemberHiveHives {
-				existingHiveId = h.HiveID
-				if h.HiveID == DefaultHiveId {
-					userData.Message = "User is already on waitlist."
-					userData.Status = "false"
-					userDatas[i] = userData
-					continue
-				}
-			}
-			err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
-			if err != nil {
-				userData.Message = "Unable to set the member hive."
-				userData.Status = "false"
-				userDatas[i] = userData
-				continue
-			}
-			err = m.UpdateHiveUserDemographic(ctx, answerIds, true, DefaultHiveId)
-			err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
-
-			userData.Message = "User added to waitlist."
-			userData.Status = "true"
-			userDatas[i] = userData
-
-		} else if inputType == "addto_hive" {
-			_, err := dbmodels.FindHive(ctx, m.db, userUpdatesInput.HiveID)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					userData.Message = "Could not find the hive."
-					userData.Status = "false"
-					userDatas[i] = userData
-					continue
-				}
-			}
-			hives := dbmodels.HiveSlice{
-				&dbmodels.Hive{HiveID: userUpdatesInput.HiveID},
-			}
-			for _, h := range userToUpdate.R.MemberHiveHives {
-				existingHiveId = h.HiveID
-				if h.HiveID == userUpdatesInput.HiveID {
-					userData.Message = "User is already on hive."
-					userData.Status = "false"
-					userDatas[i] = userData
-					continue
-				}
-			}
-			exitingUserAnswer := userToUpdate.R.ImpartWealthUserAnswers
-			answerIds := make([]uint, len(exitingUserAnswer))
-			for i, a := range exitingUserAnswer {
-				answerIds[i] = a.AnswerID
-			}
-			err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
-			if err != nil {
-				userData.Message = "Unable to set the member hive."
-				userData.Status = "false"
-				userDatas[i] = userData
-				continue
-			}
-			err = m.UpdateHiveUserDemographic(ctx, answerIds, true, userUpdatesInput.HiveID)
-			err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
-
-			userData.Message = "User added to hive."
-			userData.Status = "true"
-			userDatas[i] = userData
-		}
+		userDatas[i] = *userData
 	}
 	userOutput.Users = userDatas
-	return userOutput
+	userOutputRslt := &userOutput
+
+	updateUsers, err := m.getUserAll(ctx, impartWealthIDs)
+	if err != nil {
+		return userOutputRslt
+	}
+	userOutputs, impartErr := m.UpdateBulkUserProfile(ctx, updateUsers, false, userOutputRslt)
+	if impartErr != nil {
+		return userOutputRslt
+	}
+	lenUser := len(userOutputRslt.Users)
+	for _, user := range updateUsers {
+		for cnt := 0; cnt < lenUser; cnt++ {
+			if userOutputs.Users[cnt].ImpartWealthID == user.ImpartWealthID && userOutputs.Users[cnt].Value == 1 {
+				userOutputs.Users[cnt].Message = "User updated."
+				userOutputs.Users[cnt].Status = true
+				break
+			}
+		}
+	}
+	return userOutputs
 }
 
-func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) models.UserUpdate {
+func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) *models.UserUpdate {
 	userOutput := models.UserUpdate{}
 	userDatas := make([]models.UserData, len(userUpdatesInput.Users), len(userUpdatesInput.Users))
 	userOutput.Type = userUpdatesInput.Type
-	userOutput.Action = userUpdatesInput.Action
+	impartWealthIDs := make([]interface{}, 0, len(userUpdatesInput.Users))
 	for i, user := range userUpdatesInput.Users {
-		userData := models.UserData{}
+		userData := &models.UserData{}
 		userData.ImpartWealthID = user.ImpartWealthID
-		deleteInput := models.DeleteUserInput{}
-		deleteInput.ImpartWealthID = user.ImpartWealthID
-		deleteInput.DeleteByAdmin = true
-		impartErr := m.DeleteUserProfile(ctx, deleteInput, false)
-		if impartErr != nil {
-			userData.Message = impartErr.Msg()
-			userData.Status = "false"
-			userDatas[i] = userData
-			continue
+		userData.Status = false
+		userData.Message = "No delete activity."
+		if user.ImpartWealthID != "" {
+			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
 		}
-		userData.Message = "User Deleted."
-		userData.Status = "true"
-		userDatas[i] = userData
+		userDatas[i] = *userData
 	}
 	userOutput.Users = userDatas
-	return userOutput
+
+	userOutputRslt := &userOutput
+
+	deleteUser, err := m.getUserAll(ctx, impartWealthIDs)
+	if err != nil || len(deleteUser) == 0 {
+		return userOutputRslt
+	}
+	impartErr := m.DeleteBulkUserProfile(ctx, deleteUser, false)
+	if impartErr != nil {
+		return userOutputRslt
+	}
+	lenUser := len(userOutputRslt.Users)
+	for _, user := range deleteUser {
+		for cnt := 0; cnt < lenUser; cnt++ {
+			if userOutputRslt.Users[cnt].ImpartWealthID == user.ImpartWealthID {
+				userOutputRslt.Users[cnt].Message = "User deleted."
+				userOutputRslt.Users[cnt].Status = true
+				break
+			}
+		}
+	}
+	return userOutputRslt
 }

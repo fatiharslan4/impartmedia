@@ -76,8 +76,9 @@ type UserUpdate struct {
 
 type UserData struct {
 	ImpartWealthID string `json:"impartWealthId"`
-	Status         string `json:"status,omitempty"`
+	Status         bool   `json:"status"`
 	Message        string `json:"message,omitempty"`
+	Value          int    `json:"value"`
 }
 
 type PostUpdate struct {
@@ -87,7 +88,7 @@ type PostUpdate struct {
 
 type PostData struct {
 	PostID  uint64 `json:"postID,omitempty"`
-	Status  string `json:"status,omitempty"`
+	Status  bool   `json:"status"`
 	Message string `json:"message,omitempty"`
 }
 
@@ -98,7 +99,7 @@ type HiveUpdate struct {
 
 type HiveData struct {
 	HiveID  uint64 `json:"hiveID,omitempty"`
-	Status  string `json:"status,omitempty"`
+	Status  bool   `json:"status"`
 	Message string `json:"message,omitempty"`
 }
 
@@ -196,13 +197,13 @@ type PagedFilterResponse struct {
 }
 
 type PagedUserUpdateResponse struct {
-	Users UserUpdate `json:"users"`
+	Users *UserUpdate `json:"users"`
 }
 
 type PagedPostUpdateResponse struct {
-	Posts PostUpdate `json:"posts"`
+	Posts *PostUpdate `json:"posts"`
 }
 
 type PagedHiveUpdateResponse struct {
-	Hives HiveUpdate `json:"hives"`
+	Hives *HiveUpdate `json:"hives"`
 }

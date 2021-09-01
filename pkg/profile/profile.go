@@ -48,7 +48,7 @@ type Service interface {
 	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, impart.Error)
 	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, impart.Error)
 	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error)
-	EditBulkUserDetails(ctx context.Context, gpi models.UserUpdate) (models.UserUpdate, impart.Error)
+	EditBulkUserDetails(ctx context.Context, gpi models.UserUpdate) (*models.UserUpdate, impart.Error)
 
 	DeleteUserByAdmin(ctx context.Context, hardtDelete bool, deleteUser models.DeleteUserInput) impart.Error
 	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, impart.Error)

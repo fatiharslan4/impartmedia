@@ -1067,13 +1067,13 @@ func (ph *profileHandler) EditBulkUserDetails() gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
 			return
 		}
-		input, impartErr := ph.profileService.EditBulkUserDetails(ctx, input)
+		output, impartErr := ph.profileService.EditBulkUserDetails(ctx, input)
 		if impartErr != nil {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
 			return
 		}
 		ctx.JSON(http.StatusOK, models.PagedUserUpdateResponse{
-			Users: input,
+			Users: output,
 		})
 	}
 }

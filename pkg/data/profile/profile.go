@@ -49,8 +49,8 @@ type Store interface {
 	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error)
 	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, error)
 	GetFilterDetails(ctx context.Context) ([]byte, error)
-	EditBulkUserDetails(ctx context.Context, gpi models.UserUpdate) models.UserUpdate
-	DeleteBulkUserDetails(ctx context.Context, gpi models.UserUpdate) models.UserUpdate
+	EditBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate
+	DeleteBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

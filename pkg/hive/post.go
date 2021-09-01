@@ -639,33 +639,43 @@ func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file 
 	return fileResponse, nil
 }
 
-func (s *service) EditBulkPostDetails(ctx context.Context, postUpdate models.PostUpdate) models.PostUpdate {
+func (s *service) EditBulkPostDetails(ctx context.Context, postUpdateInput models.PostUpdate) *models.PostUpdate {
 
 	postOutput := models.PostUpdate{}
-	postDatas := make([]models.PostData, len(postUpdate.Posts), len(postUpdate.Posts))
-	postOutput.Action = postUpdate.Action
+	postDatas := make([]models.PostData, len(postUpdateInput.Posts), len(postUpdateInput.Posts))
+	postOutput.Action = postUpdateInput.Action
+	postIDs := make([]interface{}, 0, len(postUpdateInput.Posts))
 
-	for i, post := range postUpdate.Posts {
-		posts := models.PostData{}
-		posts.PostID = post.PostID
-		_, err := s.postData.GetPost(ctx, post.PostID)
-		if err != nil {
-			posts.Message = "Unable to find the post"
-			posts.Status = "false"
-			postDatas[i] = posts
-			continue
+	for i, post := range postUpdateInput.Posts {
+		postData := &models.PostData{}
+		postData.PostID = post.PostID
+		postData.Status = false
+		postData.Message = "No delete activity."
+		if post.PostID > 0 {
+			postIDs = append(postIDs, (post.PostID))
 		}
-		err = s.postData.DeletePost(ctx, post.PostID)
-		if err != nil {
-			posts.Message = "Unable to delete the post"
-			posts.Status = "false"
-			postDatas[i] = posts
-			continue
-		}
-		posts.Message = "Post Deleted"
-		posts.Status = "true"
-		postDatas[i] = posts
+		postDatas[i] = *postData
 	}
 	postOutput.Posts = postDatas
-	return postOutput
+	postOutputRslt := &postOutput
+
+	updateUsers, err := s.postData.GetPostFromPostids(ctx, postIDs)
+	if err != nil || len(updateUsers) == 0 {
+		return postOutputRslt
+	}
+	err = s.postData.DeletePostFromList(ctx, updateUsers)
+	if err != nil {
+
+	}
+	lenPost := len(postOutputRslt.Posts)
+	for _, post := range updateUsers {
+		for cnt := 0; cnt < lenPost; cnt++ {
+			if postOutputRslt.Posts[cnt].PostID == post.PostID {
+				postOutputRslt.Posts[cnt].Message = "Post deleted."
+				postOutputRslt.Posts[cnt].Status = true
+				break
+			}
+		}
+	}
+	return postOutputRslt
 }

@@ -370,20 +370,20 @@ func (ps *profileService) GetFilterDetails(ctx context.Context) ([]byte, impart.
 	return result, nil
 }
 
-func (ps *profileService) EditBulkUserDetails(ctx context.Context, userUpdates models.UserUpdate) (models.UserUpdate, impart.Error) {
-	userOutput := models.UserUpdate{}
+func (ps *profileService) EditBulkUserDetails(ctx context.Context, userUpdates models.UserUpdate) (*models.UserUpdate, impart.Error) {
+	userOutput := &models.UserUpdate{}
 	if userUpdates.Action == "" {
-		return models.UserUpdate{}, impart.NewError(impart.ErrBadRequest, "Incorrect input details")
+		return nil, impart.NewError(impart.ErrBadRequest, "Incorrect input details")
 	}
 	if userUpdates.Action == "update" {
 		if userUpdates.Type == "" {
-			return models.UserUpdate{}, impart.NewError(impart.ErrBadRequest, "Incorrect input details")
+			return nil, impart.NewError(impart.ErrBadRequest, "Incorrect input details")
 		}
 		if len(userUpdates.Users) == 0 {
-			return models.UserUpdate{}, impart.NewError(impart.ErrBadRequest, "User details not found")
+			return nil, impart.NewError(impart.ErrBadRequest, "User details not found")
 		}
 		if userUpdates.Type == "addto_hive" && userUpdates.HiveID == 0 {
-			return models.UserUpdate{}, impart.NewError(impart.ErrBadRequest, "Missing hive details.")
+			return nil, impart.NewError(impart.ErrBadRequest, "Missing hive details.")
 		}
 		userOutput = ps.profileStore.EditBulkUserDetails(ctx, userUpdates)
 	} else if userUpdates.Action == "delete" {

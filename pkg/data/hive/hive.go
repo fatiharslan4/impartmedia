@@ -16,6 +16,7 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
 
@@ -56,6 +57,8 @@ type Hives interface {
 	GetPostsWithReviewedComments(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetReportedContents(ctx context.Context, getInput GetReportedContentInput) (models.PostComments, *models.NextPage, error)
 	DeleteHive(ctx context.Context, hiveID uint64) error
+	GetHiveFromList(ctx context.Context, hiveIds []interface{}) (dbmodels.HiveSlice, error)
+	DeleteBulkHive(ctx context.Context, hiveIDs dbmodels.HiveSlice) error
 }
 
 func (d *mysqlHiveData) GetHives(ctx context.Context) (dbmodels.HiveSlice, error) {
@@ -207,15 +210,6 @@ func (d *mysqlHiveData) DeleteHive(ctx context.Context, hiveID uint64) error {
 	return nil
 }
 
-func rollbackIfError(tx *sql.Tx, err error, logger *zap.Logger) error {
-	rErr := tx.Rollback()
-	if rErr != nil {
-		logger.Error("unable to rollback transaction", zap.Error(rErr))
-		return fmt.Errorf(rErr.Error(), err)
-	}
-	return err
-}
-
 func (m *mysqlHiveData) UpdateHiveUserDemographic(ctx context.Context, answerIds []uint, status bool, hiveId uint64) error {
 	tx, err := m.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -245,4 +239,82 @@ func (m *mysqlHiveData) UpdateHiveUserDemographic(ctx context.Context, answerIds
 		}
 	}
 	return tx.Commit()
+}
+
+func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.HiveSlice) error {
+	updateQuery := ""
+	updatememberHive := ""
+	updateHiveDemographic := ""
+	currTime := time.Now().In(boil.GetLocation())
+	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
+	userHiveDemo := make(map[uint64]map[uint64]int)
+	dbhiveUserDemographic, _ := dbmodels.HiveUserDemographics().All(ctx, d.db)
+	for _, p := range dbhiveUserDemographic {
+		data := userHiveDemo[uint64(p.HiveID)]
+		if data == nil {
+			count := make(map[uint64]int)
+			count[uint64(p.AnswerID)] = int(p.UserCount)
+			userHiveDemo[uint64(p.HiveID)] = count
+		} else {
+			data[uint64(p.AnswerID)] = int(p.UserCount)
+		}
+	}
+
+	for _, hive := range hiveInput {
+		if hive.HiveID == impart.DefaultHiveID {
+			continue
+		}
+		query := fmt.Sprintf("Update hive set deleted_at='%s' where hive_id='%s';", golangDateTime, hive.HiveID)
+		updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
+		exitingmembers := hive.R.MemberImpartWealthUsers
+		for _, member := range exitingmembers {
+			query := fmt.Sprintf("update hive_members set member_hive_id=%d where member_impart_wealth_id='%s';", impart.DefaultHiveID, member.ImpartWealthID)
+			updatememberHive = fmt.Sprintf("%s %s", updatememberHive, query)
+		}
+		for _, hiveDemo := range dbhiveUserDemographic {
+			if hiveDemo.HiveID == hive.HiveID {
+				userHiveDemo[impart.DefaultHiveID][uint64(hiveDemo.AnswerID)] = userHiveDemo[impart.DefaultHiveID][uint64(hiveDemo.AnswerID)] + userHiveDemo[hive.HiveID][uint64(hiveDemo.AnswerID)]
+				userHiveDemo[hive.HiveID][uint64(hiveDemo.AnswerID)] = 0
+			}
+		}
+	}
+	for hive, demo := range userHiveDemo {
+		for answer, cnt := range demo {
+			query := fmt.Sprintf("update hive_user_demographic set user_count=%d where hive_id=%d and answer_id=%d;", cnt, hive, answer)
+			updateHiveDemographic = fmt.Sprintf("%s %s", updateHiveDemographic, query)
+		}
+	}
+	query := fmt.Sprintf("%s %s %s", updateQuery, updatememberHive, updateHiveDemographic)
+	_, err := queries.Raw(query).ExecContext(ctx, d.db)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func rollbackIfError(tx *sql.Tx, err error, logger *zap.Logger) error {
+	rErr := tx.Rollback()
+	if rErr != nil {
+		logger.Error("unable to rollback transaction", zap.Error(rErr))
+		return fmt.Errorf(rErr.Error(), err)
+	}
+	return err
+}
+
+func (d *mysqlHiveData) GetHiveFromList(ctx context.Context, hiveIds []interface{}) (dbmodels.HiveSlice, error) {
+	clause := WhereIn(fmt.Sprintf("%s in ?", dbmodels.HiveColumns.HiveID), hiveIds...)
+	usersWhere := []QueryMod{
+		clause,
+		Load(dbmodels.HiveRels.HiveUserDemographics),
+		Load(dbmodels.HiveRels.MemberImpartWealthUsers),
+	}
+
+	u, err := dbmodels.Hives(usersWhere...).All(ctx, d.db)
+	if err == sql.ErrNoRows {
+		return nil, impart.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return u, err
 }

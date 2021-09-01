@@ -246,37 +246,39 @@ func (s *service) DeleteHive(ctx context.Context, hiveID uint64) impart.Error {
 	return nil
 }
 
-func (s *service) HiveBulkOperations(ctx context.Context, hiveUpdates models.HiveUpdate) models.HiveUpdate {
-	postOutput := models.HiveUpdate{}
+func (s *service) HiveBulkOperations(ctx context.Context, hiveUpdates models.HiveUpdate) *models.HiveUpdate {
+	hiveOutput := models.HiveUpdate{}
 	hiveDatas := make([]models.HiveData, len(hiveUpdates.Hives), len(hiveUpdates.Hives))
-	postOutput.Action = hiveUpdates.Action
+	hiveOutput.Action = hiveUpdates.Action
+	HiveIds := make([]interface{}, 0, len(hiveUpdates.Hives))
 	for i, hive := range hiveUpdates.Hives {
-		hives := models.HiveData{}
+		hives := &models.HiveData{}
 		hives.HiveID = hive.HiveID
-		if hive.HiveID == impart.DefaultHiveID {
-			hives.Message = "You cannot delete the default hive."
-			hives.Status = "false"
-			hiveDatas[i] = hives
-			continue
+		hives.Message = "No delete activity."
+		hives.Status = false
+		if hive.HiveID > 0 {
+			HiveIds = append(HiveIds, (hive.HiveID))
 		}
-		_, err := s.hiveData.GetHive(ctx, hive.HiveID)
-		if err != nil {
-			hives.Message = "Unable to find the hive."
-			hives.Status = "false"
-			hiveDatas[i] = hives
-			continue
-		}
-		err = s.hiveData.DeleteHive(ctx, hive.HiveID)
-		if err != nil {
-			hives.Message = "Unable to delete the hive."
-			hives.Status = "false"
-			hiveDatas[i] = hives
-			continue
-		}
-		hives.Message = "Hive deleted"
-		hives.Status = "true"
-		hiveDatas[i] = hives
+		hiveDatas[i] = *hives
 	}
-	postOutput.Hives = hiveDatas
-	return postOutput
+	hiveOutput.Hives = hiveDatas
+	hiveOutputRslt := &hiveOutput
+
+	hivesop, err := s.hiveData.GetHiveFromList(ctx, HiveIds)
+
+	if err != nil || len(hivesop) > 0 {
+		return hiveOutputRslt
+	}
+	err = s.hiveData.DeleteBulkHive(ctx, hivesop)
+	lenhive := len(hiveOutputRslt.Hives)
+	for _, hive := range hivesop {
+		for cnt := 0; cnt < lenhive; cnt++ {
+			if hiveOutputRslt.Hives[cnt].HiveID == hive.HiveID && hive.HiveID != impart.DefaultHiveID {
+				hiveOutputRslt.Hives[cnt].Message = "Hive deleted."
+				hiveOutputRslt.Hives[cnt].Status = true
+				break
+			}
+		}
+	}
+	return hiveOutputRslt
 }

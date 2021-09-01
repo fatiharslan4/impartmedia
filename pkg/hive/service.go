@@ -56,8 +56,8 @@ type Service interface {
 
 	UploadFile(files []models.File) error
 
-	EditBulkPostDetails(ctx context.Context, postUpdate models.PostUpdate) models.PostUpdate
-	HiveBulkOperations(ctx context.Context, hiveUpdate models.HiveUpdate) models.HiveUpdate
+	EditBulkPostDetails(ctx context.Context, postUpdate models.PostUpdate) *models.PostUpdate
+	HiveBulkOperations(ctx context.Context, hiveUpdate models.HiveUpdate) *models.HiveUpdate
 }
 
 const maxNotificationLength = 512

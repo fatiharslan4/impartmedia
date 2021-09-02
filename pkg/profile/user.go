@@ -353,7 +353,7 @@ func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitLi
 	return msg, nil
 }
 
-func (ps *profileService) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, impart.Error) {
+func (ps *profileService) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, impart.Error) {
 	result, nextPage, err := ps.profileStore.GetHiveDetails(ctx, gpi)
 	if err != nil {
 		ps.Logger().Error("Error in data fetching", zap.Error(err))
@@ -368,4 +368,26 @@ func (ps *profileService) GetFilterDetails(ctx context.Context) ([]byte, impart.
 		return nil, impart.NewError(impart.ErrNotFound, "Filter data fetching failed.")
 	}
 	return result, nil
+}
+
+func (ps *profileService) EditBulkUserDetails(ctx context.Context, userUpdates models.UserUpdate) (*models.UserUpdate, impart.Error) {
+	userOutput := &models.UserUpdate{}
+	if userUpdates.Action == "" {
+		return nil, impart.NewError(impart.ErrBadRequest, "Incorrect input details")
+	}
+	if userUpdates.Action == "update" {
+		if userUpdates.Type == "" {
+			return nil, impart.NewError(impart.ErrBadRequest, "Incorrect input details")
+		}
+		if len(userUpdates.Users) == 0 {
+			return nil, impart.NewError(impart.ErrBadRequest, "User details not found")
+		}
+		if userUpdates.Type == "addto_hive" && userUpdates.HiveID == 0 {
+			return nil, impart.NewError(impart.ErrBadRequest, "Missing hive details.")
+		}
+		userOutput = ps.profileStore.EditBulkUserDetails(ctx, userUpdates)
+	} else if userUpdates.Action == "delete" {
+		userOutput = ps.profileStore.DeleteBulkUserDetails(ctx, userUpdates)
+	}
+	return userOutput, nil
 }

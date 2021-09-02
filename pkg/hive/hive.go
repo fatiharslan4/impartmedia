@@ -245,3 +245,43 @@ func (s *service) DeleteHive(ctx context.Context, hiveID uint64) impart.Error {
 
 	return nil
 }
+
+func (s *service) HiveBulkOperations(ctx context.Context, hiveUpdates models.HiveUpdate) *models.HiveUpdate {
+	hiveOutput := models.HiveUpdate{}
+	hiveDatas := make([]models.HiveData, len(hiveUpdates.Hives), len(hiveUpdates.Hives))
+	hiveOutput.Action = hiveUpdates.Action
+	HiveIds := make([]interface{}, 0, len(hiveUpdates.Hives))
+	for i, hive := range hiveUpdates.Hives {
+		hives := &models.HiveData{}
+		hives.HiveID = hive.HiveID
+		hives.Message = "No delete activity."
+		hives.Status = false
+		if hive.HiveID > 0 {
+			HiveIds = append(HiveIds, (hive.HiveID))
+		}
+		hiveDatas[i] = *hives
+	}
+	hiveOutput.Hives = hiveDatas
+	hiveOutputRslt := &hiveOutput
+
+	hivesop, err := s.hiveData.GetHiveFromList(ctx, HiveIds)
+
+	if err != nil || len(hivesop) == 0 {
+		return hiveOutputRslt
+	}
+	err = s.hiveData.DeleteBulkHive(ctx, hivesop)
+	if err != nil {
+		return hiveOutputRslt
+	}
+	lenhive := len(hiveOutputRslt.Hives)
+	for _, hive := range hivesop {
+		for cnt := 0; cnt < lenhive; cnt++ {
+			if hiveOutputRslt.Hives[cnt].HiveID == hive.HiveID && hive.HiveID != impart.DefaultHiveID {
+				hiveOutputRslt.Hives[cnt].Message = "Hive deleted."
+				hiveOutputRslt.Hives[cnt].Status = true
+				break
+			}
+		}
+	}
+	return hiveOutputRslt
+}

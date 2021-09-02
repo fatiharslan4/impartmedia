@@ -17,6 +17,8 @@ type GetAdminInputs struct {
 	// search is the optional to filter on
 	SearchKey string
 	SearchIDs string
+	SortBy    string
+	SortOrder string
 }
 
 type UserDetails []UserDetail
@@ -34,6 +36,9 @@ type UserDetail struct {
 	Gender         string    `json:"gender" `
 	Race           string    `json:"race" `
 	Financialgoals string    `json:"financialgoals" `
+	Industry       string    `json:"industry"`
+	Career         string    `json:"career"`
+	Income         string    `json:"income"`
 	LastLoginAt    string    `json:"last_login_at"`
 	SuperAdmin     bool      `json:"super_admin"`
 	AnswerIds      string    `json:"answer_ids"`
@@ -67,6 +72,42 @@ type PostDetail struct {
 	UrlDescription string    `json:"url_description" `
 	UrlPostUrl     string    `json:"url_post_url" `
 	Tags           string    `json:"tag" `
+}
+
+type UserUpdate struct {
+	Type   string     `json:"type,omitempty"`
+	Action string     `json:"action"`
+	HiveID uint64     `json:"hiveID,omitempty"`
+	Users  []UserData `json:"users,omitempty"`
+}
+
+type UserData struct {
+	ImpartWealthID string `json:"impartWealthId"`
+	Status         bool   `json:"status"`
+	Message        string `json:"message,omitempty"`
+	Value          int    `json:"value"`
+}
+
+type PostUpdate struct {
+	Action string     `json:"action"`
+	Posts  []PostData `json:"posts,omitempty"`
+}
+
+type PostData struct {
+	PostID  uint64 `json:"postID,omitempty"`
+	Status  bool   `json:"status"`
+	Message string `json:"message,omitempty"`
+}
+
+type HiveUpdate struct {
+	Action string     `json:"action"`
+	Hives  []HiveData `json:"hives,omitempty"`
+}
+
+type HiveData struct {
+	HiveID  uint64 `json:"hiveID,omitempty"`
+	Status  bool   `json:"status"`
+	Message string `json:"message,omitempty"`
 }
 
 func PostsData(dbPosts dbmodels.PostSlice) PostDetails {
@@ -153,8 +194,8 @@ type PagedPostResponse struct {
 }
 
 type PagedHiveResponse struct {
-	Hive     []map[string]string `json:"hives"`
-	NextPage *NextPage           `json:"nextPage"`
+	Hive     []map[string]interface{} `json:"hives"`
+	NextPage *NextPage                `json:"nextPage"`
 }
 
 type MemberHives []MemberHive
@@ -165,10 +206,22 @@ type MemberHive struct {
 
 type DemographicHivesCounts []DemographicHivesCount
 type DemographicHivesCount struct {
-	Count        string `json:"count"`
+	Count        int    `json:"count"`
 	MemberHiveId uint64 `json:"member_hive_id"  `
 }
 
 type PagedFilterResponse struct {
 	Filter impart.FilterEnum `json:"filter"`
+}
+
+type PagedUserUpdateResponse struct {
+	Users *UserUpdate `json:"users"`
+}
+
+type PagedPostUpdateResponse struct {
+	Posts *PostUpdate `json:"posts"`
+}
+
+type PagedHiveUpdateResponse struct {
+	Hives *HiveUpdate `json:"hives"`
 }

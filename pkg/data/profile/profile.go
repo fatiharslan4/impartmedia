@@ -19,7 +19,7 @@ type Store interface {
 	GetProfile(ctx context.Context, impartWealthId string) (*dbmodels.Profile, error)
 	UpdateProfile(ctx context.Context, user *dbmodels.User, profile *dbmodels.Profile) error
 	DeleteProfile(ctx context.Context, impartWealthID string, hardDelete bool) error
-	DeleteUserProfile(ctx context.Context, gpi models.DeleteUserInput, hardDelete bool) error
+	DeleteUserProfile(ctx context.Context, gpi models.DeleteUserInput, hardDelete bool) impart.Error
 	GetQuestionnaire(ctx context.Context, name string, version *uint) (*dbmodels.Questionnaire, error)
 	GetAllCurrentQuestionnaires(ctx context.Context) (dbmodels.QuestionnaireSlice, error)
 	GetUserQuestionnaires(ctx context.Context, impartWealthId string, questionnaireName *string) (dbmodels.QuestionnaireSlice, error)
@@ -47,8 +47,10 @@ type Store interface {
 	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, error)
 	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, error)
 	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error)
-	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, error)
+	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, error)
 	GetFilterDetails(ctx context.Context) ([]byte, error)
+	EditBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate
+	DeleteBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

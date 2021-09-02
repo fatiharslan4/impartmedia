@@ -3,9 +3,9 @@ package profile
 import (
 	"context"
 	"database/sql"
+	"sort"
 
 	"fmt"
-	"strconv"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -36,6 +36,11 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	}
 	var err error
 	extraQery := ""
+	if gpi.SortBy == "" {
+		gpi.SortBy = fmt.Sprintf(`email asc`)
+	} else {
+		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+	}
 	inputQuery := fmt.Sprintf(`SELECT 
 					user.impart_wealth_id,
 					CASE WHEN user.blocked = 1 THEN '[Account Deleted]' 
@@ -164,9 +169,9 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 	}
 	orderby := fmt.Sprintf(`			
-			group by user.impart_wealth_id
-			order by user.email asc
-			LIMIT ? OFFSET ?`)
+	group by user.impart_wealth_id
+	order by %s `, gpi.SortBy)
+	orderby = fmt.Sprintf("%s LIMIT ? OFFSET ?", orderby)
 	if gpi.SearchKey != "" {
 		extraQery = fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
@@ -178,7 +183,6 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		}
 	} else {
 		inputQuery = inputQuery + orderby
-		fmt.Println(inputQuery)
 		if gpi.SearchIDs != "" {
 			err = queries.Raw(inputQuery, ",("+gpi.SearchIDs+"),", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 		} else {
@@ -209,20 +213,37 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 	} else if gpi.Limit > maxLimit {
 		gpi.Limit = maxLimit
 	}
-	orderByMod := qm.OrderBy("created_at desc, post_id desc")
-
 	clause := qm.Where(fmt.Sprintf("post.deleted_at is null"))
 	queryMods := []qm.QueryMod{
 		clause,
 		qm.Offset(gpi.Offset),
 		qm.Limit(gpi.Limit),
-		orderByMod,
 		qm.Load(dbmodels.PostRels.Tags),
+		// orderByMod,
 		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
 		qm.Load(dbmodels.PostRels.PostFiles),
 		qm.Load(dbmodels.PostRels.PostVideos),
 		qm.Load(dbmodels.PostRels.PostUrls),
 		qm.Load("PostFiles.FidFile"), // get files
+	}
+	sortByUser := false
+	if gpi.SortBy == "" {
+		queryMods = append(queryMods, qm.OrderBy("created_at desc, post_id desc"))
+	} else {
+		if gpi.SortBy == "subject" || gpi.SortBy == "hive_id" || gpi.SortBy == "content" || gpi.SortBy == "created_at" || gpi.SortBy == "pinned" || gpi.SortBy == "comment_count" || gpi.SortBy == "reported" {
+			if gpi.SortBy == "reported" {
+				if gpi.SortOrder == "desc" {
+					gpi.SortOrder = "asc"
+				} else if gpi.SortOrder == "asc" {
+					gpi.SortOrder = "desc"
+				}
+				gpi.SortBy = "reviewed"
+			}
+			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+		} else if gpi.SortBy == "email" || gpi.SortBy == "screen_name" {
+			sortByUser = true
+		}
 	}
 	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null `)
 	queryMods = append(queryMods, qm.InnerJoin(where))
@@ -230,6 +251,15 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null 
 		and (user.screen_name like ? or user.email like ? ) `)
 		queryMods = append(queryMods, qm.InnerJoin(where, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%"))
+		if sortByUser {
+			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+		}
+	} else if gpi.SortBy != "" && sortByUser {
+		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null `)
+		queryMods = append(queryMods, qm.InnerJoin(where))
+		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+		queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
 	}
 	posts, err := dbmodels.Posts(queryMods...).All(ctx, m.db)
 
@@ -319,7 +349,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 	return msg, nil
 }
 
-func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, error) {
+func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, error) {
 	outOffset := &models.NextPage{
 		Offset: gpi.Offset,
 	}
@@ -348,7 +378,7 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 	i := 0
 	totalCnt := 0
 	lenHive := 0
-	indexes := make(map[uint]string)
+	indexes := make(map[uint]int)
 	var memberHives []models.DemographicHivesCount
 	err = queries.Raw(`
 	select member_hive_id , count(member_hive_id) count
@@ -372,29 +402,40 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 		preHiveId = int(p.HiveID)
 	}
 	preHiveId = 0
-	hives := make([]map[string]string, lenHive, lenHive)
-	hive := make(map[string]string)
+	hives := make([]map[string]interface{}, lenHive, lenHive)
+	hive := make(map[string]interface{})
 	for _, p := range demographic {
 		hiveId = int(p.HiveID)
 		if hiveId != preHiveId && preHiveId != 0 {
 			hives[i] = hive
-			hive = make(map[string]string)
+			hive = make(map[string]interface{})
 			i = i + 1
 			totalCnt = 0
 		}
-		hive["hive_id"] = strconv.Itoa(hiveId)
+		hive["hive_id"] = hiveId
 		if (p.R.Hive.CreatedAt == null.Time{}) {
 			hive["date created"] = "NA"
 		} else {
-			hive["date created"] = fmt.Sprintf("%s", p.R.Hive.CreatedAt.Time)
+			hive["date created"] = p.R.Hive.CreatedAt
 		}
-		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.AnswerName)] = strconv.Itoa(int(p.UserCount))
+		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.AnswerName)] = int(p.UserCount)
 		totalCnt = totalCnt + int(p.UserCount)
-		hive["users"] = indexes[uint(p.HiveID)]
+		hive["users"] = int(indexes[uint(p.HiveID)])
 		preHiveId = int(p.HiveID)
 	}
 	hives[i] = hive
-
+	if gpi.SortBy != "" {
+		fmt.Println(gpi.SortBy)
+		if gpi.SortOrder == "desc" {
+			sort.Slice(hives, func(i, j int) bool {
+				return hives[i][gpi.SortBy] == hives[j][gpi.SortBy]
+			})
+		} else {
+			sort.Slice(hives, func(i, j int) bool {
+				return hives[i][gpi.SortBy] != hives[j][gpi.SortBy]
+			})
+		}
+	}
 	return hives, outOffset, nil
 
 }

@@ -845,15 +845,15 @@ func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 			return
 		}
 		filterId, inMap := params["filters"]
-		fmt.Println(filterId)
 		if inMap {
 			newStr := strings.Join(filterId, " ")
 			newStr = strings.ReplaceAll(newStr, ",", "|")
 			gpi.SearchIDs = newStr
-			fmt.Println("gpi.SearchIDs")
-			fmt.Println(gpi.SearchIDs)
 		}
-
+		if sort := strings.TrimSpace(params.Get("sort_by")); sort != "" {
+			gpi.SortBy = strings.TrimSpace(params.Get("sort_by"))
+			gpi.SortOrder = strings.TrimSpace(params.Get("order"))
+		}
 		users, nextPage, impartErr := ph.profileService.GetUsersDetails(ctx, gpi)
 		if impartErr != nil {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
@@ -879,6 +879,11 @@ func (ph *profileHandler) GetPostDetails() gin.HandlerFunc {
 
 		if search := strings.TrimSpace(params.Get("q")); search != "" {
 			gpi.SearchKey = strings.TrimSpace(params.Get("q"))
+		}
+
+		if sort := strings.TrimSpace(params.Get("sort_by")); sort != "" {
+			gpi.SortBy = strings.TrimSpace(params.Get("sort_by"))
+			gpi.SortOrder = strings.TrimSpace(params.Get("order"))
 		}
 
 		var err error
@@ -1001,7 +1006,11 @@ func (ph *profileHandler) GetHiveDetails() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-
+		params := ctx.Request.URL.Query()
+		if sort := strings.TrimSpace(params.Get("sort_by")); sort != "" {
+			gpi.SortBy = strings.TrimSpace(params.Get("sort_by"))
+			gpi.SortOrder = strings.TrimSpace(params.Get("order"))
+		}
 		hives, nextPage, impartErr := ph.profileService.GetHiveDetails(ctx, gpi)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))

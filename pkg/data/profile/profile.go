@@ -47,7 +47,7 @@ type Store interface {
 	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, error)
 	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, error)
 	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error)
-	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]string, *models.NextPage, error)
+	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, error)
 	GetFilterDetails(ctx context.Context) ([]byte, error)
 	EditBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate
 	DeleteBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate

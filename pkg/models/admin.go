@@ -17,6 +17,8 @@ type GetAdminInputs struct {
 	// search is the optional to filter on
 	SearchKey string
 	SearchIDs string
+	SortBy    string
+	SortOrder string
 }
 
 type UserDetails []UserDetail
@@ -192,8 +194,8 @@ type PagedPostResponse struct {
 }
 
 type PagedHiveResponse struct {
-	Hive     []map[string]string `json:"hives"`
-	NextPage *NextPage           `json:"nextPage"`
+	Hive     []map[string]interface{} `json:"hives"`
+	NextPage *NextPage                `json:"nextPage"`
 }
 
 type MemberHives []MemberHive
@@ -204,7 +206,7 @@ type MemberHive struct {
 
 type DemographicHivesCounts []DemographicHivesCount
 type DemographicHivesCount struct {
-	Count        string `json:"count"`
+	Count        int    `json:"count"`
 	MemberHiveId uint64 `json:"member_hive_id"  `
 }
 

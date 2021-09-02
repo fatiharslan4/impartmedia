@@ -3,6 +3,8 @@ package data
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -31,6 +33,8 @@ type Posts interface {
 	GetReportedUser(ctx context.Context, posts models.Posts) (models.Posts, error)
 	NewPostVideo(ctx context.Context, post *dbmodels.PostVideo) (*dbmodels.PostVideo, error)
 	NewPostUrl(ctx context.Context, post *dbmodels.PostURL) (*dbmodels.PostURL, error)
+	GetPostFromPostids(ctx context.Context, postIDs []interface{}) (dbmodels.PostSlice, error)
+	DeletePostFromList(ctx context.Context, posts dbmodels.PostSlice) error
 }
 
 // GetPost gets a single post and it's associated content
@@ -372,4 +376,40 @@ func (s *mysqlHiveData) AddPostFilesDBEdit(ctx context.Context, post *dbmodels.P
 
 	}
 	return fileResponse, nil
+}
+
+//// GetPost gets a all post with given postIds
+func (d *mysqlHiveData) GetPostFromPostids(ctx context.Context, postIDs []interface{}) (dbmodels.PostSlice, error) {
+
+	clause := qm.WhereIn("post.post_id in ?", postIDs...)
+	queryMods := []qm.QueryMod{
+		clause,
+		qm.Load(dbmodels.PostRels.PostReactions),
+		qm.Load(dbmodels.PostRels.ImpartWealth),
+		qm.Load(dbmodels.PostRels.PostFiles),
+		qm.Load(dbmodels.PostRels.PostVideos),
+		qm.Load(dbmodels.PostRels.PostUrls),
+		qm.Load("PostFiles.FidFile"),
+	}
+	posts, err := dbmodels.Posts(queryMods...).All(ctx, d.db)
+	if err != nil {
+		return nil, err
+	}
+	return posts, nil
+}
+
+//// Delete all post with given postIds
+func (d *mysqlHiveData) DeletePostFromList(ctx context.Context, posts dbmodels.PostSlice) error {
+	updateQuery := ""
+	currTime := time.Now().In(boil.GetLocation())
+	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
+	for _, post := range posts {
+		query := fmt.Sprintf("Update post set deleted_at='%s'  where post_id=%d;", golangDateTime, post.PostID)
+		updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
+	}
+	_, err := queries.Raw(updateQuery).ExecContext(ctx, d.db)
+	if err != nil {
+		return err
+	}
+	return nil
 }

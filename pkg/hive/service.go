@@ -55,6 +55,9 @@ type Service interface {
 	GetReportedContents(ctx context.Context, getInput data.GetReportedContentInput) (models.PostComments, *models.NextPage, error)
 
 	UploadFile(files []models.File) error
+
+	EditBulkPostDetails(ctx context.Context, postUpdate models.PostUpdate) *models.PostUpdate
+	HiveBulkOperations(ctx context.Context, hiveUpdate models.HiveUpdate) *models.HiveUpdate
 }
 
 const maxNotificationLength = 512

@@ -191,6 +191,7 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		qm.Offset(gpi.Offset),
 		qm.Limit(gpi.Limit),
 		orderByMod,
+		qm.Load(dbmodels.PostRels.Tags),
 		qm.Load(dbmodels.PostRels.ImpartWealth), // the user who posted
 		qm.Load(dbmodels.PostRels.PostFiles),
 		qm.Load(dbmodels.PostRels.PostVideos),

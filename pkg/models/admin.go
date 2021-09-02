@@ -34,6 +34,9 @@ type UserDetail struct {
 	Gender         string    `json:"gender" `
 	Race           string    `json:"race" `
 	Financialgoals string    `json:"financialgoals" `
+	Industry       string    `json:"industry"`
+	Career         string    `json:"career"`
+	Income         string    `json:"income"`
 	LastLoginAt    string    `json:"last_login_at"`
 	SuperAdmin     bool      `json:"super_admin"`
 	AnswerIds      string    `json:"answer_ids"`

@@ -1,8 +1,8 @@
 SET @onboarding_id =1;
 INSERT INTO question (questionnaire_id, question_name, sort_order, text, type_id) VALUES
-(@onboarding_id, 'Industry', 90, 'What industry do you work in?', 'SINGLE'),
+(@onboarding_id, 'Industry', 70, 'What industry do you work in?', 'SINGLE'),
 (@onboarding_id, 'Career', 80, 'What is your career level?', 'SINGLE'),
-(@onboarding_id, 'Income', 70, 'What is your income range?', 'SINGLE');
+(@onboarding_id, 'Income', 90, 'What is your income range?', 'SINGLE');
 
 
 SET @question_name =  'Industry';
@@ -44,7 +44,8 @@ SET @question_id = (select max(question_id) from question
                     where questionnaire_id = @onboarding_id and question_name = @question_name);
 INSERT INTO answer (question_id, answer_name, sort_order, text) VALUES
 (@question_id, 'Income0', 10, 'Less than $20,000'),
-(@question_id, 'Income1', 20, '$20,000 - $44,999'),
-(@question_id, 'Income2', 30, '$45,000 - $95,000'),
-(@question_id, 'Income3', 40, '$95,000 - 120,000'),
-(@question_id, 'Income4', 50, '$120,000+');
+(@question_id, 'Income1', 20, '$20,000 - $50,000'),
+(@question_id, 'Income2', 30, '$50,000 - $100,000'),
+(@question_id, 'Income3', 40, '$100,000 - $150,000'),
+(@question_id, 'Income4', 50, '$150,000 - $250,000'),
+(@question_id, 'Income5', 60, '$250,000+');

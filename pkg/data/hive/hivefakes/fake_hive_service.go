@@ -36,6 +36,18 @@ type FakeHiveService struct {
 	addUpVoteReturnsOnCall map[int]struct {
 		result1 error
 	}
+	DeleteBulkHiveStub        func(context.Context, dbmodels.HiveSlice) error
+	deleteBulkHiveMutex       sync.RWMutex
+	deleteBulkHiveArgsForCall []struct {
+		arg1 context.Context
+		arg2 dbmodels.HiveSlice
+	}
+	deleteBulkHiveReturns struct {
+		result1 error
+	}
+	deleteBulkHiveReturnsOnCall map[int]struct {
+		result1 error
+	}
 	DeleteCommentStub        func(context.Context, uint64) error
 	deleteCommentMutex       sync.RWMutex
 	deleteCommentArgsForCall []struct {
@@ -70,6 +82,18 @@ type FakeHiveService struct {
 		result1 error
 	}
 	deletePostReturnsOnCall map[int]struct {
+		result1 error
+	}
+	DeletePostFromListStub        func(context.Context, dbmodels.PostSlice) error
+	deletePostFromListMutex       sync.RWMutex
+	deletePostFromListArgsForCall []struct {
+		arg1 context.Context
+		arg2 dbmodels.PostSlice
+	}
+	deletePostFromListReturns struct {
+		result1 error
+	}
+	deletePostFromListReturnsOnCall map[int]struct {
 		result1 error
 	}
 	EditCommentStub        func(context.Context, *dbmodels.Comment) (*dbmodels.Comment, error)
@@ -166,6 +190,20 @@ type FakeHiveService struct {
 		result1 *dbmodels.Hive
 		result2 error
 	}
+	GetHiveFromListStub        func(context.Context, []interface{}) (dbmodels.HiveSlice, error)
+	getHiveFromListMutex       sync.RWMutex
+	getHiveFromListArgsForCall []struct {
+		arg1 context.Context
+		arg2 []interface{}
+	}
+	getHiveFromListReturns struct {
+		result1 dbmodels.HiveSlice
+		result2 error
+	}
+	getHiveFromListReturnsOnCall map[int]struct {
+		result1 dbmodels.HiveSlice
+		result2 error
+	}
 	GetHivesStub        func(context.Context) (dbmodels.HiveSlice, error)
 	getHivesMutex       sync.RWMutex
 	getHivesArgsForCall []struct {
@@ -191,6 +229,20 @@ type FakeHiveService struct {
 	}
 	getPostReturnsOnCall map[int]struct {
 		result1 *dbmodels.Post
+		result2 error
+	}
+	GetPostFromPostidsStub        func(context.Context, []interface{}) (dbmodels.PostSlice, error)
+	getPostFromPostidsMutex       sync.RWMutex
+	getPostFromPostidsArgsForCall []struct {
+		arg1 context.Context
+		arg2 []interface{}
+	}
+	getPostFromPostidsReturns struct {
+		result1 dbmodels.PostSlice
+		result2 error
+	}
+	getPostFromPostidsReturnsOnCall map[int]struct {
+		result1 dbmodels.PostSlice
 		result2 error
 	}
 	GetPostsStub        func(context.Context, data.GetPostsInput) (dbmodels.PostSlice, *models.NextPage, error)
@@ -630,6 +682,68 @@ func (fake *FakeHiveService) AddUpVoteReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeHiveService) DeleteBulkHive(arg1 context.Context, arg2 dbmodels.HiveSlice) error {
+	fake.deleteBulkHiveMutex.Lock()
+	ret, specificReturn := fake.deleteBulkHiveReturnsOnCall[len(fake.deleteBulkHiveArgsForCall)]
+	fake.deleteBulkHiveArgsForCall = append(fake.deleteBulkHiveArgsForCall, struct {
+		arg1 context.Context
+		arg2 dbmodels.HiveSlice
+	}{arg1, arg2})
+	stub := fake.DeleteBulkHiveStub
+	fakeReturns := fake.deleteBulkHiveReturns
+	fake.recordInvocation("DeleteBulkHive", []interface{}{arg1, arg2})
+	fake.deleteBulkHiveMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeHiveService) DeleteBulkHiveCallCount() int {
+	fake.deleteBulkHiveMutex.RLock()
+	defer fake.deleteBulkHiveMutex.RUnlock()
+	return len(fake.deleteBulkHiveArgsForCall)
+}
+
+func (fake *FakeHiveService) DeleteBulkHiveCalls(stub func(context.Context, dbmodels.HiveSlice) error) {
+	fake.deleteBulkHiveMutex.Lock()
+	defer fake.deleteBulkHiveMutex.Unlock()
+	fake.DeleteBulkHiveStub = stub
+}
+
+func (fake *FakeHiveService) DeleteBulkHiveArgsForCall(i int) (context.Context, dbmodels.HiveSlice) {
+	fake.deleteBulkHiveMutex.RLock()
+	defer fake.deleteBulkHiveMutex.RUnlock()
+	argsForCall := fake.deleteBulkHiveArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeHiveService) DeleteBulkHiveReturns(result1 error) {
+	fake.deleteBulkHiveMutex.Lock()
+	defer fake.deleteBulkHiveMutex.Unlock()
+	fake.DeleteBulkHiveStub = nil
+	fake.deleteBulkHiveReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) DeleteBulkHiveReturnsOnCall(i int, result1 error) {
+	fake.deleteBulkHiveMutex.Lock()
+	defer fake.deleteBulkHiveMutex.Unlock()
+	fake.DeleteBulkHiveStub = nil
+	if fake.deleteBulkHiveReturnsOnCall == nil {
+		fake.deleteBulkHiveReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.deleteBulkHiveReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeHiveService) DeleteComment(arg1 context.Context, arg2 uint64) error {
 	fake.deleteCommentMutex.Lock()
 	ret, specificReturn := fake.deleteCommentReturnsOnCall[len(fake.deleteCommentArgsForCall)]
@@ -812,6 +926,68 @@ func (fake *FakeHiveService) DeletePostReturnsOnCall(i int, result1 error) {
 		})
 	}
 	fake.deletePostReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) DeletePostFromList(arg1 context.Context, arg2 dbmodels.PostSlice) error {
+	fake.deletePostFromListMutex.Lock()
+	ret, specificReturn := fake.deletePostFromListReturnsOnCall[len(fake.deletePostFromListArgsForCall)]
+	fake.deletePostFromListArgsForCall = append(fake.deletePostFromListArgsForCall, struct {
+		arg1 context.Context
+		arg2 dbmodels.PostSlice
+	}{arg1, arg2})
+	stub := fake.DeletePostFromListStub
+	fakeReturns := fake.deletePostFromListReturns
+	fake.recordInvocation("DeletePostFromList", []interface{}{arg1, arg2})
+	fake.deletePostFromListMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeHiveService) DeletePostFromListCallCount() int {
+	fake.deletePostFromListMutex.RLock()
+	defer fake.deletePostFromListMutex.RUnlock()
+	return len(fake.deletePostFromListArgsForCall)
+}
+
+func (fake *FakeHiveService) DeletePostFromListCalls(stub func(context.Context, dbmodels.PostSlice) error) {
+	fake.deletePostFromListMutex.Lock()
+	defer fake.deletePostFromListMutex.Unlock()
+	fake.DeletePostFromListStub = stub
+}
+
+func (fake *FakeHiveService) DeletePostFromListArgsForCall(i int) (context.Context, dbmodels.PostSlice) {
+	fake.deletePostFromListMutex.RLock()
+	defer fake.deletePostFromListMutex.RUnlock()
+	argsForCall := fake.deletePostFromListArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeHiveService) DeletePostFromListReturns(result1 error) {
+	fake.deletePostFromListMutex.Lock()
+	defer fake.deletePostFromListMutex.Unlock()
+	fake.DeletePostFromListStub = nil
+	fake.deletePostFromListReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) DeletePostFromListReturnsOnCall(i int, result1 error) {
+	fake.deletePostFromListMutex.Lock()
+	defer fake.deletePostFromListMutex.Unlock()
+	fake.DeletePostFromListStub = nil
+	if fake.deletePostFromListReturnsOnCall == nil {
+		fake.deletePostFromListReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.deletePostFromListReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -1222,6 +1398,76 @@ func (fake *FakeHiveService) GetHiveReturnsOnCall(i int, result1 *dbmodels.Hive,
 	}{result1, result2}
 }
 
+func (fake *FakeHiveService) GetHiveFromList(arg1 context.Context, arg2 []interface{}) (dbmodels.HiveSlice, error) {
+	var arg2Copy []interface{}
+	if arg2 != nil {
+		arg2Copy = make([]interface{}, len(arg2))
+		copy(arg2Copy, arg2)
+	}
+	fake.getHiveFromListMutex.Lock()
+	ret, specificReturn := fake.getHiveFromListReturnsOnCall[len(fake.getHiveFromListArgsForCall)]
+	fake.getHiveFromListArgsForCall = append(fake.getHiveFromListArgsForCall, struct {
+		arg1 context.Context
+		arg2 []interface{}
+	}{arg1, arg2Copy})
+	stub := fake.GetHiveFromListStub
+	fakeReturns := fake.getHiveFromListReturns
+	fake.recordInvocation("GetHiveFromList", []interface{}{arg1, arg2Copy})
+	fake.getHiveFromListMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeHiveService) GetHiveFromListCallCount() int {
+	fake.getHiveFromListMutex.RLock()
+	defer fake.getHiveFromListMutex.RUnlock()
+	return len(fake.getHiveFromListArgsForCall)
+}
+
+func (fake *FakeHiveService) GetHiveFromListCalls(stub func(context.Context, []interface{}) (dbmodels.HiveSlice, error)) {
+	fake.getHiveFromListMutex.Lock()
+	defer fake.getHiveFromListMutex.Unlock()
+	fake.GetHiveFromListStub = stub
+}
+
+func (fake *FakeHiveService) GetHiveFromListArgsForCall(i int) (context.Context, []interface{}) {
+	fake.getHiveFromListMutex.RLock()
+	defer fake.getHiveFromListMutex.RUnlock()
+	argsForCall := fake.getHiveFromListArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeHiveService) GetHiveFromListReturns(result1 dbmodels.HiveSlice, result2 error) {
+	fake.getHiveFromListMutex.Lock()
+	defer fake.getHiveFromListMutex.Unlock()
+	fake.GetHiveFromListStub = nil
+	fake.getHiveFromListReturns = struct {
+		result1 dbmodels.HiveSlice
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeHiveService) GetHiveFromListReturnsOnCall(i int, result1 dbmodels.HiveSlice, result2 error) {
+	fake.getHiveFromListMutex.Lock()
+	defer fake.getHiveFromListMutex.Unlock()
+	fake.GetHiveFromListStub = nil
+	if fake.getHiveFromListReturnsOnCall == nil {
+		fake.getHiveFromListReturnsOnCall = make(map[int]struct {
+			result1 dbmodels.HiveSlice
+			result2 error
+		})
+	}
+	fake.getHiveFromListReturnsOnCall[i] = struct {
+		result1 dbmodels.HiveSlice
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeHiveService) GetHives(arg1 context.Context) (dbmodels.HiveSlice, error) {
 	fake.getHivesMutex.Lock()
 	ret, specificReturn := fake.getHivesReturnsOnCall[len(fake.getHivesArgsForCall)]
@@ -1347,6 +1593,76 @@ func (fake *FakeHiveService) GetPostReturnsOnCall(i int, result1 *dbmodels.Post,
 	}
 	fake.getPostReturnsOnCall[i] = struct {
 		result1 *dbmodels.Post
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeHiveService) GetPostFromPostids(arg1 context.Context, arg2 []interface{}) (dbmodels.PostSlice, error) {
+	var arg2Copy []interface{}
+	if arg2 != nil {
+		arg2Copy = make([]interface{}, len(arg2))
+		copy(arg2Copy, arg2)
+	}
+	fake.getPostFromPostidsMutex.Lock()
+	ret, specificReturn := fake.getPostFromPostidsReturnsOnCall[len(fake.getPostFromPostidsArgsForCall)]
+	fake.getPostFromPostidsArgsForCall = append(fake.getPostFromPostidsArgsForCall, struct {
+		arg1 context.Context
+		arg2 []interface{}
+	}{arg1, arg2Copy})
+	stub := fake.GetPostFromPostidsStub
+	fakeReturns := fake.getPostFromPostidsReturns
+	fake.recordInvocation("GetPostFromPostids", []interface{}{arg1, arg2Copy})
+	fake.getPostFromPostidsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeHiveService) GetPostFromPostidsCallCount() int {
+	fake.getPostFromPostidsMutex.RLock()
+	defer fake.getPostFromPostidsMutex.RUnlock()
+	return len(fake.getPostFromPostidsArgsForCall)
+}
+
+func (fake *FakeHiveService) GetPostFromPostidsCalls(stub func(context.Context, []interface{}) (dbmodels.PostSlice, error)) {
+	fake.getPostFromPostidsMutex.Lock()
+	defer fake.getPostFromPostidsMutex.Unlock()
+	fake.GetPostFromPostidsStub = stub
+}
+
+func (fake *FakeHiveService) GetPostFromPostidsArgsForCall(i int) (context.Context, []interface{}) {
+	fake.getPostFromPostidsMutex.RLock()
+	defer fake.getPostFromPostidsMutex.RUnlock()
+	argsForCall := fake.getPostFromPostidsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeHiveService) GetPostFromPostidsReturns(result1 dbmodels.PostSlice, result2 error) {
+	fake.getPostFromPostidsMutex.Lock()
+	defer fake.getPostFromPostidsMutex.Unlock()
+	fake.GetPostFromPostidsStub = nil
+	fake.getPostFromPostidsReturns = struct {
+		result1 dbmodels.PostSlice
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeHiveService) GetPostFromPostidsReturnsOnCall(i int, result1 dbmodels.PostSlice, result2 error) {
+	fake.getPostFromPostidsMutex.Lock()
+	defer fake.getPostFromPostidsMutex.Unlock()
+	fake.GetPostFromPostidsStub = nil
+	if fake.getPostFromPostidsReturnsOnCall == nil {
+		fake.getPostFromPostidsReturnsOnCall = make(map[int]struct {
+			result1 dbmodels.PostSlice
+			result2 error
+		})
+	}
+	fake.getPostFromPostidsReturnsOnCall[i] = struct {
+		result1 dbmodels.PostSlice
 		result2 error
 	}{result1, result2}
 }
@@ -2737,12 +3053,16 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.addDownVoteMutex.RUnlock()
 	fake.addUpVoteMutex.RLock()
 	defer fake.addUpVoteMutex.RUnlock()
+	fake.deleteBulkHiveMutex.RLock()
+	defer fake.deleteBulkHiveMutex.RUnlock()
 	fake.deleteCommentMutex.RLock()
 	defer fake.deleteCommentMutex.RUnlock()
 	fake.deleteHiveMutex.RLock()
 	defer fake.deleteHiveMutex.RUnlock()
 	fake.deletePostMutex.RLock()
 	defer fake.deletePostMutex.RUnlock()
+	fake.deletePostFromListMutex.RLock()
+	defer fake.deletePostFromListMutex.RUnlock()
 	fake.editCommentMutex.RLock()
 	defer fake.editCommentMutex.RUnlock()
 	fake.editHiveMutex.RLock()
@@ -2755,10 +3075,14 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.getCommentsMutex.RUnlock()
 	fake.getHiveMutex.RLock()
 	defer fake.getHiveMutex.RUnlock()
+	fake.getHiveFromListMutex.RLock()
+	defer fake.getHiveFromListMutex.RUnlock()
 	fake.getHivesMutex.RLock()
 	defer fake.getHivesMutex.RUnlock()
 	fake.getPostMutex.RLock()
 	defer fake.getPostMutex.RUnlock()
+	fake.getPostFromPostidsMutex.RLock()
+	defer fake.getPostFromPostidsMutex.RUnlock()
 	fake.getPostsMutex.RLock()
 	defer fake.getPostsMutex.RUnlock()
 	fake.getPostsWithReviewedCommentsMutex.RLock()

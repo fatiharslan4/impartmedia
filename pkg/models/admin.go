@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/data/types"
+	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 )
 
@@ -15,6 +16,9 @@ type GetAdminInputs struct {
 	Offset int
 	// search is the optional to filter on
 	SearchKey string
+	SearchIDs string
+	SortBy    string
+	SortOrder string
 }
 
 type UserDetails []UserDetail
@@ -32,8 +36,12 @@ type UserDetail struct {
 	Gender         string    `json:"gender" `
 	Race           string    `json:"race" `
 	Financialgoals string    `json:"financialgoals" `
+	Industry       string    `json:"industry"`
+	Career         string    `json:"career"`
+	Income         string    `json:"income"`
 	LastLoginAt    string    `json:"last_login_at"`
 	SuperAdmin     bool      `json:"super_admin"`
+	AnswerIds      string    `json:"answer_ids"`
 }
 
 type PagedUserResponse struct {
@@ -62,6 +70,44 @@ type PostDetail struct {
 	UrlTitle       string    `json:"url_title" `
 	UrlImage       string    `json:"url_image" `
 	UrlDescription string    `json:"url_description" `
+	UrlPostUrl     string    `json:"url_post_url" `
+	Tags           string    `json:"tag" `
+}
+
+type UserUpdate struct {
+	Type   string     `json:"type,omitempty"`
+	Action string     `json:"action"`
+	HiveID uint64     `json:"hiveID,omitempty"`
+	Users  []UserData `json:"users,omitempty"`
+}
+
+type UserData struct {
+	ImpartWealthID string `json:"impartWealthId"`
+	Status         bool   `json:"status"`
+	Message        string `json:"message,omitempty"`
+	Value          int    `json:"value"`
+}
+
+type PostUpdate struct {
+	Action string     `json:"action"`
+	Posts  []PostData `json:"posts,omitempty"`
+}
+
+type PostData struct {
+	PostID  uint64 `json:"postID,omitempty"`
+	Status  bool   `json:"status"`
+	Message string `json:"message,omitempty"`
+}
+
+type HiveUpdate struct {
+	Action string     `json:"action"`
+	Hives  []HiveData `json:"hives,omitempty"`
+}
+
+type HiveData struct {
+	HiveID  uint64 `json:"hiveID,omitempty"`
+	Status  bool   `json:"status"`
+	Message string `json:"message,omitempty"`
 }
 
 func PostsData(dbPosts dbmodels.PostSlice) PostDetails {
@@ -116,17 +162,28 @@ func PostsDataFromDB(p *dbmodels.Post) PostDetail {
 	out.UrlTitle = "NA"
 	out.UrlDescription = "NA"
 	out.ImagePath = "NA"
+	out.UrlPostUrl = "NA"
+	out.Tags = "NA"
 	if p.R.PostVideos != nil && len(p.R.PostVideos) > 0 {
 		out.VideoType = p.R.PostVideos[0].Source
+		if out.VideoType == "youtube" {
+			out.VideoType = "YouTube"
+		} else if out.VideoType == "vimeo" {
+			out.VideoType = "Vimeo"
+		}
 		out.VideoUrl = p.R.PostVideos[0].URL
 	}
 	if p.R.PostUrls != nil && len(p.R.PostUrls) > 0 {
 		out.UrlImage = p.R.PostUrls[0].ImageUrl
 		out.UrlTitle = p.R.PostUrls[0].Title
 		out.UrlDescription = p.R.PostUrls[0].Description
+		out.UrlPostUrl = p.R.PostUrls[0].URL.String
 	}
 	if p.R.PostFiles != nil && len(p.R.PostFiles) > 0 {
 		out.ImagePath = p.R.PostFiles[0].R.FidFile.URL
+	}
+	if len(p.R.Tags) > 0 {
+		out.Tags = p.R.Tags[0].Name
 	}
 	return out
 }
@@ -137,8 +194,8 @@ type PagedPostResponse struct {
 }
 
 type PagedHiveResponse struct {
-	Hive     []map[string]string `json:"hives"`
-	NextPage *NextPage           `json:"nextPage"`
+	Hive     []map[string]interface{} `json:"hives"`
+	NextPage *NextPage                `json:"nextPage"`
 }
 
 type MemberHives []MemberHive
@@ -149,6 +206,22 @@ type MemberHive struct {
 
 type DemographicHivesCounts []DemographicHivesCount
 type DemographicHivesCount struct {
-	Count        string `json:"count"`
+	Count        int    `json:"count"`
 	MemberHiveId uint64 `json:"member_hive_id"  `
+}
+
+type PagedFilterResponse struct {
+	Filter impart.FilterEnum `json:"filter"`
+}
+
+type PagedUserUpdateResponse struct {
+	Users *UserUpdate `json:"users"`
+}
+
+type PagedPostUpdateResponse struct {
+	Posts *PostUpdate `json:"posts"`
+}
+
+type PagedHiveUpdateResponse struct {
+	Hives *HiveUpdate `json:"hives"`
 }

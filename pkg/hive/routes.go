@@ -417,6 +417,12 @@ func (hh *hiveHandler) CreatePostFunc() gin.HandlerFunc {
 			return
 		}
 		p = ValidationPost(p)
+		impartErr = ValidateInputs(p)
+		if impartErr != nil {
+			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
 		hh.logger.Debug("creating", zap.Any("post", p))
 
 		if p.HiveID != hiveId {

@@ -1,8 +1,6 @@
 package hive
 
 import (
-	"regexp"
-
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/leebenson/conform"
@@ -52,17 +50,10 @@ func ValidateCommentInput(c models.Comment) models.Comment {
 	return c
 }
 
-func ValidateUrls(post models.Post) impart.Error {
+func ValidateInputs(post models.Post) impart.Error {
 	if (post.Video != models.PostVideo{}) {
-		url, err := regexp.MatchString(`/^((https?|ftp|smtp):\/\/)?(www.)?[a-z0-9]+\.[a-z]+(\/[a-zA-Z0-9#]+\/?)*$/i`, post.Video.Url)
-		if err != nil || !url {
-			return impart.NewError(impart.ErrBadRequest, "Invalid video url.")
-		}
-	}
-	if post.Url != "" {
-		url, err := regexp.MatchString(`/^((https?|ftp|smtp):\/\/)?(www.)?[a-z0-9]+\.[a-z]+(\/[a-zA-Z0-9#]+\/?)*$/i`, post.Url)
-		if err != nil || !url {
-			return impart.NewError(impart.ErrBadRequest, "Invalid  url.")
+		if post.Video.ReferenceId == "" {
+			return impart.NewError(impart.ErrBadRequest, "Invalid video details.")
 		}
 	}
 	return nil

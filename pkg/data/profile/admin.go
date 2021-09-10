@@ -413,6 +413,7 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 			totalCnt = 0
 		}
 		hive["hive_id"] = hiveId
+		hive["name"] = p.R.Hive.Name
 		if (p.R.Hive.CreatedAt == null.Time{}) {
 			hive["date created"] = "NA"
 		} else {

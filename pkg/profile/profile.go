@@ -9,6 +9,7 @@ import (
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 
+	"github.com/beeker1121/mailchimp-go/lists/members"
 	profile_data "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -266,6 +267,16 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 				ps.Logger().Error(impartErr.Error())
 			}
 		}
+	}
+	// // Adding User to MailChimp
+	mailChimpParams := &members.NewParams{
+		EmailAddress: dbUser.Email,
+		Status:       members.StatusSubscribed,
+	}
+	_, err = members.New(impart.MailChimpAudienceID, mailChimpParams)
+	if err != nil {
+		impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  added to the mailchimp %v", err))
+		ps.Logger().Error(impartErr.Error())
 	}
 	return *out, nil
 }

@@ -7,12 +7,14 @@ import (
 
 	"fmt"
 
+	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"go.uber.org/zap"
 )
 
 const defaultLimit = 100
@@ -303,6 +305,16 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		err = m.UpdateHiveUserDemographic(ctx, answerIds, true, DefaultHiveId)
 		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		msg = "User added to waitlist."
+
+		mailChimpParams := &members.UpdateParams{
+			MergeFields: map[string]interface{}{"STATUS": impart.WaitList},
+		}
+		_, err = members.Update(impart.MailChimpAudienceID, userToUpdate.Email, mailChimpParams)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
+			m.logger.Error(impartErr.Error())
+		}
+
 	} else if gpi.Type == "addto_admin" {
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		existingDBProfile := userToUpdate.R.ImpartWealthProfile
@@ -345,6 +357,16 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		err = m.UpdateHiveUserDemographic(ctx, answerIds, true, gpi.HiveID)
 		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		msg = "User added to hive."
+
+		mailChimpParams := &members.UpdateParams{
+			MergeFields: map[string]interface{}{"STATUS": impart.Hive},
+		}
+		_, err = members.Update(impart.MailChimpAudienceID, userToUpdate.Email, mailChimpParams)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
+			m.logger.Error(impartErr.Error())
+		}
+
 	}
 	return msg, nil
 }
@@ -478,12 +500,28 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		return userOutputRslt
 	}
 	lenUser := len(userOutputRslt.Users)
+	status := ""
+	if userOutputRslt.Type == "addto_waitlist" {
+		status = impart.WaitList
+	} else if userOutputRslt.Type == "addto_hive" {
+		status = impart.Hive
+	}
 	for _, user := range updateUsers {
 		for cnt := 0; cnt < lenUser; cnt++ {
 			if userOutputs.Users[cnt].ImpartWealthID == user.ImpartWealthID && userOutputs.Users[cnt].Value == 1 {
 				userOutputs.Users[cnt].Message = "User updated."
 				userOutputs.Users[cnt].Status = true
 				break
+			}
+		}
+		if userOutputRslt.Type == "addto_waitlist" || userOutputRslt.Type == "addto_hive" {
+			mailChimpParams := &members.UpdateParams{
+				MergeFields: map[string]interface{}{"STATUS": status},
+			}
+			_, err = members.Update(impart.MailChimpAudienceID, user.Email, mailChimpParams)
+			if err != nil {
+				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
+				m.logger.Error(impartErr.Error())
 			}
 		}
 	}
@@ -525,6 +563,11 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 				userOutputRslt.Users[cnt].Status = true
 				break
 			}
+		}
+		err = members.Delete(impart.MailChimpAudienceID, user.Email)
+		if err != nil {
+			m.logger.Error("Delete user requset failed in Mailchimp.", zap.String("deleteUser", user.ImpartWealthID),
+				zap.String("contextUser", user.ImpartWealthID))
 		}
 	}
 	return userOutputRslt

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/google/uuid"
 	authdata "github.com/impartwealthapp/backend/pkg/data/auth"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -717,6 +718,12 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		}
 		return impart.NewError(err, "User Deletion failed")
 	}
+	// // delete user from mailChimp
+	err = members.Delete(impart.MailChimpAudienceID, userEmail)
+	if err != nil {
+		m.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", userToDelete.ImpartWealthID),
+			zap.String("contextUser", userToDelete.ImpartWealthID))
+	}
 	return nil
 }
 
@@ -933,4 +940,59 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 		return userUpdate, err
 	}
 	return userUpdate, nil
+}
+
+func (m *mysqlStore) GetAllUsers(ctx context.Context) error {
+	newcluse := Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Blocked), false)
+	usersWhere := []QueryMod{
+		newcluse,
+		Load(dbmodels.UserRels.ImpartWealthProfile),
+		Load(dbmodels.UserRels.MemberHiveHives),
+	}
+
+	out, err := dbmodels.Users(usersWhere...).All(ctx, m.db)
+	status := ""
+	if err != nil {
+		return err
+	}
+	params := &members.GetParams{
+		Status: members.StatusSubscribed,
+	}
+	listMembers, err := members.Get(impart.MailChimpAudienceID, params)
+	if err != nil {
+		return err
+	}
+	for _, user := range out {
+		userExist := Contains(listMembers, user.Email)
+		if !userExist {
+			if len(user.R.MemberHiveHives) > 0 {
+				if user.R.MemberHiveHives[0].HiveID == impart.DefaultHiveID {
+					status = impart.WaitList
+				} else {
+					status = impart.Hive
+				}
+			}
+			params := &members.NewParams{
+				EmailAddress: user.Email,
+				Status:       members.StatusSubscribed,
+				MergeFields:  map[string]interface{}{"STATUS": status},
+			}
+			_, err := members.New(impart.MailChimpAudienceID, params)
+			if err != nil {
+				m.logger.Error("new user requset failed in MailChimp", zap.String("updateuser", user.Email),
+					zap.String("contextUser", user.ImpartWealthID))
+			}
+		}
+	}
+
+	return nil
+}
+
+func Contains(users *members.ListMembers, userEmail string) bool {
+	for _, mail := range users.Members {
+		if mail.EmailAddress == userEmail {
+			return true
+		}
+	}
+	return false
 }

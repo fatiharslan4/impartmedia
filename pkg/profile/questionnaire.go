@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -246,6 +247,7 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		&dbmodels.Hive{HiveID: DefaultHiveId},
 	}
 	var isnewhive bool
+	status := impart.WaitList
 	ctxUser := impart.GetCtxUser(ctx)
 	//call all the hive assignment funcs
 	if id := ps.isAssignedMillenialWithChildren(questionnaire); id != nil {
@@ -261,6 +263,18 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 	if err != nil {
 		ps.Logger().Error("error setting member hives", zap.Error(err))
 		return isnewhive, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
+	}
+	if isnewhive {
+		status = impart.Hive
+	}
+	mailChimpParams := &members.UpdateParams{
+		MergeFields: map[string]interface{}{"STATUS": status},
+	}
+
+	_, err = members.Update(impart.MailChimpAudienceID, ctxUser.Email, mailChimpParams)
+	if err != nil {
+		impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  added to the mailchimp %v", err))
+		ps.Logger().Error(impartErr.Error())
 	}
 	return isnewhive, nil
 }

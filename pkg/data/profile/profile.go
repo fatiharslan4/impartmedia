@@ -51,6 +51,8 @@ type Store interface {
 	GetFilterDetails(ctx context.Context) ([]byte, error)
 	EditBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate
 	DeleteBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate
+
+	GetAllUsers(ctx context.Context) error
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

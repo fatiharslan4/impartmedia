@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	mailchimp "github.com/beeker1121/mailchimp-go"
 	"github.com/impartwealthapp/backend/pkg/data/migrater"
 	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -135,6 +136,10 @@ func main() {
 		v1Route = "v1"
 	} else {
 		v1Route = fmt.Sprintf("%s/v1", cfg.Env)
+	}
+	err = mailchimp.SetKey(impart.MailChimpApiKey)
+	if err != nil {
+		logger.Fatal("Error connecting Mailchimp", zap.Error(err))
 	}
 
 	v1 := r.Group(v1Route)

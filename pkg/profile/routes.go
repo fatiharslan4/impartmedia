@@ -76,6 +76,9 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	filterRoutes := version.Group("/filter")
 	filterRoutes.GET("", handler.GetFilterDetails())
+
+	mailChimpRoutes := version.Group("/mailchimp")
+	mailChimpRoutes.POST("", handler.CreateMailChimpForExistingUsers())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -1084,5 +1087,14 @@ func (ph *profileHandler) EditBulkUserDetails() gin.HandlerFunc {
 		ctx.JSON(http.StatusOK, models.PagedUserUpdateResponse{
 			Users: output,
 		})
+	}
+}
+func (ph *profileHandler) CreateMailChimpForExistingUsers() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		err := ph.profileData.CreateMailChimpForExistingUsers(ctx)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, "Failed")
+		}
+		ctx.JSON(http.StatusOK, "Success")
 	}
 }

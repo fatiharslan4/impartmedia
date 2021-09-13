@@ -134,3 +134,31 @@ func FilterData() ([]byte, error) {
 	}
 	return out, nil
 }
+
+type QuestionEnum int
+
+const (
+	Gender         QuestionEnum = 4
+	Household                   = 1
+	Race                        = 5
+	Dependents                  = 2
+	FinancialGoals              = 6
+	Industry                    = 7
+	Career                      = 8
+	Income                      = 9
+	Generation                  = 3
+)
+
+func GetUserAnswerList() map[uint]string {
+	userAnswer := make(map[uint]string)
+	userAnswer[1] = ""
+	userAnswer[2] = ""
+	userAnswer[3] = ""
+	userAnswer[4] = ""
+	userAnswer[5] = ""
+	userAnswer[6] = ""
+	userAnswer[7] = ""
+	userAnswer[8] = ""
+	userAnswer[9] = ""
+	return userAnswer
+}

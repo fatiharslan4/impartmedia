@@ -1091,7 +1091,7 @@ func (ph *profileHandler) EditBulkUserDetails() gin.HandlerFunc {
 }
 func (ph *profileHandler) CreateMailChimpForExistingUsers() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		err := ph.profileData.GetAllUsers(ctx)
+		err := ph.profileData.CreateMailChimpForExistingUsers(ctx)
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, "Failed")
 		}

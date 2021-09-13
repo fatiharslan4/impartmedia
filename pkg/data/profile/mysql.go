@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
@@ -942,12 +943,14 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 	return userUpdate, nil
 }
 
-func (m *mysqlStore) GetAllUsers(ctx context.Context) error {
+func (m *mysqlStore) CreateMailChimpForExistingUsers(ctx context.Context) error {
 	newcluse := Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Blocked), false)
 	usersWhere := []QueryMod{
 		newcluse,
 		Load(dbmodels.UserRels.ImpartWealthProfile),
 		Load(dbmodels.UserRels.MemberHiveHives),
+		Load(dbmodels.UserRels.ImpartWealthUserAnswers),
+		Load(Rels(dbmodels.UserRels.ImpartWealthUserAnswers, dbmodels.UserAnswerRels.Answer, dbmodels.AnswerRels.Question)),
 	}
 
 	out, err := dbmodels.Users(usersWhere...).All(ctx, m.db)
@@ -963,6 +966,7 @@ func (m *mysqlStore) GetAllUsers(ctx context.Context) error {
 		return err
 	}
 	for _, user := range out {
+		userAnswer := impart.GetUserAnswerList()
 		userExist := Contains(listMembers, user.Email)
 		if !userExist {
 			if len(user.R.MemberHiveHives) > 0 {
@@ -972,17 +976,33 @@ func (m *mysqlStore) GetAllUsers(ctx context.Context) error {
 					status = impart.Hive
 				}
 			}
+			if len(user.R.ImpartWealthUserAnswers) > 0 {
+				for _, anser := range user.R.ImpartWealthUserAnswers {
+					userAnswer[anser.R.Answer.QuestionID] = fmt.Sprintf("%s,%s", userAnswer[anser.R.Answer.QuestionID], anser.R.Answer.AnswerName)
+					userAnswer[anser.R.Answer.R.Question.QuestionID] = strings.Trim(userAnswer[anser.R.Answer.R.Question.QuestionID], ",")
+				}
+			}
 			params := &members.NewParams{
 				EmailAddress: user.Email,
 				Status:       members.StatusSubscribed,
-				MergeFields:  map[string]interface{}{"STATUS": status},
+				MergeFields: map[string]interface{}{"STATUS": status,
+					"GENDER":     userAnswer[uint(impart.Gender)],
+					"HOUSEHOLD":  userAnswer[uint(impart.Household)],
+					"DEPENDENTS": userAnswer[uint(impart.Dependents)],
+					"GENERATION": userAnswer[uint(impart.Generation)],
+					"RACE":       userAnswer[uint(impart.Race)],
+					"FINANCIALG": userAnswer[uint(impart.FinancialGoals)],
+					"INDUSTRY":   userAnswer[uint(impart.Industry)],
+					"CAREER":     userAnswer[uint(impart.Career)],
+					"INCOME":     userAnswer[uint(impart.Income)]},
 			}
 			_, err := members.New(impart.MailChimpAudienceID, params)
 			if err != nil {
-				m.logger.Error("new user requset failed in MailChimp", zap.String("updateuser", user.Email),
+				m.logger.Info("new user requset failed in MailChimp", zap.String("updateuser", user.Email),
 					zap.String("contextUser", user.ImpartWealthID))
 			}
 		}
+
 	}
 
 	return nil
@@ -995,4 +1015,21 @@ func Contains(users *members.ListMembers, userEmail string) bool {
 		}
 	}
 	return false
+}
+
+func (m *mysqlStore) GetUserAnswer(ctx context.Context, impartWealthId string) (dbmodels.UserAnswerSlice, error) {
+	qm := []QueryMod{
+		dbmodels.UserAnswerWhere.ImpartWealthID.EQ(impartWealthId),
+	}
+	qm = append(qm, Load(Rels(dbmodels.UserAnswerRels.Answer, dbmodels.AnswerRels.Question, dbmodels.QuestionRels.Questionnaire)))
+	qm = append(qm, Load(Rels(dbmodels.UserAnswerRels.Answer, dbmodels.AnswerRels.Question, dbmodels.QuestionRels.Type)))
+	qm = append(qm, Load(Rels(dbmodels.UserAnswerRels.ImpartWealth)))
+
+	userAnswers, err := dbmodels.UserAnswers(qm...).All(ctx, m.db)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return dbmodels.UserAnswerSlice{}, impart.ErrNotFound
+		}
+	}
+	return userAnswers, nil
 }

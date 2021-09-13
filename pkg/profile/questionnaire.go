@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -267,8 +268,54 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 	if isnewhive {
 		status = impart.Hive
 	}
+	profile, err := dbmodels.Profiles(dbmodels.ProfileWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)).One(ctx, ps.db)
+
+	if err != nil {
+		ps.Logger().Error("error finding profile", zap.Error(err))
+	}
+	newProfile := dbmodels.Profile{}
+	attr := &models.Attributes{}
+	err = profile.Attributes.Unmarshal(attr)
+
+	newAttr := &models.Attributes{
+		Name:        attr.Name,
+		UpdatedDate: attr.UpdatedDate,
+		Address: models.Address{
+			UpdatedDate: attr.Address.UpdatedDate,
+			Address1:    attr.Address.Address1,
+			Address2:    attr.Address.Address2,
+			City:        attr.Address.City,
+			State:       attr.Address.State,
+			Zip:         questionnaire.ZipCode,
+		},
+	}
+	newProfile.ImpartWealthID = profile.ImpartWealthID
+	newProfile.CreatedAt = profile.CreatedAt
+	newProfile.UpdatedAt = profile.UpdatedAt
+	err = profile.Attributes.Marshal(newAttr)
+	err = ps.profileStore.UpdateProfile(ctx, nil, profile)
+
+	userAnswer := impart.GetUserAnswerList()
+	userAns, err := ps.profileStore.GetUserAnswer(ctx, ctxUser.ImpartWealthID)
+	if len(userAns) > 0 {
+		for _, anser := range userAns {
+			userAnswer[anser.R.Answer.R.Question.QuestionID] = fmt.Sprintf("%s,%s", userAnswer[anser.R.Answer.R.Question.QuestionID], anser.R.Answer.AnswerName)
+			userAnswer[anser.R.Answer.R.Question.QuestionID] = strings.Trim(userAnswer[anser.R.Answer.R.Question.QuestionID], ",")
+		}
+	}
+
 	mailChimpParams := &members.UpdateParams{
-		MergeFields: map[string]interface{}{"STATUS": status},
+		MergeFields: map[string]interface{}{"STATUS": status,
+			"ZIPCODE":    questionnaire.ZipCode,
+			"GENDER":     userAnswer[uint(impart.Gender)],
+			"HOUSEHOLD":  userAnswer[uint(impart.Household)],
+			"DEPENDENTS": userAnswer[uint(impart.Dependents)],
+			"GENERATION": userAnswer[uint(impart.Generation)],
+			"RACE":       userAnswer[uint(impart.Race)],
+			"FINANCIALG": userAnswer[uint(impart.FinancialGoals)],
+			"INDUSTRY":   userAnswer[uint(impart.Industry)],
+			"CAREER":     userAnswer[uint(impart.Career)],
+			"INCOME":     userAnswer[uint(impart.Income)]},
 	}
 
 	_, err = members.Update(impart.MailChimpAudienceID, ctxUser.Email, mailChimpParams)

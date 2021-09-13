@@ -282,7 +282,7 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error) {
 	msg := ""
 	var existingHiveId uint64
-	if gpi.Type == "addto_waitlist" {
+	if gpi.Type == impart.AddToWaitlist {
 		hives := dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: DefaultHiveId},
 		}
@@ -315,7 +315,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			m.logger.Error(impartErr.Error())
 		}
 
-	} else if gpi.Type == "addto_admin" {
+	} else if gpi.Type == impart.AddToAdmin {
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		existingDBProfile := userToUpdate.R.ImpartWealthProfile
 		if userToUpdate.Admin {
@@ -327,7 +327,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as user")
 		}
 		msg = "User role changed to admin."
-	} else if gpi.Type == "addto_hive" {
+	} else if gpi.Type == impart.AddToHive {
 		_, err := dbmodels.FindHive(ctx, m.db, gpi.HiveID)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -501,9 +501,9 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	}
 	lenUser := len(userOutputRslt.Users)
 	status := ""
-	if userOutputRslt.Type == "addto_waitlist" {
+	if userOutputRslt.Type == impart.AddToWaitlist {
 		status = impart.WaitList
-	} else if userOutputRslt.Type == "addto_hive" {
+	} else if userOutputRslt.Type == impart.AddToHive {
 		status = impart.Hive
 	}
 	for _, user := range updateUsers {
@@ -514,7 +514,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 				break
 			}
 		}
-		if userOutputRslt.Type == "addto_waitlist" || userOutputRslt.Type == "addto_hive" {
+		if userOutputRslt.Type == impart.AddToWaitlist || userOutputRslt.Type == impart.AddToHive {
 			mailChimpParams := &members.UpdateParams{
 				MergeFields: map[string]interface{}{"STATUS": status},
 			}

@@ -390,7 +390,7 @@ func (ps *profileService) EditBulkUserDetails(ctx context.Context, userUpdates m
 		if len(userUpdates.Users) == 0 {
 			return nil, impart.NewError(impart.ErrBadRequest, "User details not found")
 		}
-		if userUpdates.Type == "addto_hive" && userUpdates.HiveID == 0 {
+		if userUpdates.Type == impart.AddToHive && userUpdates.HiveID == 0 {
 			return nil, impart.NewError(impart.ErrBadRequest, "Missing hive details.")
 		}
 		userOutput = ps.profileStore.EditBulkUserDetails(ctx, userUpdates)

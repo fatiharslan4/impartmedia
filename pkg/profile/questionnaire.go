@@ -299,23 +299,13 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 	userAns, err := ps.profileStore.GetUserAnswer(ctx, ctxUser.ImpartWealthID)
 	if len(userAns) > 0 {
 		for _, anser := range userAns {
-			userAnswer[anser.R.Answer.R.Question.QuestionID] = fmt.Sprintf("%s,%s", userAnswer[anser.R.Answer.R.Question.QuestionID], anser.R.Answer.AnswerName)
+			userAnswer[anser.R.Answer.R.Question.QuestionID] = fmt.Sprintf("%s,%s", userAnswer[anser.R.Answer.R.Question.QuestionID], anser.R.Answer.Text)
 			userAnswer[anser.R.Answer.R.Question.QuestionID] = strings.Trim(userAnswer[anser.R.Answer.R.Question.QuestionID], ",")
 		}
 	}
-
+	mergeFlds := impart.SetMailChimpAnswer(userAnswer, status, questionnaire.ZipCode)
 	mailChimpParams := &members.UpdateParams{
-		MergeFields: map[string]interface{}{"STATUS": status,
-			"ZIPCODE":    questionnaire.ZipCode,
-			"GENDER":     userAnswer[uint(impart.Gender)],
-			"HOUSEHOLD":  userAnswer[uint(impart.Household)],
-			"DEPENDENTS": userAnswer[uint(impart.Dependents)],
-			"GENERATION": userAnswer[uint(impart.Generation)],
-			"RACE":       userAnswer[uint(impart.Race)],
-			"FINANCIALG": userAnswer[uint(impart.FinancialGoals)],
-			"INDUSTRY":   userAnswer[uint(impart.Industry)],
-			"CAREER":     userAnswer[uint(impart.Career)],
-			"INCOME":     userAnswer[uint(impart.Income)]},
+		MergeFields: mergeFlds,
 	}
 
 	_, err = members.Update(impart.MailChimpAudienceID, ctxUser.Email, mailChimpParams)

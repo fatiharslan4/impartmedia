@@ -135,30 +135,10 @@ func FilterData() ([]byte, error) {
 	return out, nil
 }
 
-type QuestionEnum int
+type CommonCheckEnum string
 
 const (
-	Gender         QuestionEnum = 4
-	Household                   = 1
-	Race                        = 5
-	Dependents                  = 2
-	FinancialGoals              = 6
-	Industry                    = 7
-	Career                      = 8
-	Income                      = 9
-	Generation                  = 3
+	AddToWaitlist = "addto_waitlist"
+	AddToHive     = "addto_hive"
+	AddToAdmin    = "addto_admin"
 )
-
-func GetUserAnswerList() map[uint]string {
-	userAnswer := make(map[uint]string)
-	userAnswer[1] = ""
-	userAnswer[2] = ""
-	userAnswer[3] = ""
-	userAnswer[4] = ""
-	userAnswer[5] = ""
-	userAnswer[6] = ""
-	userAnswer[7] = ""
-	userAnswer[8] = ""
-	userAnswer[9] = ""
-	return userAnswer
-}

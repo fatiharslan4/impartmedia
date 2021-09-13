@@ -884,7 +884,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				break
 			}
 		}
-		if userUpdate.Type == "addto_admin" {
+		if userUpdate.Type == impart.AddToAdmin {
 			if user.Admin {
 				userUpdate.Users[userUpdateposition].Message = "User is already admin."
 			} else {
@@ -892,7 +892,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
 				userUpdate.Users[userUpdateposition].Value = 1
 			}
-		} else if userUpdate.Type == "addto_waitlist" {
+		} else if userUpdate.Type == impart.AddToWaitlist {
 			for _, h := range user.R.MemberHiveHives {
 				existinghiveid = h.HiveID
 			}
@@ -911,7 +911,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
 			}
-		} else if userUpdate.Type == "addto_hive" {
+		} else if userUpdate.Type == impart.AddToHive {
 			for _, h := range user.R.MemberHiveHives {
 				existinghiveid = h.HiveID
 			}
@@ -978,23 +978,15 @@ func (m *mysqlStore) CreateMailChimpForExistingUsers(ctx context.Context) error 
 			}
 			if len(user.R.ImpartWealthUserAnswers) > 0 {
 				for _, anser := range user.R.ImpartWealthUserAnswers {
-					userAnswer[anser.R.Answer.QuestionID] = fmt.Sprintf("%s,%s", userAnswer[anser.R.Answer.QuestionID], anser.R.Answer.AnswerName)
+					userAnswer[anser.R.Answer.QuestionID] = fmt.Sprintf("%s,%s", userAnswer[anser.R.Answer.QuestionID], anser.R.Answer.Text)
 					userAnswer[anser.R.Answer.R.Question.QuestionID] = strings.Trim(userAnswer[anser.R.Answer.R.Question.QuestionID], ",")
 				}
 			}
+			mergeFlds := impart.SetMailChimpAnswer(userAnswer, status, "")
 			params := &members.NewParams{
 				EmailAddress: user.Email,
 				Status:       members.StatusSubscribed,
-				MergeFields: map[string]interface{}{"STATUS": status,
-					"GENDER":     userAnswer[uint(impart.Gender)],
-					"HOUSEHOLD":  userAnswer[uint(impart.Household)],
-					"DEPENDENTS": userAnswer[uint(impart.Dependents)],
-					"GENERATION": userAnswer[uint(impart.Generation)],
-					"RACE":       userAnswer[uint(impart.Race)],
-					"FINANCIALG": userAnswer[uint(impart.FinancialGoals)],
-					"INDUSTRY":   userAnswer[uint(impart.Industry)],
-					"CAREER":     userAnswer[uint(impart.Career)],
-					"INCOME":     userAnswer[uint(impart.Income)]},
+				MergeFields:  mergeFlds,
 			}
 			_, err := members.New(impart.MailChimpAudienceID, params)
 			if err != nil {

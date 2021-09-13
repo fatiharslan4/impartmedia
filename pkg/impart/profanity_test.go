@@ -5,7 +5,6 @@ import (
 
 	gocensorword "github.com/pcpratheesh/go-censorword"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 var ProfanityDetector *gocensorword.CensorWordDetection
@@ -14,8 +13,8 @@ func InitProfanityDetector() *gocensorword.CensorWordDetection {
 	ProfanityDetector = gocensorword.NewDetector().SetCensorReplaceChar("*").WithSanitizeSpecialCharacters(false)
 	ProfanityDetector.CustomCensorList(censorList)
 	ProfanityDetector.ReplaceCheckPattern = `\b%s\b`
-	logger, _ := zap.NewProduction()
-	ProfanityDetector.Logger = logger
+	// logger, _ := zap.NewProduction()
+	// ProfanityDetector.Logger = logger
 	return ProfanityDetector
 }
 

@@ -134,3 +134,11 @@ func FilterData() ([]byte, error) {
 	}
 	return out, nil
 }
+
+type CommonCheckEnum string
+
+const (
+	AddToWaitlist = "addto_waitlist"
+	AddToHive     = "addto_hive"
+	AddToAdmin    = "addto_admin"
+)

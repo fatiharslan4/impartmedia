@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -264,6 +265,7 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 	updateQuery := ""
 	updatememberHive := ""
 	updateHiveDemographic := ""
+	var allUser []string
 	currTime := time.Now().In(boil.GetLocation())
 	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
 	userHiveDemo := make(map[uint64]map[uint64]int)
@@ -289,6 +291,7 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 		for _, member := range exitingmembers {
 			query := fmt.Sprintf("update hive_members set member_hive_id=%d where member_impart_wealth_id='%s';", impart.DefaultHiveID, member.ImpartWealthID)
 			updatememberHive = fmt.Sprintf("%s %s", updatememberHive, query)
+			allUser = append(allUser, member.Email)
 		}
 		for _, hiveDemo := range dbhiveUserDemographic {
 			if hiveDemo.HiveID == hive.HiveID {
@@ -304,9 +307,26 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 		}
 	}
 	query := fmt.Sprintf("%s %s %s", updateQuery, updatememberHive, updateHiveDemographic)
-	_, err := queries.Raw(query).ExecContext(ctx, d.db)
+
+	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
+	}
+	defer impart.CommitRollbackLogger(tx, err, d.logger)
+	_, err = queries.Raw(query).ExecContext(ctx, d.db)
+	if err != nil {
+		return err
+	}
+	// // Update mailChimp
+	for hiveUser := range allUser {
+		mailChimpParams := &members.UpdateParams{
+			MergeFields: map[string]interface{}{"STATUS": impart.WaitList},
+		}
+		_, err = members.Update(impart.MailChimpAudienceID, allUser[hiveUser], mailChimpParams)
+		if err != nil {
+			d.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", allUser[hiveUser]),
+				zap.String("contextUser", allUser[hiveUser]))
+		}
 	}
 	return nil
 }

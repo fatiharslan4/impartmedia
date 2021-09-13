@@ -19,6 +19,13 @@ const DeviceAuthorizationContextKey = "DeviceAuthorizationContextKey{}"
 const ClientIdentificationHeaderKey = "ClientIdentificationHeaderKey{}"
 const ClientId = "web"
 const DefaultHiveID uint64 = 1
+const Hive = "hive"
+const WaitList = "waitlist"
+
+// const MailChimpAudienceID = "a5ee0679a7"
+// const MailChimpApiKey = "1abab64c738af33e635e828b6296ba38-us20"
+const MailChimpApiKey = "153b0a27bf4c930aa92b738974331333-us5" //this is local
+const MailChimpAudienceID = "5fc34548d1"                       //local
 
 func GetCtxAuthID(ctx context.Context) string {
 	return ctx.Value(AuthIDRequestContextKey).(string)

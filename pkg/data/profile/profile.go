@@ -51,6 +51,9 @@ type Store interface {
 	GetFilterDetails(ctx context.Context) ([]byte, error)
 	EditBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate
 	DeleteBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate
+
+	CreateMailChimpForExistingUsers(ctx context.Context) error
+	GetUserAnswer(ctx context.Context, impartWealthId string) (dbmodels.UserAnswerSlice, error)
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {

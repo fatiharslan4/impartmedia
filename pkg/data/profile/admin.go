@@ -441,14 +441,13 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 		} else {
 			hive["date created"] = p.R.Hive.CreatedAt
 		}
-		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.AnswerName)] = int(p.UserCount)
+		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.Text)] = int(p.UserCount)
 		totalCnt = totalCnt + int(p.UserCount)
 		hive["users"] = int(indexes[uint(p.HiveID)])
 		preHiveId = int(p.HiveID)
 	}
 	hives[i] = hive
 	if gpi.SortBy != "" {
-		fmt.Println(gpi.SortBy)
 		if gpi.SortOrder == "desc" {
 			sort.Slice(hives, func(i, j int) bool {
 				return hives[i][gpi.SortBy] == hives[j][gpi.SortBy]

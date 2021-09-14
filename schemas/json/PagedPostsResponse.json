@@ -380,6 +380,7 @@
 		},
 		"PostUrl": {
 			"required": [
+				"url",
 				"imageUrl",
 				"title",
 				"description"
@@ -403,6 +404,7 @@
 		},
 		"PostVideo": {
 			"required": [
+				"referenceId",
 				"source",
 				"url"
 			],

@@ -247,7 +247,7 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		} else if gpi.SortBy == "email" || gpi.SortBy == "screen_name" {
 			sortByUser = true
 		} else if gpi.SortBy == "tag" {
-			where := fmt.Sprintf(`post_tag on post.post_id=post_tag.post_id`)
+			where := fmt.Sprintf(`post_tag on post.post_id=post_tag.post_id and post.deleted_at is null`)
 			queryMods = append(queryMods, qm.InnerJoin(where))
 			where = fmt.Sprintf(`tag on post_tag.tag_id=tag.tag_id`)
 			queryMods = append(queryMods, qm.InnerJoin(where))
@@ -257,10 +257,10 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 
 		}
 	}
-	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null `)
+	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null and post.deleted_at is null`)
 	queryMods = append(queryMods, qm.InnerJoin(where))
 	if gpi.SearchKey != "" {
-		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null 
+		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null and post.deleted_at is null
 		and (user.screen_name like ? or user.email like ? ) `)
 		queryMods = append(queryMods, qm.InnerJoin(where, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%"))
 		if sortByUser {
@@ -268,7 +268,7 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
 		}
 	} else if gpi.SortBy != "" && sortByUser {
-		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null `)
+		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null and post.deleted_at is null`)
 		queryMods = append(queryMods, qm.InnerJoin(where))
 		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
 		queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))

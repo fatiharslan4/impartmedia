@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
 	profile_data "github.com/impartwealthapp/backend/pkg/data/profile"
@@ -468,7 +469,10 @@ func (ps *profileService) CreatePlaidProfile(ctx context.Context, plaid models.P
 		ps.Error(err)
 		return models.PlaidInput{}, impart.NewError(impart.ErrBadRequest, "Unable to find profile.")
 	}
-	dbUser.Admin = true
+	if dbUser.ImpartWealthID != plaid.ImpartWealthID {
+		return models.PlaidInput{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a profile that's not yours.")
+	}
+	dbUser.PlaidAccessToken = null.StringFrom(plaid.PlaidAccessToken)
 	err = ps.profileStore.UpdateProfile(ctx, dbUser, nil)
 	if err != nil {
 		ps.Error(err)

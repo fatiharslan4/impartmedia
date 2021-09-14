@@ -80,8 +80,8 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	mailChimpRoutes := version.Group("/mailchimp")
 	mailChimpRoutes.POST("", handler.CreateMailChimpForExistingUsers())
 
-	plaidRoutes := version.Group("/token")
-	plaidRoutes.POST("", handler.CreatePlaidToken())
+	plaidRoutes := version.Group("/plaid")
+	plaidRoutes.POST("/token", handler.CreatePlaidToken())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -1122,6 +1122,11 @@ func (ph *profileHandler) CreatePlaidToken() gin.HandlerFunc {
 
 		input := models.PlaidInput{}
 		err = json.Unmarshal(rawData, &input)
+		if input.ImpartWealthID == "" || input.PlaidAccessToken == "" {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Error in JSON request body.")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
 		if err != nil {
 			ph.logger.Error("input json parse error", zap.Error(err))
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))

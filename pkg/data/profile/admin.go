@@ -26,7 +26,7 @@ const (
 )
 
 func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, error) {
-	var userDetails []models.UserDetail
+	var userDetails models.UserDetails
 	outOffset := &models.NextPage{
 		Offset: gpi.Offset,
 	}
@@ -38,47 +38,41 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	}
 	var err error
 	extraQery := ""
-	if gpi.SortBy == "" {
-		gpi.SortBy = fmt.Sprintf(`email asc`)
-	} else {
-		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
-	}
 	inputQuery := fmt.Sprintf(`SELECT 
 					user.impart_wealth_id,
-					CASE WHEN user.blocked = 1 THEN '[Account Deleted]' 
-						ELSE user.screen_name END AS screen_name,
-					CASE WHEN user.blocked = 1 THEN '[Account Deleted]' 
-						ELSE user.email END AS email,
+					CASE WHEN user.blocked = 1 THEN '[Account Deleted]'        
+							ELSE user.screen_name END AS screen_name,
+					CASE WHEN user.blocked = 1 THEN '[Account Deleted]'        
+							ELSE user.email END AS email,
 					user.created_at,
-					CASE WHEN user.lastlogin_at  is null  then 'NA'
+					CASE WHEN user.lastlogin_at  is null  then '[NA]'
 						ELSE  user.lastlogin_at END as last_login_at ,
 					user.admin,
 					user.super_admin,
 					COUNT(post.post_id) as post,
-					CASE WHEN hivedata.hives IS NULL THEN 'N.A' 
-								ELSE hivedata.hives END AS hive,
-					CASE WHEN makeup.Household IS NULL THEN 'NA' 
-								ELSE makeup.Household END AS household,
-					CASE WHEN makeup.Dependents IS NULL THEN 'NA' 
-								ELSE makeup.Dependents END AS dependents,
-					CASE WHEN makeup.Generation IS NULL THEN 'NA' 
-								ELSE makeup.Generation END AS generation,
-					CASE WHEN makeup.Gender IS NULL THEN 'NA' 
-								ELSE makeup.Gender END AS gender,
-					CASE WHEN makeup.Race IS NULL THEN 'NA' 
-								ELSE makeup.Race END AS race,
-					CASE WHEN makeup.FinancialGoals IS NULL THEN 'NA' 
-								ELSE makeup.FinancialGoals END AS financialgoals,
-					CASE WHEN makeup.Industry IS NULL THEN 'NA' 
-								ELSE makeup.Industry END AS industry,
-					CASE WHEN makeup.Career IS NULL THEN 'NA' 
-								ELSE makeup.Career END AS career,
-					CASE WHEN makeup.Income IS NULL THEN 'NA' 
-								ELSE makeup.Income END AS income
+					CASE WHEN hivedata.hives IS NULL THEN '[NA]'
+											ELSE hivedata.hives END AS hive,   
+					CASE WHEN makeup.Household IS NULL THEN '[NA]'
+											ELSE makeup.Household END AS household,
+					CASE WHEN makeup.Dependents IS NULL THEN '[NA]'
+											ELSE makeup.Dependents END AS dependents,
+					CASE WHEN makeup.Generation IS NULL THEN '[NA]'
+											ELSE makeup.Generation END AS generation,
+					CASE WHEN makeup.Gender IS NULL THEN '[NA]'
+											ELSE makeup.Gender END AS gender,  
+					CASE WHEN makeup.Race IS NULL THEN '[NA]'
+											ELSE makeup.Race END AS race,      
+					CASE WHEN makeup.FinancialGoals IS NULL THEN '[NA]'
+											ELSE makeup.FinancialGoals END AS financialgoals,
+					CASE WHEN makeup.Industry IS NULL THEN '[NA]'
+											ELSE makeup.Industry END AS industry,
+					CASE WHEN makeup.Career IS NULL THEN '[NA]'
+											ELSE makeup.Career END AS career,  
+					CASE WHEN makeup.Income IS NULL THEN '[NA]'
+											ELSE makeup.Income END AS income     
 					FROM user
 					left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
-					
-					
+									
 					LEFT JOIN (
 					SELECT user.impart_wealth_id,GROUP_CONCAT(member_hive_id)  as hives
 					FROM hive_members
@@ -166,41 +160,49 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					
 					where user.deleted_at is null
 					`)
-	if gpi.SearchIDs != "" {
-		extraQery = fmt.Sprintf(` and CONCAT(",", makeup.answer_ids, ",") REGEXP ?`)
-		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+	if len(gpi.SearchIDs) > 0 {
+		for _, filter := range gpi.SearchIDs {
+			if filter != "" {
+				extraQery = fmt.Sprintf(` and FIND_IN_SET( %s ,makeup.answer_ids) `, filter)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+			}
+		}
 	}
-	orderby := fmt.Sprintf(`			
-	group by user.impart_wealth_id
-	order by %s `, gpi.SortBy)
+	orderby := ` group by user.impart_wealth_id `
+	if gpi.SortBy == "" {
+		orderby = fmt.Sprintf("%s  order by email asc", orderby)
+	}
 	orderby = fmt.Sprintf("%s LIMIT ? OFFSET ?", orderby)
 	if gpi.SearchKey != "" {
 		extraQery = fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 		inputQuery = inputQuery + orderby
-		if gpi.SearchIDs != "" {
-			err = queries.Raw(inputQuery, "("+gpi.SearchIDs+")", "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
-		} else {
-			err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
-		}
+		err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 	} else {
 		inputQuery = inputQuery + orderby
-		if gpi.SearchIDs != "" {
-			err = queries.Raw(inputQuery, ",("+gpi.SearchIDs+"),", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
-		} else {
-			err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
-		}
+		err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 	}
 
 	if err != nil {
-		return userDetails, outOffset, err
+		out := make(models.UserDetails, 0, 0)
+		return out, outOffset, err
 	}
 	if len(userDetails) < gpi.Limit {
 		outOffset = nil
 	} else {
 		outOffset.Offset += len(userDetails)
 	}
-
+	if len(userDetails) == 0 {
+		out := make(models.UserDetails, 0, 0)
+		return out, outOffset, nil
+	}
+	if gpi.SortBy != "" {
+		if gpi.SortOrder == "asc" {
+			SortAscendingUser(userDetails, gpi.SortBy)
+		} else {
+			SortDescendingUser(userDetails, gpi.SortBy)
+		}
+	}
 	return userDetails, outOffset, nil
 
 }
@@ -229,33 +231,8 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		qm.Load("PostFiles.FidFile"), // get files
 
 	}
-	sortByUser := false
 	if gpi.SortBy == "" {
 		queryMods = append(queryMods, qm.OrderBy("created_at desc, post_id desc"))
-	} else {
-		if gpi.SortBy == "subject" || gpi.SortBy == "hive_id" || gpi.SortBy == "content" || gpi.SortBy == "created_at" || gpi.SortBy == "pinned" || gpi.SortBy == "comment_count" || gpi.SortBy == "reported" {
-			if gpi.SortBy == "reported" {
-				if gpi.SortOrder == "desc" {
-					gpi.SortOrder = "asc"
-				} else if gpi.SortOrder == "asc" {
-					gpi.SortOrder = "desc"
-				}
-				gpi.SortBy = "reviewed"
-			}
-			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
-			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
-		} else if gpi.SortBy == "email" || gpi.SortBy == "screen_name" {
-			sortByUser = true
-		} else if gpi.SortBy == "tag" {
-			where := fmt.Sprintf(`post_tag on post.post_id=post_tag.post_id and post.deleted_at is null`)
-			queryMods = append(queryMods, qm.InnerJoin(where))
-			where = fmt.Sprintf(`tag on post_tag.tag_id=tag.tag_id`)
-			queryMods = append(queryMods, qm.InnerJoin(where))
-			gpi.SortBy = "tag.name"
-			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
-			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
-
-		}
 	}
 	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null and post.deleted_at is null`)
 	queryMods = append(queryMods, qm.InnerJoin(where))
@@ -263,15 +240,6 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null and post.deleted_at is null
 		and (user.screen_name like ? or user.email like ? ) `)
 		queryMods = append(queryMods, qm.InnerJoin(where, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%"))
-		if sortByUser {
-			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
-			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
-		}
-	} else if gpi.SortBy != "" && sortByUser {
-		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null and post.deleted_at is null`)
-		queryMods = append(queryMods, qm.InnerJoin(where))
-		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
-		queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
 	}
 	posts, err := dbmodels.Posts(queryMods...).All(ctx, m.db)
 
@@ -284,6 +252,13 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		outOffset = nil
 	} else {
 		outOffset.Offset += len(posts)
+	}
+	if gpi.SortBy != "" {
+		if gpi.SortOrder == "asc" {
+			SortAscendingPost(out, gpi.SortBy)
+		} else {
+			SortDescendingPost(out, gpi.SortBy)
+		}
 	}
 	return out, outOffset, nil
 

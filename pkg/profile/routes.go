@@ -853,8 +853,10 @@ func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 		filterId, inMap := params["filters"]
 		if inMap {
 			newStr := strings.Join(filterId, " ")
-			newStr = strings.ReplaceAll(newStr, ",", "|")
-			gpi.SearchIDs = newStr
+			stringSlice := strings.Split(newStr, ",")
+			fmt.Println(len(stringSlice))
+			// newStr = strings.ReplaceAll(newStr, ",", "|")
+			gpi.SearchIDs = stringSlice
 		}
 		if sort := strings.TrimSpace(params.Get("sort_by")); sort != "" {
 			gpi.SortBy = strings.TrimSpace(params.Get("sort_by"))

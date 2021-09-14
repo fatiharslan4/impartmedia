@@ -16,7 +16,7 @@ type GetAdminInputs struct {
 	Offset int
 	// search is the optional to filter on
 	SearchKey string
-	SearchIDs string
+	SearchIDs []string
 	SortBy    string
 	SortOrder string
 }

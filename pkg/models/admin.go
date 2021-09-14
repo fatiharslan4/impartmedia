@@ -24,12 +24,12 @@ type GetAdminInputs struct {
 type UserDetails []UserDetail
 type UserDetail struct {
 	ImpartWealthID string    `json:"impartWealthId"`
-	ScreenName     string    `json:"screenName"  `
+	ScreenName     string    `json:"screen_name"  `
 	Email          string    `json:"email" `
 	CreatedAt      time.Time `json:"created_at" `
 	Admin          bool      `json:"admin" `
 	Post           uint64    `json:"post" `
-	Hive           string    `json:"hive" `
+	Hive           string    `json:"hive_id" `
 	Household      string    `json:"household" `
 	Dependents     string    `json:"dependents" `
 	Generation     string    `json:"generation" `
@@ -52,14 +52,14 @@ type PagedUserResponse struct {
 type PostDetails []PostDetail
 type PostDetail struct {
 	PostID         uint64    `json:"postid"`
-	ScreenName     string    `json:"screenName"  `
+	ScreenName     string    `json:"screen_name"  `
 	Email          string    `json:"email" `
 	PostDatetime   time.Time `json:"created_at" `
-	HiveID         uint64    `json:"hiveid" `
+	HiveID         uint64    `json:"hive_id" `
 	Pinned         bool      `json:"pinned" `
 	Reported       bool      `json:"reported" `
-	CommentCount   int       `json:"commentcount" `
-	PostContent    string    `json:"postcontent" `
+	CommentCount   int       `json:"comment_count" `
+	PostContent    string    `json:"content" `
 	ImpartWealthID string    `json:"impartWealthId"`
 	Subject        string    `json:"subject" `
 	IsAdminPost    bool      `json:"adminpost" `

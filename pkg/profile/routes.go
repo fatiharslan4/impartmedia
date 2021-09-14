@@ -79,6 +79,9 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	mailChimpRoutes := version.Group("/mailchimp")
 	mailChimpRoutes.POST("", handler.CreateMailChimpForExistingUsers())
+
+	plaidRoutes := version.Group("/plaid")
+	plaidRoutes.POST("/token", handler.CreatePlaidToken())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -1025,6 +1028,7 @@ func (ph *profileHandler) GetHiveDetails() gin.HandlerFunc {
 		})
 	}
 }
+
 func (ph *profileHandler) GetFilterDetails() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctxUser := impart.GetCtxUser(ctx)
@@ -1096,5 +1100,43 @@ func (ph *profileHandler) CreateMailChimpForExistingUsers() gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, "Failed")
 		}
 		ctx.JSON(http.StatusOK, "Success")
+	}
+}
+
+func (ph *profileHandler) CreatePlaidToken() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		rawData, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		ctxUser := impart.GetCtxUser(ctx)
+		if ctxUser == nil {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Error in user.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		input := models.PlaidInput{}
+		err = json.Unmarshal(rawData, &input)
+		if input.ImpartWealthID == "" || input.PlaidAccessToken == "" {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Error in JSON request body.")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+		if err != nil {
+			ph.logger.Error("input json parse error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+		_, impartErr := ph.profileService.CreatePlaidProfile(ctx, input)
+		if impartErr != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Accesstoken updated."})
 	}
 }

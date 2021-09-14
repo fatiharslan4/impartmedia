@@ -139,3 +139,8 @@ func UpdateToUserDB(userToDelete *dbmodels.User, gpi DeleteUserInput, isDelete b
 	return userToDelete
 
 }
+
+type PlaidInput struct {
+	ImpartWealthID   string `json:"impartWealthID,omitempty"`
+	PlaidAccessToken string `json:"plaidAccessToken,omitempty"`
+}

@@ -657,6 +657,7 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		answerIds[i] = a.AnswerID
 	}
 	userEmail := userToDelete.Email
+	orgEmail := userToDelete.Email
 	screenName := userToDelete.ScreenName
 	userToDelete = models.UpdateToUserDB(userToDelete, gpi, true, screenName, userEmail)
 	err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
@@ -720,7 +721,7 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		return impart.NewError(err, "User Deletion failed")
 	}
 	// // delete user from mailChimp
-	err = members.Delete(impart.MailChimpAudienceID, userEmail)
+	err = members.Delete(impart.MailChimpAudienceID, orgEmail)
 	if err != nil {
 		m.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", userToDelete.ImpartWealthID),
 			zap.String("contextUser", userToDelete.ImpartWealthID))

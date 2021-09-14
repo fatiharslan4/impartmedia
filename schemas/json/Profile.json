@@ -143,6 +143,9 @@
 				},
 				"deletedByAdmin": {
 					"type": "boolean"
+				},
+				"plaidAccessToken": {
+					"type": "string"
 				}
 			},
 			"additionalProperties": false,

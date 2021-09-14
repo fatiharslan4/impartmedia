@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
 	profile_data "github.com/impartwealthapp/backend/pkg/data/profile"
@@ -54,6 +55,8 @@ type Service interface {
 	DeleteUserByAdmin(ctx context.Context, hardtDelete bool, deleteUser models.DeleteUserInput) impart.Error
 	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, impart.Error)
 	GetFilterDetails(ctx context.Context) ([]byte, impart.Error)
+
+	CreatePlaidProfile(ctx context.Context, plaid models.PlaidInput) (models.PlaidInput, impart.Error)
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {
@@ -457,4 +460,24 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 		return impart.NewError(impart.ErrBadRequest, "User delete failed.")
 	}
 	return nil
+}
+
+func (ps *profileService) CreatePlaidProfile(ctx context.Context, plaid models.PlaidInput) (models.PlaidInput, impart.Error) {
+	ctxUser := impart.GetCtxUser(ctx)
+	dbUser, err := ps.profileStore.GetUser(ctx, ctxUser.ImpartWealthID)
+	if err != nil {
+		ps.Error(err)
+		return models.PlaidInput{}, impart.NewError(impart.ErrBadRequest, "Unable to find profile.")
+	}
+	if dbUser.ImpartWealthID != plaid.ImpartWealthID {
+		return models.PlaidInput{}, impart.NewError(impart.ErrUnauthorized, "unable to edit a profile that's not yours.")
+	}
+	dbUser.PlaidAccessToken = null.StringFrom(plaid.PlaidAccessToken)
+	err = ps.profileStore.UpdateProfile(ctx, dbUser, nil)
+	if err != nil {
+		ps.Error(err)
+		return models.PlaidInput{}, impart.NewError(impart.ErrBadRequest, "Unable to update profile.")
+	}
+
+	return models.PlaidInput{}, nil
 }

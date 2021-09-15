@@ -30,20 +30,19 @@ type UserDetail struct {
 	CreatedAt      time.Time   `json:"created_at" `
 	Admin          bool        `json:"admin" `
 	Post           uint64      `json:"post" `
-	Hive           null.String `json:"hive" `
-	Household      null.String `json:"household" `
-	Dependents     null.String `json:"dependents" `
-	Generation     null.String `json:"generation" `
-	Gender         null.String `json:"gender" `
-	Race           null.String `json:"race" `
-	Financialgoals null.String `json:"financialgoals" `
-	Industry       null.String `json:"industry"`
-	Career         null.String `json:"career"`
-	Income         null.String `json:"income"`
-	LastLoginAt    string      `json:"last_login_at"`
+	Hive           string      `json:"hive_id" `
+	Household      string      `json:"household" `
+	Dependents     string      `json:"dependents" `
+	Generation     string      `json:"generation" `
+	Gender         string      `json:"gender" `
+	Race           string      `json:"race" `
+	Financialgoals string      `json:"financialgoals" `
+	Industry       string      `json:"industry"`
+	Career         string      `json:"career"`
+	Income         string      `json:"income"`
+	LastloginAt    string      `json:"lastlogin_at"`
 	SuperAdmin     bool        `json:"super_admin"`
 	AnswerIds      string      `json:"answer_ids"`
-	LastLogin      null.Time   `json:"last_login"`
 }
 
 type PagedUserResponse struct {

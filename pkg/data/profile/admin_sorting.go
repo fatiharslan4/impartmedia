@@ -106,39 +106,6 @@ func UserDataToModel(user models.UserDetails) models.UserDetails {
 		if (p.Email == null.String{}) {
 			out[i].Email = null.StringFrom(types.AccountRemoved.ToString())
 		}
-		if (p.Career == null.String{}) {
-			out[i].Career = null.StringFrom("NA")
-		}
-		if (p.Household == null.String{}) {
-			out[i].Household = null.StringFrom("NA")
-		}
-		if (p.Dependents == null.String{}) {
-			out[i].Dependents = null.StringFrom("NA")
-		}
-		if (p.Gender == null.String{}) {
-			out[i].Gender = null.StringFrom("NA")
-		}
-		if (p.Generation == null.String{}) {
-			out[i].Generation = null.StringFrom("NA")
-		}
-		if (p.Financialgoals == null.String{}) {
-			out[i].Financialgoals = null.StringFrom("NA")
-		}
-		if (p.Income == null.String{}) {
-			out[i].Income = null.StringFrom("NA")
-		}
-		if (p.Industry == null.String{}) {
-			out[i].Industry = null.StringFrom("NA")
-		}
-		if (p.Race == null.String{}) {
-			out[i].Race = null.StringFrom("NA")
-		}
-		if (p.Hive == null.String{}) {
-			out[i].Hive = null.StringFrom("NA")
-		}
-		if (p.LastLogin == null.Time{}) {
-			out[i].LastLoginAt = "NA"
-		}
 
 	}
 	return out

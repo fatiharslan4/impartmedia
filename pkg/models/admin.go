@@ -30,7 +30,7 @@ type UserDetail struct {
 	CreatedAt      time.Time   `json:"created_at" `
 	Admin          bool        `json:"admin" `
 	Post           uint64      `json:"post" `
-	Hive           string      `json:"hive_id" `
+	HiveId         string      `json:"hive_id" `
 	Household      string      `json:"household" `
 	Dependents     string      `json:"dependents" `
 	Generation     string      `json:"generation" `

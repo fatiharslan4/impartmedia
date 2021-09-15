@@ -301,7 +301,7 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 	err = ps.profileStore.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
 
 	// // delete user from mailchimp
-	err = members.Delete(impart.MailChimpAudienceID, ctxUser.Email)
+	err = members.Delete(impart.MailChimpAudienceID, dbUser.Email)
 	if err != nil {
 		ps.Logger().Error("Delete user requset failed in MailChimp", zap.String("blockUser", ctxUser.ImpartWealthID),
 			zap.String("User", ctxUser.ImpartWealthID))

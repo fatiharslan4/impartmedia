@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -38,38 +39,29 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	}
 	var err error
 	extraQery := ""
-	inputQuery := fmt.Sprintf(`SELECT 
+	inputQuery := fmt.Sprintf(`Select * from ( SELECT 
 					user.impart_wealth_id,
-					CASE WHEN user.blocked = 1 THEN '[Account Deleted]'        
-							ELSE user.screen_name END AS screen_name,
-					CASE WHEN user.blocked = 1 THEN '[Account Deleted]'        
-							ELSE user.email END AS email,
-					user.created_at,
-					CASE WHEN user.lastlogin_at  is null  then '[NA]'
-						ELSE  user.lastlogin_at END as last_login_at ,
-					user.admin,
-					user.super_admin,
-					COUNT(post.post_id) as post,
-					CASE WHEN hivedata.hives IS NULL THEN '[NA]'
-											ELSE hivedata.hives END AS hive,   
-					CASE WHEN makeup.Household IS NULL THEN '[NA]'
-											ELSE makeup.Household END AS household,
-					CASE WHEN makeup.Dependents IS NULL THEN '[NA]'
-											ELSE makeup.Dependents END AS dependents,
-					CASE WHEN makeup.Generation IS NULL THEN '[NA]'
-											ELSE makeup.Generation END AS generation,
-					CASE WHEN makeup.Gender IS NULL THEN '[NA]'
-											ELSE makeup.Gender END AS gender,  
-					CASE WHEN makeup.Race IS NULL THEN '[NA]'
-											ELSE makeup.Race END AS race,      
-					CASE WHEN makeup.FinancialGoals IS NULL THEN '[NA]'
-											ELSE makeup.FinancialGoals END AS financialgoals,
-					CASE WHEN makeup.Industry IS NULL THEN '[NA]'
-											ELSE makeup.Industry END AS industry,
-					CASE WHEN makeup.Career IS NULL THEN '[NA]'
-											ELSE makeup.Career END AS career,  
-					CASE WHEN makeup.Income IS NULL THEN '[NA]'
-											ELSE makeup.Income END AS income     
+					CASE WHEN user.blocked = 1 THEN null       
+                        ELSE user.screen_name END AS screen_name,
+                    CASE WHEN user.blocked = 1 THEN null      
+                        ELSE user.email END AS email,
+                    user.created_at,
+					CASE WHEN user.lastlogin_at  is null  then 'NA'
+					ELSE  user.lastlogin_at END as last_login_at ,
+                            user.lastlogin_at  as last_login ,
+                            user.admin,
+                            user.super_admin,
+                            COUNT(post.post_id) as post,
+							hivedata.hives  AS hive,   
+							makeup.Household  AS household,
+							makeup.Dependents  AS dependents,
+							makeup.Generation  AS generation,
+                            makeup.Gender  AS gender,  
+                            makeup.Race  AS race,      
+                            makeup.FinancialGoals  AS financialgoals,
+                            makeup.Industry  AS industry,
+							makeup.Career  AS career,  
+							makeup.Income  AS income        
 					FROM user
 					left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
 									
@@ -169,20 +161,28 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		}
 	}
 	orderby := ` group by user.impart_wealth_id `
-	if gpi.SortBy == "" {
-		orderby = fmt.Sprintf("%s  order by email asc", orderby)
-	}
 	orderby = fmt.Sprintf("%s LIMIT ? OFFSET ?", orderby)
 	if gpi.SearchKey != "" {
 		extraQery = fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 		inputQuery = inputQuery + orderby
-		err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 	} else {
 		inputQuery = inputQuery + orderby
+	}
+	inputQuery = fmt.Sprintf(" %s  ) lastQuery", inputQuery)
+	if gpi.SortBy == "" {
+		inputQuery = fmt.Sprintf("%s  order by ISNULL(email) asc", inputQuery)
+	} else {
+		if gpi.SortBy == "last_login_at" {
+			gpi.SortBy = "last_login"
+		}
+		inputQuery = fmt.Sprintf("%s  order by ISNULL(%s), %s %s", inputQuery, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
+	}
+	if gpi.SearchKey != "" {
+		err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+	} else {
 		err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 	}
-
 	if err != nil {
 		out := make(models.UserDetails, 0, 0)
 		return out, outOffset, err
@@ -196,14 +196,8 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		out := make(models.UserDetails, 0, 0)
 		return out, outOffset, nil
 	}
-	if gpi.SortBy != "" {
-		if gpi.SortOrder == "asc" {
-			SortAscendingUser(userDetails, gpi.SortBy)
-		} else {
-			SortDescendingUser(userDetails, gpi.SortBy)
-		}
-	}
-	return userDetails, outOffset, nil
+	userResult := UserDataToModel(userDetails)
+	return userResult, outOffset, nil
 
 }
 
@@ -242,7 +236,6 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		queryMods = append(queryMods, qm.InnerJoin(where, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%"))
 	}
 	posts, err := dbmodels.Posts(queryMods...).All(ctx, m.db)
-
 	out := models.PostsData(posts)
 
 	if err != nil {
@@ -258,6 +251,31 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 			SortAscendingPost(out, gpi.SortBy)
 		} else {
 			SortDescendingPost(out, gpi.SortBy)
+		}
+		if gpi.SortBy == "screen_name" || gpi.SortBy == "email" {
+			output := make(models.PostDetails, len(out), len(out))
+			lastlen := len(output) - 1
+			firstlen := 0
+			for _, p := range out {
+				name := ""
+				if gpi.SortBy == "screen_name" {
+					name = p.ScreenName
+				} else {
+					name = p.Email
+				}
+				if name == types.AccountRemoved.ToString() {
+					if (output[lastlen] == models.PostDetail{}) {
+						output[lastlen] = p
+						lastlen = lastlen - 1
+					}
+				} else {
+					if (output[firstlen] == models.PostDetail{}) {
+						output[firstlen] = p
+						firstlen = firstlen + 1
+					}
+				}
+			}
+			return output, outOffset, nil
 		}
 	}
 	return out, outOffset, nil

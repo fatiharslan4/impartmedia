@@ -76,10 +76,15 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					CASE WHEN makeup.Career IS NULL THEN 'NA' 
 								ELSE makeup.Career END AS career,
 					CASE WHEN makeup.Income IS NULL THEN 'NA' 
-								ELSE makeup.Income END AS income
+								ELSE makeup.Income END AS income,						
+					CASE when makeup.Income IS NULL  THEN null
+						ELSE max(answerUser.answer_id) END AS userAnswerId
 					FROM user
 					left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
 					
+					Left join
+					user_answers answerUser
+					on user.impart_wealth_id = answerUser.impart_wealth_id
 					
 					LEFT JOIN (
 					SELECT user.impart_wealth_id,GROUP_CONCAT(member_hive_id)  as hives
@@ -181,9 +186,16 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	}
 	orderby := ""
 	if isSort {
-		orderby = fmt.Sprintf(`		
-		group by user.impart_wealth_id
-		order by user.blocked asc ,ISNULL(%s), %s %s  `, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
+		if gpi.SortBy == "income" {
+			sortBy = "userAnswerId"
+			orderby = fmt.Sprintf(`		
+			group by user.impart_wealth_id
+			order by user.blocked asc , %s %s  `, sortBy, gpi.SortOrder)
+		} else {
+			orderby = fmt.Sprintf(`		
+			group by user.impart_wealth_id
+			order by user.blocked asc ,ISNULL(%s), %s %s  `, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
+		}
 	} else {
 		orderby = fmt.Sprintf(`		
 		group by user.impart_wealth_id

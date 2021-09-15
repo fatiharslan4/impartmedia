@@ -179,9 +179,17 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	if gpi.SortBy == "created_at" {
 		gpi.SortBy = "user.created_at"
 	}
-	orderby := fmt.Sprintf(`		
-	group by user.impart_wealth_id
-	order by ISNULL(%s), %s %s  `, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
+	orderby := ""
+	if isSort {
+		orderby = fmt.Sprintf(`		
+		group by user.impart_wealth_id
+		order by user.blocked asc ,ISNULL(%s), %s %s  `, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
+	} else {
+		orderby = fmt.Sprintf(`		
+		group by user.impart_wealth_id
+		order by ISNULL(%s), %s %s  `, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
+	}
+
 	orderby = fmt.Sprintf("%s LIMIT ? OFFSET ?", orderby)
 	if gpi.SearchKey != "" {
 		extraQery = fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
@@ -193,7 +201,6 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	if isSort {
 		inputQuery = fmt.Sprintf("Select * from (%s) output order by   ISNULL(%s)  ", inputQuery, sortBy)
 	}
-	fmt.Println(inputQuery)
 	if gpi.SearchKey != "" {
 		err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 	} else {

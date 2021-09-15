@@ -854,7 +854,6 @@ func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 		if inMap {
 			newStr := strings.Join(filterId, " ")
 			stringSlice := strings.Split(newStr, ",")
-			fmt.Println(len(stringSlice))
 			// newStr = strings.ReplaceAll(newStr, ",", "|")
 			gpi.SearchIDs = stringSlice
 		}

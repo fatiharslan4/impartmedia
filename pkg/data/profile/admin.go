@@ -161,6 +161,9 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		}
 	}
 	orderby := ` group by user.impart_wealth_id `
+	if gpi.SortBy == "" {
+		orderby = fmt.Sprintf(" %s order by user.created_at desc ", orderby)
+	}
 	orderby = fmt.Sprintf("%s LIMIT ? OFFSET ?", orderby)
 	if gpi.SearchKey != "" {
 		extraQery = fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
@@ -170,9 +173,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		inputQuery = inputQuery + orderby
 	}
 	inputQuery = fmt.Sprintf(" %s  ) lastQuery", inputQuery)
-	if gpi.SortBy == "" {
-		inputQuery = fmt.Sprintf("%s  order by ISNULL(email) asc", inputQuery)
-	} else {
+	if gpi.SortBy != "" {
 		if gpi.SortBy == "last_login_at" {
 			gpi.SortBy = "last_login"
 		}

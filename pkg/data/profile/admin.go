@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
-	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -37,34 +36,51 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	} else if gpi.Limit > maxLimit {
 		gpi.Limit = maxLimit
 	}
+	isSort := true
 	var err error
 	extraQery := ""
-	inputQuery := fmt.Sprintf(`Select * from ( SELECT 
+	sortBy := gpi.SortBy
+	if gpi.SortBy == "" {
+		isSort = false
+		gpi.SortBy = "user.created_at"
+		gpi.SortOrder = "desc"
+	}
+	inputQuery := fmt.Sprintf(`SELECT 
 					user.impart_wealth_id,
-					CASE WHEN user.blocked = 1 THEN null       
-                        ELSE user.screen_name END AS screen_name,
-                    CASE WHEN user.blocked = 1 THEN null      
-                        ELSE user.email END AS email,
-                    user.created_at,
+					CASE WHEN user.blocked = 1 THEN  null
+						ELSE user.screen_name END AS screen_name,
+					CASE WHEN user.blocked = 1 THEN  null 
+						ELSE user.email END AS email,
+					user.created_at,
 					CASE WHEN user.lastlogin_at  is null  then 'NA'
-					ELSE  user.lastlogin_at END as last_login_at ,
-                            user.lastlogin_at  as last_login ,
-                            user.admin,
-                            user.super_admin,
-                            COUNT(post.post_id) as post,
-							hivedata.hives  AS hive,   
-							makeup.Household  AS household,
-							makeup.Dependents  AS dependents,
-							makeup.Generation  AS generation,
-                            makeup.Gender  AS gender,  
-                            makeup.Race  AS race,      
-                            makeup.FinancialGoals  AS financialgoals,
-                            makeup.Industry  AS industry,
-							makeup.Career  AS career,  
-							makeup.Income  AS income        
+						ELSE  user.lastlogin_at END as lastlogin_at ,
+					user.admin,
+					user.super_admin,
+					COUNT(post.post_id) as post,
+					CASE WHEN hivedata.hives IS NULL THEN 'N.A' 
+								ELSE hivedata.hives END AS hive_id,
+					CASE WHEN makeup.Household IS NULL THEN 'NA' 
+								ELSE makeup.Household END AS household,
+					CASE WHEN makeup.Dependents IS NULL THEN 'NA' 
+								ELSE makeup.Dependents END AS dependents,
+					CASE WHEN makeup.Generation IS NULL THEN 'NA' 
+								ELSE makeup.Generation END AS generation,
+					CASE WHEN makeup.Gender IS NULL THEN 'NA' 
+								ELSE makeup.Gender END AS gender,
+					CASE WHEN makeup.Race IS NULL THEN 'NA' 
+								ELSE makeup.Race END AS race,
+					CASE WHEN makeup.FinancialGoals IS NULL THEN 'NA' 
+								ELSE makeup.FinancialGoals END AS financialgoals,
+					CASE WHEN makeup.Industry IS NULL THEN 'NA' 
+								ELSE makeup.Industry END AS industry,
+					CASE WHEN makeup.Career IS NULL THEN 'NA' 
+								ELSE makeup.Career END AS career,
+					CASE WHEN makeup.Income IS NULL THEN 'NA' 
+								ELSE makeup.Income END AS income
 					FROM user
 					left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
-									
+					
+					
 					LEFT JOIN (
 					SELECT user.impart_wealth_id,GROUP_CONCAT(member_hive_id)  as hives
 					FROM hive_members
@@ -160,10 +176,12 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 			}
 		}
 	}
-	orderby := ` group by user.impart_wealth_id `
-	if gpi.SortBy == "" {
-		orderby = fmt.Sprintf(" %s order by user.created_at desc ", orderby)
+	if gpi.SortBy == "created_at" {
+		gpi.SortBy = "user.created_at"
 	}
+	orderby := fmt.Sprintf(`		
+	group by user.impart_wealth_id
+	order by ISNULL(%s), %s %s  `, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
 	orderby = fmt.Sprintf("%s LIMIT ? OFFSET ?", orderby)
 	if gpi.SearchKey != "" {
 		extraQery = fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
@@ -172,13 +190,10 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	} else {
 		inputQuery = inputQuery + orderby
 	}
-	inputQuery = fmt.Sprintf(" %s  ) lastQuery", inputQuery)
-	if gpi.SortBy != "" {
-		if gpi.SortBy == "last_login_at" {
-			gpi.SortBy = "last_login"
-		}
-		inputQuery = fmt.Sprintf("%s  order by ISNULL(%s), %s %s", inputQuery, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
+	if isSort {
+		inputQuery = fmt.Sprintf("Select * from (%s) output order by   ISNULL(%s)  ", inputQuery, sortBy)
 	}
+	fmt.Println(inputQuery)
 	if gpi.SearchKey != "" {
 		err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 	} else {
@@ -226,17 +241,54 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		qm.Load("PostFiles.FidFile"), // get files
 
 	}
+	sortByUser := false
 	if gpi.SortBy == "" {
 		queryMods = append(queryMods, qm.OrderBy("created_at desc, post_id desc"))
+	} else {
+		if gpi.SortBy == "subject" || gpi.SortBy == "hive_id" || gpi.SortBy == "content" || gpi.SortBy == "created_at" || gpi.SortBy == "pinned" || gpi.SortBy == "comment_count" || gpi.SortBy == "reported" {
+			if gpi.SortBy == "reported" {
+				if gpi.SortOrder == "desc" {
+					gpi.SortOrder = "asc"
+				} else if gpi.SortOrder == "asc" {
+					gpi.SortOrder = "desc"
+				}
+				gpi.SortBy = "reviewed"
+			}
+			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+		} else if gpi.SortBy == "email" || gpi.SortBy == "screen_name" {
+			sortByUser = true
+		} else if gpi.SortBy == "tag" {
+			where := fmt.Sprintf(`post_tag on post.post_id=post_tag.post_id`)
+			queryMods = append(queryMods, qm.InnerJoin(where))
+			where = fmt.Sprintf(`tag on post_tag.tag_id=tag.tag_id`)
+			queryMods = append(queryMods, qm.InnerJoin(where))
+			gpi.SortBy = "tag.name"
+			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+
+		}
 	}
-	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null and post.deleted_at is null`)
+	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null `)
 	queryMods = append(queryMods, qm.InnerJoin(where))
 	if gpi.SearchKey != "" {
-		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null and post.deleted_at is null
+		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null 
 		and (user.screen_name like ? or user.email like ? ) `)
 		queryMods = append(queryMods, qm.InnerJoin(where, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%"))
+		if sortByUser {
+			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+			sortby := fmt.Sprintf("-user.deleted_at asc,-user.blocked desc, %s", gpi.SortBy)
+			queryMods = append(queryMods, qm.OrderBy(sortby))
+		}
+	} else if gpi.SortBy != "" && sortByUser {
+		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id `)
+		queryMods = append(queryMods, qm.InnerJoin(where))
+		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+		sortby := fmt.Sprintf("-user.deleted_at asc,-user.blocked desc, %s", gpi.SortBy)
+		queryMods = append(queryMods, qm.OrderBy(sortby))
 	}
 	posts, err := dbmodels.Posts(queryMods...).All(ctx, m.db)
+
 	out := models.PostsData(posts)
 
 	if err != nil {
@@ -246,38 +298,6 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		outOffset = nil
 	} else {
 		outOffset.Offset += len(posts)
-	}
-	if gpi.SortBy != "" {
-		if gpi.SortOrder == "asc" {
-			SortAscendingPost(out, gpi.SortBy)
-		} else {
-			SortDescendingPost(out, gpi.SortBy)
-		}
-		if gpi.SortBy == "screen_name" || gpi.SortBy == "email" {
-			output := make(models.PostDetails, len(out), len(out))
-			lastlen := len(output) - 1
-			firstlen := 0
-			for _, p := range out {
-				name := ""
-				if gpi.SortBy == "screen_name" {
-					name = p.ScreenName
-				} else {
-					name = p.Email
-				}
-				if name == types.AccountRemoved.ToString() {
-					if (output[lastlen] == models.PostDetail{}) {
-						output[lastlen] = p
-						lastlen = lastlen - 1
-					}
-				} else {
-					if (output[firstlen] == models.PostDetail{}) {
-						output[firstlen] = p
-						firstlen = firstlen + 1
-					}
-				}
-			}
-			return output, outOffset, nil
-		}
 	}
 	return out, outOffset, nil
 

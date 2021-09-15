@@ -6,6 +6,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 )
 
 // GetAdminInputs is the input necessary
@@ -23,25 +24,26 @@ type GetAdminInputs struct {
 
 type UserDetails []UserDetail
 type UserDetail struct {
-	ImpartWealthID string    `json:"impartWealthId"`
-	ScreenName     string    `json:"screen_name"  `
-	Email          string    `json:"email" `
-	CreatedAt      time.Time `json:"created_at" `
-	Admin          bool      `json:"admin" `
-	Post           uint64    `json:"post" `
-	Hive           string    `json:"hive_id" `
-	Household      string    `json:"household" `
-	Dependents     string    `json:"dependents" `
-	Generation     string    `json:"generation" `
-	Gender         string    `json:"gender" `
-	Race           string    `json:"race" `
-	Financialgoals string    `json:"financialgoals" `
-	Industry       string    `json:"industry"`
-	Career         string    `json:"career"`
-	Income         string    `json:"income"`
-	LastLoginAt    string    `json:"last_login_at"`
-	SuperAdmin     bool      `json:"super_admin"`
-	AnswerIds      string    `json:"answer_ids"`
+	ImpartWealthID string      `json:"impartWealthId"`
+	ScreenName     null.String `json:"screen_name"  `
+	Email          null.String `json:"email" `
+	CreatedAt      time.Time   `json:"created_at" `
+	Admin          bool        `json:"admin" `
+	Post           uint64      `json:"post" `
+	Hive           null.String `json:"hive_id" `
+	Household      null.String `json:"household" `
+	Dependents     null.String `json:"dependents" `
+	Generation     null.String `json:"generation" `
+	Gender         null.String `json:"gender" `
+	Race           null.String `json:"race" `
+	Financialgoals null.String `json:"financialgoals" `
+	Industry       null.String `json:"industry"`
+	Career         null.String `json:"career"`
+	Income         null.String `json:"income"`
+	LastLoginAt    string      `json:"last_login_at"`
+	SuperAdmin     bool        `json:"super_admin"`
+	AnswerIds      string      `json:"answer_ids"`
+	LastLogin      null.Time   `json:"last_login"`
 }
 
 type PagedUserResponse struct {

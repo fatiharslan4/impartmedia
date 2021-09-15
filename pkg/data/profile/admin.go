@@ -77,14 +77,11 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 								ELSE makeup.Career END AS career,
 					CASE WHEN makeup.Income IS NULL THEN 'NA' 
 								ELSE makeup.Income END AS income,						
-					CASE when makeup.Income IS NULL  THEN null
-						ELSE max(answerUser.answer_id) END AS userAnswerId
+					makeup.sortorder as sortorder
 					FROM user
 					left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
 					
-					Left join
-					user_answers answerUser
-					on user.impart_wealth_id = answerUser.impart_wealth_id
+
 					
 					LEFT JOIN (
 					SELECT user.impart_wealth_id,GROUP_CONCAT(member_hive_id)  as hives
@@ -96,6 +93,11 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					
 					LEFT JOIN (
 					SELECT  impart_wealth_id,
+							GROUP_CONCAT( CASE
+								WHEN question.question_name = 'Income'
+								THEN answer.sort_order
+								ELSE null
+						END ) as sortorder,
 						GROUP_CONCAT(
 							CASE 
 								WHEN question.question_name = 'Household'
@@ -185,8 +187,8 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		gpi.SortBy = "user.created_at"
 	}
 	if gpi.SortBy == "income" {
-		gpi.SortBy = "userAnswerId"
-		sortBy = "userAnswerId"
+		gpi.SortBy = "sortorder"
+		sortBy = "sortorder"
 	}
 	orderby := ""
 	if isSort {

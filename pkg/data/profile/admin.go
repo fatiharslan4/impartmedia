@@ -184,18 +184,15 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	if gpi.SortBy == "created_at" {
 		gpi.SortBy = "user.created_at"
 	}
+	if gpi.SortBy == "income" {
+		gpi.SortBy = "userAnswerId"
+		sortBy = "userAnswerId"
+	}
 	orderby := ""
 	if isSort {
-		if gpi.SortBy == "income" {
-			sortBy = "userAnswerId"
-			orderby = fmt.Sprintf(`		
-			group by user.impart_wealth_id
-			order by user.blocked asc , %s %s  `, sortBy, gpi.SortOrder)
-		} else {
-			orderby = fmt.Sprintf(`		
+		orderby = fmt.Sprintf(`		
 			group by user.impart_wealth_id
 			order by user.blocked asc ,ISNULL(%s), %s %s  `, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
-		}
 	} else {
 		orderby = fmt.Sprintf(`		
 		group by user.impart_wealth_id

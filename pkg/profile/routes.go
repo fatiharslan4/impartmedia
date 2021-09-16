@@ -18,6 +18,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
+	plaid "github.com/impartwealthapp/backend/pkg/plaid"
 	"go.uber.org/zap"
 )
 
@@ -27,15 +28,17 @@ type profileHandler struct {
 	questionnaireService QuestionnaireService
 	logger               *zap.Logger
 	noticationService    impart.NotificationService
+	plaidData            plaid.Service
 }
 
 func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
-	profileService Service, logger *zap.Logger, noticationService impart.NotificationService) {
+	profileService Service, logger *zap.Logger, noticationService impart.NotificationService, plaidService plaid.Service) {
 	handler := profileHandler{
 		profileData:       profileData,
 		profileService:    profileService,
 		logger:            logger,
 		noticationService: noticationService,
+		plaidData:         plaidService,
 	}
 
 	profileRoutes := version.Group("/profiles")
@@ -82,6 +85,15 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	plaidRoutes := version.Group("/plaid")
 	plaidRoutes.POST("/token", handler.CreatePlaidToken())
+
+	plaidInstitutionRoutes := version.Group("/institution")
+	plaidInstitutionRoutes.POST("", handler.CreatePlaidInstitutions())
+	plaidInstitutionRoutes.GET("", handler.GetPlaidInstitutions())
+
+	plaidUserInstitutionRoutes := version.Group("/user-institution")
+	plaidUserInstitutionRoutes.POST("", handler.SavePlaidUserInstitutionToken())
+	plaidUserInstitutionRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutions())
+
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -1139,5 +1151,72 @@ func (ph *profileHandler) CreatePlaidToken() gin.HandlerFunc {
 			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Accesstoken updated."})
+	}
+}
+
+func (ph *profileHandler) CreatePlaidInstitutions() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		err := ph.plaidData.SavePlaidInstitutions(ctx)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Error in saving institution.")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Institution Saved."})
+	}
+}
+
+func (ph *profileHandler) SavePlaidUserInstitutionToken() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+		instittutin := plaid.UserInstitution{}
+		err = json.Unmarshal(b, &instittutin)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to unmarshal JSON Body to a Post")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		err = ph.plaidData.SavePlaidInstitutionToken(ctx, instittutin)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to save.")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Access token saved."})
+	}
+}
+
+func (ph *profileHandler) GetPlaidUserInstitutions() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		impartWealthId := ctx.Param("impartWealthId")
+		output, err := ph.plaidData.GetPlaidUserInstitutions(ctx, impartWealthId)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to save.")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionResponse{
+			Userinstitution: output,
+		})
+	}
+}
+
+func (ph *profileHandler) GetPlaidInstitutions() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		output, err := ph.plaidData.GetPlaidInstitutions(ctx)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Error in saving institution.")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, plaid.PagedInstitutionResponse{
+			Institution: output,
+		})
 	}
 }

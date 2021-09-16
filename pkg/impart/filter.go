@@ -118,7 +118,7 @@ func FilterData() ([]byte, error) {
 		"Career-Entry-level":                           Career_Entrylevel,
 		"Career-Mid-level":                             Career_Midlevel,
 		"Career-Management":                            Career_Management,
-		"Career-Upper Managementl":                     Career_UpperManagement,
+		"Career-Upper Management":                      Career_UpperManagement,
 		"Career-Business Owner":                        Career_BusinessOwner,
 		"Career-Other":                                 Career_Other,
 		"Income-Less than $20,000":                     Income_Income0,

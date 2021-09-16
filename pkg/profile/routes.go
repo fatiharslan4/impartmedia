@@ -90,11 +90,11 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	plaidInstitutionRoutes.POST("", handler.CreatePlaidInstitutions())
 	plaidInstitutionRoutes.GET("", handler.GetPlaidInstitutions())
 
-	plaidUserInstitutionRoutes := version.Group("/user-institution")
+	plaidUserInstitutionRoutes := version.Group("/plaid/institutions")
 	plaidUserInstitutionRoutes.POST("", handler.SavePlaidUserInstitutionToken())
 	plaidUserInstitutionRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutions())
 
-	plaidInstitutionAccountRoutes := version.Group("/user-accounts")
+	plaidInstitutionAccountRoutes := version.Group("/plaid/accounts")
 	plaidInstitutionAccountRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionAccounts())
 
 }

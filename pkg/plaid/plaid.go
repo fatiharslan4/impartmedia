@@ -2,6 +2,7 @@ package plaid
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -9,6 +10,7 @@ import (
 	plaid "github.com/plaid/plaid-go/plaid"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"go.uber.org/zap"
 )
 
 func (ser *plaidHandler) SavePlaidInstitutions(ctx context.Context) error {
@@ -36,7 +38,15 @@ func (ser *plaidHandler) SavePlaidInstitutions(ctx context.Context) error {
 	return nil
 }
 
-func (ser *plaidHandler) SavePlaidInstitutionToken(ctx context.Context, userInstitution UserInstitution) error {
+func (ser *plaidHandler) SavePlaidInstitutionToken(ctx context.Context, userInstitution UserInstitutionToken) impart.Error {
+
+	_, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(userInstitution.ImpartWealthID)).One(ctx, ser.db)
+	if err != nil {
+		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user.")
+		ser.logger.Error("Could not find the user institution details.", zap.String("User", userInstitution.ImpartWealthID),
+			zap.String("user", userInstitution.ImpartWealthID))
+		return impartErr
+	}
 
 	configuration := plaid.NewConfiguration()
 	configuration.AddDefaultHeader("PLAID-CLIENT-ID", PLAID_CLIENT_ID)
@@ -44,26 +54,56 @@ func (ser *plaidHandler) SavePlaidInstitutionToken(ctx context.Context, userInst
 	configuration.UseEnvironment(plaid.Sandbox)
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
+	var includeOptionalMetadata bool = true
 	request := plaid.NewInstitutionsGetByIdRequest(userInstitution.PlaidInstitutionId, countrCode)
+	data := plaid.NewInstitutionsGetByIdRequestOptions()
+	request.Options = data
+	request.Options.IncludeOptionalMetadata = &includeOptionalMetadata
 	response, _, err := client.PlaidApi.InstitutionsGetById(ctx).InstitutionsGetByIdRequest(*request).Execute()
 	if err != nil {
-		return err
+		impartErr := impart.NewError(impart.ErrBadRequest, "Could not Plaid institution the user.")
+		ser.logger.Error("Could not find the user institution details.", zap.String("User", userInstitution.ImpartWealthID),
+			zap.String("PlaidInstitutionId", userInstitution.PlaidInstitutionId))
+
+		return impartErr
 	}
-	out := &dbmodels.Institution{
-		PlaidInstitutionID: response.Institution.InstitutionId,
-		InstitutionName:    response.Institution.Name,
-	}
-	err = out.Insert(ctx, ser.db, boil.Infer())
 	inst, err := dbmodels.Institutions(dbmodels.InstitutionWhere.PlaidInstitutionID.EQ(userInstitution.PlaidInstitutionId)).One(ctx, ser.db)
 	if err != nil {
-		fmt.Println(err)
+		if err == sql.ErrNoRows {
+			out := &dbmodels.Institution{
+				PlaidInstitutionID: response.Institution.InstitutionId,
+				InstitutionName:    response.Institution.Name,
+				// Logo:               response.Institution.GetLogo(),
+				Weburl: response.Institution.GetUrl(),
+			}
+			err = out.Insert(ctx, ser.db, boil.Infer())
+			if err != nil {
+				impartErr := impart.NewError(impart.ErrBadRequest, "Institution save failed.")
+				ser.logger.Error("Institution save failed.", zap.String("User", userInstitution.ImpartWealthID),
+					zap.String("PlaidInstitutionId", userInstitution.PlaidInstitutionId))
+
+				return impartErr
+			}
+			inst, err = dbmodels.Institutions(dbmodels.InstitutionWhere.PlaidInstitutionID.EQ(userInstitution.PlaidInstitutionId)).One(ctx, ser.db)
+			if err != nil {
+				impartErr := impart.NewError(impart.ErrBadRequest, "Institution fetching failed.")
+				ser.logger.Error("IInstitution fetching failed in db.", zap.String("User", userInstitution.ImpartWealthID),
+					zap.String("PlaidInstitutionId", userInstitution.PlaidInstitutionId))
+
+				return impartErr
+			}
+		}
 	}
 	userInstitution.CreatedAt = impart.CurrentUTC()
 	userInstitution.Id = inst.ID
 	dbUserInstitution := userInstitution.ToDBModel()
 	err = dbUserInstitution.Insert(ctx, ser.db, boil.Infer())
 	if err != nil {
-		return err
+		impartErr := impart.NewError(impart.ErrBadRequest, "Acces token saving failed.")
+		ser.logger.Error("Acces token saving failed", zap.String("User", userInstitution.ImpartWealthID),
+			zap.String("PlaidInstitutionId", userInstitution.PlaidInstitutionId))
+
+		return impartErr
 	}
 	return nil
 
@@ -79,18 +119,7 @@ func (ser *plaidHandler) GetPlaidInstitutions(ctx context.Context) (Institutions
 
 }
 
-func (ser *plaidHandler) SavePlaidInstitutionAccounts(ctx context.Context, userInstitution UserInstitution) error {
-	userInstitution.CreatedAt = impart.CurrentUTC()
-	dbUserInstitution := userInstitution.ToDBModel()
-	err := dbUserInstitution.Insert(ctx, ser.db, boil.Infer())
-	if err != nil {
-		return err
-	}
-	return nil
-
-}
-
-func (ser *plaidHandler) GetPlaidUserInstitutions(ctx context.Context, impartWealthId string) (UserInstitutions, error) {
+func (ser *plaidHandler) GetPlaidUserInstitutions(ctx context.Context, impartWealthId string) (UserInstitutionTokens, error) {
 	userInstitutions, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(impartWealthId),
 		qm.Offset(0),
 		qm.Limit(100),
@@ -106,33 +135,84 @@ func (ser *plaidHandler) GetPlaidUserInstitutions(ctx context.Context, impartWea
 	return output, nil
 }
 
-func (ser *plaidHandler) SavePlaidUserInstitutionAccpunts(ctx context.Context) error {
+func (ser *plaidHandler) GetPlaidUserInstitutionAccounts(ctx context.Context, impartWealthId string) (UserAccount, impart.Error) {
+
+	_, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthId)).One(ctx, ser.db)
+	if err != nil {
+		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user.")
+		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
+			zap.String("user", impartWealthId))
+		return UserAccount{}, impartErr
+	}
+
+	userInstitutions, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(impartWealthId),
+		qm.Load(dbmodels.UserInstitutionRels.ImpartWealth),
+		qm.Load(dbmodels.UserInstitutionRels.Institution),
+	).All(ctx, ser.db)
+
+	if err != nil {
+		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user institution details.")
+		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
+			zap.String("user", impartWealthId))
+		return UserAccount{}, impartErr
+	}
+
 	configuration := plaid.NewConfiguration()
 	configuration.AddDefaultHeader("PLAID-CLIENT-ID", PLAID_CLIENT_ID)
 	configuration.AddDefaultHeader("PLAID-SECRET", PLAID_SECRET)
 	configuration.UseEnvironment(plaid.Sandbox)
 	client := plaid.NewAPIClient(configuration)
 
-	userInstitutions, err := dbmodels.UserInstitutions().All(ctx, ser.db)
-	if err != nil {
-		fmt.Println(err)
-	}
-	for _, user := range userInstitutions {
+	userData := UserAccount{}
+	userData.ImpartWealthID = impartWealthId
+	userData.UpdatedAt = impart.CurrentUTC()
+	userinstitution := make(UserInstitutions, len(userInstitutions))
+	for i, user := range userInstitutions {
+		institution := InstitutionToModel(user)
 		accountsGetRequest := plaid.NewAccountsGetRequest(user.AccessToken)
-		accountsGetRequest.SetOptions(plaid.AccountsGetRequestOptions{
-			AccountIds: &[]string{},
-		})
 		accountsGetResp, _, err := client.PlaidApi.AccountsGet(ctx).AccountsGetRequest(
 			*accountsGetRequest,
 		).Execute()
 		if err != nil {
-			fmt.Println(err)
+			ser.logger.Error("Could not find the user plaid account details.", zap.String("User", impartWealthId),
+				zap.String("token", user.AccessToken))
+			continue
 		}
 		accounts := accountsGetResp.GetAccounts()
-		for _, act := range accounts {
-			// dbAccnt := ToDBModel(act)
-			fmt.Println(act)
+		userAccounts := make(Accounts, len(accounts))
+		for i, act := range accounts {
+			userAccounts[i] = AccountToModel(act)
 		}
+		institution.Accounts = userAccounts
+		userinstitution[i] = institution
+		userData.Institutions = userinstitution
 	}
-	return nil
+	return userData, nil
+}
+
+func AccountToModel(act plaid.AccountBase) Account {
+	accounts := Account{}
+	accounts.AccountID = act.AccountId
+	accounts.Available = act.Balances.GetAvailable()
+	accounts.Current = act.Balances.GetCurrent()
+	accounts.CreditLimit = act.Balances.GetLimit()
+	accounts.IsoCurrencyCode = act.Balances.GetIsoCurrencyCode()
+	accounts.Mask = act.GetMask()
+	accounts.Type = string(act.Type)
+	accounts.Subtype = string(act.GetSubtype())
+	accounts.Name = act.GetName()
+	accounts.OfficialName = act.GetOfficialName()
+	accounts.UnofficialCurrencyCode = act.Balances.GetUnofficialCurrencyCode()
+	return accounts
+}
+
+func InstitutionToModel(user *dbmodels.UserInstitution) UserInstitution {
+	institution := UserInstitution{}
+	institution.AccessToken = user.AccessToken
+	institution.PlaidInstitutionId = user.R.Institution.PlaidInstitutionID
+	institution.CreatedAt = user.CreatedAt
+	institution.Logo = user.R.Institution.Logo
+	institution.Weburl = user.R.Institution.Weburl
+	institution.ImpartWealthID = user.ImpartWealthID
+	return institution
 }

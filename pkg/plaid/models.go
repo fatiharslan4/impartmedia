@@ -158,11 +158,11 @@ type PagedUserInstitutionResponse struct {
 }
 
 type PagedInstitutionResponse struct {
-	Institution Institutions `json:"userinstitution"`
+	Institution Institutions `json:"userInstitution"`
 	NextPage    *NextPage    `json:"nextPage"`
 }
 
 type PagedUserInstitutionAccountResponse struct {
-	Accounts UserAccount `json:"usernstitution"`
+	Accounts UserAccount `json:"userInstitution"`
 	NextPage *NextPage   `json:"nextPage"`
 }

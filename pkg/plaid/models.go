@@ -10,16 +10,16 @@ import (
 
 type Institutions []Institution
 type Institution struct {
-	ID                 uint64      `json:"Id" `
-	PlaidInstitutionId string      `json:"plaid_institution_id"`
-	InstitutionName    string      `json:"institution_name"`
-	Logo               null.String `json:"logo"`
-	Weburl             string      `json:"weburl"`
-	RequestId          string      `json:"request_id"`
+	ID                 uint64 `json:"Id" `
+	PlaidInstitutionId string `json:"plaid_institution_id"`
+	InstitutionName    string `json:"institution_name"`
+	Logo               string `json:"logo"`
+	Weburl             string `json:"weburl"`
+	RequestId          string `json:"request_id"`
 }
 
-type UserInstitutions []UserInstitution
-type UserInstitution struct {
+type UserInstitutionTokens []UserInstitutionToken
+type UserInstitutionToken struct {
 	UserInstitutionsId uint64    `json:"user_institutions_id" `
 	Id                 uint64    `json:"id"`
 	ImpartWealthID     string    `json:"impartWealthId" `
@@ -49,10 +49,48 @@ type UserInstitutionAccount struct {
 	PlaidAccountId     string  `json:"plaid_account_id"`
 }
 
+type UserAccounts []UserAccount
+type UserAccount struct {
+	ImpartWealthID string            `json:"impartWealthId" `
+	UpdatedAt      time.Time         `json:"updated_at" `
+	Institutions   []UserInstitution `json:"institutions"`
+}
+
+type UserInstitutions []UserInstitution
+type UserInstitution struct {
+	UserInstitutionsId uint64    `json:"user_institutions_id" `
+	Id                 uint64    `json:"id"`
+	ImpartWealthID     string    `json:"impartWealthId" `
+	AccessToken        string    `json:"access_token"`
+	CreatedAt          time.Time `json:"created_at"`
+	PlaidInstitutionId string    `json:"plaid_institution_id"`
+	Logo               string    `json:"logo"`
+	Weburl             string    `json:"weburl"`
+	RequestId          string    `json:"request_id"`
+	Accounts           []Account `json:"accounts"`
+}
+
+type Accounts []Account
+type Account struct {
+	AccountID              string  `json:"accountId"`
+	Mask                   string  `json:"mask" `
+	Name                   string  `json:"name"`
+	OfficialName           string  `json:"official_name"`
+	Subtype                string  `json:"subtype"`
+	Type                   string  `json:"type"`
+	Available              float32 `json:"available" `
+	Current                float32 `json:"current"`
+	IsoCurrencyCode        string  `json:"iso_currency_code" `
+	CreditLimit            float32 `json:"credit_limit"`
+	UnofficialCurrencyCode string  `json:"unofficial_currency_code"`
+}
+
 func ToDBModel(p plaid.Institution) *dbmodels.Institution {
 	out := &dbmodels.Institution{
 		PlaidInstitutionID: p.InstitutionId,
 		InstitutionName:    p.Name,
+		Logo:               p.GetLogo(),
+		Weburl:             p.GetUrl(),
 	}
 
 	return out
@@ -71,12 +109,14 @@ func InstitutionFromDB(p *dbmodels.Institution) Institution {
 		ID:                 p.ID,
 		PlaidInstitutionId: p.PlaidInstitutionID,
 		InstitutionName:    p.InstitutionName,
+		Logo:               p.Logo,
+		Weburl:             p.Weburl,
 	}
 
 	return out
 }
 
-func (p UserInstitution) ToDBModel() *dbmodels.UserInstitution {
+func (p UserInstitutionToken) ToDBModel() *dbmodels.UserInstitution {
 	out := &dbmodels.UserInstitution{
 		ImpartWealthID: p.ImpartWealthID,
 		CreatedAt:      p.CreatedAt,
@@ -87,16 +127,16 @@ func (p UserInstitution) ToDBModel() *dbmodels.UserInstitution {
 	return out
 }
 
-func DBmodelsToUserInstitutionResult(dbInstitution dbmodels.UserInstitutionSlice) UserInstitutions {
-	out := make(UserInstitutions, len(dbInstitution))
+func DBmodelsToUserInstitutionResult(dbInstitution dbmodels.UserInstitutionSlice) UserInstitutionTokens {
+	out := make(UserInstitutionTokens, len(dbInstitution))
 	for i, p := range dbInstitution {
 		out[i] = UserInstitutionFromDB(p)
 	}
 	return out
 }
 
-func UserInstitutionFromDB(p *dbmodels.UserInstitution) UserInstitution {
-	out := UserInstitution{
+func UserInstitutionFromDB(p *dbmodels.UserInstitution) UserInstitutionToken {
+	out := UserInstitutionToken{
 		AccessToken:        p.AccessToken,
 		CreatedAt:          p.CreatedAt,
 		Id:                 p.InstitutionID,
@@ -113,8 +153,8 @@ type NextPage struct {
 }
 
 type PagedUserInstitutionResponse struct {
-	Userinstitution UserInstitutions `json:"usernstitution"`
-	NextPage        *NextPage        `json:"nextPage"`
+	Userinstitution UserInstitutionTokens `json:"usernstitution"`
+	NextPage        *NextPage             `json:"nextPage"`
 }
 
 type PagedInstitutionResponse struct {
@@ -122,16 +162,7 @@ type PagedInstitutionResponse struct {
 	NextPage    *NextPage    `json:"nextPage"`
 }
 
-// func AccountToDBModel(p plaid.AccountBase) *dbmodels.UserInstitutionAccount {
-// 	out := &dbmodels.UserInstitutionAccount{
-// 		PlaidAccountID: p.AccountId,
-// 		// Mask:           p.Mask,
-// 		Name: p.Name,
-// 		// OfficialName: p.OfficialName,
-// 		// Subtype: p.Subtype,
-// 		// Subtype: p.Type,
-// 	}
-// 	val, _ := p.Balances.Limit.MarshalJSON()
-// 	out.CreditLimit = val
-// 	return out
-// }
+type PagedUserInstitutionAccountResponse struct {
+	Accounts UserAccount `json:"usernstitution"`
+	NextPage *NextPage   `json:"nextPage"`
+}

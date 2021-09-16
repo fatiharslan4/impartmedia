@@ -94,6 +94,9 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	plaidUserInstitutionRoutes.POST("", handler.SavePlaidUserInstitutionToken())
 	plaidUserInstitutionRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutions())
 
+	plaidInstitutionAccountRoutes := version.Group("/user-accounts")
+	plaidInstitutionAccountRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionAccounts())
+
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -1168,24 +1171,28 @@ func (ph *profileHandler) CreatePlaidInstitutions() gin.HandlerFunc {
 
 func (ph *profileHandler) SavePlaidUserInstitutionToken() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-
+		ctxUser := impart.GetCtxUser(ctx)
+		if ctxUser == nil {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Could not find the user.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
 		b, err := ctx.GetRawData()
 		if err != nil && err != io.EOF {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
 				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
 			))
 		}
-		instittutin := plaid.UserInstitution{}
+		instittutin := plaid.UserInstitutionToken{}
 		err = json.Unmarshal(b, &instittutin)
 		if err != nil {
 			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to unmarshal JSON Body to a Post")
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-		err = ph.plaidData.SavePlaidInstitutionToken(ctx, instittutin)
-		if err != nil {
-			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to save.")
-			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+		impartErr := ph.plaidData.SavePlaidInstitutionToken(ctx, instittutin)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Access token saved."})
@@ -1217,6 +1224,31 @@ func (ph *profileHandler) GetPlaidInstitutions() gin.HandlerFunc {
 		}
 		ctx.JSON(http.StatusOK, plaid.PagedInstitutionResponse{
 			Institution: output,
+		})
+	}
+}
+
+func (ph *profileHandler) GetPlaidUserInstitutionAccounts() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
+		if ctxUser == nil {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Could not find the user.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		impartWealthId := ctx.Param("impartWealthId")
+		if impartWealthId == "" || ctxUser.ImpartWealthID != impartWealthId {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Invalid impartWealthId.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		output, impartErr := ph.plaidData.GetPlaidUserInstitutionAccounts(ctx, impartWealthId)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionAccountResponse{
+			Accounts: output,
 		})
 	}
 }

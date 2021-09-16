@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/friendsofgo/errors"
-	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -24,11 +23,11 @@ import (
 
 // Institution is an object representing the database table.
 type Institution struct {
-	ID                 uint64      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	PlaidInstitutionID string      `boil:"plaid_institution_id" json:"plaid_institution_id" toml:"plaid_institution_id" yaml:"plaid_institution_id"`
-	InstitutionName    string      `boil:"institution_name" json:"institution_name" toml:"institution_name" yaml:"institution_name"`
-	Logo               null.String `boil:"logo" json:"logo,omitempty" toml:"logo" yaml:"logo,omitempty"`
-	Weburl             null.String `boil:"weburl" json:"weburl,omitempty" toml:"weburl" yaml:"weburl,omitempty"`
+	ID                 uint64 `boil:"id" json:"id" toml:"id" yaml:"id"`
+	PlaidInstitutionID string `boil:"plaid_institution_id" json:"plaid_institution_id" toml:"plaid_institution_id" yaml:"plaid_institution_id"`
+	InstitutionName    string `boil:"institution_name" json:"institution_name" toml:"institution_name" yaml:"institution_name"`
+	Logo               string `boil:"logo" json:"logo" toml:"logo" yaml:"logo"`
+	Weburl             string `boil:"weburl" json:"weburl" toml:"weburl" yaml:"weburl"`
 
 	R *institutionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L institutionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -68,14 +67,14 @@ var InstitutionWhere = struct {
 	ID                 whereHelperuint64
 	PlaidInstitutionID whereHelperstring
 	InstitutionName    whereHelperstring
-	Logo               whereHelpernull_String
-	Weburl             whereHelpernull_String
+	Logo               whereHelperstring
+	Weburl             whereHelperstring
 }{
 	ID:                 whereHelperuint64{field: "`institutions`.`id`"},
 	PlaidInstitutionID: whereHelperstring{field: "`institutions`.`plaid_institution_id`"},
 	InstitutionName:    whereHelperstring{field: "`institutions`.`institution_name`"},
-	Logo:               whereHelpernull_String{field: "`institutions`.`logo`"},
-	Weburl:             whereHelpernull_String{field: "`institutions`.`weburl`"},
+	Logo:               whereHelperstring{field: "`institutions`.`logo`"},
+	Weburl:             whereHelperstring{field: "`institutions`.`weburl`"},
 }
 
 // InstitutionRels is where relationship names are stored.

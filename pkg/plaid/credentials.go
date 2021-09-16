@@ -6,5 +6,5 @@ const PLAID_SECRET = "6fae35ee0ce476ebb02f7dbee199e4"
 const Plaid_Link_BaseUrl = "sandbox.plaid.com"
 const Plaid_Link_path = " link/token/create"
 
-const Count = 2
+const Count = 20
 const OffSet = 2

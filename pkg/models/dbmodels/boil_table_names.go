@@ -36,7 +36,6 @@ var TableNames = struct {
 	UserConfigurations        string
 	UserDemographic           string
 	UserDevices               string
-	UserInstitutionAccounts   string
 	UserInstitutions          string
 }{
 	Answer:                    "answer",
@@ -71,6 +70,5 @@ var TableNames = struct {
 	UserConfigurations:        "user_configurations",
 	UserDemographic:           "user_demographic",
 	UserDevices:               "user_devices",
-	UserInstitutionAccounts:   "user_institution_accounts",
 	UserInstitutions:          "user_institutions",
 }

@@ -23,12 +23,9 @@ func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 	configuration.UseEnvironment(plaid.Sandbox)
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
-	fmt.Println(client)
 	request := plaid.NewInstitutionsGetRequest(Count, OffSet, countrCode)
-	fmt.Println(request)
 	resp, _, err := client.PlaidApi.InstitutionsGet(ctx).InstitutionsGetRequest(*request).Execute()
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 	for _, inst := range resp.Institutions {
@@ -84,9 +81,10 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 				postFiles, _ := ser.Hive.AddPostFiles(ctx, files)
 				if len(postFiles) > 0 {
 					url = postFiles[0].URL
-				} else {
-					url = "https://impart-wealth-data-source-dev.s3.us-east-2.amazonaws.com/post/Adminone1/1631862956_Adminone1_filename.png"
 				}
+				// } else {
+				// 	url = "https://impart-wealth-data-source-dev.s3.us-east-2.amazonaws.com/post/Adminone1/1631862956_Adminone1_filename.png"
+				// }
 			}
 			out := &dbmodels.Institution{
 				PlaidInstitutionID: response.Institution.InstitutionId,
@@ -183,7 +181,7 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 
 	userData := UserAccount{}
 	userData.ImpartWealthID = impartWealthId
-	userData.UpdatedAt = impart.CurrentUTC()
+	userData.UpdatedAt = time.Now().UTC().Unix()
 	userinstitution := make(UserInstitutions, len(userInstitutions))
 	for i, user := range userInstitutions {
 		institution := InstitutionToModel(user)
@@ -251,8 +249,6 @@ func ValidatePostFilesName(ctx context.Context, postFiles []models.File, institu
 
 		postFiles[index].FilePath = basePath
 		postFiles[index].FileName = filename
-		fmt.Println(basePath)
-		fmt.Println(filename)
 	}
 	return postFiles
 }

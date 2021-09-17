@@ -23,58 +23,51 @@ import (
 
 // UserInstitution is an object representing the database table.
 type UserInstitution struct {
-	UserInstitutionsID uint64    `boil:"user_institutions_id" json:"user_institutions_id" toml:"user_institutions_id" yaml:"user_institutions_id"`
-	InstitutionID      uint64    `boil:"institution_id" json:"institution_id" toml:"institution_id" yaml:"institution_id"`
-	ImpartWealthID     string    `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	AccessToken        string    `boil:"access_token" json:"access_token" toml:"access_token" yaml:"access_token"`
-	CreatedAt          time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	InstitutionID  uint64    `boil:"institution_id" json:"institution_id" toml:"institution_id" yaml:"institution_id"`
+	ImpartWealthID string    `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
+	AccessToken    string    `boil:"access_token" json:"access_token" toml:"access_token" yaml:"access_token"`
+	CreatedAt      time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 
 	R *userInstitutionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userInstitutionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var UserInstitutionColumns = struct {
-	UserInstitutionsID string
-	InstitutionID      string
-	ImpartWealthID     string
-	AccessToken        string
-	CreatedAt          string
+	InstitutionID  string
+	ImpartWealthID string
+	AccessToken    string
+	CreatedAt      string
 }{
-	UserInstitutionsID: "user_institutions_id",
-	InstitutionID:      "institution_id",
-	ImpartWealthID:     "impart_wealth_id",
-	AccessToken:        "access_token",
-	CreatedAt:          "created_at",
+	InstitutionID:  "institution_id",
+	ImpartWealthID: "impart_wealth_id",
+	AccessToken:    "access_token",
+	CreatedAt:      "created_at",
 }
 
 var UserInstitutionTableColumns = struct {
-	UserInstitutionsID string
-	InstitutionID      string
-	ImpartWealthID     string
-	AccessToken        string
-	CreatedAt          string
+	InstitutionID  string
+	ImpartWealthID string
+	AccessToken    string
+	CreatedAt      string
 }{
-	UserInstitutionsID: "user_institutions.user_institutions_id",
-	InstitutionID:      "user_institutions.institution_id",
-	ImpartWealthID:     "user_institutions.impart_wealth_id",
-	AccessToken:        "user_institutions.access_token",
-	CreatedAt:          "user_institutions.created_at",
+	InstitutionID:  "user_institutions.institution_id",
+	ImpartWealthID: "user_institutions.impart_wealth_id",
+	AccessToken:    "user_institutions.access_token",
+	CreatedAt:      "user_institutions.created_at",
 }
 
 // Generated where
 
 var UserInstitutionWhere = struct {
-	UserInstitutionsID whereHelperuint64
-	InstitutionID      whereHelperuint64
-	ImpartWealthID     whereHelperstring
-	AccessToken        whereHelperstring
-	CreatedAt          whereHelpertime_Time
+	InstitutionID  whereHelperuint64
+	ImpartWealthID whereHelperstring
+	AccessToken    whereHelperstring
+	CreatedAt      whereHelpertime_Time
 }{
-	UserInstitutionsID: whereHelperuint64{field: "`user_institutions`.`user_institutions_id`"},
-	InstitutionID:      whereHelperuint64{field: "`user_institutions`.`institution_id`"},
-	ImpartWealthID:     whereHelperstring{field: "`user_institutions`.`impart_wealth_id`"},
-	AccessToken:        whereHelperstring{field: "`user_institutions`.`access_token`"},
-	CreatedAt:          whereHelpertime_Time{field: "`user_institutions`.`created_at`"},
+	InstitutionID:  whereHelperuint64{field: "`user_institutions`.`institution_id`"},
+	ImpartWealthID: whereHelperstring{field: "`user_institutions`.`impart_wealth_id`"},
+	AccessToken:    whereHelperstring{field: "`user_institutions`.`access_token`"},
+	CreatedAt:      whereHelpertime_Time{field: "`user_institutions`.`created_at`"},
 }
 
 // UserInstitutionRels is where relationship names are stored.
@@ -101,10 +94,10 @@ func (*userInstitutionR) NewStruct() *userInstitutionR {
 type userInstitutionL struct{}
 
 var (
-	userInstitutionAllColumns            = []string{"user_institutions_id", "institution_id", "impart_wealth_id", "access_token", "created_at"}
+	userInstitutionAllColumns            = []string{"institution_id", "impart_wealth_id", "access_token", "created_at"}
 	userInstitutionColumnsWithoutDefault = []string{"institution_id", "impart_wealth_id", "access_token", "created_at"}
-	userInstitutionColumnsWithDefault    = []string{"user_institutions_id"}
-	userInstitutionPrimaryKeyColumns     = []string{"user_institutions_id"}
+	userInstitutionColumnsWithDefault    = []string{}
+	userInstitutionPrimaryKeyColumns     = []string{"institution_id", "impart_wealth_id", "access_token"}
 )
 
 type (
@@ -636,7 +629,7 @@ func (o *UserInstitution) SetImpartWealth(ctx context.Context, exec boil.Context
 		strmangle.SetParamNames("`", "`", 0, []string{"impart_wealth_id"}),
 		strmangle.WhereClause("`", "`", 0, userInstitutionPrimaryKeyColumns),
 	)
-	values := []interface{}{related.ImpartWealthID, o.UserInstitutionsID}
+	values := []interface{}{related.ImpartWealthID, o.InstitutionID, o.ImpartWealthID, o.AccessToken}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -683,7 +676,7 @@ func (o *UserInstitution) SetInstitution(ctx context.Context, exec boil.ContextE
 		strmangle.SetParamNames("`", "`", 0, []string{"institution_id"}),
 		strmangle.WhereClause("`", "`", 0, userInstitutionPrimaryKeyColumns),
 	)
-	values := []interface{}{related.ID, o.UserInstitutionsID}
+	values := []interface{}{related.ID, o.InstitutionID, o.ImpartWealthID, o.AccessToken}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -722,7 +715,7 @@ func UserInstitutions(mods ...qm.QueryMod) userInstitutionQuery {
 
 // FindUserInstitution retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindUserInstitution(ctx context.Context, exec boil.ContextExecutor, userInstitutionsID uint64, selectCols ...string) (*UserInstitution, error) {
+func FindUserInstitution(ctx context.Context, exec boil.ContextExecutor, institutionID uint64, impartWealthID string, accessToken string, selectCols ...string) (*UserInstitution, error) {
 	userInstitutionObj := &UserInstitution{}
 
 	sel := "*"
@@ -730,10 +723,10 @@ func FindUserInstitution(ctx context.Context, exec boil.ContextExecutor, userIns
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from `user_institutions` where `user_institutions_id`=?", sel,
+		"select %s from `user_institutions` where `institution_id`=? AND `impart_wealth_id`=? AND `access_token`=?", sel,
 	)
 
-	q := queries.Raw(query, userInstitutionsID)
+	q := queries.Raw(query, institutionID, impartWealthID, accessToken)
 
 	err := q.Bind(ctx, exec, userInstitutionObj)
 	if err != nil {
@@ -816,31 +809,22 @@ func (o *UserInstitution) Insert(ctx context.Context, exec boil.ContextExecutor,
 		fmt.Fprintln(writer, cache.query)
 		fmt.Fprintln(writer, vals)
 	}
-	result, err := exec.ExecContext(ctx, cache.query, vals...)
+	_, err = exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "dbmodels: unable to insert into user_institutions")
 	}
 
-	var lastID int64
 	var identifierCols []interface{}
 
 	if len(cache.retMapping) == 0 {
 		goto CacheNoHooks
 	}
 
-	lastID, err = result.LastInsertId()
-	if err != nil {
-		return ErrSyncFail
-	}
-
-	o.UserInstitutionsID = uint64(lastID)
-	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == userInstitutionMapping["user_institutions_id"] {
-		goto CacheNoHooks
-	}
-
 	identifierCols = []interface{}{
-		o.UserInstitutionsID,
+		o.InstitutionID,
+		o.ImpartWealthID,
+		o.AccessToken,
 	}
 
 	if boil.IsDebug(ctx) {
@@ -991,9 +975,7 @@ func (o UserInstitutionSlice) UpdateAll(ctx context.Context, exec boil.ContextEx
 	return rowsAff, nil
 }
 
-var mySQLUserInstitutionUniqueColumns = []string{
-	"user_institutions_id",
-}
+var mySQLUserInstitutionUniqueColumns = []string{}
 
 // Upsert attempts an insert using an executor, and does an update or ignore on conflict.
 // See boil.Columns documentation for how to properly use updateColumns and insertColumns.
@@ -1096,27 +1078,16 @@ func (o *UserInstitution) Upsert(ctx context.Context, exec boil.ContextExecutor,
 		fmt.Fprintln(writer, cache.query)
 		fmt.Fprintln(writer, vals)
 	}
-	result, err := exec.ExecContext(ctx, cache.query, vals...)
+	_, err = exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "dbmodels: unable to upsert for user_institutions")
 	}
 
-	var lastID int64
 	var uniqueMap []uint64
 	var nzUniqueCols []interface{}
 
 	if len(cache.retMapping) == 0 {
-		goto CacheNoHooks
-	}
-
-	lastID, err = result.LastInsertId()
-	if err != nil {
-		return ErrSyncFail
-	}
-
-	o.UserInstitutionsID = uint64(lastID)
-	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == userInstitutionMapping["user_institutions_id"] {
 		goto CacheNoHooks
 	}
 
@@ -1158,7 +1129,7 @@ func (o *UserInstitution) Delete(ctx context.Context, exec boil.ContextExecutor)
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), userInstitutionPrimaryKeyMapping)
-	sql := "DELETE FROM `user_institutions` WHERE `user_institutions_id`=?"
+	sql := "DELETE FROM `user_institutions` WHERE `institution_id`=? AND `impart_wealth_id`=? AND `access_token`=?"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1255,7 +1226,7 @@ func (o UserInstitutionSlice) DeleteAll(ctx context.Context, exec boil.ContextEx
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *UserInstitution) Reload(ctx context.Context, exec boil.ContextExecutor) error {
-	ret, err := FindUserInstitution(ctx, exec, o.UserInstitutionsID)
+	ret, err := FindUserInstitution(ctx, exec, o.InstitutionID, o.ImpartWealthID, o.AccessToken)
 	if err != nil {
 		return err
 	}
@@ -1294,16 +1265,16 @@ func (o *UserInstitutionSlice) ReloadAll(ctx context.Context, exec boil.ContextE
 }
 
 // UserInstitutionExists checks if the UserInstitution row exists.
-func UserInstitutionExists(ctx context.Context, exec boil.ContextExecutor, userInstitutionsID uint64) (bool, error) {
+func UserInstitutionExists(ctx context.Context, exec boil.ContextExecutor, institutionID uint64, impartWealthID string, accessToken string) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from `user_institutions` where `user_institutions_id`=? limit 1)"
+	sql := "select exists(select 1 from `user_institutions` where `institution_id`=? AND `impart_wealth_id`=? AND `access_token`=? limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
 		fmt.Fprintln(writer, sql)
-		fmt.Fprintln(writer, userInstitutionsID)
+		fmt.Fprintln(writer, institutionID, impartWealthID, accessToken)
 	}
-	row := exec.QueryRowContext(ctx, sql, userInstitutionsID)
+	row := exec.QueryRowContext(ctx, sql, institutionID, impartWealthID, accessToken)
 
 	err := row.Scan(&exists)
 	if err != nil {

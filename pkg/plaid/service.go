@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/media"
 	"go.uber.org/zap"
 )
 
@@ -19,8 +20,9 @@ type Service interface {
 }
 
 type plaidHandler struct {
-	logger *zap.Logger
-	db     *sql.DB
+	logger       *zap.Logger
+	db           *sql.DB
+	MediaStorage media.StorageConfigurations
 }
 
 func NewPlaidService(db *sql.DB, logger *zap.Logger) Service {

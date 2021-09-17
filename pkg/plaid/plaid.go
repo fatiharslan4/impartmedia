@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
-	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	plaid "github.com/plaid/plaid-go/plaid"
@@ -17,7 +16,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (ser *plaidHandler) SavePlaidInstitutions(ctx context.Context) error {
+func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 	configuration := plaid.NewConfiguration()
 	configuration.AddDefaultHeader("PLAID-CLIENT-ID", PLAID_CLIENT_ID)
 	configuration.AddDefaultHeader("PLAID-SECRET", PLAID_SECRET)
@@ -42,7 +41,7 @@ func (ser *plaidHandler) SavePlaidInstitutions(ctx context.Context) error {
 	return nil
 }
 
-func (ser *plaidHandler) SavePlaidInstitutionToken(ctx context.Context, userInstitution UserInstitutionToken) impart.Error {
+func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstitution UserInstitutionToken) impart.Error {
 
 	_, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(userInstitution.ImpartWealthID)).One(ctx, ser.db)
 	if err != nil {
@@ -82,7 +81,7 @@ func (ser *plaidHandler) SavePlaidInstitutionToken(ctx context.Context, userInst
 				files[0].FileName = "filename.png"
 				files[0].FileType = "image/png"
 				files = ValidatePostFilesName(ctx, files, response.Institution.InstitutionId, userInstitution.ImpartWealthID)
-				postFiles, _ := ser.UplodLogo(ctx, files)
+				postFiles, _ := ser.Hive.AddPostFiles(ctx, files)
 				if len(postFiles) > 0 {
 					url = postFiles[0].URL
 				} else {
@@ -128,7 +127,7 @@ func (ser *plaidHandler) SavePlaidInstitutionToken(ctx context.Context, userInst
 
 }
 
-func (ser *plaidHandler) GetPlaidInstitutions(ctx context.Context) (Institutions, error) {
+func (ser *service) GetPlaidInstitutions(ctx context.Context) (Institutions, error) {
 	institutions, err := dbmodels.Institutions().All(ctx, ser.db)
 	if err != nil {
 		return nil, err
@@ -138,7 +137,7 @@ func (ser *plaidHandler) GetPlaidInstitutions(ctx context.Context) (Institutions
 
 }
 
-func (ser *plaidHandler) GetPlaidUserInstitutions(ctx context.Context, impartWealthId string) (UserInstitutionTokens, error) {
+func (ser *service) GetPlaidUserInstitutions(ctx context.Context, impartWealthId string) (UserInstitutionTokens, error) {
 	userInstitutions, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(impartWealthId),
 		qm.Offset(0),
 		qm.Limit(100),
@@ -154,7 +153,7 @@ func (ser *plaidHandler) GetPlaidUserInstitutions(ctx context.Context, impartWea
 	return output, nil
 }
 
-func (ser *plaidHandler) GetPlaidUserInstitutionAccounts(ctx context.Context, impartWealthId string) (UserAccount, impart.Error) {
+func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartWealthId string) (UserAccount, impart.Error) {
 
 	_, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthId)).One(ctx, ser.db)
 	if err != nil {
@@ -237,29 +236,6 @@ func InstitutionToModel(user *dbmodels.UserInstitution) UserInstitution {
 	return institution
 }
 
-// add post file
-func (ser *plaidHandler) UplodLogo(ctx context.Context, postFiles []models.File) ([]models.File, impart.Error) {
-	var fileResponse []models.File
-	if len(postFiles) > 0 {
-		mediaObject := media.New(media.StorageConfigurations{
-			Storage:   ser.MediaStorage.Storage,
-			MediaPath: ser.MediaStorage.MediaPath,
-			S3Storage: media.S3Storage{
-				BucketName:   ser.MediaStorage.BucketName,
-				BucketRegion: ser.MediaStorage.BucketRegion,
-			},
-		})
-		// upload multiple files
-		file, err := mediaObject.UploadMultipleFile(postFiles)
-		if err != nil {
-			ser.logger.Error("error attempting to Save post file data ", zap.Any("files", file), zap.Error(err))
-			return file, nil
-		}
-		return file, nil
-	}
-	return fileResponse, nil
-}
-
 func ValidatePostFilesName(ctx context.Context, postFiles []models.File, institution_id string, impartWealthID string) []models.File {
 	basePath := fmt.Sprintf("%s/", "plaid")
 	pattern := `[^\[0-9A-Za-z_.-]`
@@ -270,7 +246,6 @@ func ValidatePostFilesName(ctx context.Context, postFiles []models.File, institu
 			postFiles[index].FileName,
 		)
 
-		// var extension = filepath.Ext(postFiles[index].FileName)
 		re, _ := regexp.Compile(pattern)
 		filename = re.ReplaceAllString(filename, "")
 

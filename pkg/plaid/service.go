@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 
+	hive "github.com/impartwealthapp/backend/pkg/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
-	"github.com/impartwealthapp/backend/pkg/media"
 	"go.uber.org/zap"
 )
 
-var _ Service = &plaidHandler{}
+var _ Service = &service{}
 
 type Service interface {
 	SavePlaidInstitutions(ctx context.Context) error
@@ -19,15 +19,21 @@ type Service interface {
 	GetPlaidUserInstitutionAccounts(ctx context.Context, impartWealthId string) (UserAccount, impart.Error)
 }
 
-type plaidHandler struct {
-	logger       *zap.Logger
-	db           *sql.DB
-	MediaStorage media.StorageConfigurations
+type service struct {
+	logger *zap.Logger
+	Hive   hive.Service
+	db     *sql.DB
 }
 
-func NewPlaidService(db *sql.DB, logger *zap.Logger) Service {
-	return &plaidHandler{
+// //  Create New Plaid Service
+
+func New(db *sql.DB, logger *zap.Logger, hive hive.Service) Service {
+	svc := &service{
 		logger: logger,
 		db:     db,
+		Hive:   hive,
 	}
+
+	return svc
+
 }

@@ -166,6 +166,9 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		qm.Load(dbmodels.UserInstitutionRels.Institution),
 	).All(ctx, ser.db)
 
+	if len(userInstitutions) == 0 {
+		return UserAccount{}, impart.NewError(impart.ErrBadRequest, "No records found.")
+	}
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user institution details.")
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),

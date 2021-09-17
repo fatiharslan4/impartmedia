@@ -51,9 +51,9 @@ type UserInstitutionAccount struct {
 
 type UserAccounts []UserAccount
 type UserAccount struct {
-	ImpartWealthID string            `json:"impartWealthId" `
-	UpdatedAt      int64             `json:"updated_at" `
-	Institutions   []UserInstitution `json:"institutions"`
+	ImpartWealthID string            `json:"impartWealthId,omitempty" `
+	UpdatedAt      int64             `json:"updated_at,omitempty" `
+	Institutions   []UserInstitution `json:"institutions,omitempty"`
 }
 
 type UserInstitutions []UserInstitution

@@ -85,6 +85,8 @@ func (ser *plaidHandler) SavePlaidInstitutionToken(ctx context.Context, userInst
 				postFiles, _ := ser.UplodLogo(ctx, files)
 				if len(postFiles) > 0 {
 					url = postFiles[0].URL
+				} else {
+					url = "https://impart-wealth-data-source-dev.s3.us-east-2.amazonaws.com/post/Adminone1/1631862956_Adminone1_filename.png"
 				}
 			}
 			out := &dbmodels.Institution{
@@ -231,6 +233,7 @@ func InstitutionToModel(user *dbmodels.UserInstitution) UserInstitution {
 	institution.Logo = user.R.Institution.Logo
 	institution.Weburl = user.R.Institution.Weburl
 	institution.ImpartWealthID = user.ImpartWealthID
+	institution.InstitutionName = user.R.Institution.InstitutionName
 	return institution
 }
 

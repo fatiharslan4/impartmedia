@@ -13,6 +13,7 @@ var TableNames = struct {
 	HiveAdmins                string
 	HiveMembers               string
 	HiveUserDemographic       string
+	Institutions              string
 	NotificationDeviceMapping string
 	NotificationSubscriptions string
 	NotificationTopic         string
@@ -35,6 +36,7 @@ var TableNames = struct {
 	UserConfigurations        string
 	UserDemographic           string
 	UserDevices               string
+	UserInstitutions          string
 }{
 	Answer:                    "answer",
 	Comment:                   "comment",
@@ -45,6 +47,7 @@ var TableNames = struct {
 	HiveAdmins:                "hive_admins",
 	HiveMembers:               "hive_members",
 	HiveUserDemographic:       "hive_user_demographic",
+	Institutions:              "institutions",
 	NotificationDeviceMapping: "notification_device_mapping",
 	NotificationSubscriptions: "notification_subscriptions",
 	NotificationTopic:         "notification_topic",
@@ -67,4 +70,5 @@ var TableNames = struct {
 	UserConfigurations:        "user_configurations",
 	UserDemographic:           "user_demographic",
 	UserDevices:               "user_devices",
+	UserInstitutions:          "user_institutions",
 }

@@ -87,6 +87,7 @@ type UserData struct {
 	Status         bool   `json:"status"`
 	Message        string `json:"message,omitempty"`
 	Value          int    `json:"value"`
+	ScreenName     string `json:"screen_name"  `
 }
 
 type PostUpdate struct {
@@ -98,6 +99,7 @@ type PostData struct {
 	PostID  uint64 `json:"postID,omitempty"`
 	Status  bool   `json:"status"`
 	Message string `json:"message,omitempty"`
+	Title   string `json:"title"`
 }
 
 type HiveUpdate struct {
@@ -109,6 +111,7 @@ type HiveData struct {
 	HiveID  uint64 `json:"hiveID,omitempty"`
 	Status  bool   `json:"status"`
 	Message string `json:"message,omitempty"`
+	Name    string `json:"name"`
 }
 
 func PostsData(dbPosts dbmodels.PostSlice) PostDetails {

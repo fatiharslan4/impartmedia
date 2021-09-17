@@ -254,6 +254,7 @@ func (s *service) HiveBulkOperations(ctx context.Context, hiveUpdates models.Hiv
 	for i, hive := range hiveUpdates.Hives {
 		hives := &models.HiveData{}
 		hives.HiveID = hive.HiveID
+		hives.Name = hive.Name
 		hives.Message = "No delete activity."
 		hives.Status = false
 		if hive.HiveID > 0 {

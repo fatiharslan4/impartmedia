@@ -650,6 +650,7 @@ func (s *service) EditBulkPostDetails(ctx context.Context, postUpdateInput model
 		postData := &models.PostData{}
 		postData.PostID = post.PostID
 		postData.Status = false
+		postData.Title = post.Title
 		postData.Message = "No delete activity."
 		if post.PostID > 0 {
 			postIDs = append(postIDs, (post.PostID))

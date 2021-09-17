@@ -529,6 +529,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	for i, user := range userUpdatesInput.Users {
 		userData := &models.UserData{}
 		userData.ImpartWealthID = user.ImpartWealthID
+		userData.ScreenName = user.ScreenName
 		userData.Status = false
 		userData.Message = "No update activity."
 		userData.Value = 0
@@ -586,6 +587,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 		userData := &models.UserData{}
 		userData.ImpartWealthID = user.ImpartWealthID
 		userData.Status = false
+		userData.ScreenName = user.ScreenName
 		userData.Message = "No delete activity."
 		if user.ImpartWealthID != "" {
 			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))

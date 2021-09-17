@@ -4,8 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
+	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/media"
+	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	plaid "github.com/plaid/plaid-go/plaid"
 	"github.com/volatiletech/sqlboiler/v4/boil"
@@ -69,12 +73,25 @@ func (ser *plaidHandler) SavePlaidInstitutionToken(ctx context.Context, userInst
 	}
 	inst, err := dbmodels.Institutions(dbmodels.InstitutionWhere.PlaidInstitutionID.EQ(userInstitution.PlaidInstitutionId)).One(ctx, ser.db)
 	if err != nil {
+
 		if err == sql.ErrNoRows {
+			url := ""
+			if response.Institution.GetLogo() != "" {
+				files := make([]models.File, 1)
+				files[0].Content = response.Institution.GetLogo()
+				files[0].FileName = "filename.png"
+				files[0].FileType = "image/png"
+				files = ValidatePostFilesName(ctx, files, response.Institution.InstitutionId, userInstitution.ImpartWealthID)
+				postFiles, _ := ser.UplodLogo(ctx, files)
+				if len(postFiles) > 0 {
+					url = postFiles[0].URL
+				}
+			}
 			out := &dbmodels.Institution{
 				PlaidInstitutionID: response.Institution.InstitutionId,
 				InstitutionName:    response.Institution.Name,
-				// Logo:               response.Institution.GetLogo(),
-				Weburl: response.Institution.GetUrl(),
+				Logo:               url,
+				Weburl:             response.Institution.GetUrl(),
 			}
 			err = out.Insert(ctx, ser.db, boil.Infer())
 			if err != nil {
@@ -215,4 +232,49 @@ func InstitutionToModel(user *dbmodels.UserInstitution) UserInstitution {
 	institution.Weburl = user.R.Institution.Weburl
 	institution.ImpartWealthID = user.ImpartWealthID
 	return institution
+}
+
+// add post file
+func (ser *plaidHandler) UplodLogo(ctx context.Context, postFiles []models.File) ([]models.File, impart.Error) {
+	var fileResponse []models.File
+	if len(postFiles) > 0 {
+		mediaObject := media.New(media.StorageConfigurations{
+			Storage:   ser.MediaStorage.Storage,
+			MediaPath: ser.MediaStorage.MediaPath,
+			S3Storage: media.S3Storage{
+				BucketName:   ser.MediaStorage.BucketName,
+				BucketRegion: ser.MediaStorage.BucketRegion,
+			},
+		})
+		// upload multiple files
+		file, err := mediaObject.UploadMultipleFile(postFiles)
+		if err != nil {
+			ser.logger.Error("error attempting to Save post file data ", zap.Any("files", file), zap.Error(err))
+			return file, nil
+		}
+		return file, nil
+	}
+	return fileResponse, nil
+}
+
+func ValidatePostFilesName(ctx context.Context, postFiles []models.File, institution_id string, impartWealthID string) []models.File {
+	basePath := fmt.Sprintf("%s/%s/", "plaid", impartWealthID)
+	pattern := `[^\[0-9A-Za-z_.-]`
+	for index := range postFiles {
+		filename := fmt.Sprintf("%d_%s_%s",
+			time.Now().Unix(),
+			institution_id,
+			postFiles[index].FileName,
+		)
+
+		// var extension = filepath.Ext(postFiles[index].FileName)
+		re, _ := regexp.Compile(pattern)
+		filename = re.ReplaceAllString(filename, "")
+
+		postFiles[index].FilePath = basePath
+		postFiles[index].FileName = filename
+		fmt.Println(basePath)
+		fmt.Println(filename)
+	}
+	return postFiles
 }

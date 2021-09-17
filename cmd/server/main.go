@@ -183,7 +183,7 @@ func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services
 	svcs := &Services{}
 	svcs.ProfileData = profiledata.NewMySQLStore(db, logger)
 	svcs.HiveData = hivedata.NewHiveService(db, logger)
-	svcs.Plaid = plaid.NewPlaidService(db, logger)
+	// svcs.Plaid = plaid.NewPlaidService(db, logger)
 
 	svcs.Auth, err = auth.NewAuthService(cfg, svcs.ProfileData, logger)
 	if err != nil {
@@ -205,6 +205,7 @@ func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services
 
 	svcs.MediaStorage = media.LoadMediaConfig(cfg)
 	svcs.Hive = hive.New(cfg, db, logger, svcs.MediaStorage)
+	svcs.Plaid = plaid.New(db, logger, svcs.Hive)
 	return svcs
 }
 

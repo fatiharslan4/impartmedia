@@ -12,12 +12,11 @@ CREATE TABLE IF NOT EXISTS institutions(
 
 
 CREATE TABLE IF NOT EXISTS user_institutions(
-    user_institutions_id    BIGINT              UNSIGNED AUTO_INCREMENT    NOT NULL,
     institution_id          BIGINT       UNSIGNED NOT NULL,
     impart_wealth_id        CHAR(27)            NOT NULL,
     access_token            NVARCHAR(255)       NOT NULL,
     created_at              DATETIME(3)         NOT NULL,
-    PRIMARY KEY (user_institutions_id),
+    PRIMARY KEY (institution_id,impart_wealth_id,access_token),
     FOREIGN KEY (impart_wealth_id) REFERENCES user (impart_wealth_id) ,
     FOREIGN KEY (institution_id) REFERENCES institutions (id) 
 ) DEFAULT CHARACTER SET utf8mb4

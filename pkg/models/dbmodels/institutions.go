@@ -516,7 +516,7 @@ func (o *Institution) AddUserInstitutions(ctx context.Context, exec boil.Context
 				strmangle.SetParamNames("`", "`", 0, []string{"institution_id"}),
 				strmangle.WhereClause("`", "`", 0, userInstitutionPrimaryKeyColumns),
 			)
-			values := []interface{}{o.ID, rel.UserInstitutionsID}
+			values := []interface{}{o.ID, rel.InstitutionID, rel.ImpartWealthID, rel.AccessToken}
 
 			if boil.IsDebug(ctx) {
 				writer := boil.DebugWriterFrom(ctx)

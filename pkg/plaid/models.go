@@ -52,7 +52,7 @@ type UserInstitutionAccount struct {
 type UserAccounts []UserAccount
 type UserAccount struct {
 	ImpartWealthID string            `json:"impartWealthId" `
-	UpdatedAt      time.Time         `json:"updated_at" `
+	UpdatedAt      int64             `json:"updated_at" `
 	Institutions   []UserInstitution `json:"institutions"`
 }
 
@@ -143,7 +143,6 @@ func UserInstitutionFromDB(p *dbmodels.UserInstitution) UserInstitutionToken {
 		Id:                 p.InstitutionID,
 		PlaidInstitutionId: p.R.Institution.PlaidInstitutionID,
 		ImpartWealthID:     p.ImpartWealthID,
-		UserInstitutionsId: p.UserInstitutionsID,
 	}
 
 	return out

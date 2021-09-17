@@ -67,6 +67,7 @@ type UserInstitution struct {
 	Logo               string    `json:"logo"`
 	Weburl             string    `json:"weburl"`
 	RequestId          string    `json:"request_id"`
+	InstitutionName    string    `json:"institution_name"`
 	Accounts           []Account `json:"accounts"`
 }
 

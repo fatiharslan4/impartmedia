@@ -261,7 +261,7 @@ func (ser *plaidHandler) UplodLogo(ctx context.Context, postFiles []models.File)
 }
 
 func ValidatePostFilesName(ctx context.Context, postFiles []models.File, institution_id string, impartWealthID string) []models.File {
-	basePath := fmt.Sprintf("%s/%s/", "plaid", impartWealthID)
+	basePath := fmt.Sprintf("%s/", "plaid")
 	pattern := `[^\[0-9A-Za-z_.-]`
 	for index := range postFiles {
 		filename := fmt.Sprintf("%d_%s_%s",

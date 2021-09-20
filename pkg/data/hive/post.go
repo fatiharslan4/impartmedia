@@ -404,7 +404,7 @@ func (d *mysqlHiveData) DeletePostFromList(ctx context.Context, posts dbmodels.P
 	currTime := time.Now().In(boil.GetLocation())
 	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
 	for _, post := range posts {
-		query := fmt.Sprintf("Update post set deleted_at='%s'  where post_id=%d;", golangDateTime, post.PostID)
+		query := fmt.Sprintf("Update post set deleted_at='%s'  where post_id=%d; UPDATE hive SET pinned_post_id = null WHERE pinned_post_id = %d;", golangDateTime, post.PostID, post.PostID)
 		updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
 	}
 	_, err := queries.Raw(updateQuery).ExecContext(ctx, d.db)

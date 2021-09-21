@@ -65,6 +65,13 @@ const (
 	Income_Income3                                   = 56
 	Income_Income4                                   = 57
 	Income_Income5                                   = 58
+	EmploymentStatus_FullTime                        = 59
+	EmploymentStatus_PartTime                        = 60
+	EmploymentStatus_Unemployed                      = 61
+	EmploymentStatus_Self                            = 62
+	EmploymentStatus_HomeMaker                       = 63
+	EmploymentStatus_Student                         = 64
+	EmploymentStatus_Retired                         = 65
 )
 
 func FilterData() ([]byte, error) {
@@ -127,6 +134,13 @@ func FilterData() ([]byte, error) {
 		"Income-$100,000 - $150,000":                    Income_Income3,
 		"Income-$150,000 - $250,000":                    Income_Income4,
 		"Income-$250,000+":                              Income_Income5,
+		"EmploymentStatus-Full-time employment":         EmploymentStatus_FullTime,
+		"EmploymentStatus-Part-time employment":         EmploymentStatus_PartTime,
+		"EmploymentStatus-Unemployed":                   EmploymentStatus_Unemployed,
+		"EmploymentStatus-Self-employed":                EmploymentStatus_Self,
+		"EmploymentStatus-Home-maker":                   EmploymentStatus_HomeMaker,
+		"EmploymentStatus-Student":                      EmploymentStatus_Student,
+		"EmploymentStatus-Retired":                      EmploymentStatus_Retired,
 	})
 	if err != nil {
 		return nil, err

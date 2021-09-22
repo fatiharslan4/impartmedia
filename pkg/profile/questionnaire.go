@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
+	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -246,6 +248,7 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		&dbmodels.Hive{HiveID: DefaultHiveId},
 	}
 	var isnewhive bool
+	status := impart.WaitList
 	ctxUser := impart.GetCtxUser(ctx)
 	//call all the hive assignment funcs
 	if id := ps.isAssignedMillenialWithChildren(questionnaire); id != nil {
@@ -261,6 +264,54 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 	if err != nil {
 		ps.Logger().Error("error setting member hives", zap.Error(err))
 		return isnewhive, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
+	}
+	if isnewhive {
+		status = impart.Hive
+	}
+	profile, err := dbmodels.Profiles(dbmodels.ProfileWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)).One(ctx, ps.db)
+
+	if err != nil {
+		ps.Logger().Error("error finding profile", zap.Error(err))
+	}
+	newProfile := dbmodels.Profile{}
+	attr := &models.Attributes{}
+	err = profile.Attributes.Unmarshal(attr)
+
+	newAttr := &models.Attributes{
+		Name:        attr.Name,
+		UpdatedDate: attr.UpdatedDate,
+		Address: models.Address{
+			UpdatedDate: attr.Address.UpdatedDate,
+			Address1:    attr.Address.Address1,
+			Address2:    attr.Address.Address2,
+			City:        attr.Address.City,
+			State:       attr.Address.State,
+			Zip:         questionnaire.ZipCode,
+		},
+	}
+	newProfile.ImpartWealthID = profile.ImpartWealthID
+	newProfile.CreatedAt = profile.CreatedAt
+	newProfile.UpdatedAt = profile.UpdatedAt
+	err = profile.Attributes.Marshal(newAttr)
+	err = ps.profileStore.UpdateProfile(ctx, nil, profile)
+
+	userAnswer := impart.GetUserAnswerList()
+	userAns, err := ps.profileStore.GetUserAnswer(ctx, ctxUser.ImpartWealthID)
+	if len(userAns) > 0 {
+		for _, anser := range userAns {
+			userAnswer[anser.R.Answer.R.Question.QuestionID] = fmt.Sprintf("%s,%s", userAnswer[anser.R.Answer.R.Question.QuestionID], anser.R.Answer.Text)
+			userAnswer[anser.R.Answer.R.Question.QuestionID] = strings.Trim(userAnswer[anser.R.Answer.R.Question.QuestionID], ",")
+		}
+	}
+	mergeFlds := impart.SetMailChimpAnswer(userAnswer, status, questionnaire.ZipCode)
+	mailChimpParams := &members.UpdateParams{
+		MergeFields: mergeFlds,
+	}
+
+	_, err = members.Update(impart.MailChimpAudienceID, ctxUser.Email, mailChimpParams)
+	if err != nil {
+		impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  added to the mailchimp %v", err))
+		ps.Logger().Error(impartErr.Error())
 	}
 	return isnewhive, nil
 }

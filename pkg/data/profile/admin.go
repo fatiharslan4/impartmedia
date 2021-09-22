@@ -7,12 +7,14 @@ import (
 
 	"fmt"
 
+	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"go.uber.org/zap"
 )
 
 const defaultLimit = 100
@@ -24,7 +26,7 @@ const (
 )
 
 func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, error) {
-	var userDetails []models.UserDetail
+	var userDetails models.UserDetails
 	outOffset := &models.NextPage{
 		Offset: gpi.Offset,
 	}
@@ -34,27 +36,29 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	} else if gpi.Limit > maxLimit {
 		gpi.Limit = maxLimit
 	}
+	isSort := true
 	var err error
 	extraQery := ""
+	sortBy := gpi.SortBy
 	if gpi.SortBy == "" {
-		gpi.SortBy = fmt.Sprintf(`email asc`)
-	} else {
-		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+		isSort = false
+		gpi.SortBy = "user.created_at"
+		gpi.SortOrder = "desc"
 	}
 	inputQuery := fmt.Sprintf(`SELECT 
 					user.impart_wealth_id,
-					CASE WHEN user.blocked = 1 THEN '[Account Deleted]' 
+					CASE WHEN user.blocked = 1 THEN  null
 						ELSE user.screen_name END AS screen_name,
-					CASE WHEN user.blocked = 1 THEN '[Account Deleted]' 
+					CASE WHEN user.blocked = 1 THEN  null 
 						ELSE user.email END AS email,
 					user.created_at,
 					CASE WHEN user.lastlogin_at  is null  then 'NA'
-						ELSE  user.lastlogin_at END as last_login_at ,
+						ELSE  user.lastlogin_at END as lastlogin_at ,
 					user.admin,
 					user.super_admin,
 					COUNT(post.post_id) as post,
 					CASE WHEN hivedata.hives IS NULL THEN 'N.A' 
-								ELSE hivedata.hives END AS hive,
+								ELSE hivedata.hives END AS hive_id,
 					CASE WHEN makeup.Household IS NULL THEN 'NA' 
 								ELSE makeup.Household END AS household,
 					CASE WHEN makeup.Dependents IS NULL THEN 'NA' 
@@ -72,10 +76,12 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					CASE WHEN makeup.Career IS NULL THEN 'NA' 
 								ELSE makeup.Career END AS career,
 					CASE WHEN makeup.Income IS NULL THEN 'NA' 
-								ELSE makeup.Income END AS income
+								ELSE makeup.Income END AS income,						
+					makeup.sortorder as sortorder
 					FROM user
 					left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
 					
+
 					
 					LEFT JOIN (
 					SELECT user.impart_wealth_id,GROUP_CONCAT(member_hive_id)  as hives
@@ -87,6 +93,11 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					
 					LEFT JOIN (
 					SELECT  impart_wealth_id,
+							GROUP_CONCAT( CASE
+								WHEN question.question_name = 'Income'
+								THEN answer.sort_order
+								ELSE null
+						END ) as sortorder,
 						GROUP_CONCAT(
 							CASE 
 								WHEN question.question_name = 'Household'
@@ -164,42 +175,70 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					
 					where user.deleted_at is null
 					`)
-	if gpi.SearchIDs != "" {
-		extraQery = fmt.Sprintf(` and CONCAT(",", makeup.answer_ids, ",") REGEXP ?`)
-		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+	if len(gpi.SearchIDs) > 0 {
+		for _, filter := range gpi.SearchIDs {
+			if filter != "" {
+				extraQery = fmt.Sprintf(` and FIND_IN_SET( %s ,makeup.answer_ids) `, filter)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+			}
+		}
 	}
-	orderby := fmt.Sprintf(`			
-	group by user.impart_wealth_id
-	order by %s `, gpi.SortBy)
+	if gpi.SortBy == "created_at" {
+		gpi.SortBy = "user.created_at"
+	}
+	if gpi.SortBy == "income" {
+		gpi.SortBy = "sortorder"
+		sortBy = "sortorder"
+	}
+	orderby := ""
+	if isSort {
+		if gpi.SortBy == "screen_name" || gpi.SortBy == "email" {
+			orderby = fmt.Sprintf(`		
+			group by user.impart_wealth_id
+			order by user.blocked asc ,ISNULL(%s), %s %s  `, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
+
+		} else {
+			orderby = fmt.Sprintf(`		
+			group by user.impart_wealth_id
+			order by ISNULL(%s), %s %s  `, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
+		}
+	} else {
+		orderby = fmt.Sprintf(`		
+		group by user.impart_wealth_id
+		order by ISNULL(%s), %s %s  `, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
+	}
+
 	orderby = fmt.Sprintf("%s LIMIT ? OFFSET ?", orderby)
 	if gpi.SearchKey != "" {
 		extraQery = fmt.Sprintf(`and user.blocked=0 and user.deleted_at is null and (user.screen_name like ? or user.email like ?) `)
 		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 		inputQuery = inputQuery + orderby
-		if gpi.SearchIDs != "" {
-			err = queries.Raw(inputQuery, "("+gpi.SearchIDs+")", "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
-		} else {
-			err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
-		}
 	} else {
 		inputQuery = inputQuery + orderby
-		if gpi.SearchIDs != "" {
-			err = queries.Raw(inputQuery, ",("+gpi.SearchIDs+"),", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
-		} else {
-			err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
-		}
 	}
-
+	if isSort {
+		inputQuery = fmt.Sprintf("Select * from (%s) output order by   ISNULL(%s)  ", inputQuery, sortBy)
+	}
+	if gpi.SearchKey != "" {
+		err = queries.Raw(inputQuery, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%", gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+	} else {
+		err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
+	}
 	if err != nil {
-		return userDetails, outOffset, err
+		out := make(models.UserDetails, 0, 0)
+		return out, outOffset, err
 	}
 	if len(userDetails) < gpi.Limit {
 		outOffset = nil
 	} else {
 		outOffset.Offset += len(userDetails)
 	}
-
-	return userDetails, outOffset, nil
+	if len(userDetails) == 0 {
+		out := make(models.UserDetails, 0, 0)
+		return out, outOffset, nil
+	}
+	userResult := UserDataToModel(userDetails)
+	return userResult, outOffset, nil
 
 }
 
@@ -225,6 +264,7 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		qm.Load(dbmodels.PostRels.PostVideos),
 		qm.Load(dbmodels.PostRels.PostUrls),
 		qm.Load("PostFiles.FidFile"), // get files
+
 	}
 	sortByUser := false
 	if gpi.SortBy == "" {
@@ -243,6 +283,15 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
 		} else if gpi.SortBy == "email" || gpi.SortBy == "screen_name" {
 			sortByUser = true
+		} else if gpi.SortBy == "tag" {
+			where := fmt.Sprintf(`post_tag on post.post_id=post_tag.post_id`)
+			queryMods = append(queryMods, qm.InnerJoin(where))
+			where = fmt.Sprintf(`tag on post_tag.tag_id=tag.tag_id`)
+			queryMods = append(queryMods, qm.InnerJoin(where))
+			gpi.SortBy = "tag.name"
+			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
+			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+
 		}
 	}
 	where := fmt.Sprintf(`hive on post.hive_id=hive.hive_id and hive.deleted_at is null `)
@@ -253,13 +302,15 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 		queryMods = append(queryMods, qm.InnerJoin(where, "%"+gpi.SearchKey+"%", "%"+gpi.SearchKey+"%"))
 		if sortByUser {
 			gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
-			queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+			sortby := fmt.Sprintf("-user.deleted_at asc,-user.blocked desc, %s", gpi.SortBy)
+			queryMods = append(queryMods, qm.OrderBy(sortby))
 		}
 	} else if gpi.SortBy != "" && sortByUser {
-		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id and user.blocked=0 and user.deleted_at is null `)
+		where := fmt.Sprintf(`user on user.impart_wealth_id=post.impart_wealth_id `)
 		queryMods = append(queryMods, qm.InnerJoin(where))
 		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
-		queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
+		sortby := fmt.Sprintf("-user.deleted_at asc,-user.blocked desc, %s", gpi.SortBy)
+		queryMods = append(queryMods, qm.OrderBy(sortby))
 	}
 	posts, err := dbmodels.Posts(queryMods...).All(ctx, m.db)
 
@@ -280,7 +331,7 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error) {
 	msg := ""
 	var existingHiveId uint64
-	if gpi.Type == "addto_waitlist" {
+	if gpi.Type == impart.AddToWaitlist {
 		hives := dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: DefaultHiveId},
 		}
@@ -303,7 +354,17 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		err = m.UpdateHiveUserDemographic(ctx, answerIds, true, DefaultHiveId)
 		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		msg = "User added to waitlist."
-	} else if gpi.Type == "addto_admin" {
+
+		mailChimpParams := &members.UpdateParams{
+			MergeFields: map[string]interface{}{"STATUS": impart.WaitList},
+		}
+		_, err = members.Update(impart.MailChimpAudienceID, userToUpdate.Email, mailChimpParams)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
+			m.logger.Error(impartErr.Error())
+		}
+
+	} else if gpi.Type == impart.AddToAdmin {
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		existingDBProfile := userToUpdate.R.ImpartWealthProfile
 		if userToUpdate.Admin {
@@ -315,7 +376,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as user")
 		}
 		msg = "User role changed to admin."
-	} else if gpi.Type == "addto_hive" {
+	} else if gpi.Type == impart.AddToHive {
 		_, err := dbmodels.FindHive(ctx, m.db, gpi.HiveID)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -345,6 +406,16 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		err = m.UpdateHiveUserDemographic(ctx, answerIds, true, gpi.HiveID)
 		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		msg = "User added to hive."
+
+		mailChimpParams := &members.UpdateParams{
+			MergeFields: map[string]interface{}{"STATUS": impart.Hive},
+		}
+		_, err = members.Update(impart.MailChimpAudienceID, userToUpdate.Email, mailChimpParams)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
+			m.logger.Error(impartErr.Error())
+		}
+
 	}
 	return msg, nil
 }
@@ -413,19 +484,19 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 			totalCnt = 0
 		}
 		hive["hive_id"] = hiveId
+		hive["name"] = p.R.Hive.Name
 		if (p.R.Hive.CreatedAt == null.Time{}) {
 			hive["date created"] = "NA"
 		} else {
 			hive["date created"] = p.R.Hive.CreatedAt
 		}
-		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.AnswerName)] = int(p.UserCount)
+		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.Text)] = int(p.UserCount)
 		totalCnt = totalCnt + int(p.UserCount)
 		hive["users"] = int(indexes[uint(p.HiveID)])
 		preHiveId = int(p.HiveID)
 	}
 	hives[i] = hive
 	if gpi.SortBy != "" {
-		fmt.Println(gpi.SortBy)
 		if gpi.SortOrder == "desc" {
 			sort.Slice(hives, func(i, j int) bool {
 				return hives[i][gpi.SortBy] == hives[j][gpi.SortBy]
@@ -458,6 +529,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	for i, user := range userUpdatesInput.Users {
 		userData := &models.UserData{}
 		userData.ImpartWealthID = user.ImpartWealthID
+		userData.ScreenName = user.ScreenName
 		userData.Status = false
 		userData.Message = "No update activity."
 		userData.Value = 0
@@ -478,12 +550,28 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		return userOutputRslt
 	}
 	lenUser := len(userOutputRslt.Users)
+	status := ""
+	if userOutputRslt.Type == impart.AddToWaitlist {
+		status = impart.WaitList
+	} else if userOutputRslt.Type == impart.AddToHive {
+		status = impart.Hive
+	}
 	for _, user := range updateUsers {
 		for cnt := 0; cnt < lenUser; cnt++ {
 			if userOutputs.Users[cnt].ImpartWealthID == user.ImpartWealthID && userOutputs.Users[cnt].Value == 1 {
 				userOutputs.Users[cnt].Message = "User updated."
 				userOutputs.Users[cnt].Status = true
 				break
+			}
+		}
+		if userOutputRslt.Type == impart.AddToWaitlist || userOutputRslt.Type == impart.AddToHive {
+			mailChimpParams := &members.UpdateParams{
+				MergeFields: map[string]interface{}{"STATUS": status},
+			}
+			_, err = members.Update(impart.MailChimpAudienceID, user.Email, mailChimpParams)
+			if err != nil {
+				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
+				m.logger.Error(impartErr.Error())
 			}
 		}
 	}
@@ -499,6 +587,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 		userData := &models.UserData{}
 		userData.ImpartWealthID = user.ImpartWealthID
 		userData.Status = false
+		userData.ScreenName = user.ScreenName
 		userData.Message = "No delete activity."
 		if user.ImpartWealthID != "" {
 			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
@@ -525,6 +614,11 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 				userOutputRslt.Users[cnt].Status = true
 				break
 			}
+		}
+		err = members.Delete(impart.MailChimpAudienceID, user.Email)
+		if err != nil {
+			m.logger.Error("Delete user requset failed in Mailchimp.", zap.String("deleteUser", user.ImpartWealthID),
+				zap.String("contextUser", user.ImpartWealthID))
 		}
 	}
 	return userOutputRslt

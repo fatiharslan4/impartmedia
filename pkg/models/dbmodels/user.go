@@ -40,6 +40,7 @@ type User struct {
 	LastloginAt      null.Time   `boil:"lastlogin_at" json:"lastlogin_at,omitempty" toml:"lastlogin_at" yaml:"lastlogin_at,omitempty"`
 	SuperAdmin       bool        `boil:"super_admin" json:"super_admin" toml:"super_admin" yaml:"super_admin"`
 	DeletedByAdmin   bool        `boil:"deleted_by_admin" json:"deleted_by_admin" toml:"deleted_by_admin" yaml:"deleted_by_admin"`
+	PlaidAccessToken null.String `boil:"plaid_access_token" json:"plaid_access_token,omitempty" toml:"plaid_access_token" yaml:"plaid_access_token,omitempty"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -62,6 +63,7 @@ var UserColumns = struct {
 	LastloginAt      string
 	SuperAdmin       string
 	DeletedByAdmin   string
+	PlaidAccessToken string
 }{
 	ImpartWealthID:   "impart_wealth_id",
 	AuthenticationID: "authentication_id",
@@ -79,6 +81,7 @@ var UserColumns = struct {
 	LastloginAt:      "lastlogin_at",
 	SuperAdmin:       "super_admin",
 	DeletedByAdmin:   "deleted_by_admin",
+	PlaidAccessToken: "plaid_access_token",
 }
 
 var UserTableColumns = struct {
@@ -98,6 +101,7 @@ var UserTableColumns = struct {
 	LastloginAt      string
 	SuperAdmin       string
 	DeletedByAdmin   string
+	PlaidAccessToken string
 }{
 	ImpartWealthID:   "user.impart_wealth_id",
 	AuthenticationID: "user.authentication_id",
@@ -115,6 +119,7 @@ var UserTableColumns = struct {
 	LastloginAt:      "user.lastlogin_at",
 	SuperAdmin:       "user.super_admin",
 	DeletedByAdmin:   "user.deleted_by_admin",
+	PlaidAccessToken: "user.plaid_access_token",
 }
 
 // Generated where
@@ -136,6 +141,7 @@ var UserWhere = struct {
 	LastloginAt      whereHelpernull_Time
 	SuperAdmin       whereHelperbool
 	DeletedByAdmin   whereHelperbool
+	PlaidAccessToken whereHelpernull_String
 }{
 	ImpartWealthID:   whereHelperstring{field: "`user`.`impart_wealth_id`"},
 	AuthenticationID: whereHelperstring{field: "`user`.`authentication_id`"},
@@ -153,6 +159,7 @@ var UserWhere = struct {
 	LastloginAt:      whereHelpernull_Time{field: "`user`.`lastlogin_at`"},
 	SuperAdmin:       whereHelperbool{field: "`user`.`super_admin`"},
 	DeletedByAdmin:   whereHelperbool{field: "`user`.`deleted_by_admin`"},
+	PlaidAccessToken: whereHelpernull_String{field: "`user`.`plaid_access_token`"},
 }
 
 // UserRels is where relationship names are stored.
@@ -170,6 +177,7 @@ var UserRels = struct {
 	ImpartWealthUserAnswers                string
 	ImpartWealthUserConfigurations         string
 	ImpartWealthUserDevices                string
+	ImpartWealthUserInstitutions           string
 }{
 	ImpartWealthProfile:                    "ImpartWealthProfile",
 	ImpartWealthComments:                   "ImpartWealthComments",
@@ -184,6 +192,7 @@ var UserRels = struct {
 	ImpartWealthUserAnswers:                "ImpartWealthUserAnswers",
 	ImpartWealthUserConfigurations:         "ImpartWealthUserConfigurations",
 	ImpartWealthUserDevices:                "ImpartWealthUserDevices",
+	ImpartWealthUserInstitutions:           "ImpartWealthUserInstitutions",
 }
 
 // userR is where relationships are stored.
@@ -201,6 +210,7 @@ type userR struct {
 	ImpartWealthUserAnswers                UserAnswerSlice                `boil:"ImpartWealthUserAnswers" json:"ImpartWealthUserAnswers" toml:"ImpartWealthUserAnswers" yaml:"ImpartWealthUserAnswers"`
 	ImpartWealthUserConfigurations         UserConfigurationSlice         `boil:"ImpartWealthUserConfigurations" json:"ImpartWealthUserConfigurations" toml:"ImpartWealthUserConfigurations" yaml:"ImpartWealthUserConfigurations"`
 	ImpartWealthUserDevices                UserDeviceSlice                `boil:"ImpartWealthUserDevices" json:"ImpartWealthUserDevices" toml:"ImpartWealthUserDevices" yaml:"ImpartWealthUserDevices"`
+	ImpartWealthUserInstitutions           UserInstitutionSlice           `boil:"ImpartWealthUserInstitutions" json:"ImpartWealthUserInstitutions" toml:"ImpartWealthUserInstitutions" yaml:"ImpartWealthUserInstitutions"`
 }
 
 // NewStruct creates a new relationship struct
@@ -212,8 +222,8 @@ func (*userR) NewStruct() *userR {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked", "feedback", "lastlogin_at", "super_admin", "deleted_by_admin"}
-	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "feedback", "lastlogin_at"}
+	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked", "feedback", "lastlogin_at", "super_admin", "deleted_by_admin", "plaid_access_token"}
+	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "feedback", "lastlogin_at", "plaid_access_token"}
 	userColumnsWithDefault    = []string{"blocked", "super_admin", "deleted_by_admin"}
 	userPrimaryKeyColumns     = []string{"impart_wealth_id"}
 )
@@ -710,16 +720,19 @@ func (o *User) ImpartWealthUserAnswers(mods ...qm.QueryMod) userAnswerQuery {
 	if len(mods) != 0 {
 		queryMods = append(queryMods, mods...)
 	}
+
 	queryMods = append(queryMods,
 		qm.Where("`user_answers`.`impart_wealth_id`=?", o.ImpartWealthID),
 		qmhelper.WhereIsNull("`user_answers`.`deleted_at`"),
 	)
+
 	query := UserAnswers(queryMods...)
 	queries.SetFrom(query.Query, "`user_answers`")
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"`user_answers`.*"})
 	}
+
 	return query
 }
 
@@ -761,6 +774,27 @@ func (o *User) ImpartWealthUserDevices(mods ...qm.QueryMod) userDeviceQuery {
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"`user_devices`.*"})
+	}
+
+	return query
+}
+
+// ImpartWealthUserInstitutions retrieves all the user_institution's UserInstitutions with an executor via impart_wealth_id column.
+func (o *User) ImpartWealthUserInstitutions(mods ...qm.QueryMod) userInstitutionQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`user_institutions`.`impart_wealth_id`=?", o.ImpartWealthID),
+	)
+
+	query := UserInstitutions(queryMods...)
+	queries.SetFrom(query.Query, "`user_institutions`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`user_institutions`.*"})
 	}
 
 	return query
@@ -2087,6 +2121,104 @@ func (userL) LoadImpartWealthUserDevices(ctx context.Context, e boil.ContextExec
 	return nil
 }
 
+// LoadImpartWealthUserInstitutions allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (userL) LoadImpartWealthUserInstitutions(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUser interface{}, mods queries.Applicator) error {
+	var slice []*User
+	var object *User
+
+	if singular {
+		object = maybeUser.(*User)
+	} else {
+		slice = *maybeUser.(*[]*User)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userR{}
+		}
+		args = append(args, object.ImpartWealthID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ImpartWealthID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ImpartWealthID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`user_institutions`),
+		qm.WhereIn(`user_institutions.impart_wealth_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load user_institutions")
+	}
+
+	var resultSlice []*UserInstitution
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice user_institutions")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on user_institutions")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_institutions")
+	}
+
+	if len(userInstitutionAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.ImpartWealthUserInstitutions = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &userInstitutionR{}
+			}
+			foreign.R.ImpartWealth = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ImpartWealthID == foreign.ImpartWealthID {
+				local.R.ImpartWealthUserInstitutions = append(local.R.ImpartWealthUserInstitutions, foreign)
+				if foreign.R == nil {
+					foreign.R = &userInstitutionR{}
+				}
+				foreign.R.ImpartWealth = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetImpartWealthProfile of the user to the related item.
 // Sets o.R.ImpartWealthProfile to related.
 // Adds o to related.R.ImpartWealth.
@@ -2947,6 +3079,59 @@ func (o *User) AddImpartWealthUserDevices(ctx context.Context, exec boil.Context
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &userDeviceR{
+				ImpartWealth: o,
+			}
+		} else {
+			rel.R.ImpartWealth = o
+		}
+	}
+	return nil
+}
+
+// AddImpartWealthUserInstitutions adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.ImpartWealthUserInstitutions.
+// Sets related.R.ImpartWealth appropriately.
+func (o *User) AddImpartWealthUserInstitutions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserInstitution) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ImpartWealthID = o.ImpartWealthID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `user_institutions` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"impart_wealth_id"}),
+				strmangle.WhereClause("`", "`", 0, userInstitutionPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ImpartWealthID, rel.InstitutionID, rel.ImpartWealthID, rel.AccessToken}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ImpartWealthID = o.ImpartWealthID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userR{
+			ImpartWealthUserInstitutions: related,
+		}
+	} else {
+		o.R.ImpartWealthUserInstitutions = append(o.R.ImpartWealthUserInstitutions, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &userInstitutionR{
 				ImpartWealth: o,
 			}
 		} else {

@@ -47,6 +47,7 @@ type Profile struct {
 	LastLoginDate         time.Time       `json:"lastLoginDate,omitempty"`
 	SuperAdmin            bool            `json:"superAdmin,omitempty"`
 	DeletedByAdmin        bool            `json:"deletedByAdmin,omitempty"`
+	PlaidAccessToken      string          `json:"plaidAccessToken,omitempty"`
 }
 
 // Attributes for Impart Wealth
@@ -188,6 +189,7 @@ func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error)
 		IsUpdateReadCommunity: p.IsUpdateReadCommunity,
 		SuperAdmin:            u.SuperAdmin,
 		DeletedByAdmin:        u.DeletedByAdmin,
+		PlaidAccessToken:      u.PlaidAccessToken.String,
 	}
 
 	for i, hive := range u.R.MemberHiveHives {

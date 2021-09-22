@@ -49,3 +49,12 @@ func ValidateCommentInput(c models.Comment) models.Comment {
 	}
 	return c
 }
+
+func ValidateInputs(post models.Post) impart.Error {
+	if (post.Video != models.PostVideo{}) {
+		if post.Video.ReferenceId == "" {
+			return impart.NewError(impart.ErrBadRequest, "Invalid video details.")
+		}
+	}
+	return nil
+}

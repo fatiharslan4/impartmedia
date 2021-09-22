@@ -11,9 +11,11 @@ import (
 	"syscall"
 	"time"
 
+	mailchimp "github.com/beeker1121/mailchimp-go"
 	"github.com/impartwealthapp/backend/pkg/data/migrater"
 	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/impartwealthapp/backend/pkg/plaid"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	ginzap "github.com/gin-contrib/zap"
@@ -136,6 +138,10 @@ func main() {
 	} else {
 		v1Route = fmt.Sprintf("%s/v1", cfg.Env)
 	}
+	err = mailchimp.SetKey(impart.MailChimpApiKey)
+	if err != nil {
+		logger.Info("Error connecting Mailchimp", zap.Error(err))
+	}
 
 	v1 := r.Group(v1Route)
 
@@ -146,7 +152,7 @@ func main() {
 	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
 
 	hive.SetupRoutes(v1, db, services.HiveData, services.Hive, logger)
-	profile.SetupRoutes(v1, services.ProfileData, services.Profile, logger, services.Notifications)
+	profile.SetupRoutes(v1, services.ProfileData, services.Profile, logger, services.Notifications, services.Plaid)
 
 	server := cfg.GetHttpServer()
 	server.Handler = r
@@ -169,6 +175,7 @@ type Services struct {
 	Auth          auth.Service
 	Notifications impart.NotificationService
 	MediaStorage  media.StorageConfigurations
+	Plaid         plaid.Service
 }
 
 func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services {
@@ -176,6 +183,7 @@ func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services
 	svcs := &Services{}
 	svcs.ProfileData = profiledata.NewMySQLStore(db, logger)
 	svcs.HiveData = hivedata.NewHiveService(db, logger)
+	// svcs.Plaid = plaid.NewPlaidService(db, logger)
 
 	svcs.Auth, err = auth.NewAuthService(cfg, svcs.ProfileData, logger)
 	if err != nil {
@@ -197,6 +205,7 @@ func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services
 
 	svcs.MediaStorage = media.LoadMediaConfig(cfg)
 	svcs.Hive = hive.New(cfg, db, logger, svcs.MediaStorage)
+	svcs.Plaid = plaid.New(db, logger, svcs.Hive)
 	return svcs
 }
 

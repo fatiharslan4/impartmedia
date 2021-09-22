@@ -69,7 +69,7 @@ type Post struct {
 }
 
 type PostVideo struct {
-	ReferenceId string `json:"referenceId,omitempty"`
+	ReferenceId string `json:"referenceId"`
 	Source      string `json:"source"`
 	Url         string `json:"url"`
 }

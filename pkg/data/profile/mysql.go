@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/google/uuid"
 	authdata "github.com/impartwealthapp/backend/pkg/data/auth"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -655,6 +657,7 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		answerIds[i] = a.AnswerID
 	}
 	userEmail := userToDelete.Email
+	orgEmail := userToDelete.Email
 	screenName := userToDelete.ScreenName
 	userToDelete = models.UpdateToUserDB(userToDelete, gpi, true, screenName, userEmail)
 	err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
@@ -716,6 +719,12 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 			err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
 		}
 		return impart.NewError(err, "User Deletion failed")
+	}
+	// // delete user from mailChimp
+	err = members.Delete(impart.MailChimpAudienceID, orgEmail)
+	if err != nil {
+		m.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", userToDelete.ImpartWealthID),
+			zap.String("contextUser", userToDelete.ImpartWealthID))
 	}
 	return nil
 }
@@ -876,7 +885,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				break
 			}
 		}
-		if userUpdate.Type == "addto_admin" {
+		if userUpdate.Type == impart.AddToAdmin {
 			if user.Admin {
 				userUpdate.Users[userUpdateposition].Message = "User is already admin."
 			} else {
@@ -884,7 +893,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
 				userUpdate.Users[userUpdateposition].Value = 1
 			}
-		} else if userUpdate.Type == "addto_waitlist" {
+		} else if userUpdate.Type == impart.AddToWaitlist {
 			for _, h := range user.R.MemberHiveHives {
 				existinghiveid = h.HiveID
 			}
@@ -903,7 +912,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
 			}
-		} else if userUpdate.Type == "addto_hive" {
+		} else if userUpdate.Type == impart.AddToHive {
 			for _, h := range user.R.MemberHiveHives {
 				existinghiveid = h.HiveID
 			}
@@ -933,4 +942,87 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 		return userUpdate, err
 	}
 	return userUpdate, nil
+}
+
+func (m *mysqlStore) CreateMailChimpForExistingUsers(ctx context.Context) error {
+	newcluse := Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Blocked), false)
+	usersWhere := []QueryMod{
+		newcluse,
+		Load(dbmodels.UserRels.ImpartWealthProfile),
+		Load(dbmodels.UserRels.MemberHiveHives),
+		Load(dbmodels.UserRels.ImpartWealthUserAnswers),
+		Load(Rels(dbmodels.UserRels.ImpartWealthUserAnswers, dbmodels.UserAnswerRels.Answer, dbmodels.AnswerRels.Question)),
+	}
+
+	out, err := dbmodels.Users(usersWhere...).All(ctx, m.db)
+	status := ""
+	if err != nil {
+		return err
+	}
+	params := &members.GetParams{
+		Status: members.StatusSubscribed,
+	}
+	listMembers, err := members.Get(impart.MailChimpAudienceID, params)
+	if err != nil {
+		return err
+	}
+	for _, user := range out {
+		userAnswer := impart.GetUserAnswerList()
+		userExist := Contains(listMembers, user.Email)
+		if !userExist {
+			if len(user.R.MemberHiveHives) > 0 {
+				if user.R.MemberHiveHives[0].HiveID == impart.DefaultHiveID {
+					status = impart.WaitList
+				} else {
+					status = impart.Hive
+				}
+			}
+			if len(user.R.ImpartWealthUserAnswers) > 0 {
+				for _, anser := range user.R.ImpartWealthUserAnswers {
+					userAnswer[anser.R.Answer.QuestionID] = fmt.Sprintf("%s,%s", userAnswer[anser.R.Answer.QuestionID], anser.R.Answer.Text)
+					userAnswer[anser.R.Answer.R.Question.QuestionID] = strings.Trim(userAnswer[anser.R.Answer.R.Question.QuestionID], ",")
+				}
+			}
+			mergeFlds := impart.SetMailChimpAnswer(userAnswer, status, "")
+			params := &members.NewParams{
+				EmailAddress: user.Email,
+				Status:       members.StatusSubscribed,
+				MergeFields:  mergeFlds,
+			}
+			_, err := members.New(impart.MailChimpAudienceID, params)
+			if err != nil {
+				m.logger.Info("new user requset failed in MailChimp", zap.String("updateuser", user.Email),
+					zap.String("contextUser", user.ImpartWealthID))
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func Contains(users *members.ListMembers, userEmail string) bool {
+	for _, mail := range users.Members {
+		if mail.EmailAddress == userEmail {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *mysqlStore) GetUserAnswer(ctx context.Context, impartWealthId string) (dbmodels.UserAnswerSlice, error) {
+	qm := []QueryMod{
+		dbmodels.UserAnswerWhere.ImpartWealthID.EQ(impartWealthId),
+	}
+	qm = append(qm, Load(Rels(dbmodels.UserAnswerRels.Answer, dbmodels.AnswerRels.Question, dbmodels.QuestionRels.Questionnaire)))
+	qm = append(qm, Load(Rels(dbmodels.UserAnswerRels.Answer, dbmodels.AnswerRels.Question, dbmodels.QuestionRels.Type)))
+	qm = append(qm, Load(Rels(dbmodels.UserAnswerRels.ImpartWealth)))
+
+	userAnswers, err := dbmodels.UserAnswers(qm...).All(ctx, m.db)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return dbmodels.UserAnswerSlice{}, impart.ErrNotFound
+		}
+	}
+	return userAnswers, nil
 }

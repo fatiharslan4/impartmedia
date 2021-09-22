@@ -6,6 +6,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 )
 
 // GetAdminInputs is the input necessary
@@ -16,32 +17,32 @@ type GetAdminInputs struct {
 	Offset int
 	// search is the optional to filter on
 	SearchKey string
-	SearchIDs string
+	SearchIDs []string
 	SortBy    string
 	SortOrder string
 }
 
 type UserDetails []UserDetail
 type UserDetail struct {
-	ImpartWealthID string    `json:"impartWealthId"`
-	ScreenName     string    `json:"screenName"  `
-	Email          string    `json:"email" `
-	CreatedAt      time.Time `json:"created_at" `
-	Admin          bool      `json:"admin" `
-	Post           uint64    `json:"post" `
-	Hive           string    `json:"hive" `
-	Household      string    `json:"household" `
-	Dependents     string    `json:"dependents" `
-	Generation     string    `json:"generation" `
-	Gender         string    `json:"gender" `
-	Race           string    `json:"race" `
-	Financialgoals string    `json:"financialgoals" `
-	Industry       string    `json:"industry"`
-	Career         string    `json:"career"`
-	Income         string    `json:"income"`
-	LastLoginAt    string    `json:"last_login_at"`
-	SuperAdmin     bool      `json:"super_admin"`
-	AnswerIds      string    `json:"answer_ids"`
+	ImpartWealthID string      `json:"impartWealthId"`
+	ScreenName     null.String `json:"screen_name"  `
+	Email          null.String `json:"email" `
+	CreatedAt      time.Time   `json:"created_at" `
+	Admin          bool        `json:"admin" `
+	Post           uint64      `json:"post" `
+	HiveId         string      `json:"hive_id" `
+	Household      string      `json:"household" `
+	Dependents     string      `json:"dependents" `
+	Generation     string      `json:"generation" `
+	Gender         string      `json:"gender" `
+	Race           string      `json:"race" `
+	Financialgoals string      `json:"financialgoals" `
+	Industry       string      `json:"industry"`
+	Career         string      `json:"career"`
+	Income         string      `json:"income"`
+	LastloginAt    string      `json:"lastlogin_at"`
+	SuperAdmin     bool        `json:"super_admin"`
+	AnswerIds      string      `json:"answer_ids"`
 }
 
 type PagedUserResponse struct {
@@ -52,14 +53,14 @@ type PagedUserResponse struct {
 type PostDetails []PostDetail
 type PostDetail struct {
 	PostID         uint64    `json:"postid"`
-	ScreenName     string    `json:"screenName"  `
+	ScreenName     string    `json:"screen_name"  `
 	Email          string    `json:"email" `
 	PostDatetime   time.Time `json:"created_at" `
-	HiveID         uint64    `json:"hiveid" `
+	HiveID         uint64    `json:"hive_id" `
 	Pinned         bool      `json:"pinned" `
 	Reported       bool      `json:"reported" `
-	CommentCount   int       `json:"commentcount" `
-	PostContent    string    `json:"postcontent" `
+	CommentCount   int       `json:"comment_count" `
+	PostContent    string    `json:"content" `
 	ImpartWealthID string    `json:"impartWealthId"`
 	Subject        string    `json:"subject" `
 	IsAdminPost    bool      `json:"adminpost" `
@@ -86,6 +87,7 @@ type UserData struct {
 	Status         bool   `json:"status"`
 	Message        string `json:"message,omitempty"`
 	Value          int    `json:"value"`
+	ScreenName     string `json:"screen_name"  `
 }
 
 type PostUpdate struct {
@@ -97,6 +99,7 @@ type PostData struct {
 	PostID  uint64 `json:"postID,omitempty"`
 	Status  bool   `json:"status"`
 	Message string `json:"message,omitempty"`
+	Title   string `json:"title"`
 }
 
 type HiveUpdate struct {
@@ -108,6 +111,7 @@ type HiveData struct {
 	HiveID  uint64 `json:"hiveID,omitempty"`
 	Status  bool   `json:"status"`
 	Message string `json:"message,omitempty"`
+	Name    string `json:"name"`
 }
 
 func PostsData(dbPosts dbmodels.PostSlice) PostDetails {

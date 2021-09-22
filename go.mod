@@ -7,6 +7,7 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20210214200137-e6fc2822d59d
 	github.com/alecthomas/kong v0.2.15
 	github.com/aws/aws-sdk-go v1.37.10
+	github.com/beeker1121/mailchimp-go v0.0.0-20160721165115-7c5f827423b2
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/dustin/go-humanize v1.0.0
 	github.com/friendsofgo/errors v0.9.2
@@ -24,6 +25,7 @@ require (
 	github.com/otiai10/opengraph/v2 v2.0.3
 	github.com/pcpratheesh/go-censorword v1.1.0
 	github.com/pkg/errors v0.9.1
+	github.com/plaid/plaid-go v1.2.0
 	github.com/segmentio/ksuid v1.0.3
 	github.com/shopspring/decimal v1.2.0
 	github.com/stretchr/testify v1.7.0

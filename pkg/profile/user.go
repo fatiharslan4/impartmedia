@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -298,6 +299,13 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 	}
 	err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, false)
 	err = ps.profileStore.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
+
+	// // delete user from mailchimp
+	err = members.Delete(impart.MailChimpAudienceID, dbUser.Email)
+	if err != nil {
+		ps.Logger().Error("Delete user requset failed in MailChimp", zap.String("blockUser", ctxUser.ImpartWealthID),
+			zap.String("User", ctxUser.ImpartWealthID))
+	}
 	return nil
 }
 
@@ -382,7 +390,7 @@ func (ps *profileService) EditBulkUserDetails(ctx context.Context, userUpdates m
 		if len(userUpdates.Users) == 0 {
 			return nil, impart.NewError(impart.ErrBadRequest, "User details not found")
 		}
-		if userUpdates.Type == "addto_hive" && userUpdates.HiveID == 0 {
+		if userUpdates.Type == impart.AddToHive && userUpdates.HiveID == 0 {
 			return nil, impart.NewError(impart.ErrBadRequest, "Missing hive details.")
 		}
 		userOutput = ps.profileStore.EditBulkUserDetails(ctx, userUpdates)

@@ -143,10 +143,6 @@ func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive
 		return models.Hive{}, impart.NewError(impart.ErrUnauthorized, "non-admin users cannot create hives.")
 	}
 
-	if hive.HiveName == "" {
-		return models.Hive{}, impart.NewError(impart.ErrBadRequest, "Hive name is mandatory.")
-	}
-
 	dbh, err := hive.ToDBModel()
 	if err != nil {
 		return models.Hive{}, impart.NewError(impart.ErrUnknown, "unable to convert hives to  dbmodel")

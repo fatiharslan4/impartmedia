@@ -1,9 +1,13 @@
 package hive
 
 import (
+	"fmt"
+
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/leebenson/conform"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 func ValidationPost(post models.Post) models.Post {
@@ -57,4 +61,35 @@ func ValidateInputs(post models.Post) impart.Error {
 		}
 	}
 	return nil
+}
+
+func ValidateInput(document gojsonschema.JSONLoader, validationModel types.Type) (errors []impart.Error) {
+
+	v := gojsonschema.NewReferenceLoader(
+		fmt.Sprintf("file://%s", "./schemas/json/"+validationModel+".json"),
+	)
+	_, err := v.LoadJSON()
+	if err != nil {
+		return []impart.Error{
+			impart.NewError(impart.ErrBadRequest, "unable to load validation schema"),
+		}
+	}
+	result, err := gojsonschema.Validate(v, document)
+	if err != nil {
+		return []impart.Error{
+			impart.NewError(impart.ErrBadRequest, "unable to validate schema"),
+		}
+	}
+
+	if result.Valid() {
+		return nil
+	}
+	// msg := fmt.Sprintf("%v validations errors.\n", len(result.Errors()))
+	msg := "validations errors"
+	for i, desc := range result.Errors() {
+		msg += fmt.Sprintf("%v: %s\n", i, desc)
+		er := impart.NewError(impart.ErrValidationError, fmt.Sprintf("%s ", desc), impart.ErrorKey(desc.Field()))
+		errors = append(errors, er)
+	}
+	return errors
 }

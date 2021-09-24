@@ -24,25 +24,26 @@ type GetAdminInputs struct {
 
 type UserDetails []UserDetail
 type UserDetail struct {
-	ImpartWealthID string      `json:"impartWealthId"`
-	ScreenName     null.String `json:"screen_name"  `
-	Email          null.String `json:"email" `
-	CreatedAt      time.Time   `json:"created_at" `
-	Admin          bool        `json:"admin" `
-	Post           uint64      `json:"post" `
-	HiveId         string      `json:"hive_id" `
-	Household      string      `json:"household" `
-	Dependents     string      `json:"dependents" `
-	Generation     string      `json:"generation" `
-	Gender         string      `json:"gender" `
-	Race           string      `json:"race" `
-	Financialgoals string      `json:"financialgoals" `
-	Industry       string      `json:"industry"`
-	Career         string      `json:"career"`
-	Income         string      `json:"income"`
-	LastloginAt    string      `json:"lastlogin_at"`
-	SuperAdmin     bool        `json:"super_admin"`
-	AnswerIds      string      `json:"answer_ids"`
+	ImpartWealthID   string      `json:"impartWealthId"`
+	ScreenName       null.String `json:"screen_name"  `
+	Email            null.String `json:"email" `
+	CreatedAt        time.Time   `json:"created_at" `
+	Admin            bool        `json:"admin" `
+	Post             uint64      `json:"post" `
+	HiveId           string      `json:"hive_id" `
+	Household        string      `json:"household" `
+	Dependents       string      `json:"dependents" `
+	Generation       string      `json:"generation" `
+	Gender           string      `json:"gender" `
+	Race             string      `json:"race" `
+	Financialgoals   string      `json:"financialgoals" `
+	Industry         string      `json:"industry"`
+	Career           string      `json:"career"`
+	Income           string      `json:"income"`
+	LastloginAt      string      `json:"lastlogin_at"`
+	SuperAdmin       bool        `json:"super_admin"`
+	AnswerIds        string      `json:"answer_ids"`
+	EmploymentStatus string      `json:"employment_status"`
 }
 
 type PagedUserResponse struct {

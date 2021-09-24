@@ -16,9 +16,12 @@ import (
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	authdata "github.com/impartwealthapp/backend/pkg/data/auth"
 	hivedata "github.com/impartwealthapp/backend/pkg/data/hive"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
+	"github.com/leebenson/conform"
 	"github.com/otiai10/opengraph/v2"
+	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/zap"
 )
 
@@ -166,17 +169,24 @@ func (hh *hiveHandler) GetHivesFunc() gin.HandlerFunc {
 func (hh *hiveHandler) CreateHiveFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
-		h := models.Hive{}
-		stdErr := ctx.ShouldBindJSON(&h)
-		if stdErr != nil {
-			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Hive")
-			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+		impartErr := ValidateInput(gojsonschema.NewStringLoader(string(b)), types.UserDeviceValidationModel)
+		if impartErr != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
 			return
 		}
+		hive := models.Hive{}
+		err = json.Unmarshal(b, &hive)
+		conform.Strings(&hive)
 
-		h, err := hh.hiveService.CreateHive(ctx, h)
+		h, Err := hh.hiveService.CreateHive(ctx, hive)
 		if err != nil {
-			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			ctx.JSON(Err.HttpStatus(), impart.ErrorResponse(Err))
 			return
 		}
 

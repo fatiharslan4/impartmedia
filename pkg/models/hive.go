@@ -42,7 +42,8 @@ type Hives []Hive
 
 // Hive represents the top level organization of a hive community
 type Hive struct {
-	HiveID          uint64 `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
+	HiveID uint64 `json:"hiveId"`
+	// HiveID          uint64 `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
 	HiveName        string `json:"hiveName" conform:"ucfirst,trim"`
 	HiveDescription string `json:"hiveDescription" conform:"trim"`
 	//Administrators    []HiveAdmin       `json:"administrators"`
@@ -251,12 +252,13 @@ func HiveFromDB(dbHive *dbmodels.Hive) (Hive, error) {
 
 func (h Hive) ToDBModel() (*dbmodels.Hive, error) {
 	dbh := &dbmodels.Hive{
-		HiveID:       h.HiveID,
+		// HiveID:       h.HiveID,
 		Name:         h.HiveName,
 		Description:  h.HiveDescription,
 		PinnedPostID: null.Uint64From(h.PinnedPostID),
 		//TagComparisons:       null.JSON{},
 		//HiveDistributions:    null.JSON{},
+		CreatedAt: null.TimeFrom(impart.CurrentUTC()),
 	}
 	err := dbh.HiveDistributions.Marshal(&h.HiveDistributions)
 	if err != nil {

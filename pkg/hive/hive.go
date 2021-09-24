@@ -139,7 +139,7 @@ func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive
 	var err error
 
 	ctxUser := impart.GetCtxUser(ctx)
-	if !ctxUser.Admin {
+	if !ctxUser.SuperAdmin {
 		return models.Hive{}, impart.NewError(impart.ErrUnauthorized, "non-admin users cannot create hives.")
 	}
 
@@ -162,16 +162,11 @@ func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive
 
 func (s *service) EditHive(ctx context.Context, hive models.Hive) (models.Hive, impart.Error) {
 	ctxUser := impart.GetCtxUser(ctx)
-	if !ctxUser.Admin {
+	if !ctxUser.SuperAdmin {
 		return models.Hive{}, impart.NewError(impart.ErrUnauthorized, "non-admin users cannot create hives.")
 	}
 
-	dbh, err := hive.ToDBModel()
-	if err != nil {
-		return models.Hive{}, impart.NewError(impart.ErrUnknown, "unable to convert hives to  dbmodel")
-	}
-
-	dbh, err = s.hiveData.EditHive(ctx, dbh)
+	dbh, err := s.hiveData.EditHive(ctx, hive)
 	if err != nil {
 		return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to create hive %s", hive.HiveName))
 	}

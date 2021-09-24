@@ -81,8 +81,11 @@ func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmo
 	if !ctxUser.SuperAdmin {
 		return nil, impart.ErrUnauthorized
 	}
-
-	// hive.HiveID = 0
+	hives, err := dbmodels.Hives(qm.OrderBy("hive_id desc")).All(ctx, d.db)
+	if len(hives) > 0 {
+		hiveId := hives[0].HiveID
+		hive.HiveID = hiveId + 1
+	}
 	if err := hive.Insert(ctx, d.db, boil.Infer()); err != nil {
 		return nil, err
 	}
@@ -98,8 +101,7 @@ func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmo
 					INSERT INTO hive_user_demographic (hive_id,question_id,answer_id,user_count)
 					SELECT @hive_id,question_id,answer_id,0
 					FROM answer;`
-	fmt.Println(queryFirst)
-	_, err := queries.Raw(queryFirst).ExecContext(ctx, d.db)
+	_, err = queries.Raw(queryFirst).ExecContext(ctx, d.db)
 	if err != nil {
 		fmt.Println(err)
 		d.logger.Error("Updating Hive demographic data failed", zap.String("Hive name", hive.Name))

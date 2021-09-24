@@ -175,7 +175,7 @@ func (hh *hiveHandler) CreateHiveFunc() gin.HandlerFunc {
 				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
 			))
 		}
-		impartErr := ValidateInput(gojsonschema.NewStringLoader(string(b)), types.UserDeviceValidationModel)
+		impartErr := ValidateInput(gojsonschema.NewStringLoader(string(b)), types.HiveValidationModel)
 		if impartErr != nil {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
 			return

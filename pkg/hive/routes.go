@@ -214,8 +214,8 @@ func (hh *hiveHandler) EditHiveFunc() gin.HandlerFunc {
 		}
 
 		h, impartErr := hh.hiveService.EditHive(ctx, h)
-		if err != nil {
-			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(err))
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 

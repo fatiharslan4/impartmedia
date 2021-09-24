@@ -3,6 +3,7 @@ package hive
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -165,7 +166,12 @@ func (s *service) EditHive(ctx context.Context, hive models.Hive) (models.Hive, 
 	if !ctxUser.SuperAdmin {
 		return models.Hive{}, impart.NewError(impart.ErrUnauthorized, "non-admin users cannot create hives.")
 	}
-
+	if len(strings.TrimSpace(hive.HiveName)) < 5 {
+		return models.Hive{}, impart.NewError(impart.ErrBadRequest, "Hivename must be greater than or equal to 5.")
+	}
+	if len(strings.TrimSpace(hive.HiveName)) > 60 {
+		return models.Hive{}, impart.NewError(impart.ErrBadRequest, "Hivename must be less than or equal to 60.")
+	}
 	dbh, err := s.hiveData.EditHive(ctx, hive)
 	if err != nil {
 		return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to create hive %s", hive.HiveName))

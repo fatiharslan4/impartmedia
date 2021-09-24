@@ -5,20 +5,21 @@
 	"definitions": {
 		"Hive": {
 			"required": [
-				"hiveId",
 				"hiveName",
-				"hiveDescription",
-				"pinnedPostId",
-				"tagComparisons"
+				"hiveDescription"
 			],
 			"properties": {
 				"hiveId": {
 					"type": "integer"
 				},
 				"hiveName": {
+					"maxLength": 60,
+					"minLength": 5,
 					"type": "string"
 				},
 				"hiveDescription": {
+					"maxLength": 5000,
+					"minLength": 10,
 					"type": "string"
 				},
 				"hiveDistributions": {

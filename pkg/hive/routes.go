@@ -41,7 +41,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	hiveRoutes.GET("", handler.GetHivesFunc())
 	hiveRoutes.GET("/:hiveId", handler.GetHivesFunc())
 	hiveRoutes.POST("", handler.CreateHiveFunc())
-	hiveRoutes.PUT("", handler.EditHiveFunc())
+	hiveRoutes.PUT(":hiveId", handler.EditHiveFunc())
 	hiveRoutes.GET("/:hiveId/percentiles/:impartWealthId", handler.GetHivePercentilesFunc())
 	hiveRoutes.GET("/:hiveId/reported-list", handler.GetReportedContents())
 	hiveRoutes.DELETE("/:hiveId", handler.DeleteHiveFunc())
@@ -188,16 +188,24 @@ func (hh *hiveHandler) EditHiveFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
 		h := models.Hive{}
+		hiveIDstr := ctx.Param("hiveId")
+		hiveId, err := strconv.ParseUint(hiveIDstr, 10, 64)
+		if err != nil {
+			iErr := impart.NewError(impart.ErrBadRequest, "hiveId must be an integer", impart.HiveID)
+			ctx.JSON(iErr.HttpStatus(), impart.ErrorResponse(iErr))
+			return
+		}
 		stdErr := ctx.ShouldBindJSON(&h)
+		h.HiveID = hiveId
 		if stdErr != nil {
 			err := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Hive")
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
 
-		h, err := hh.hiveService.EditHive(ctx, h)
+		h, impartErr := hh.hiveService.EditHive(ctx, h)
 		if err != nil {
-			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
 

@@ -49,7 +49,7 @@ type Hives interface {
 	GetHives(ctx context.Context) (dbmodels.HiveSlice, error)
 	GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, error)
 	NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error)
-	EditHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error)
+	EditHive(ctx context.Context, hive models.Hive) (*dbmodels.Hive, error)
 	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) error
 	GetReviewedPosts(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetUnreviewedReportedPosts(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
@@ -78,29 +78,60 @@ func (d *mysqlHiveData) GetHive(ctx context.Context, hiveID uint64) (*dbmodels.H
 
 func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error) {
 	ctxUser := impart.GetCtxUser(ctx)
-	if !ctxUser.Admin {
+	if !ctxUser.SuperAdmin {
 		return nil, impart.ErrUnauthorized
 	}
-
-	// hive.HiveID = 0
+	hives, err := dbmodels.Hives(qm.OrderBy("hive_id desc")).All(ctx, d.db)
+	if len(hives) > 0 {
+		hiveId := hives[0].HiveID
+		hive.HiveID = hiveId + 1
+	}
 	if err := hive.Insert(ctx, d.db, boil.Infer()); err != nil {
 		return nil, err
+	}
+	queryFirst := `SET @hive_id = (select max(hive_id) from hive );
+					INSERT INTO user_demographic (answer_id,user_count)
+					SELECT answer_id,0
+					FROM answer;
+					
+					INSERT INTO hive_user_demographic (hive_id,question_id,answer_id,user_count)
+					SELECT @hive_id,question_id,answer_id,0
+					FROM answer;
+					
+					INSERT INTO hive_user_demographic (hive_id,question_id,answer_id,user_count)
+					SELECT @hive_id,question_id,answer_id,0
+					FROM answer;`
+	_, err = queries.Raw(queryFirst).ExecContext(ctx, d.db)
+	if err != nil {
+		fmt.Println(err)
+		d.logger.Error("Updating Hive demographic data failed", zap.String("Hive name", hive.Name))
 	}
 
 	return hive, hive.Reload(ctx, d.db)
 }
 
-func (d *mysqlHiveData) EditHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error) {
+func (d *mysqlHiveData) EditHive(ctx context.Context, hive models.Hive) (*dbmodels.Hive, error) {
 	ctxUser := impart.GetCtxUser(ctx)
-	if !ctxUser.Admin {
+	if !ctxUser.SuperAdmin {
 		return nil, impart.ErrUnauthorized
 	}
-
-	if _, err := hive.Update(ctx, d.db, boil.Infer()); err != nil {
+	existing, err := dbmodels.FindHive(ctx, d.db, hive.HiveID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, impart.ErrNotFound
+		}
 		return nil, err
 	}
 
-	return hive, hive.Reload(ctx, d.db)
+	if existing.Name != hive.HiveName && hive.HiveName != "" {
+		existing.Name = hive.HiveName
+	}
+
+	if _, err := existing.Update(ctx, d.db, boil.Infer()); err != nil {
+		return nil, err
+	}
+
+	return existing, existing.Reload(ctx, d.db)
 }
 
 // PinPost takes a hive and post id of a post ot pin or unpin

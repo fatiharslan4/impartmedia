@@ -110,11 +110,11 @@ type FakeHiveService struct {
 		result1 *dbmodels.Comment
 		result2 error
 	}
-	EditHiveStub        func(context.Context, *dbmodels.Hive) (*dbmodels.Hive, error)
+	EditHiveStub        func(context.Context, models.Hive) (*dbmodels.Hive, error)
 	editHiveMutex       sync.RWMutex
 	editHiveArgsForCall []struct {
 		arg1 context.Context
-		arg2 *dbmodels.Hive
+		arg2 models.Hive
 	}
 	editHiveReturns struct {
 		result1 *dbmodels.Hive
@@ -1057,12 +1057,12 @@ func (fake *FakeHiveService) EditCommentReturnsOnCall(i int, result1 *dbmodels.C
 	}{result1, result2}
 }
 
-func (fake *FakeHiveService) EditHive(arg1 context.Context, arg2 *dbmodels.Hive) (*dbmodels.Hive, error) {
+func (fake *FakeHiveService) EditHive(arg1 context.Context, arg2 models.Hive) (*dbmodels.Hive, error) {
 	fake.editHiveMutex.Lock()
 	ret, specificReturn := fake.editHiveReturnsOnCall[len(fake.editHiveArgsForCall)]
 	fake.editHiveArgsForCall = append(fake.editHiveArgsForCall, struct {
 		arg1 context.Context
-		arg2 *dbmodels.Hive
+		arg2 models.Hive
 	}{arg1, arg2})
 	stub := fake.EditHiveStub
 	fakeReturns := fake.editHiveReturns
@@ -1083,13 +1083,13 @@ func (fake *FakeHiveService) EditHiveCallCount() int {
 	return len(fake.editHiveArgsForCall)
 }
 
-func (fake *FakeHiveService) EditHiveCalls(stub func(context.Context, *dbmodels.Hive) (*dbmodels.Hive, error)) {
+func (fake *FakeHiveService) EditHiveCalls(stub func(context.Context, models.Hive) (*dbmodels.Hive, error)) {
 	fake.editHiveMutex.Lock()
 	defer fake.editHiveMutex.Unlock()
 	fake.EditHiveStub = stub
 }
 
-func (fake *FakeHiveService) EditHiveArgsForCall(i int) (context.Context, *dbmodels.Hive) {
+func (fake *FakeHiveService) EditHiveArgsForCall(i int) (context.Context, models.Hive) {
 	fake.editHiveMutex.RLock()
 	defer fake.editHiveMutex.RUnlock()
 	argsForCall := fake.editHiveArgsForCall[i]

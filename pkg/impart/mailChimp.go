@@ -4,21 +4,22 @@ package impart
 type QuestionEnum int
 
 const (
-	Gender         QuestionEnum = 4
-	Household                   = 1
-	Race                        = 5
-	Dependents                  = 2
-	FinancialGoals              = 6
-	Industry                    = 7
-	Career                      = 8
-	Income                      = 9
-	Generation                  = 3
+	Gender           QuestionEnum = 4
+	Household                     = 1
+	Race                          = 5
+	Dependents                    = 2
+	FinancialGoals                = 6
+	Industry                      = 7
+	Career                        = 8
+	Income                        = 9
+	Generation                    = 3
+	EmploymentStatus              = 10
 )
 
 func GetUserAnswerList() map[uint]string {
 	userAnswer := make(map[uint]string)
 	start := 1
-	limit := 9 // based on the Question number (i.e check limit as the QuestionEnum based.Need to set empty for all fields in QuestionEnum)
+	limit := 10 // based on the Question number (i.e check limit as the QuestionEnum based.Need to set empty for all fields in QuestionEnum)
 	for start <= limit {
 		userAnswer[uint(start)] = ""
 		start = start + 1
@@ -38,6 +39,7 @@ func SetMailChimpAnswer(userAnswer map[uint]string, status string, zipCode strin
 	data["INDUSTRY"] = userAnswer[uint(Industry)]
 	data["CAREER"] = userAnswer[uint(Career)]
 	data["INCOME"] = userAnswer[uint(Income)]
+	data["EMPLOYMENT"] = userAnswer[uint(EmploymentStatus)]
 	data["ZIPCODE"] = zipCode
 	return data
 }

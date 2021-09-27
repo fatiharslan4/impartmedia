@@ -42,14 +42,15 @@ type Hives []Hive
 
 // Hive represents the top level organization of a hive community
 type Hive struct {
-	HiveID          uint64 `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
-	HiveName        string `json:"hiveName" conform:"ucfirst,trim"`
-	HiveDescription string `json:"hiveDescription" conform:"trim"`
+	HiveID uint64 `json:"hiveId,omitempty"`
+	// HiveID          uint64 `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
+	HiveName        string `json:"hiveName" conform:"ucfirst,trim" jsonschema:"minLength=5,maxLength=60"`
+	HiveDescription string `json:"hiveDescription" conform:"trim,omitempty" jsonschema:"minLength=10,maxLength=5000"`
 	//Administrators    []HiveAdmin       `json:"administrators"`
 	HiveDistributions HiveDistributions `json:"hiveDistributions,omitempty"`
 	//Metrics                        HiveMetrics         `json:"metrics,omitempty"`
-	PinnedPostID   uint64              `json:"pinnedPostId"`
-	TagComparisons tags.TagComparisons `json:"tagComparisons"`
+	PinnedPostID   uint64              `json:"pinnedPostId,omitempty"`
+	TagComparisons tags.TagComparisons `json:"tagComparisons,omitempty"`
 	//PinnedPostNotificationTopicARN string              `json:"pinnedPostNotificationTopicARN"`
 }
 
@@ -251,12 +252,13 @@ func HiveFromDB(dbHive *dbmodels.Hive) (Hive, error) {
 
 func (h Hive) ToDBModel() (*dbmodels.Hive, error) {
 	dbh := &dbmodels.Hive{
-		HiveID:       h.HiveID,
+		// HiveID:       h.HiveID,
 		Name:         h.HiveName,
 		Description:  h.HiveDescription,
 		PinnedPostID: null.Uint64From(h.PinnedPostID),
 		//TagComparisons:       null.JSON{},
 		//HiveDistributions:    null.JSON{},
+		CreatedAt: null.TimeFrom(impart.CurrentUTC()),
 	}
 	err := dbh.HiveDistributions.Marshal(&h.HiveDistributions)
 	if err != nil {

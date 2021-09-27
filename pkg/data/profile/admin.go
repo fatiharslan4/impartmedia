@@ -76,7 +76,9 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					CASE WHEN makeup.Career IS NULL THEN 'NA' 
 								ELSE makeup.Career END AS career,
 					CASE WHEN makeup.Income IS NULL THEN 'NA' 
-								ELSE makeup.Income END AS income,						
+								ELSE makeup.Income END AS income,	
+					CASE WHEN makeup.EmploymentStatus IS NULL THEN 'NA' 
+								ELSE makeup.EmploymentStatus END AS employment_status,					
 					makeup.sortorder as sortorder
 					FROM user
 					left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
@@ -161,6 +163,13 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 								ELSE NULL 
 							END
 						) AS 'Income',
+						GROUP_CONCAT(
+							CASE 
+								WHEN question.question_name = 'EmploymentStatus' 
+								THEN answer.text
+								ELSE NULL 
+							END
+						) AS 'EmploymentStatus',
 						GROUP_CONCAT(
 							answer.answer_id
 						) AS 'answer_ids'

@@ -96,10 +96,6 @@ func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmo
 					
 					INSERT INTO hive_user_demographic (hive_id,question_id,answer_id,user_count)
 					SELECT @hive_id,question_id,answer_id,0
-					FROM answer;
-					
-					INSERT INTO hive_user_demographic (hive_id,question_id,answer_id,user_count)
-					SELECT @hive_id,question_id,answer_id,0
 					FROM answer;`
 	_, err = queries.Raw(queryFirst).ExecContext(ctx, d.db)
 	if err != nil {

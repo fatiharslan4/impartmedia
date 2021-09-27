@@ -65,6 +65,16 @@ const (
 	Income_Income3                                   = 56
 	Income_Income4                                   = 57
 	Income_Income5                                   = 58
+	Income_Income6                                   = 66
+	Income_Income7                                   = 67
+	Income_Income8                                   = 68
+	EmploymentStatus_FullTime                        = 59
+	EmploymentStatus_PartTime                        = 60
+	EmploymentStatus_Unemployed                      = 61
+	EmploymentStatus_Self                            = 62
+	EmploymentStatus_HomeMaker                       = 63
+	EmploymentStatus_Student                         = 64
+	EmploymentStatus_Retired                         = 65
 )
 
 func FilterData() ([]byte, error) {
@@ -121,12 +131,22 @@ func FilterData() ([]byte, error) {
 		"Career-Upper Management":                       Career_UpperManagement,
 		"Career-Business Owner":                         Career_BusinessOwner,
 		"Career-Other":                                  Career_Other,
-		"Income-Less than $20,000":                      Income_Income0,
-		"Income-$20,000 - $50,000":                      Income_Income1,
-		"Income-$50,000 - $100,000":                     Income_Income2,
-		"Income-$100,000 - $150,000":                    Income_Income3,
-		"Income-$150,000 - $250,000":                    Income_Income4,
-		"Income-$250,000+":                              Income_Income5,
+		"Income-Less than $25,000":                      Income_Income0,
+		"Income-$25,000 - $34,999":                      Income_Income1,
+		"Income-$35,000 - $49,999":                      Income_Income2,
+		"Income-$50,000 - $74,999":                      Income_Income3,
+		"Income-$75,000 - $99,999":                      Income_Income4,
+		"Income-$100,000 - $149,999":                    Income_Income5,
+		"Income-$150,000 - $199,999":                    Income_Income6,
+		"Income-$200,000 - $299,999":                    Income_Income7,
+		"Income-More than $300,000":                     Income_Income8,
+		"EmploymentStatus-Full-time employment":         EmploymentStatus_FullTime,
+		"EmploymentStatus-Part-time employment":         EmploymentStatus_PartTime,
+		"EmploymentStatus-Unemployed":                   EmploymentStatus_Unemployed,
+		"EmploymentStatus-Self-employed":                EmploymentStatus_Self,
+		"EmploymentStatus-Home-maker":                   EmploymentStatus_HomeMaker,
+		"EmploymentStatus-Student":                      EmploymentStatus_Student,
+		"EmploymentStatus-Retired":                      EmploymentStatus_Retired,
 	})
 	if err != nil {
 		return nil, err

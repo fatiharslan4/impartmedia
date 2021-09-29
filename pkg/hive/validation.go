@@ -38,6 +38,7 @@ func ValidationPost(post models.Post) models.Post {
 	}
 	conform.Strings(&updatePost)
 	updatePost.TagIDs = post.TagIDs
+	updatePost.Hives = post.Hives
 
 	// profanity detection and removal
 	updatePost.Subject, _ = impart.CensorWord(post.Subject)

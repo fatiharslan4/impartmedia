@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -35,6 +36,7 @@ type Posts interface {
 	NewPostUrl(ctx context.Context, post *dbmodels.PostURL) (*dbmodels.PostURL, error)
 	GetPostFromPostids(ctx context.Context, postIDs []interface{}) (dbmodels.PostSlice, error)
 	DeletePostFromList(ctx context.Context, posts dbmodels.PostSlice) error
+	NewPostForMultipleHives(ctx context.Context, post models.Post, tags dbmodels.TagSlice) (map[uint64]uint64, error)
 }
 
 // GetPost gets a single post and it's associated content
@@ -202,7 +204,7 @@ func (d *mysqlHiveData) EditPost(ctx context.Context, post *dbmodels.Post, tags 
 	}
 
 	if shouldPin && post.Pinned != existing.Pinned {
-		err = d.PinPost(ctx, post.HiveID, post.PostID, post.Pinned)
+		err = d.PinPost(ctx, post.HiveID, post.PostID, post.Pinned, true)
 	}
 	if err := existing.SetTags(ctx, d.db, false, tags...); err != nil {
 		return nil, err
@@ -412,4 +414,54 @@ func (d *mysqlHiveData) DeletePostFromList(ctx context.Context, posts dbmodels.P
 		return err
 	}
 	return nil
+}
+
+func (d *mysqlHiveData) NewPostForMultipleHives(ctx context.Context, post models.Post, tags dbmodels.TagSlice) (map[uint64]uint64, error) {
+
+	tx, err := d.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer impart.CommitRollbackLogger(tx, err, d.logger)
+	query := "insert into post (hive_id,Impart_wealth_id,pinned,created_at,updated_at,subject,content,last_comment_ts) values "
+	inserQury := ""
+	for _, hive_id := range post.Hives {
+		qry := fmt.Sprintf("(%d,'%s',%v,now(),now(),'%s','%s',now()),", hive_id, post.ImpartWealthID, post.IsPinnedPost, post.Subject, post.Content.Markdown)
+		inserQury = fmt.Sprintf("%s %s", inserQury, qry)
+	}
+	query = fmt.Sprintf("%s %s", query, inserQury)
+	query = strings.Trim(query, ",")
+	query = fmt.Sprintf("%s ;", query)
+	_, err = queries.Raw(query).QueryContext(ctx, d.db)
+	if err != nil {
+		d.logger.Error("error attempting to creating bulk post  data ", zap.Any("post", post), zap.Error(err))
+		return nil, err
+	}
+	posts, _ := dbmodels.Posts(
+		qm.Limit(len(post.Hives)),
+		qm.OrderBy("post_id desc")).All(ctx, d.db)
+	postIds := make(map[uint64]uint64, len(post.Hives))
+	if len(posts) > 0 {
+		max := posts[0].PostID
+		for _, postdata := range posts {
+			if postdata.PostID == max {
+				postIds[postdata.HiveID] = max
+				max = max - 1
+			}
+		}
+	}
+	tagid := tags[0].TagID
+	query = "insert into post_tag (tag_id,post_id) values "
+	inserQury = ""
+	for _, post := range postIds {
+		qry := fmt.Sprintf("(%d,%d),", tagid, post)
+		inserQury = fmt.Sprintf("%s %s", inserQury, qry)
+	}
+	query = fmt.Sprintf("%s %s", query, inserQury)
+	query = strings.Trim(query, ",")
+	_, err = queries.Raw(query).QueryContext(ctx, d.db)
+	if err != nil {
+		d.logger.Error("error attempting to creating bulk post  data tag ", zap.Any("post", post), zap.Error(err))
+	}
+	return postIds, nil
 }

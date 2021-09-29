@@ -432,6 +432,21 @@ type FakeHiveService struct {
 		result1 *dbmodels.Post
 		result2 error
 	}
+	NewPostForMultipleHivesStub        func(context.Context, models.Post, dbmodels.TagSlice) (map[uint64]uint64, error)
+	newPostForMultipleHivesMutex       sync.RWMutex
+	newPostForMultipleHivesArgsForCall []struct {
+		arg1 context.Context
+		arg2 models.Post
+		arg3 dbmodels.TagSlice
+	}
+	newPostForMultipleHivesReturns struct {
+		result1 map[uint64]uint64
+		result2 error
+	}
+	newPostForMultipleHivesReturnsOnCall map[int]struct {
+		result1 map[uint64]uint64
+		result2 error
+	}
 	NewPostUrlStub        func(context.Context, *dbmodels.PostURL) (*dbmodels.PostURL, error)
 	newPostUrlMutex       sync.RWMutex
 	newPostUrlArgsForCall []struct {
@@ -460,18 +475,33 @@ type FakeHiveService struct {
 		result1 *dbmodels.PostVideo
 		result2 error
 	}
-	PinPostStub        func(context.Context, uint64, uint64, bool) error
+	PinPostStub        func(context.Context, uint64, uint64, bool, bool) error
 	pinPostMutex       sync.RWMutex
 	pinPostArgsForCall []struct {
 		arg1 context.Context
 		arg2 uint64
 		arg3 uint64
 		arg4 bool
+		arg5 bool
 	}
 	pinPostReturns struct {
 		result1 error
 	}
 	pinPostReturnsOnCall map[int]struct {
+		result1 error
+	}
+	PinPostForBulkPostActionStub        func(context.Context, map[uint64]uint64, bool, bool) error
+	pinPostForBulkPostActionMutex       sync.RWMutex
+	pinPostForBulkPostActionArgsForCall []struct {
+		arg1 context.Context
+		arg2 map[uint64]uint64
+		arg3 bool
+		arg4 bool
+	}
+	pinPostForBulkPostActionReturns struct {
+		result1 error
+	}
+	pinPostForBulkPostActionReturnsOnCall map[int]struct {
 		result1 error
 	}
 	ReportCommentStub        func(context.Context, uint64, *string, bool) error
@@ -2472,6 +2502,72 @@ func (fake *FakeHiveService) NewPostReturnsOnCall(i int, result1 *dbmodels.Post,
 	}{result1, result2}
 }
 
+func (fake *FakeHiveService) NewPostForMultipleHives(arg1 context.Context, arg2 models.Post, arg3 dbmodels.TagSlice) (map[uint64]uint64, error) {
+	fake.newPostForMultipleHivesMutex.Lock()
+	ret, specificReturn := fake.newPostForMultipleHivesReturnsOnCall[len(fake.newPostForMultipleHivesArgsForCall)]
+	fake.newPostForMultipleHivesArgsForCall = append(fake.newPostForMultipleHivesArgsForCall, struct {
+		arg1 context.Context
+		arg2 models.Post
+		arg3 dbmodels.TagSlice
+	}{arg1, arg2, arg3})
+	stub := fake.NewPostForMultipleHivesStub
+	fakeReturns := fake.newPostForMultipleHivesReturns
+	fake.recordInvocation("NewPostForMultipleHives", []interface{}{arg1, arg2, arg3})
+	fake.newPostForMultipleHivesMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeHiveService) NewPostForMultipleHivesCallCount() int {
+	fake.newPostForMultipleHivesMutex.RLock()
+	defer fake.newPostForMultipleHivesMutex.RUnlock()
+	return len(fake.newPostForMultipleHivesArgsForCall)
+}
+
+func (fake *FakeHiveService) NewPostForMultipleHivesCalls(stub func(context.Context, models.Post, dbmodels.TagSlice) (map[uint64]uint64, error)) {
+	fake.newPostForMultipleHivesMutex.Lock()
+	defer fake.newPostForMultipleHivesMutex.Unlock()
+	fake.NewPostForMultipleHivesStub = stub
+}
+
+func (fake *FakeHiveService) NewPostForMultipleHivesArgsForCall(i int) (context.Context, models.Post, dbmodels.TagSlice) {
+	fake.newPostForMultipleHivesMutex.RLock()
+	defer fake.newPostForMultipleHivesMutex.RUnlock()
+	argsForCall := fake.newPostForMultipleHivesArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeHiveService) NewPostForMultipleHivesReturns(result1 map[uint64]uint64, result2 error) {
+	fake.newPostForMultipleHivesMutex.Lock()
+	defer fake.newPostForMultipleHivesMutex.Unlock()
+	fake.NewPostForMultipleHivesStub = nil
+	fake.newPostForMultipleHivesReturns = struct {
+		result1 map[uint64]uint64
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeHiveService) NewPostForMultipleHivesReturnsOnCall(i int, result1 map[uint64]uint64, result2 error) {
+	fake.newPostForMultipleHivesMutex.Lock()
+	defer fake.newPostForMultipleHivesMutex.Unlock()
+	fake.NewPostForMultipleHivesStub = nil
+	if fake.newPostForMultipleHivesReturnsOnCall == nil {
+		fake.newPostForMultipleHivesReturnsOnCall = make(map[int]struct {
+			result1 map[uint64]uint64
+			result2 error
+		})
+	}
+	fake.newPostForMultipleHivesReturnsOnCall[i] = struct {
+		result1 map[uint64]uint64
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeHiveService) NewPostUrl(arg1 context.Context, arg2 *dbmodels.PostURL) (*dbmodels.PostURL, error) {
 	fake.newPostUrlMutex.Lock()
 	ret, specificReturn := fake.newPostUrlReturnsOnCall[len(fake.newPostUrlArgsForCall)]
@@ -2602,7 +2698,7 @@ func (fake *FakeHiveService) NewPostVideoReturnsOnCall(i int, result1 *dbmodels.
 	}{result1, result2}
 }
 
-func (fake *FakeHiveService) PinPost(arg1 context.Context, arg2 uint64, arg3 uint64, arg4 bool) error {
+func (fake *FakeHiveService) PinPost(arg1 context.Context, arg2 uint64, arg3 uint64, arg4 bool, arg5 bool) error {
 	fake.pinPostMutex.Lock()
 	ret, specificReturn := fake.pinPostReturnsOnCall[len(fake.pinPostArgsForCall)]
 	fake.pinPostArgsForCall = append(fake.pinPostArgsForCall, struct {
@@ -2610,13 +2706,14 @@ func (fake *FakeHiveService) PinPost(arg1 context.Context, arg2 uint64, arg3 uin
 		arg2 uint64
 		arg3 uint64
 		arg4 bool
-	}{arg1, arg2, arg3, arg4})
+		arg5 bool
+	}{arg1, arg2, arg3, arg4, arg5})
 	stub := fake.PinPostStub
 	fakeReturns := fake.pinPostReturns
-	fake.recordInvocation("PinPost", []interface{}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("PinPost", []interface{}{arg1, arg2, arg3, arg4, arg5})
 	fake.pinPostMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3, arg4)
+		return stub(arg1, arg2, arg3, arg4, arg5)
 	}
 	if specificReturn {
 		return ret.result1
@@ -2630,17 +2727,17 @@ func (fake *FakeHiveService) PinPostCallCount() int {
 	return len(fake.pinPostArgsForCall)
 }
 
-func (fake *FakeHiveService) PinPostCalls(stub func(context.Context, uint64, uint64, bool) error) {
+func (fake *FakeHiveService) PinPostCalls(stub func(context.Context, uint64, uint64, bool, bool) error) {
 	fake.pinPostMutex.Lock()
 	defer fake.pinPostMutex.Unlock()
 	fake.PinPostStub = stub
 }
 
-func (fake *FakeHiveService) PinPostArgsForCall(i int) (context.Context, uint64, uint64, bool) {
+func (fake *FakeHiveService) PinPostArgsForCall(i int) (context.Context, uint64, uint64, bool, bool) {
 	fake.pinPostMutex.RLock()
 	defer fake.pinPostMutex.RUnlock()
 	argsForCall := fake.pinPostArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
 }
 
 func (fake *FakeHiveService) PinPostReturns(result1 error) {
@@ -2662,6 +2759,70 @@ func (fake *FakeHiveService) PinPostReturnsOnCall(i int, result1 error) {
 		})
 	}
 	fake.pinPostReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) PinPostForBulkPostAction(arg1 context.Context, arg2 map[uint64]uint64, arg3 bool, arg4 bool) error {
+	fake.pinPostForBulkPostActionMutex.Lock()
+	ret, specificReturn := fake.pinPostForBulkPostActionReturnsOnCall[len(fake.pinPostForBulkPostActionArgsForCall)]
+	fake.pinPostForBulkPostActionArgsForCall = append(fake.pinPostForBulkPostActionArgsForCall, struct {
+		arg1 context.Context
+		arg2 map[uint64]uint64
+		arg3 bool
+		arg4 bool
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.PinPostForBulkPostActionStub
+	fakeReturns := fake.pinPostForBulkPostActionReturns
+	fake.recordInvocation("PinPostForBulkPostAction", []interface{}{arg1, arg2, arg3, arg4})
+	fake.pinPostForBulkPostActionMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeHiveService) PinPostForBulkPostActionCallCount() int {
+	fake.pinPostForBulkPostActionMutex.RLock()
+	defer fake.pinPostForBulkPostActionMutex.RUnlock()
+	return len(fake.pinPostForBulkPostActionArgsForCall)
+}
+
+func (fake *FakeHiveService) PinPostForBulkPostActionCalls(stub func(context.Context, map[uint64]uint64, bool, bool) error) {
+	fake.pinPostForBulkPostActionMutex.Lock()
+	defer fake.pinPostForBulkPostActionMutex.Unlock()
+	fake.PinPostForBulkPostActionStub = stub
+}
+
+func (fake *FakeHiveService) PinPostForBulkPostActionArgsForCall(i int) (context.Context, map[uint64]uint64, bool, bool) {
+	fake.pinPostForBulkPostActionMutex.RLock()
+	defer fake.pinPostForBulkPostActionMutex.RUnlock()
+	argsForCall := fake.pinPostForBulkPostActionArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeHiveService) PinPostForBulkPostActionReturns(result1 error) {
+	fake.pinPostForBulkPostActionMutex.Lock()
+	defer fake.pinPostForBulkPostActionMutex.Unlock()
+	fake.PinPostForBulkPostActionStub = nil
+	fake.pinPostForBulkPostActionReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeHiveService) PinPostForBulkPostActionReturnsOnCall(i int, result1 error) {
+	fake.pinPostForBulkPostActionMutex.Lock()
+	defer fake.pinPostForBulkPostActionMutex.Unlock()
+	fake.PinPostForBulkPostActionStub = nil
+	if fake.pinPostForBulkPostActionReturnsOnCall == nil {
+		fake.pinPostForBulkPostActionReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.pinPostForBulkPostActionReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -3107,12 +3268,16 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.newHiveMutex.RUnlock()
 	fake.newPostMutex.RLock()
 	defer fake.newPostMutex.RUnlock()
+	fake.newPostForMultipleHivesMutex.RLock()
+	defer fake.newPostForMultipleHivesMutex.RUnlock()
 	fake.newPostUrlMutex.RLock()
 	defer fake.newPostUrlMutex.RUnlock()
 	fake.newPostVideoMutex.RLock()
 	defer fake.newPostVideoMutex.RUnlock()
 	fake.pinPostMutex.RLock()
 	defer fake.pinPostMutex.RUnlock()
+	fake.pinPostForBulkPostActionMutex.RLock()
+	defer fake.pinPostForBulkPostActionMutex.RUnlock()
 	fake.reportCommentMutex.RLock()
 	defer fake.reportCommentMutex.RUnlock()
 	fake.reportPostMutex.RLock()

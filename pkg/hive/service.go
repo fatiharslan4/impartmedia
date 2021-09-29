@@ -32,13 +32,14 @@ type Service interface {
 	GetPosts(ctx context.Context, getPostsInput data.GetPostsInput) (models.Posts, *models.NextPage, impart.Error)
 	Votes(ctx context.Context, vote VoteInput) (models.PostCommentTrack, impart.Error)
 	DeletePost(ctx context.Context, postID uint64) impart.Error
-	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) impart.Error
+	PinPost(ctx context.Context, hiveID, postID uint64, pin bool, isAdminActivity bool) impart.Error
 	ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
 	ReviewPost(ctx context.Context, postId uint64, comment string, remove bool) (models.Post, impart.Error)
-	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo, isAdminActivity bool) (models.PostVideo, impart.Error)
+	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo, isAdminActivity bool, postHive map[uint64]uint64) (models.PostVideo, impart.Error)
 	AddPostFiles(ctx context.Context, postFiles []models.File) ([]models.File, impart.Error)
-	AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File, isAdminActivity bool) ([]models.File, impart.Error)
+	AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File, isAdminActivity bool, postHive map[uint64]uint64) ([]models.File, impart.Error)
 	ValidatePostFilesName(ctx context.Context, ctxUser *dbmodels.User, postFiles []models.File) []models.File
+	NewPostForMultipleHives(ctx context.Context, post models.Post) impart.Error
 
 	GetComments(ctx context.Context, postID uint64, limit, offset int) (models.Comments, *models.NextPage, impart.Error)
 	GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error)

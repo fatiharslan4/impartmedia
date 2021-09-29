@@ -73,6 +73,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	adminRoutes := version.Group("/admin")
 	adminRoutes.PATCH("/posts", handler.EditBulkPostDetails())
 	adminRoutes.PATCH("/hives", handler.HiveBulkOperations())
+	adminRoutes.POST("/post", handler.CreatePostForMultipleHiveFunc())
 
 }
 
@@ -493,7 +494,7 @@ func (hh *hiveHandler) EditPostFunc() gin.HandlerFunc {
 				return
 			}
 
-			if impartErr := hh.hiveService.PinPost(ctx, hiveId, postId, pin); impartErr != nil {
+			if impartErr := hh.hiveService.PinPost(ctx, hiveId, postId, pin, true); impartErr != nil {
 				hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
 				ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 				return
@@ -1104,5 +1105,71 @@ func (hh *hiveHandler) HiveBulkOperations() gin.HandlerFunc {
 			Hives: hiveOutput,
 		})
 
+	}
+}
+
+func (hh *hiveHandler) CreatePostForMultipleHiveFunc() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+
+		// var hiveId uint64
+		var impartErr impart.Error
+
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			hh.logger.Error("Unable to Deserialize JSON Body",
+				zap.Error(err),
+			)
+			//store the error log into s3
+			hh.hiveService.UploadFile([]models.File{
+				{
+					FileName: fmt.Sprintf("errors/create-post-get-raw-log-%v.txt", time.Now().Unix()),
+					FileType: ".txt",
+					Content:  base64.StdEncoding.EncodeToString(b),
+				},
+			})
+
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		p := models.Post{}
+		err = json.Unmarshal(b, &p)
+		if err != nil {
+			hh.logger.Error("Unable to unmarshal JSON Body",
+				zap.Error(err),
+				zap.Any("request", b),
+			)
+			//store the error log into s3
+			hh.hiveService.UploadFile([]models.File{
+				{
+					FileName: fmt.Sprintf("errors/create-post-log-%v.txt", time.Now().Unix()),
+					FileType: ".txt",
+					Content:  base64.StdEncoding.EncodeToString(b),
+				},
+			})
+
+			impartErr = impart.NewError(impart.ErrBadRequest, "Unable to unmarshal JSON Body to a Post")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		p = ValidationPost(p)
+		impartErr = ValidateInputs(p)
+		if impartErr != nil {
+			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		hh.logger.Debug("creating", zap.Any("post", p))
+
+		impartErr = hh.hiveService.NewPostForMultipleHives(ctx, p)
+		if impartErr != nil {
+			hh.logger.Error(impartErr.Msg(), zap.Error(impartErr.Err()))
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		hh.logger.Debug("created post, returning", zap.Any("createdPost", p))
+
+		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Posts Created"})
 	}
 }

@@ -315,6 +315,12 @@
 				"urlData": {
 					"$schema": "http://json-schema.org/draft-04/schema#",
 					"$ref": "#/definitions/PostUrl"
+				},
+				"hives": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array"
 				}
 			},
 			"additionalProperties": false,

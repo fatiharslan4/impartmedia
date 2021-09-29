@@ -44,7 +44,7 @@ type Hives []Hive
 type Hive struct {
 	HiveID uint64 `json:"hiveId,omitempty"`
 	// HiveID          uint64 `json:"hiveId" jsonschema:"minLength=27,maxLength=27"`
-	HiveName        string `json:"hiveName" conform:"ucfirst,trim" jsonschema:"minLength=5,maxLength=60"`
+	HiveName        string `json:"hiveName" conform:"ucfirst,trim" jsonschema:"minLength=3,maxLength=60"`
 	HiveDescription string `json:"hiveDescription" conform:"trim,omitempty" jsonschema:"minLength=10,maxLength=5000"`
 	//Administrators    []HiveAdmin       `json:"administrators"`
 	HiveDistributions HiveDistributions `json:"hiveDistributions,omitempty"`

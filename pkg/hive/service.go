@@ -35,9 +35,9 @@ type Service interface {
 	PinPost(ctx context.Context, hiveID, postID uint64, pin bool, isAdminActivity bool) impart.Error
 	ReportPost(ctx context.Context, postId uint64, reason string, remove bool) (models.PostCommentTrack, impart.Error)
 	ReviewPost(ctx context.Context, postId uint64, comment string, remove bool) (models.Post, impart.Error)
-	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo, isAdminActivity bool) (models.PostVideo, impart.Error)
+	AddPostVideo(ctx context.Context, postId uint64, ostVideo models.PostVideo, isAdminActivity bool, postHive map[uint64]uint64) (models.PostVideo, impart.Error)
 	AddPostFiles(ctx context.Context, postFiles []models.File) ([]models.File, impart.Error)
-	AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File, isAdminActivity bool) ([]models.File, impart.Error)
+	AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File, isAdminActivity bool, postHive map[uint64]uint64) ([]models.File, impart.Error)
 	ValidatePostFilesName(ctx context.Context, ctxUser *dbmodels.User, postFiles []models.File) []models.File
 	NewPostForMultipleHives(ctx context.Context, post models.Post) impart.Error
 

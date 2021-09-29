@@ -83,14 +83,14 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	if isAdminActivity {
 		post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
 		postFiles, _ := s.AddPostFiles(ctx, post.Files)
-		postFiles, _ = s.AddPostFilesDB(ctx, dbPost, postFiles, isAdminActivity)
+		postFiles, _ = s.AddPostFilesDB(ctx, dbPost, postFiles, isAdminActivity, nil)
 
 		// add post videos
-		postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video, isAdminActivity)
+		postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video, isAdminActivity, nil)
 		p.Video = postvideo
 
 		// add post videos
-		postUrl, _ := s.AddPostUrl(ctx, p.PostID, post.Url, isAdminActivity)
+		postUrl, _ := s.AddPostUrl(ctx, p.PostID, post.Url, isAdminActivity, nil)
 		p.UrlData = postUrl
 
 		// update post files
@@ -475,26 +475,49 @@ func (s *service) BuildPostNotificationData(input models.PostNotificationInput) 
 	}, err
 }
 
-func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo models.PostVideo, isAdminActivity bool) (models.PostVideo, impart.Error) {
+func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo models.PostVideo, isAdminActivity bool, postHive map[uint64]uint64) (models.PostVideo, impart.Error) {
 	if isAdminActivity && (postVideo != models.PostVideo{}) {
-		input := &dbmodels.PostVideo{
-			Source:      postVideo.Source,
-			ReferenceID: null.StringFrom(postVideo.ReferenceId),
-			URL:         postVideo.Url,
-			PostID:      postID,
+		if len(postHive) > 0 {
+			query := "insert into post_videos(source,reference_id,url,post_id) values"
+			for _, post := range postHive {
+				qry := fmt.Sprintf("('%s','%s','%s',%d),", postVideo.Source, postVideo.ReferenceId, postVideo.Url, post)
+				query = fmt.Sprintf("%s %s", query, qry)
+			}
+			query = strings.Trim(query, ",")
+			query = fmt.Sprintf("%s ;", query)
+
+			tx, err := s.db.BeginTx(ctx, nil)
+			if err != nil {
+				s.logger.Error("error attempting to creating bulk post_videos  data tag ", zap.Any("post", query), zap.Error(err))
+				return models.PostVideo{}, nil
+			}
+			defer impart.CommitRollbackLogger(tx, err, s.logger)
+
+			_, err = queries.Raw(query).QueryContext(ctx, s.db)
+			if err != nil {
+				s.logger.Error("error attempting to creating bulk post_videos  data tag ", zap.Any("post", query), zap.Error(err))
+				return models.PostVideo{}, nil
+			}
+		} else {
+			input := &dbmodels.PostVideo{
+				Source:      postVideo.Source,
+				ReferenceID: null.StringFrom(postVideo.ReferenceId),
+				URL:         postVideo.Url,
+				PostID:      postID,
+			}
+			input, err := s.postData.NewPostVideo(ctx, input)
+			if err != nil {
+				s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+				return models.PostVideo{}, nil
+			}
+			postVideo = models.PostVideoFromDB(input)
+			return postVideo, nil
 		}
-		input, err := s.postData.NewPostVideo(ctx, input)
-		if err != nil {
-			s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
-			return models.PostVideo{}, nil
-		}
-		postVideo = models.PostVideoFromDB(input)
-		return postVideo, nil
 	}
 	return models.PostVideo{}, nil
 }
 
-func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string, isAdminActivity bool) (models.PostUrl, impart.Error) {
+func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string, isAdminActivity bool, postHive map[uint64]uint64) (models.PostUrl, impart.Error) {
 	var imageUrl string
 	if isAdminActivity && (postUrl != "") {
 		match, _ := regexp.MatchString(`^(?:f|ht)tps?://`, postUrl)
@@ -513,21 +536,44 @@ func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string,
 			imageUrl = ""
 		}
 		//fmt.Println("the data", imageUrl)
+		if len(postHive) > 0 {
+			query := "insert into post_urls(title,url,imageUrl,description,post_id) values"
+			for _, post := range postHive {
+				qry := fmt.Sprintf("('%s','%s','%s','%s',%d),", ogp.Title, postUrl, imageUrl, ogp.Description, post)
+				query = fmt.Sprintf("%s %s", query, qry)
+			}
+			query = strings.Trim(query, ",")
+			query = fmt.Sprintf("%s ;", query)
 
-		input := &dbmodels.PostURL{
-			Title:       ogp.Title,
-			ImageUrl:    imageUrl,
-			URL:         null.StringFrom(postUrl),
-			PostID:      postID,
-			Description: ogp.Description,
-		}
-		inputData, err := s.postData.NewPostUrl(ctx, input)
-		if err != nil {
-			s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+			tx, err := s.db.BeginTx(ctx, nil)
+			if err != nil {
+				s.logger.Error("error attempting to Save post url data ", zap.Any("posturl", postUrl), zap.Error(err))
+				return models.PostUrl{}, nil
+			}
+			defer impart.CommitRollbackLogger(tx, err, s.logger)
+
+			_, err = queries.Raw(query).QueryContext(ctx, s.db)
+			if err != nil {
+				s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", postUrl), zap.Error(err))
+				return models.PostUrl{}, nil
+			}
 			return models.PostUrl{}, nil
+		} else {
+			input := &dbmodels.PostURL{
+				Title:       ogp.Title,
+				ImageUrl:    imageUrl,
+				URL:         null.StringFrom(postUrl),
+				PostID:      postID,
+				Description: ogp.Description,
+			}
+			inputData, err := s.postData.NewPostUrl(ctx, input)
+			if err != nil {
+				s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+				return models.PostUrl{}, nil
+			}
+			PostedUrl := models.PostUrlFromDB(inputData)
+			return PostedUrl, nil
 		}
-		PostedUrl := models.PostUrlFromDB(inputData)
-		return PostedUrl, nil
 	}
 	return models.PostUrl{}, nil
 }
@@ -597,8 +643,9 @@ func (s *service) UploadFile(files []models.File) error {
 	return nil
 }
 
-func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File, isAdminActivity bool) ([]models.File, impart.Error) {
+func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File, isAdminActivity bool, postHive map[uint64]uint64) ([]models.File, impart.Error) {
 	var fileResponse []models.File
+	query := ""
 	if isAdminActivity {
 
 		if len(file) > 0 {
@@ -624,15 +671,37 @@ func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file 
 				file[index].Content = ""
 				// set reponse
 				fileResponse = file
-			}
 
-			err := post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
-			if err != nil {
-				s.logger.Error("error attempting to map post files ",
-					zap.Any("data", postFielRelationMap),
-					zap.Any("err", err),
-					zap.Error(err),
-				)
+				if len(postHive) > 0 {
+					query = "insert into post_files (post_id,fid)values"
+					for _, post := range postHive {
+						qry := fmt.Sprintf("(%d,%d),", post, fileModel.Fid)
+						query = fmt.Sprintf("%s %s", query, qry)
+					}
+					query = strings.Trim(query, ",")
+					query = fmt.Sprintf("%s ;", query)
+				}
+			}
+			if "" == "" {
+				tx, err := s.db.BeginTx(ctx, nil)
+				if err != nil {
+					return fileResponse, nil
+				}
+				defer impart.CommitRollbackLogger(tx, err, s.logger)
+
+				_, err = queries.Raw(query).QueryContext(ctx, s.db)
+				if err != nil {
+					s.logger.Error("error attempting to creating bulk post  data tag ", zap.Any("post", query), zap.Error(err))
+				}
+			} else {
+				err := post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
+				if err != nil {
+					s.logger.Error("error attempting to map post files ",
+						zap.Any("data", postFielRelationMap),
+						zap.Any("err", err),
+						zap.Error(err),
+					)
+				}
 			}
 
 		}
@@ -730,143 +799,21 @@ func (s *service) NewPostForMultipleHives(ctx context.Context, post models.Post)
 	if isAdminActivity {
 		post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
 		postFiles, _ := s.AddPostFiles(ctx, post.Files)
-		postFiles, _ = s.AddPostFilesBulkOperationDB(ctx, postFiles, isAdminActivity, postDetails)
+		postFiles, _ = s.AddPostFilesDB(ctx, nil, postFiles, isAdminActivity, postDetails)
 
 		// add post videos
-		err := s.AddPostVideoBulkAction(ctx, postDetails, post.Video, isAdminActivity)
+		_, err := s.AddPostVideo(ctx, 0, post.Video, isAdminActivity, postDetails)
 		if err != nil {
 			s.logger.Error("couldn't add post video ", zap.Error(err))
 		}
 
-		// add post videos
-		err = s.AddPostUrlBulkAction(ctx, postDetails, post.Url, isAdminActivity)
+		// add post url
+		_, err = s.AddPostUrl(ctx, 0, post.Url, isAdminActivity, postDetails)
 		if err != nil {
 			s.logger.Error("couldn't add post url ", zap.Error(err))
 		}
-	}
-
-	return nil
-}
-
-func (s *service) AddPostFilesBulkOperationDB(ctx context.Context, file []models.File, isAdminActivity bool, postHive map[uint64]uint64) ([]models.File, impart.Error) {
-	var fileResponse []models.File
-	query := ""
-	if isAdminActivity {
-
-		if len(file) > 0 {
-			//upload the files to table
-			for index, f := range file {
-				fileModel := &dbmodels.File{
-					FileName: f.FileName,
-					FileType: f.FileType,
-					URL:      f.URL,
-				}
-				if err := fileModel.Insert(ctx, s.db, boil.Infer()); err != nil {
-					s.logger.Error("error attempting to Save files ", zap.Any("files", f), zap.Error(err))
-				}
-
-				file[index].FID = int(fileModel.Fid)
-
-				//doesnt return the content,
-				file[index].Content = ""
-				// set reponse
-				fileResponse = file
-
-				query = "insert into post_files (post_id,fid)values"
-				for _, post := range postHive {
-					qry := fmt.Sprintf("(%d,%d),", post, fileModel.Fid)
-					query = fmt.Sprintf("%s %s", query, qry)
-				}
-				query = strings.Trim(query, ",")
-				query = fmt.Sprintf("%s ;", query)
-			}
-
-			tx, err := s.db.BeginTx(ctx, nil)
-			if err != nil {
-				return fileResponse, nil
-			}
-			defer impart.CommitRollbackLogger(tx, err, s.logger)
-
-			_, err = queries.Raw(query).QueryContext(ctx, s.db)
-			if err != nil {
-				fmt.Println(err)
-				// d.logger.Error("error attempting to creating bulk post  data tag ", zap.Any("post", post), zap.Error(err))
-			}
-
-		}
-	}
-	return fileResponse, nil
-}
-
-func (s *service) AddPostUrlBulkAction(ctx context.Context, postHive map[uint64]uint64, postUrl string, isAdminActivity bool) error {
-	var imageUrl string
-	if isAdminActivity && (postUrl != "") {
-		match, _ := regexp.MatchString(`^(?:f|ht)tps?://`, postUrl)
-		if !match {
-			postUrl = "http://" + postUrl
-		}
-		ogp, err := opengraph.Fetch(postUrl)
-
-		if err != nil {
-			s.logger.Error("error attempting to fetch URL Data", zap.Any("postURL", postUrl), zap.Error(err))
-			return err
-		}
-		if ogp != nil && ogp.Image != nil && len(ogp.Image) > 0 {
-			imageUrl = ogp.Image[0].URL
-		} else {
-			imageUrl = ""
-		}
-
-		query := "insert into post_urls(title,url,imageUrl,description,post_id) values"
-		for _, post := range postHive {
-			qry := fmt.Sprintf("('%s','%s','%s','%s',%d),", ogp.Title, postUrl, imageUrl, ogp.Description, post)
-			query = fmt.Sprintf("%s %s", query, qry)
-		}
-		query = strings.Trim(query, ",")
-		query = fmt.Sprintf("%s ;", query)
-
-		tx, err := s.db.BeginTx(ctx, nil)
-		if err != nil {
-			s.logger.Error("error attempting to Save post url data ", zap.Any("posturl", postUrl), zap.Error(err))
-			return err
-		}
-		defer impart.CommitRollbackLogger(tx, err, s.logger)
-
-		_, err = queries.Raw(query).QueryContext(ctx, s.db)
-		if err != nil {
-			fmt.Println(err)
-			// s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", postUrl), zap.Error(err))
-			return err
-		}
-		return nil
-	}
-	return nil
-}
-func (s *service) AddPostVideoBulkAction(ctx context.Context, postHive map[uint64]uint64, postVideo models.PostVideo, isAdminActivity bool) error {
-	if isAdminActivity && (postVideo != models.PostVideo{}) {
-
-		query := "insert into post_videos(source,reference_id,url,post_id) values"
-		for _, post := range postHive {
-			qry := fmt.Sprintf("('%s','%s','%s',%d),", postVideo.Source, postVideo.ReferenceId, postVideo.Url, post)
-			query = fmt.Sprintf("%s %s", query, qry)
-		}
-		query = strings.Trim(query, ",")
-		query = fmt.Sprintf("%s ;", query)
-
-		tx, err := s.db.BeginTx(ctx, nil)
-		if err != nil {
-			s.logger.Error("error attempting to creating bulk post_videos  data tag ", zap.Any("post", query), zap.Error(err))
-			return err
-		}
-		defer impart.CommitRollbackLogger(tx, err, s.logger)
-
-		_, err = queries.Raw(query).QueryContext(ctx, s.db)
-		if err != nil {
-			s.logger.Error("error attempting to creating bulk post_videos  data tag ", zap.Any("post", query), zap.Error(err))
-			return err
-		}
-		return nil
 
 	}
+
 	return nil
 }

@@ -682,7 +682,7 @@ func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file 
 					query = fmt.Sprintf("%s ;", query)
 				}
 			}
-			if "" == "" {
+			if len(postHive) > 0 && query != "" {
 				tx, err := s.db.BeginTx(ctx, nil)
 				if err != nil {
 					return fileResponse, nil

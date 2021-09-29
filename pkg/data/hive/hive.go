@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
@@ -50,7 +51,7 @@ type Hives interface {
 	GetHive(ctx context.Context, hiveID uint64) (*dbmodels.Hive, error)
 	NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error)
 	EditHive(ctx context.Context, hive models.Hive) (*dbmodels.Hive, error)
-	PinPost(ctx context.Context, hiveID, postID uint64, pin bool) error
+	PinPost(ctx context.Context, hiveID, postID uint64, pin bool, isAdminActivity bool) error
 	GetReviewedPosts(ctx context.Context, hiveId uint64, reviewDate time.Time, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetUnreviewedReportedPosts(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
 	GetPostsWithUnreviewedComments(ctx context.Context, hiveId uint64, offset int) (dbmodels.PostSlice, models.NextPage, error)
@@ -59,6 +60,7 @@ type Hives interface {
 	DeleteHive(ctx context.Context, hiveID uint64) error
 	GetHiveFromList(ctx context.Context, hiveIds []interface{}) (dbmodels.HiveSlice, error)
 	DeleteBulkHive(ctx context.Context, hiveIDs dbmodels.HiveSlice) error
+	PinPostForBulkPostAction(ctx context.Context, postHive map[uint64]uint64, pin bool, isAdminActivity bool) error
 }
 
 func (d *mysqlHiveData) GetHives(ctx context.Context) (dbmodels.HiveSlice, error) {
@@ -133,9 +135,9 @@ func (d *mysqlHiveData) EditHive(ctx context.Context, hive models.Hive) (*dbmode
 // PinPost takes a hive and post id of a post ot pin or unpin
 // if a post is being pinned, within the same transaction we need to (maybe) unpin the old post,
 // mark the new post as pinned, and update the hive to point to the new post.
-func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin bool) error {
-	ctxUser := impart.GetCtxUser(ctx)
-	if !ctxUser.Admin {
+func (d *mysqlHiveData) PinPost(ctx context.Context, hiveID, postID uint64, pin bool, isAdminActivity bool) error {
+	// ctxUser := impart.GetCtxUser(ctx)
+	if !isAdminActivity {
 		return impart.ErrUnauthorized
 	}
 	toPin, err := dbmodels.FindPost(ctx, d.db, postID)
@@ -383,4 +385,47 @@ func (d *mysqlHiveData) GetHiveFromList(ctx context.Context, hiveIds []interface
 		return nil, err
 	}
 	return hives, err
+}
+
+// PinPost takes a hive and post id of a post ot pin or unpin
+// if a post is being pinned, within the same transaction we need to (maybe) unpin the old post,
+// mark the new post as pinned, and update the hive to point to the new post.
+func (d *mysqlHiveData) PinPostForBulkPostAction(ctx context.Context, postHiveDetails map[uint64]uint64, pin bool, isAdminActivity bool) error {
+	// ctxUser := impart.GetCtxUser(ctx)
+	if !isAdminActivity {
+		return impart.ErrUnauthorized
+	}
+
+	tx, err := d.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer impart.CommitRollbackLogger(tx, err, d.logger)
+
+	query := "UPDATE post JOIN hive ON post.post_id = hive. pinned_post_id SET post.pinned=false WHERE hive.hive_id in("
+	for i := range postHiveDetails {
+		qry := fmt.Sprintf("%d,", i)
+		query = fmt.Sprintf("%s %s", query, qry)
+	}
+	query = strings.Trim(query, ",")
+	query = fmt.Sprintf("%s );", query)
+
+	postQuery := "UPDATE hive JOIN post ON post.hive_id = hive.hive_id SET hive.pinned_post_id=post.post_id WHERE post.post_id in("
+	for _, post := range postHiveDetails {
+		qry := fmt.Sprintf("%d,", post)
+		postQuery = fmt.Sprintf("%s %s", postQuery, qry)
+	}
+	postQuery = strings.Trim(postQuery, ",")
+	postQuery = fmt.Sprintf("%s );", postQuery)
+
+	finlQuery := fmt.Sprintf("%s %s", query, postQuery)
+
+	_, err = queries.Raw(finlQuery).QueryContext(ctx, d.db)
+	if err != nil {
+		d.logger.Error("error attempting to creating bulk post  data tag ", zap.Any("post", finlQuery), zap.Error(err))
+		return err
+	}
+
+	return nil
+
 }

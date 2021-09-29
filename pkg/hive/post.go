@@ -662,11 +662,13 @@ func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file 
 				}
 
 				file[index].FID = int(fileModel.Fid)
-				postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
-					PostID: post.PostID,
-					Fid:    fileModel.Fid,
-				})
+				if post != nil {
+					postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
+						PostID: post.PostID,
+						Fid:    fileModel.Fid,
+					})
 
+				}
 				//doesnt return the content,
 				file[index].Content = ""
 				// set reponse
@@ -674,8 +676,8 @@ func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file 
 
 				if len(postHive) > 0 {
 					query = "insert into post_files (post_id,fid)values"
-					for _, post := range postHive {
-						qry := fmt.Sprintf("(%d,%d),", post, fileModel.Fid)
+					for _, post_id := range postHive {
+						qry := fmt.Sprintf("(%d,%d),", post_id, fileModel.Fid)
 						query = fmt.Sprintf("%s %s", query, qry)
 					}
 					query = strings.Trim(query, ",")
@@ -760,6 +762,9 @@ func (s *service) NewPostForMultipleHives(ctx context.Context, post models.Post)
 
 	if len(strings.TrimSpace(post.Content.Markdown)) < 10 {
 		return impart.NewError(impart.ErrBadRequest, "post is less than 10 characters", impart.Content)
+	}
+	if len(post.Hives) == 0 {
+		return impart.NewError(impart.ErrBadRequest, "hive Details missing.", impart.Content)
 	}
 	shouldPin := false
 	isAdminActivity := false

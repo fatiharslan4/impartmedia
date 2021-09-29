@@ -5,6 +5,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/impartwealthapp/backend/pkg/impart"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"go.uber.org/zap"
 )
 
@@ -72,33 +73,35 @@ func (s *service) PinPostForBulkPostAction(ctx context.Context, postHive map[uin
 		s.logger.Error("error pining post", zap.Error(err))
 		return impart.NewError(impart.ErrUnknown, "unable to pin post")
 	}
-	// dbHive, err := s.hiveData.GetHive(ctx, 1)
-	// if err != nil {
-	// 	s.logger.Error("error pining post", zap.Error(err))
-	// 	return impart.NewError(impart.ErrUnknown, "unable to pin post")
-	// }
-	// dbPost, err := s.postData.GetPost(ctx, 1)
-	// if err != nil {
-	// 	s.logger.Error("error pining post", zap.Error(err))
-	// 	return impart.NewError(impart.ErrUnknown, "unable to pin post")
-	// }
-	// if pin && dbHive.PinnedPostID.Uint64 == dbPost.PostID {
-	// 	pushNotification := impart.Alert{
-	// 		Title: aws.String(title),
-	// 		Body:  aws.String(body),
-	// 	}
-
-	// 	additionalData := impart.NotificationData{
-	// 		EventDatetime: impart.CurrentUTC(),
-	// 		PostID:        dbPost.PostID,
-	// 	}
-
-	// 	err = s.notificationService.NotifyTopic(ctx, additionalData, pushNotification, dbHive.NotificationTopicArn.String)
-	// 	if err != nil {
-	// 		s.logger.Error("error sending notification to topic", zap.Error(err))
-	// 	}
-
-	// }
+	if pin {
+		hiveAll := make([]uint64, len(postHive))
+		pos := 0
+		for hive, _ := range postHive {
+			hiveAll[pos] = hive
+			pos = pos + 1
+		}
+		dbHive, err := dbmodels.Hives(dbmodels.HiveWhere.HiveID.IN(hiveAll)).All(ctx, s.db)
+		for hive, post := range postHive {
+			pushNotification := impart.Alert{
+				Title: aws.String(title),
+				Body:  aws.String(body),
+			}
+			additionalData := impart.NotificationData{
+				EventDatetime: impart.CurrentUTC(),
+				PostID:        post,
+			}
+			hiveOut := dbmodels.Hive{}
+			for _, hiveSlice := range dbHive {
+				if hiveSlice.HiveID == hive {
+					hiveOut = *hiveSlice
+				}
+			}
+			err = s.notificationService.NotifyTopic(ctx, additionalData, pushNotification, hiveOut.NotificationTopicArn.String)
+			if err != nil {
+				s.logger.Error("error sending notification to topic", zap.Error(err))
+			}
+		}
+	}
 
 	return nil
 }

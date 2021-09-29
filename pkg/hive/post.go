@@ -763,6 +763,9 @@ func (s *service) NewPostForMultipleHives(ctx context.Context, post models.Post)
 	if len(strings.TrimSpace(post.Content.Markdown)) < 10 {
 		return impart.NewError(impart.ErrBadRequest, "post is less than 10 characters", impart.Content)
 	}
+	if len(post.Hives) == 0 {
+		return impart.NewError(impart.ErrBadRequest, "hive Details missing.", impart.Content)
+	}
 	shouldPin := false
 	isAdminActivity := false
 	clientId := impart.GetCtxClientID(ctx)

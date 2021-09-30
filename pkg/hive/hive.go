@@ -148,7 +148,13 @@ func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive
 	if err != nil {
 		return models.Hive{}, impart.NewError(impart.ErrUnknown, "unable to convert hives to  dbmodel")
 	}
-
+	topic, err := s.notificationService.CreateNotificationTopic(ctx, "test1")
+	if err != nil {
+		s.logger.Error("error creating hive topic", zap.Error(err))
+	}
+	if topic != nil {
+		dbh.NotificationTopicArn.String = *topic.TopicArn
+	}
 	dbh, err = s.hiveData.NewHive(ctx, dbh)
 	if err != nil {
 		return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to create hive %s", hive.HiveName), impart.HiveID)

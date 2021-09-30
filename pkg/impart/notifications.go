@@ -37,6 +37,8 @@ type NotificationService interface {
 	// has the right device token, and the endpoint is enabled.
 	SyncTokenEndpoint(ctx context.Context, deviceToken, platformEndpointARN string) (string, error)
 	GetEndPointArn(ctx context.Context, deviceToken, platformEndpointARN string) (string, error)
+
+	CreateNotificationTopic(ctx context.Context, topicARN string) (*sns.CreateTopicOutput, error)
 }
 
 type NotificationData struct {
@@ -161,7 +163,6 @@ func NewImpartNotificationService(db *sql.DB, stage, region, platformApplication
 func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data NotificationData, alert Alert, topicARN string) error {
 	var b []byte
 	var err error
-
 	if strings.TrimSpace(topicARN) == "" {
 		return nil
 	}
@@ -542,4 +543,23 @@ func (ns *snsAppleNotificationService) UnsubscribeAll(ctx context.Context, impar
 	}
 	_, err = currentSubscriptions.DeleteAll(ctx, ns.db)
 	return err
+}
+
+func (n noopNotificationService) CreateNotificationTopic(ctx context.Context, topicARN string) (*sns.CreateTopicOutput, error) {
+	return nil, nil
+}
+
+/// Create topic for each hive
+func (ns *snsAppleNotificationService) CreateNotificationTopic(ctx context.Context, topicARN string) (*sns.CreateTopicOutput, error) {
+	topic := &topicARN
+	input := &sns.CreateTopicInput{Name: topic}
+	topicOutput, err := ns.CreateTopic(input)
+	if err != nil {
+		ns.Logger.Error("error attempting to create topic",
+			zap.Error(err),
+			zap.String("topicInput", topicARN))
+
+		return nil, err
+	}
+	return topicOutput, nil
 }

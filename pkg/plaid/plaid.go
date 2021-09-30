@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -12,6 +13,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	plaid "github.com/plaid/plaid-go/plaid"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
@@ -199,17 +201,35 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		}
 		accounts := accountsGetResp.GetAccounts()
 		userAccounts := make(Accounts, len(accounts))
+		qury := ""
+		query := ""
 		for i, act := range accounts {
-			userAccounts[i] = AccountToModel(act)
+			userAccounts[i], qury = AccountToModel(act, user.UserInstitutionID)
+			query = fmt.Sprintf("%s %s", query, qury)
 		}
 		institution.Accounts = userAccounts
 		userinstitution[i] = institution
 		userData.Institutions = userinstitution
+
+		lastQury := "INSERT INTO `user_plaid_accounts_log` (`user_institution_id`,`account_id`,`mask`,`name`,`official_name`,`subtype`,`type`,`iso_currency_code`,`unofficial_currency_code`,`available`,`current`,`credit_limit`,`created_at`) VALUES "
+		lastQury = fmt.Sprintf("%s %s", lastQury, query)
+		lastQury = strings.Trim(lastQury, ",")
+		lastQury = fmt.Sprintf("%s ;", lastQury)
+		tx, err := ser.db.BeginTx(ctx, nil)
+		if err != nil {
+			ser.logger.Error("error attempting to log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
+		}
+		defer impart.CommitRollbackLogger(tx, err, ser.logger)
+
+		_, err = queries.Raw(lastQury).QueryContext(ctx, ser.db)
+		if err != nil {
+			ser.logger.Error("error attempting to  log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
+		}
 	}
 	return userData, nil
 }
 
-func AccountToModel(act plaid.AccountBase) Account {
+func AccountToModel(act plaid.AccountBase, userInstId uint64) (Account, string) {
 	accounts := Account{}
 	accounts.AccountID = act.AccountId
 	accounts.Available = act.Balances.GetAvailable()
@@ -222,7 +242,11 @@ func AccountToModel(act plaid.AccountBase) Account {
 	accounts.Name = act.GetName()
 	accounts.OfficialName = act.GetOfficialName()
 	accounts.UnofficialCurrencyCode = act.Balances.GetUnofficialCurrencyCode()
-	return accounts
+
+	query := fmt.Sprintf("(%d,'%s','%s','%s','%s','%s','%s','%s','%s',%f,%f,%f,now()),",
+		userInstId, accounts.AccountID, accounts.Mask, accounts.Name, accounts.OfficialName, accounts.Subtype, accounts.Type, accounts.IsoCurrencyCode, accounts.UnofficialCurrencyCode, accounts.Available, accounts.Current, accounts.CreditLimit)
+
+	return accounts, query
 }
 
 func InstitutionToModel(user *dbmodels.UserInstitution) UserInstitution {

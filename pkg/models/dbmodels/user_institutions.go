@@ -23,66 +23,76 @@ import (
 
 // UserInstitution is an object representing the database table.
 type UserInstitution struct {
-	InstitutionID  uint64    `boil:"institution_id" json:"institution_id" toml:"institution_id" yaml:"institution_id"`
-	ImpartWealthID string    `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
-	AccessToken    string    `boil:"access_token" json:"access_token" toml:"access_token" yaml:"access_token"`
-	CreatedAt      time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UserInstitutionID uint64    `boil:"user_institution_id" json:"user_institution_id" toml:"user_institution_id" yaml:"user_institution_id"`
+	InstitutionID     uint64    `boil:"institution_id" json:"institution_id" toml:"institution_id" yaml:"institution_id"`
+	ImpartWealthID    string    `boil:"impart_wealth_id" json:"impart_wealth_id" toml:"impart_wealth_id" yaml:"impart_wealth_id"`
+	AccessToken       string    `boil:"access_token" json:"access_token" toml:"access_token" yaml:"access_token"`
+	CreatedAt         time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 
 	R *userInstitutionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userInstitutionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var UserInstitutionColumns = struct {
-	InstitutionID  string
-	ImpartWealthID string
-	AccessToken    string
-	CreatedAt      string
+	UserInstitutionID string
+	InstitutionID     string
+	ImpartWealthID    string
+	AccessToken       string
+	CreatedAt         string
 }{
-	InstitutionID:  "institution_id",
-	ImpartWealthID: "impart_wealth_id",
-	AccessToken:    "access_token",
-	CreatedAt:      "created_at",
+	UserInstitutionID: "user_institution_id",
+	InstitutionID:     "institution_id",
+	ImpartWealthID:    "impart_wealth_id",
+	AccessToken:       "access_token",
+	CreatedAt:         "created_at",
 }
 
 var UserInstitutionTableColumns = struct {
-	InstitutionID  string
-	ImpartWealthID string
-	AccessToken    string
-	CreatedAt      string
+	UserInstitutionID string
+	InstitutionID     string
+	ImpartWealthID    string
+	AccessToken       string
+	CreatedAt         string
 }{
-	InstitutionID:  "user_institutions.institution_id",
-	ImpartWealthID: "user_institutions.impart_wealth_id",
-	AccessToken:    "user_institutions.access_token",
-	CreatedAt:      "user_institutions.created_at",
+	UserInstitutionID: "user_institutions.user_institution_id",
+	InstitutionID:     "user_institutions.institution_id",
+	ImpartWealthID:    "user_institutions.impart_wealth_id",
+	AccessToken:       "user_institutions.access_token",
+	CreatedAt:         "user_institutions.created_at",
 }
 
 // Generated where
 
 var UserInstitutionWhere = struct {
-	InstitutionID  whereHelperuint64
-	ImpartWealthID whereHelperstring
-	AccessToken    whereHelperstring
-	CreatedAt      whereHelpertime_Time
+	UserInstitutionID whereHelperuint64
+	InstitutionID     whereHelperuint64
+	ImpartWealthID    whereHelperstring
+	AccessToken       whereHelperstring
+	CreatedAt         whereHelpertime_Time
 }{
-	InstitutionID:  whereHelperuint64{field: "`user_institutions`.`institution_id`"},
-	ImpartWealthID: whereHelperstring{field: "`user_institutions`.`impart_wealth_id`"},
-	AccessToken:    whereHelperstring{field: "`user_institutions`.`access_token`"},
-	CreatedAt:      whereHelpertime_Time{field: "`user_institutions`.`created_at`"},
+	UserInstitutionID: whereHelperuint64{field: "`user_institutions`.`user_institution_id`"},
+	InstitutionID:     whereHelperuint64{field: "`user_institutions`.`institution_id`"},
+	ImpartWealthID:    whereHelperstring{field: "`user_institutions`.`impart_wealth_id`"},
+	AccessToken:       whereHelperstring{field: "`user_institutions`.`access_token`"},
+	CreatedAt:         whereHelpertime_Time{field: "`user_institutions`.`created_at`"},
 }
 
 // UserInstitutionRels is where relationship names are stored.
 var UserInstitutionRels = struct {
-	ImpartWealth string
-	Institution  string
+	ImpartWealth          string
+	Institution           string
+	UserPlaidAccountsLogs string
 }{
-	ImpartWealth: "ImpartWealth",
-	Institution:  "Institution",
+	ImpartWealth:          "ImpartWealth",
+	Institution:           "Institution",
+	UserPlaidAccountsLogs: "UserPlaidAccountsLogs",
 }
 
 // userInstitutionR is where relationships are stored.
 type userInstitutionR struct {
-	ImpartWealth *User        `boil:"ImpartWealth" json:"ImpartWealth" toml:"ImpartWealth" yaml:"ImpartWealth"`
-	Institution  *Institution `boil:"Institution" json:"Institution" toml:"Institution" yaml:"Institution"`
+	ImpartWealth          *User                     `boil:"ImpartWealth" json:"ImpartWealth" toml:"ImpartWealth" yaml:"ImpartWealth"`
+	Institution           *Institution              `boil:"Institution" json:"Institution" toml:"Institution" yaml:"Institution"`
+	UserPlaidAccountsLogs UserPlaidAccountsLogSlice `boil:"UserPlaidAccountsLogs" json:"UserPlaidAccountsLogs" toml:"UserPlaidAccountsLogs" yaml:"UserPlaidAccountsLogs"`
 }
 
 // NewStruct creates a new relationship struct
@@ -94,10 +104,10 @@ func (*userInstitutionR) NewStruct() *userInstitutionR {
 type userInstitutionL struct{}
 
 var (
-	userInstitutionAllColumns            = []string{"institution_id", "impart_wealth_id", "access_token", "created_at"}
+	userInstitutionAllColumns            = []string{"user_institution_id", "institution_id", "impart_wealth_id", "access_token", "created_at"}
 	userInstitutionColumnsWithoutDefault = []string{"institution_id", "impart_wealth_id", "access_token", "created_at"}
-	userInstitutionColumnsWithDefault    = []string{}
-	userInstitutionPrimaryKeyColumns     = []string{"institution_id", "impart_wealth_id", "access_token"}
+	userInstitutionColumnsWithDefault    = []string{"user_institution_id"}
+	userInstitutionPrimaryKeyColumns     = []string{"user_institution_id"}
 )
 
 type (
@@ -404,6 +414,27 @@ func (o *UserInstitution) Institution(mods ...qm.QueryMod) institutionQuery {
 	return query
 }
 
+// UserPlaidAccountsLogs retrieves all the user_plaid_accounts_log's UserPlaidAccountsLogs with an executor.
+func (o *UserInstitution) UserPlaidAccountsLogs(mods ...qm.QueryMod) userPlaidAccountsLogQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`user_plaid_accounts_log`.`user_institution_id`=?", o.UserInstitutionID),
+	)
+
+	query := UserPlaidAccountsLogs(queryMods...)
+	queries.SetFrom(query.Query, "`user_plaid_accounts_log`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`user_plaid_accounts_log`.*"})
+	}
+
+	return query
+}
+
 // LoadImpartWealth allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
 func (userInstitutionL) LoadImpartWealth(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserInstitution interface{}, mods queries.Applicator) error {
@@ -613,6 +644,104 @@ func (userInstitutionL) LoadInstitution(ctx context.Context, e boil.ContextExecu
 	return nil
 }
 
+// LoadUserPlaidAccountsLogs allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (userInstitutionL) LoadUserPlaidAccountsLogs(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserInstitution interface{}, mods queries.Applicator) error {
+	var slice []*UserInstitution
+	var object *UserInstitution
+
+	if singular {
+		object = maybeUserInstitution.(*UserInstitution)
+	} else {
+		slice = *maybeUserInstitution.(*[]*UserInstitution)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userInstitutionR{}
+		}
+		args = append(args, object.UserInstitutionID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userInstitutionR{}
+			}
+
+			for _, a := range args {
+				if a == obj.UserInstitutionID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.UserInstitutionID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`user_plaid_accounts_log`),
+		qm.WhereIn(`user_plaid_accounts_log.user_institution_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load user_plaid_accounts_log")
+	}
+
+	var resultSlice []*UserPlaidAccountsLog
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice user_plaid_accounts_log")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on user_plaid_accounts_log")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for user_plaid_accounts_log")
+	}
+
+	if len(userPlaidAccountsLogAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.UserPlaidAccountsLogs = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &userPlaidAccountsLogR{}
+			}
+			foreign.R.UserInstitution = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.UserInstitutionID == foreign.UserInstitutionID {
+				local.R.UserPlaidAccountsLogs = append(local.R.UserPlaidAccountsLogs, foreign)
+				if foreign.R == nil {
+					foreign.R = &userPlaidAccountsLogR{}
+				}
+				foreign.R.UserInstitution = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetImpartWealth of the userInstitution to the related item.
 // Sets o.R.ImpartWealth to related.
 // Adds o to related.R.ImpartWealthUserInstitutions.
@@ -629,7 +758,7 @@ func (o *UserInstitution) SetImpartWealth(ctx context.Context, exec boil.Context
 		strmangle.SetParamNames("`", "`", 0, []string{"impart_wealth_id"}),
 		strmangle.WhereClause("`", "`", 0, userInstitutionPrimaryKeyColumns),
 	)
-	values := []interface{}{related.ImpartWealthID, o.InstitutionID, o.ImpartWealthID, o.AccessToken}
+	values := []interface{}{related.ImpartWealthID, o.UserInstitutionID}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -676,7 +805,7 @@ func (o *UserInstitution) SetInstitution(ctx context.Context, exec boil.ContextE
 		strmangle.SetParamNames("`", "`", 0, []string{"institution_id"}),
 		strmangle.WhereClause("`", "`", 0, userInstitutionPrimaryKeyColumns),
 	)
-	values := []interface{}{related.ID, o.InstitutionID, o.ImpartWealthID, o.AccessToken}
+	values := []interface{}{related.ID, o.UserInstitutionID}
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -707,6 +836,59 @@ func (o *UserInstitution) SetInstitution(ctx context.Context, exec boil.ContextE
 	return nil
 }
 
+// AddUserPlaidAccountsLogs adds the given related objects to the existing relationships
+// of the user_institution, optionally inserting them as new records.
+// Appends related to o.R.UserPlaidAccountsLogs.
+// Sets related.R.UserInstitution appropriately.
+func (o *UserInstitution) AddUserPlaidAccountsLogs(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*UserPlaidAccountsLog) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.UserInstitutionID = o.UserInstitutionID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `user_plaid_accounts_log` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"user_institution_id"}),
+				strmangle.WhereClause("`", "`", 0, userPlaidAccountsLogPrimaryKeyColumns),
+			)
+			values := []interface{}{o.UserInstitutionID, rel.ID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.UserInstitutionID = o.UserInstitutionID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userInstitutionR{
+			UserPlaidAccountsLogs: related,
+		}
+	} else {
+		o.R.UserPlaidAccountsLogs = append(o.R.UserPlaidAccountsLogs, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &userPlaidAccountsLogR{
+				UserInstitution: o,
+			}
+		} else {
+			rel.R.UserInstitution = o
+		}
+	}
+	return nil
+}
+
 // UserInstitutions retrieves all the records using an executor.
 func UserInstitutions(mods ...qm.QueryMod) userInstitutionQuery {
 	mods = append(mods, qm.From("`user_institutions`"))
@@ -715,7 +897,7 @@ func UserInstitutions(mods ...qm.QueryMod) userInstitutionQuery {
 
 // FindUserInstitution retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindUserInstitution(ctx context.Context, exec boil.ContextExecutor, institutionID uint64, impartWealthID string, accessToken string, selectCols ...string) (*UserInstitution, error) {
+func FindUserInstitution(ctx context.Context, exec boil.ContextExecutor, userInstitutionID uint64, selectCols ...string) (*UserInstitution, error) {
 	userInstitutionObj := &UserInstitution{}
 
 	sel := "*"
@@ -723,10 +905,10 @@ func FindUserInstitution(ctx context.Context, exec boil.ContextExecutor, institu
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from `user_institutions` where `institution_id`=? AND `impart_wealth_id`=? AND `access_token`=?", sel,
+		"select %s from `user_institutions` where `user_institution_id`=?", sel,
 	)
 
-	q := queries.Raw(query, institutionID, impartWealthID, accessToken)
+	q := queries.Raw(query, userInstitutionID)
 
 	err := q.Bind(ctx, exec, userInstitutionObj)
 	if err != nil {
@@ -809,22 +991,31 @@ func (o *UserInstitution) Insert(ctx context.Context, exec boil.ContextExecutor,
 		fmt.Fprintln(writer, cache.query)
 		fmt.Fprintln(writer, vals)
 	}
-	_, err = exec.ExecContext(ctx, cache.query, vals...)
+	result, err := exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "dbmodels: unable to insert into user_institutions")
 	}
 
+	var lastID int64
 	var identifierCols []interface{}
 
 	if len(cache.retMapping) == 0 {
 		goto CacheNoHooks
 	}
 
+	lastID, err = result.LastInsertId()
+	if err != nil {
+		return ErrSyncFail
+	}
+
+	o.UserInstitutionID = uint64(lastID)
+	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == userInstitutionMapping["user_institution_id"] {
+		goto CacheNoHooks
+	}
+
 	identifierCols = []interface{}{
-		o.InstitutionID,
-		o.ImpartWealthID,
-		o.AccessToken,
+		o.UserInstitutionID,
 	}
 
 	if boil.IsDebug(ctx) {
@@ -975,7 +1166,9 @@ func (o UserInstitutionSlice) UpdateAll(ctx context.Context, exec boil.ContextEx
 	return rowsAff, nil
 }
 
-var mySQLUserInstitutionUniqueColumns = []string{}
+var mySQLUserInstitutionUniqueColumns = []string{
+	"user_institution_id",
+}
 
 // Upsert attempts an insert using an executor, and does an update or ignore on conflict.
 // See boil.Columns documentation for how to properly use updateColumns and insertColumns.
@@ -1078,16 +1271,27 @@ func (o *UserInstitution) Upsert(ctx context.Context, exec boil.ContextExecutor,
 		fmt.Fprintln(writer, cache.query)
 		fmt.Fprintln(writer, vals)
 	}
-	_, err = exec.ExecContext(ctx, cache.query, vals...)
+	result, err := exec.ExecContext(ctx, cache.query, vals...)
 
 	if err != nil {
 		return errors.Wrap(err, "dbmodels: unable to upsert for user_institutions")
 	}
 
+	var lastID int64
 	var uniqueMap []uint64
 	var nzUniqueCols []interface{}
 
 	if len(cache.retMapping) == 0 {
+		goto CacheNoHooks
+	}
+
+	lastID, err = result.LastInsertId()
+	if err != nil {
+		return ErrSyncFail
+	}
+
+	o.UserInstitutionID = uint64(lastID)
+	if lastID != 0 && len(cache.retMapping) == 1 && cache.retMapping[0] == userInstitutionMapping["user_institution_id"] {
 		goto CacheNoHooks
 	}
 
@@ -1129,7 +1333,7 @@ func (o *UserInstitution) Delete(ctx context.Context, exec boil.ContextExecutor)
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), userInstitutionPrimaryKeyMapping)
-	sql := "DELETE FROM `user_institutions` WHERE `institution_id`=? AND `impart_wealth_id`=? AND `access_token`=?"
+	sql := "DELETE FROM `user_institutions` WHERE `user_institution_id`=?"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
@@ -1226,7 +1430,7 @@ func (o UserInstitutionSlice) DeleteAll(ctx context.Context, exec boil.ContextEx
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *UserInstitution) Reload(ctx context.Context, exec boil.ContextExecutor) error {
-	ret, err := FindUserInstitution(ctx, exec, o.InstitutionID, o.ImpartWealthID, o.AccessToken)
+	ret, err := FindUserInstitution(ctx, exec, o.UserInstitutionID)
 	if err != nil {
 		return err
 	}
@@ -1265,16 +1469,16 @@ func (o *UserInstitutionSlice) ReloadAll(ctx context.Context, exec boil.ContextE
 }
 
 // UserInstitutionExists checks if the UserInstitution row exists.
-func UserInstitutionExists(ctx context.Context, exec boil.ContextExecutor, institutionID uint64, impartWealthID string, accessToken string) (bool, error) {
+func UserInstitutionExists(ctx context.Context, exec boil.ContextExecutor, userInstitutionID uint64) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from `user_institutions` where `institution_id`=? AND `impart_wealth_id`=? AND `access_token`=? limit 1)"
+	sql := "select exists(select 1 from `user_institutions` where `user_institution_id`=? limit 1)"
 
 	if boil.IsDebug(ctx) {
 		writer := boil.DebugWriterFrom(ctx)
 		fmt.Fprintln(writer, sql)
-		fmt.Fprintln(writer, institutionID, impartWealthID, accessToken)
+		fmt.Fprintln(writer, userInstitutionID)
 	}
-	row := exec.QueryRowContext(ctx, sql, institutionID, impartWealthID, accessToken)
+	row := exec.QueryRowContext(ctx, sql, userInstitutionID)
 
 	err := row.Scan(&exists)
 	if err != nil {

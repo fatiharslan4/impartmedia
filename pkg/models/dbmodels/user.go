@@ -3106,7 +3106,7 @@ func (o *User) AddImpartWealthUserInstitutions(ctx context.Context, exec boil.Co
 				strmangle.SetParamNames("`", "`", 0, []string{"impart_wealth_id"}),
 				strmangle.WhereClause("`", "`", 0, userInstitutionPrimaryKeyColumns),
 			)
-			values := []interface{}{o.ImpartWealthID, rel.InstitutionID, rel.ImpartWealthID, rel.AccessToken}
+			values := []interface{}{o.ImpartWealthID, rel.UserInstitutionID}
 
 			if boil.IsDebug(ctx) {
 				writer := boil.DebugWriterFrom(ctx)

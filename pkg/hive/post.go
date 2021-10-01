@@ -14,6 +14,7 @@ import (
 	"github.com/otiai10/opengraph/v2"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -72,7 +73,7 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		// 	s.logger.Error("couldn't pin post", zap.Error(err))
 		// }
 
-		if err := s.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true); err != nil {
+		if err := s.PinPost(ctx, dbPost.HiveID, dbPost.PostID, true, isAdminActivity); err != nil {
 			s.logger.Error("couldn't pin post", zap.Error(err))
 		}
 
@@ -82,14 +83,14 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 	if isAdminActivity {
 		post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
 		postFiles, _ := s.AddPostFiles(ctx, post.Files)
-		postFiles, _ = s.AddPostFilesDB(ctx, dbPost, postFiles, isAdminActivity)
+		postFiles, _ = s.AddPostFilesDB(ctx, dbPost, postFiles, isAdminActivity, nil)
 
 		// add post videos
-		postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video, isAdminActivity)
+		postvideo, _ := s.AddPostVideo(ctx, p.PostID, post.Video, isAdminActivity, nil)
 		p.Video = postvideo
 
 		// add post videos
-		postUrl, _ := s.AddPostUrl(ctx, p.PostID, post.Url, isAdminActivity)
+		postUrl, _ := s.AddPostUrl(ctx, p.PostID, post.Url, isAdminActivity, nil)
 		p.UrlData = postUrl
 
 		// update post files
@@ -474,26 +475,49 @@ func (s *service) BuildPostNotificationData(input models.PostNotificationInput) 
 	}, err
 }
 
-func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo models.PostVideo, isAdminActivity bool) (models.PostVideo, impart.Error) {
+func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo models.PostVideo, isAdminActivity bool, postHive map[uint64]uint64) (models.PostVideo, impart.Error) {
 	if isAdminActivity && (postVideo != models.PostVideo{}) {
-		input := &dbmodels.PostVideo{
-			Source:      postVideo.Source,
-			ReferenceID: null.StringFrom(postVideo.ReferenceId),
-			URL:         postVideo.Url,
-			PostID:      postID,
+		if len(postHive) > 0 {
+			query := "insert into post_videos(source,reference_id,url,post_id) values"
+			for _, post := range postHive {
+				qry := fmt.Sprintf("('%s','%s','%s',%d),", postVideo.Source, postVideo.ReferenceId, postVideo.Url, post)
+				query = fmt.Sprintf("%s %s", query, qry)
+			}
+			query = strings.Trim(query, ",")
+			query = fmt.Sprintf("%s ;", query)
+
+			tx, err := s.db.BeginTx(ctx, nil)
+			if err != nil {
+				s.logger.Error("error attempting to creating bulk post_videos  data tag ", zap.Any("post", query), zap.Error(err))
+				return models.PostVideo{}, nil
+			}
+			defer impart.CommitRollbackLogger(tx, err, s.logger)
+
+			_, err = queries.Raw(query).QueryContext(ctx, s.db)
+			if err != nil {
+				s.logger.Error("error attempting to creating bulk post_videos  data tag ", zap.Any("post", query), zap.Error(err))
+				return models.PostVideo{}, nil
+			}
+		} else {
+			input := &dbmodels.PostVideo{
+				Source:      postVideo.Source,
+				ReferenceID: null.StringFrom(postVideo.ReferenceId),
+				URL:         postVideo.Url,
+				PostID:      postID,
+			}
+			input, err := s.postData.NewPostVideo(ctx, input)
+			if err != nil {
+				s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+				return models.PostVideo{}, nil
+			}
+			postVideo = models.PostVideoFromDB(input)
+			return postVideo, nil
 		}
-		input, err := s.postData.NewPostVideo(ctx, input)
-		if err != nil {
-			s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
-			return models.PostVideo{}, nil
-		}
-		postVideo = models.PostVideoFromDB(input)
-		return postVideo, nil
 	}
 	return models.PostVideo{}, nil
 }
 
-func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string, isAdminActivity bool) (models.PostUrl, impart.Error) {
+func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string, isAdminActivity bool, postHive map[uint64]uint64) (models.PostUrl, impart.Error) {
 	var imageUrl string
 	if isAdminActivity && (postUrl != "") {
 		match, _ := regexp.MatchString(`^(?:f|ht)tps?://`, postUrl)
@@ -512,21 +536,44 @@ func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string,
 			imageUrl = ""
 		}
 		//fmt.Println("the data", imageUrl)
+		if len(postHive) > 0 {
+			query := "insert into post_urls(title,url,imageUrl,description,post_id) values"
+			for _, post := range postHive {
+				qry := fmt.Sprintf("('%s','%s','%s','%s',%d),", ogp.Title, postUrl, imageUrl, ogp.Description, post)
+				query = fmt.Sprintf("%s %s", query, qry)
+			}
+			query = strings.Trim(query, ",")
+			query = fmt.Sprintf("%s ;", query)
 
-		input := &dbmodels.PostURL{
-			Title:       ogp.Title,
-			ImageUrl:    imageUrl,
-			URL:         null.StringFrom(postUrl),
-			PostID:      postID,
-			Description: ogp.Description,
-		}
-		inputData, err := s.postData.NewPostUrl(ctx, input)
-		if err != nil {
-			s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+			tx, err := s.db.BeginTx(ctx, nil)
+			if err != nil {
+				s.logger.Error("error attempting to Save post url data ", zap.Any("posturl", postUrl), zap.Error(err))
+				return models.PostUrl{}, nil
+			}
+			defer impart.CommitRollbackLogger(tx, err, s.logger)
+
+			_, err = queries.Raw(query).QueryContext(ctx, s.db)
+			if err != nil {
+				s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", postUrl), zap.Error(err))
+				return models.PostUrl{}, nil
+			}
 			return models.PostUrl{}, nil
+		} else {
+			input := &dbmodels.PostURL{
+				Title:       ogp.Title,
+				ImageUrl:    imageUrl,
+				URL:         null.StringFrom(postUrl),
+				PostID:      postID,
+				Description: ogp.Description,
+			}
+			inputData, err := s.postData.NewPostUrl(ctx, input)
+			if err != nil {
+				s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", input), zap.Error(err))
+				return models.PostUrl{}, nil
+			}
+			PostedUrl := models.PostUrlFromDB(inputData)
+			return PostedUrl, nil
 		}
-		PostedUrl := models.PostUrlFromDB(inputData)
-		return PostedUrl, nil
 	}
 	return models.PostUrl{}, nil
 }
@@ -596,8 +643,9 @@ func (s *service) UploadFile(files []models.File) error {
 	return nil
 }
 
-func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File, isAdminActivity bool) ([]models.File, impart.Error) {
+func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file []models.File, isAdminActivity bool, postHive map[uint64]uint64) ([]models.File, impart.Error) {
 	var fileResponse []models.File
+	query := ""
 	if isAdminActivity {
 
 		if len(file) > 0 {
@@ -614,24 +662,48 @@ func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file 
 				}
 
 				file[index].FID = int(fileModel.Fid)
-				postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
-					PostID: post.PostID,
-					Fid:    fileModel.Fid,
-				})
+				if post != nil {
+					postFielRelationMap = append(postFielRelationMap, &dbmodels.PostFile{
+						PostID: post.PostID,
+						Fid:    fileModel.Fid,
+					})
 
+				}
 				//doesnt return the content,
 				file[index].Content = ""
 				// set reponse
 				fileResponse = file
-			}
 
-			err := post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
-			if err != nil {
-				s.logger.Error("error attempting to map post files ",
-					zap.Any("data", postFielRelationMap),
-					zap.Any("err", err),
-					zap.Error(err),
-				)
+				if len(postHive) > 0 {
+					query = "insert into post_files (post_id,fid)values"
+					for _, post_id := range postHive {
+						qry := fmt.Sprintf("(%d,%d),", post_id, fileModel.Fid)
+						query = fmt.Sprintf("%s %s", query, qry)
+					}
+					query = strings.Trim(query, ",")
+					query = fmt.Sprintf("%s ;", query)
+				}
+			}
+			if len(postHive) > 0 && query != "" {
+				tx, err := s.db.BeginTx(ctx, nil)
+				if err != nil {
+					return fileResponse, nil
+				}
+				defer impart.CommitRollbackLogger(tx, err, s.logger)
+
+				_, err = queries.Raw(query).QueryContext(ctx, s.db)
+				if err != nil {
+					s.logger.Error("error attempting to creating bulk post  data tag ", zap.Any("post", query), zap.Error(err))
+				}
+			} else {
+				err := post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
+				if err != nil {
+					s.logger.Error("error attempting to map post files ",
+						zap.Any("data", postFielRelationMap),
+						zap.Any("err", err),
+						zap.Error(err),
+					)
+				}
 			}
 
 		}
@@ -679,4 +751,74 @@ func (s *service) EditBulkPostDetails(ctx context.Context, postUpdateInput model
 		}
 	}
 	return postOutputRslt
+}
+
+func (s *service) NewPostForMultipleHives(ctx context.Context, post models.Post) impart.Error {
+	ctxUser := impart.GetCtxUser(ctx)
+
+	if len(strings.TrimSpace(post.Subject)) < 2 {
+		return impart.NewError(impart.ErrBadRequest, "subject is less than 2 characters", impart.Subject)
+	}
+
+	if len(strings.TrimSpace(post.Content.Markdown)) < 10 {
+		return impart.NewError(impart.ErrBadRequest, "post is less than 10 characters", impart.Content)
+	}
+	if len(post.Hives) == 0 {
+		return impart.NewError(impart.ErrBadRequest, "hive Details missing.", impart.Content)
+	}
+	shouldPin := false
+	isAdminActivity := false
+	clientId := impart.GetCtxClientID(ctx)
+	if clientId == impart.ClientId {
+		if ctxUser.SuperAdmin {
+			isAdminActivity = true
+		}
+	} else if ctxUser.Admin {
+		isAdminActivity = true
+	}
+
+	if post.IsPinnedPost {
+		if isAdminActivity {
+			shouldPin = true
+		} else {
+			post.IsPinnedPost = false
+		}
+	}
+	post.ImpartWealthID = ctxUser.ImpartWealthID
+	tagsSlice := make(dbmodels.TagSlice, len(post.TagIDs))
+	for i, t := range post.TagIDs {
+		tagsSlice[i] = &dbmodels.Tag{TagID: uint(t)}
+	}
+	postDetails, err := s.postData.NewPostForMultipleHives(ctx, post, tagsSlice)
+	if err != nil {
+		s.logger.Error("unable to create a new post", zap.Error(err))
+		return impart.UnknownError
+	}
+	if shouldPin {
+		if err := s.PinPostForBulkPostAction(ctx, postDetails, true, isAdminActivity); err != nil {
+			s.logger.Error("couldn't pin post", zap.Error(err))
+		}
+	}
+
+	// add post files
+	if isAdminActivity {
+		post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
+		postFiles, _ := s.AddPostFiles(ctx, post.Files)
+		postFiles, _ = s.AddPostFilesDB(ctx, nil, postFiles, isAdminActivity, postDetails)
+
+		// add post videos
+		_, err := s.AddPostVideo(ctx, 0, post.Video, isAdminActivity, postDetails)
+		if err != nil {
+			s.logger.Error("couldn't add post video ", zap.Error(err))
+		}
+
+		// add post url
+		_, err = s.AddPostUrl(ctx, 0, post.Url, isAdminActivity, postDetails)
+		if err != nil {
+			s.logger.Error("couldn't add post url ", zap.Error(err))
+		}
+
+	}
+
+	return nil
 }

@@ -17,7 +17,7 @@
 				},
 				"hiveName": {
 					"maxLength": 60,
-					"minLength": 5,
+					"minLength": 3,
 					"type": "string"
 				},
 				"hiveDescription": {

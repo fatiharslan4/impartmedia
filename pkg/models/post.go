@@ -66,6 +66,7 @@ type Post struct {
 	Files               []File           `json:"file,omitempty"`
 	Url                 string           `json:"url,omitempty"`
 	UrlData             PostUrl          `json:"urlData,omitempty"`
+	Hives               []uint64         `json:"hives,omitempty"`
 }
 
 type PostVideo struct {

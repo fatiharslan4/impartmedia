@@ -152,6 +152,7 @@ func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive
 	if err != nil {
 		s.logger.Error("error creating hive topic", zap.Error(err))
 	}
+	s.logger.Info("Topic details", zap.Any("topic", topic))
 	if topic != nil {
 		dbh.NotificationTopicArn.String = *topic.TopicArn
 	}

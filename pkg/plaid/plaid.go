@@ -243,7 +243,7 @@ func AccountToModel(act plaid.AccountBase, userInstId uint64) (Account, string) 
 	accounts.OfficialName = act.GetOfficialName()
 	accounts.UnofficialCurrencyCode = act.Balances.GetUnofficialCurrencyCode()
 
-	query := fmt.Sprintf("(%d,'%s','%s','%s','%s','%s','%s','%s','%s',%f,%f,%f,now()),",
+	query := fmt.Sprintf("(%d,'%s','%s','%s','%s','%s','%s','%s','%s',%f,%f,%f,UTC_TIMESTAMP(3)),",
 		userInstId, accounts.AccountID, accounts.Mask, accounts.Name, accounts.OfficialName, accounts.Subtype, accounts.Type, accounts.IsoCurrencyCode, accounts.UnofficialCurrencyCode, accounts.Available, accounts.Current, accounts.CreditLimit)
 
 	return accounts, query

@@ -56,8 +56,8 @@ type Store interface {
 	GetUserAnswer(ctx context.Context, impartWealthId string) (dbmodels.UserAnswerSlice, error)
 }
 
-func NewMySQLStore(db *sql.DB, logger *zap.Logger) Store {
-	s := newMysqlStore(db, logger)
+func NewMySQLStore(db *sql.DB, logger *zap.Logger, notificationService impart.NotificationService) Store {
+	s := newMysqlStore(db, logger, notificationService)
 
 	return s
 }

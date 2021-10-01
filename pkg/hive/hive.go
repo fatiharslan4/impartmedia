@@ -158,6 +158,7 @@ func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive
 
 	cfg, _ := config.GetImpart()
 	topicInput := fmt.Sprintf("%s-%s-%d", cfg.Env, dbh.Name, dbh.HiveID)
+	topicInput = strings.Replace(topicInput, " ", "-", -1)
 	s.logger.Info("Topic", zap.Any("topicInput", topicInput))
 	topic, err := s.notificationService.CreateNotificationTopic(ctx, topicInput)
 	if err != nil {

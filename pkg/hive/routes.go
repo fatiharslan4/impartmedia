@@ -183,10 +183,16 @@ func (hh *hiveHandler) CreateHiveFunc() gin.HandlerFunc {
 		}
 		hive := models.Hive{}
 		err = json.Unmarshal(b, &hive)
+		if err != nil {
+			hh.logger.Error("Unable to unmarshal JSON Body",
+				zap.Error(err),
+				zap.Any("request", b),
+			)
+		}
 		conform.Strings(&hive)
 
 		h, Err := hh.hiveService.CreateHive(ctx, hive)
-		if err != nil {
+		if Err != nil {
 			ctx.JSON(Err.HttpStatus(), impart.ErrorResponse(Err))
 			return
 		}

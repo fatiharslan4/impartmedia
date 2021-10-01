@@ -426,7 +426,7 @@ func (d *mysqlHiveData) NewPostForMultipleHives(ctx context.Context, post models
 	query := "insert into post (hive_id,Impart_wealth_id,pinned,created_at,updated_at,subject,content,last_comment_ts) values "
 	inserQury := ""
 	for _, hive_id := range post.Hives {
-		qry := fmt.Sprintf("(%d,'%s',%v,now(),now(),'%s','%s',now()),", hive_id, post.ImpartWealthID, post.IsPinnedPost, post.Subject, post.Content.Markdown)
+		qry := fmt.Sprintf("(%d,'%s',%v,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3),'%s','%s',UTC_TIMESTAMP(3)),", hive_id, post.ImpartWealthID, post.IsPinnedPost, post.Subject, post.Content.Markdown)
 		inserQury = fmt.Sprintf("%s %s", inserQury, qry)
 	}
 	query = fmt.Sprintf("%s %s", query, inserQury)

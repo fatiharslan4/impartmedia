@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"go.uber.org/zap"
 )
 
@@ -148,11 +151,28 @@ func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive
 	if err != nil {
 		return models.Hive{}, impart.NewError(impart.ErrUnknown, "unable to convert hives to  dbmodel")
 	}
-
 	dbh, err = s.hiveData.NewHive(ctx, dbh)
 	if err != nil {
 		return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to create hive %s", hive.HiveName), impart.HiveID)
 	}
+
+	cfg, _ := config.GetImpart()
+	topicInput := fmt.Sprintf("SNSHiveNotification-%s-%d", cfg.Env, dbh.HiveID)
+	topicInput = strings.Replace(topicInput, " ", "-", -1)
+	s.logger.Info("Topic", zap.Any("topicInput", topicInput))
+	topic, err := s.notificationService.CreateNotificationTopic(ctx, topicInput)
+	if err != nil {
+		s.logger.Error("error creating hive topic", zap.Error(err))
+	}
+	s.logger.Info("Topic details", zap.Any("topic", topic))
+	if topic != nil {
+		s.logger.Info("Topic details is not null", zap.Any("topicARn", topic.TopicArn))
+		dbh.NotificationTopicArn = null.StringFrom(*topic.TopicArn)
+		if _, err = dbh.Update(ctx, s.db, boil.Infer()); err != nil {
+			s.logger.Error("Topic details update failed in Db", zap.Error(err))
+		}
+	}
+
 	out, err := models.HiveFromDB(dbh)
 	if err != nil {
 		return models.Hive{}, impart.NewError(impart.ErrUnknown, "unable to convert hives to  dbmodel")

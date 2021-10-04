@@ -350,11 +350,13 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		for i, a := range exitingUserAnswer {
 			answerIds[i] = a.AnswerID
 		}
+		var existingHive *dbmodels.Hive
 		for _, h := range userToUpdate.R.MemberHiveHives {
 			existingHiveId = h.HiveID
 			if h.HiveID == DefaultHiveId {
 				return msg, impart.NewError(impart.ErrBadRequest, "User is already on waitlist.")
 			}
+			existingHive = h
 		}
 		err = userToUpdate.SetMemberHiveHives(ctx, m.db, false, hives...)
 		if err != nil {
@@ -371,6 +373,10 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if err != nil {
 			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
 			m.logger.Error(impartErr.Error())
+		}
+
+		if existingHive.NotificationTopicArn.String != "" {
+			m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToUpdate.ImpartWealthID, existingHive.NotificationTopicArn.String)
 		}
 
 	} else if gpi.Type == impart.AddToAdmin {
@@ -396,9 +402,11 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		hives := dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: gpi.HiveID},
 		}
+		var existingHive *dbmodels.Hive
 		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		for _, h := range userToUpdate.R.MemberHiveHives {
 			existingHiveId = h.HiveID
+			existingHive = h
 			if h.HiveID == gpi.HiveID {
 				return msg, impart.NewError(impart.ErrBadRequest, "User is already on hive.")
 			}
@@ -415,6 +423,19 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		err = m.UpdateHiveUserDemographic(ctx, answerIds, true, gpi.HiveID)
 		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		msg = "User added to hive."
+
+		refToken := impart.GetCtxDeviceToken(ctx)
+		endpointARN, err := m.notificationService.GetEndPointArn(ctx, refToken, "")
+		if err != nil {
+			m.logger.Error("End point ARN finding failed", zap.String("refToken", refToken),
+				zap.Error(err))
+		}
+		if endpointARN != "" && hives[0].NotificationTopicArn.String != "" {
+			m.notificationService.SubscribeTopic(ctx, userToUpdate.ImpartWealthID, hives[0].NotificationTopicArn.String, endpointARN)
+		}
+		if existingHive.NotificationTopicArn.String != "" {
+			m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToUpdate.ImpartWealthID, existingHive.NotificationTopicArn.String)
+		}
 
 		mailChimpParams := &members.UpdateParams{
 			MergeFields: map[string]interface{}{"STATUS": impart.Hive},

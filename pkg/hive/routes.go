@@ -16,12 +16,10 @@ import (
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	authdata "github.com/impartwealthapp/backend/pkg/data/auth"
 	hivedata "github.com/impartwealthapp/backend/pkg/data/hive"
-	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/leebenson/conform"
 	"github.com/otiai10/opengraph/v2"
-	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/zap"
 )
 
@@ -176,11 +174,11 @@ func (hh *hiveHandler) CreateHiveFunc() gin.HandlerFunc {
 				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
 			))
 		}
-		impartErr := ValidateInput(gojsonschema.NewStringLoader(string(b)), types.HiveValidationModel)
-		if impartErr != nil {
-			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
-			return
-		}
+		// impartErr := ValidateInput(gojsonschema.NewStringLoader(string(b)), types.HiveValidationModel)
+		// if impartErr != nil {
+		// 	ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+		// 	return
+		// }
 		hive := models.Hive{}
 		err = json.Unmarshal(b, &hive)
 		if err != nil {

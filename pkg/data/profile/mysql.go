@@ -25,8 +25,9 @@ import (
 var _ Store = &mysqlStore{}
 
 type mysqlStore struct {
-	logger *zap.Logger
-	db     *sql.DB
+	logger              *zap.Logger
+	db                  *sql.DB
+	notificationService impart.NotificationService
 }
 
 func (m *mysqlStore) GetProfile(ctx context.Context, impartWealthId string) (*dbmodels.Profile, error) {
@@ -41,10 +42,11 @@ func (m *mysqlStore) GetProfile(ctx context.Context, impartWealthId string) (*db
 	return out, err
 }
 
-func newMysqlStore(db *sql.DB, logger *zap.Logger) *mysqlStore {
+func newMysqlStore(db *sql.DB, logger *zap.Logger, notificationService impart.NotificationService) *mysqlStore {
 	out := &mysqlStore{
-		db:     db,
-		logger: logger,
+		db:                  db,
+		logger:              logger,
+		notificationService: notificationService,
 	}
 	return out
 }
@@ -860,8 +862,11 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 	updateHivequery := ""
 	existinghiveid := DefaultHiveId
 	userHiveDemoexist := make(map[uint64]map[uint64]int)
+	var existingHive *dbmodels.Hive
+	var newHive *dbmodels.Hive
 	if userUpdate.Type == "addto_hive" {
-		_, err := dbmodels.FindHive(ctx, m.db, userUpdate.HiveID)
+		var err error
+		newHive, err = dbmodels.FindHive(ctx, m.db, userUpdate.HiveID)
 		if err != nil {
 			return userUpdate, err
 		}
@@ -896,6 +901,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 		} else if userUpdate.Type == impart.AddToWaitlist {
 			for _, h := range user.R.MemberHiveHives {
 				existinghiveid = h.HiveID
+				existingHive = h
 			}
 			if existinghiveid == DefaultHiveId {
 				userUpdate.Users[userUpdateposition].Message = "User is already on waitlist."
@@ -911,10 +917,15 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 					}
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
+
+				if existingHive.NotificationTopicArn.String != "" {
+					m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+				}
 			}
 		} else if userUpdate.Type == impart.AddToHive {
 			for _, h := range user.R.MemberHiveHives {
 				existinghiveid = h.HiveID
+				existingHive = h
 			}
 			if existinghiveid == userUpdate.HiveID {
 				userUpdate.Users[userUpdateposition].Message = "User is already on hive."
@@ -927,6 +938,20 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 					userHiveDemoexist[userUpdate.HiveID][uint64(answer.AnswerID)] = userHiveDemoexist[userUpdate.HiveID][uint64(answer.AnswerID)] + 1
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
+
+				refToken := impart.GetCtxDeviceToken(ctx)
+
+				endpointARN, err := m.notificationService.GetEndPointArn(ctx, refToken, "")
+				if err != nil {
+					m.logger.Error("End point ARN finding failed", zap.String("updateuser", user.Email),
+						zap.Error(err))
+				}
+				if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
+					m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
+				}
+				if existingHive.NotificationTopicArn.String != "" {
+					m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+				}
 			}
 		}
 	}

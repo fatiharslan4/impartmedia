@@ -84,7 +84,7 @@ func New(cfg *config.Impart, db *sql.DB, logger *zap.Logger, media media.Storage
 	} else {
 		notificationSvc = impart.NewImpartNotificationService(db, cfg.Env.String(), cfg.Region, cfg.IOSNotificationARN, logger)
 	}
-	profileData := profiledata.NewMySQLStore(db, logger)
+	profileData := profiledata.NewMySQLStore(db, logger, notificationSvc)
 	svc := &service{
 		logger:              logger,
 		db:                  db,

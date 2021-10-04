@@ -161,16 +161,30 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 	}
 
 	//subscribe unsubsribe to topic
-	hiveData, err := ps.GetHive(ctx, uint64(2))
+
+	ctxUser := impart.GetCtxUser(ctx)
+	var hiveId uint64
+	if ctxUser.R.MemberHiveHives != nil {
+		for _, h := range ctxUser.R.MemberHiveHives {
+			hiveId = h.HiveID
+		}
+	}
+	hiveData, err := ps.GetHive(ctx, hiveId)
+
 	if err != nil {
 		return impart.NewError(impart.ErrBadRequest, "unable to read user configurations")
 	}
 	if notifyStatus {
 		if !isAdmin {
-			ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
+			if hiveData.NotificationTopicArn.String != "" {
+				ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
+			}
 		}
 	} else {
-		ps.notificationService.UnsubscribeTopicForDevice(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
+		if hiveData.NotificationTopicArn.String != "" {
+			ps.notificationService.UnsubscribeTopicForDevice(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
+		}
+
 	}
 
 	//there is no mapp entry exists , insert new entry

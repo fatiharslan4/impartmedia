@@ -555,7 +555,13 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
 			return
 		}
-		hiveData, err := ph.profileService.GetHive(ctx, uint64(2))
+		var hiveId uint64
+		if context.R.MemberHiveHives != nil {
+			for _, h := range context.R.MemberHiveHives {
+				hiveId = h.HiveID
+			}
+		}
+		hiveData, err := ph.profileService.GetHive(ctx, hiveId)
 		if err != nil {
 			err := impart.NewError(impart.ErrBadRequest, "unable to read hive data")
 			ctx.JSON(http.StatusNotFound, impart.ErrorResponse(err))
@@ -629,7 +635,9 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 					ph.logger.Error("Error while get enpoint arn", zap.Error(err))
 					return
 				}
-				ph.noticationService.SubscribeTopic(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
+				if hiveData.NotificationTopicArn.String != "" {
+					ph.noticationService.SubscribeTopic(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
+				}
 			}
 
 		}
@@ -639,7 +647,9 @@ func (ph *profileHandler) CreateNotificationConfiguration() gin.HandlerFunc {
 		if !conf.Status {
 			refToken = ""
 			//unsubscribe device from the topic
-			ph.noticationService.UnsubscribeTopicForAllDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String)
+			if hiveData.NotificationTopicArn.String != "" {
+				ph.noticationService.UnsubscribeTopicForAllDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String)
+			}
 		}
 		// update the notificaton status for device this user
 		err = ph.profileService.UpdateExistingNotificationMappData(models.MapArgumentInput{
@@ -701,12 +711,20 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 		}
 		if deviceDetails != nil && deviceDetails.R != nil && len(deviceDetails.R.NotificationDeviceMappings) > 0 {
 			deviceArn = deviceDetails.R.NotificationDeviceMappings[0].NotifyArn
-			hiveData, err := ph.profileService.GetHive(ctx, uint64(2))
+			var hiveId uint64
+			if context.R.MemberHiveHives != nil {
+				for _, h := range context.R.MemberHiveHives {
+					hiveId = h.HiveID
+				}
+			}
+			hiveData, err := ph.profileService.GetHive(ctx, hiveId)
 			if err != nil {
 				ph.logger.Error("Error while get hiveData", zap.Error(err))
 				//return
 			} else {
-				ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, deviceArn)
+				if hiveData.NotificationTopicArn.String != "" {
+					ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, deviceArn)
+				}
 			}
 		}
 

@@ -171,8 +171,8 @@ var PostWhere = struct {
 
 // PostRels is where relationship names are stored.
 var PostRels = struct {
-	Hive          string
 	ImpartWealth  string
+	Hive          string
 	Comments      string
 	PostEdits     string
 	PostFiles     string
@@ -181,8 +181,8 @@ var PostRels = struct {
 	PostUrls      string
 	PostVideos    string
 }{
-	Hive:          "Hive",
 	ImpartWealth:  "ImpartWealth",
+	Hive:          "Hive",
 	Comments:      "Comments",
 	PostEdits:     "PostEdits",
 	PostFiles:     "PostFiles",
@@ -194,8 +194,8 @@ var PostRels = struct {
 
 // postR is where relationships are stored.
 type postR struct {
-	Hive          *Hive             `boil:"Hive" json:"Hive" toml:"Hive" yaml:"Hive"`
 	ImpartWealth  *User             `boil:"ImpartWealth" json:"ImpartWealth" toml:"ImpartWealth" yaml:"ImpartWealth"`
+	Hive          *Hive             `boil:"Hive" json:"Hive" toml:"Hive" yaml:"Hive"`
 	Comments      CommentSlice      `boil:"Comments" json:"Comments" toml:"Comments" yaml:"Comments"`
 	PostEdits     PostEditSlice     `boil:"PostEdits" json:"PostEdits" toml:"PostEdits" yaml:"PostEdits"`
 	PostFiles     PostFileSlice     `boil:"PostFiles" json:"PostFiles" toml:"PostFiles" yaml:"PostFiles"`
@@ -495,21 +495,6 @@ func (q postQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bool,
 	return count > 0, nil
 }
 
-// Hive pointed to by the foreign key.
-func (o *Post) Hive(mods ...qm.QueryMod) hiveQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("`hive_id` = ?", o.HiveID),
-		qmhelper.WhereIsNull("deleted_at"),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	query := Hives(queryMods...)
-	queries.SetFrom(query.Query, "`hive`")
-
-	return query
-}
-
 // ImpartWealth pointed to by the foreign key.
 func (o *Post) ImpartWealth(mods ...qm.QueryMod) userQuery {
 	queryMods := []qm.QueryMod{
@@ -521,6 +506,21 @@ func (o *Post) ImpartWealth(mods ...qm.QueryMod) userQuery {
 
 	query := Users(queryMods...)
 	queries.SetFrom(query.Query, "`user`")
+
+	return query
+}
+
+// Hive pointed to by the foreign key.
+func (o *Post) Hive(mods ...qm.QueryMod) hiveQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("`hive_id` = ?", o.HiveID),
+		qmhelper.WhereIsNull("deleted_at"),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Hives(queryMods...)
+	queries.SetFrom(query.Query, "`hive`")
 
 	return query
 }
@@ -676,111 +676,6 @@ func (o *Post) PostVideos(mods ...qm.QueryMod) postVideoQuery {
 	return query
 }
 
-// LoadHive allows an eager lookup of values, cached into the
-// loaded structs of the objects. This is for an N-1 relationship.
-func (postL) LoadHive(ctx context.Context, e boil.ContextExecutor, singular bool, maybePost interface{}, mods queries.Applicator) error {
-	var slice []*Post
-	var object *Post
-
-	if singular {
-		object = maybePost.(*Post)
-	} else {
-		slice = *maybePost.(*[]*Post)
-	}
-
-	args := make([]interface{}, 0, 1)
-	if singular {
-		if object.R == nil {
-			object.R = &postR{}
-		}
-		args = append(args, object.HiveID)
-
-	} else {
-	Outer:
-		for _, obj := range slice {
-			if obj.R == nil {
-				obj.R = &postR{}
-			}
-
-			for _, a := range args {
-				if a == obj.HiveID {
-					continue Outer
-				}
-			}
-
-			args = append(args, obj.HiveID)
-
-		}
-	}
-
-	if len(args) == 0 {
-		return nil
-	}
-
-	query := NewQuery(
-		qm.From(`hive`),
-		qm.WhereIn(`hive.hive_id in ?`, args...),
-		qmhelper.WhereIsNull(`hive.deleted_at`),
-	)
-	if mods != nil {
-		mods.Apply(query)
-	}
-
-	results, err := query.QueryContext(ctx, e)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load Hive")
-	}
-
-	var resultSlice []*Hive
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice Hive")
-	}
-
-	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results of eager load for hive")
-	}
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for hive")
-	}
-
-	if len(postAfterSelectHooks) != 0 {
-		for _, obj := range resultSlice {
-			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
-				return err
-			}
-		}
-	}
-
-	if len(resultSlice) == 0 {
-		return nil
-	}
-
-	if singular {
-		foreign := resultSlice[0]
-		object.R.Hive = foreign
-		if foreign.R == nil {
-			foreign.R = &hiveR{}
-		}
-		foreign.R.Posts = append(foreign.R.Posts, object)
-		return nil
-	}
-
-	for _, local := range slice {
-		for _, foreign := range resultSlice {
-			if local.HiveID == foreign.HiveID {
-				local.R.Hive = foreign
-				if foreign.R == nil {
-					foreign.R = &hiveR{}
-				}
-				foreign.R.Posts = append(foreign.R.Posts, local)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
 // LoadImpartWealth allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
 func (postL) LoadImpartWealth(ctx context.Context, e boil.ContextExecutor, singular bool, maybePost interface{}, mods queries.Applicator) error {
@@ -878,6 +773,111 @@ func (postL) LoadImpartWealth(ctx context.Context, e boil.ContextExecutor, singu
 					foreign.R = &userR{}
 				}
 				foreign.R.ImpartWealthPosts = append(foreign.R.ImpartWealthPosts, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadHive allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (postL) LoadHive(ctx context.Context, e boil.ContextExecutor, singular bool, maybePost interface{}, mods queries.Applicator) error {
+	var slice []*Post
+	var object *Post
+
+	if singular {
+		object = maybePost.(*Post)
+	} else {
+		slice = *maybePost.(*[]*Post)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &postR{}
+		}
+		args = append(args, object.HiveID)
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &postR{}
+			}
+
+			for _, a := range args {
+				if a == obj.HiveID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.HiveID)
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`hive`),
+		qm.WhereIn(`hive.hive_id in ?`, args...),
+		qmhelper.WhereIsNull(`hive.deleted_at`),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Hive")
+	}
+
+	var resultSlice []*Hive
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Hive")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for hive")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for hive")
+	}
+
+	if len(postAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.Hive = foreign
+		if foreign.R == nil {
+			foreign.R = &hiveR{}
+		}
+		foreign.R.Posts = append(foreign.R.Posts, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if local.HiveID == foreign.HiveID {
+				local.R.Hive = foreign
+				if foreign.R == nil {
+					foreign.R = &hiveR{}
+				}
+				foreign.R.Posts = append(foreign.R.Posts, local)
 				break
 			}
 		}
@@ -1592,53 +1592,6 @@ func (postL) LoadPostVideos(ctx context.Context, e boil.ContextExecutor, singula
 	return nil
 }
 
-// SetHive of the post to the related item.
-// Sets o.R.Hive to related.
-// Adds o to related.R.Posts.
-func (o *Post) SetHive(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Hive) error {
-	var err error
-	if insert {
-		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	}
-
-	updateQuery := fmt.Sprintf(
-		"UPDATE `post` SET %s WHERE %s",
-		strmangle.SetParamNames("`", "`", 0, []string{"hive_id"}),
-		strmangle.WhereClause("`", "`", 0, postPrimaryKeyColumns),
-	)
-	values := []interface{}{related.HiveID, o.PostID}
-
-	if boil.IsDebug(ctx) {
-		writer := boil.DebugWriterFrom(ctx)
-		fmt.Fprintln(writer, updateQuery)
-		fmt.Fprintln(writer, values)
-	}
-	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	o.HiveID = related.HiveID
-	if o.R == nil {
-		o.R = &postR{
-			Hive: related,
-		}
-	} else {
-		o.R.Hive = related
-	}
-
-	if related.R == nil {
-		related.R = &hiveR{
-			Posts: PostSlice{o},
-		}
-	} else {
-		related.R.Posts = append(related.R.Posts, o)
-	}
-
-	return nil
-}
-
 // SetImpartWealth of the post to the related item.
 // Sets o.R.ImpartWealth to related.
 // Adds o to related.R.ImpartWealthPosts.
@@ -1681,6 +1634,53 @@ func (o *Post) SetImpartWealth(ctx context.Context, exec boil.ContextExecutor, i
 		}
 	} else {
 		related.R.ImpartWealthPosts = append(related.R.ImpartWealthPosts, o)
+	}
+
+	return nil
+}
+
+// SetHive of the post to the related item.
+// Sets o.R.Hive to related.
+// Adds o to related.R.Posts.
+func (o *Post) SetHive(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Hive) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE `post` SET %s WHERE %s",
+		strmangle.SetParamNames("`", "`", 0, []string{"hive_id"}),
+		strmangle.WhereClause("`", "`", 0, postPrimaryKeyColumns),
+	)
+	values := []interface{}{related.HiveID, o.PostID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.HiveID = related.HiveID
+	if o.R == nil {
+		o.R = &postR{
+			Hive: related,
+		}
+	} else {
+		o.R.Hive = related
+	}
+
+	if related.R == nil {
+		related.R = &hiveR{
+			Posts: PostSlice{o},
+		}
+	} else {
+		related.R.Posts = append(related.R.Posts, o)
 	}
 
 	return nil

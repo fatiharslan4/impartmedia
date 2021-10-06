@@ -89,6 +89,7 @@ func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmo
 		hive.HiveID = hiveId + 1
 	}
 	if err := hive.Insert(ctx, d.db, boil.Infer()); err != nil {
+		d.logger.Error("Hive creation failed", zap.Error(err))
 		return nil, err
 	}
 	queryFirst := `SET @hive_id = (select max(hive_id) from hive );

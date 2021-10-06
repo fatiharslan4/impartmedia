@@ -216,8 +216,8 @@ func CORS(c *gin.Context) {
 	// Make sure to adjust these headers to your needs
 	// c.Header("Access-Control-Allow-Origin", "https://*.impartwealth.com")
 	// c.Header("Access-Control-Allow-Origin", "http://localhost:3000")
-	c.Header("Access-Control-Allow-Origin", "*")
-	c.Header("Access-Control-Allow-Methods", "*")
+	c.Header("Access-Control-Allow-Origin", "https://*.impartwealth.com")
+	c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PATCH, PUT")
 	c.Header("Access-Control-Allow-Headers", "*")
 	c.Header("Content-Type", "application/json")
 	// Second, we handle the OPTIONS problem

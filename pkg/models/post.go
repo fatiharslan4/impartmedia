@@ -67,6 +67,8 @@ type Post struct {
 	Url                 string           `json:"url,omitempty"`
 	UrlData             PostUrl          `json:"urlData,omitempty"`
 	Hives               []uint64         `json:"hives,omitempty"`
+	FirstName           string           `json:"firstName,omitempty"`
+	LastName            string           `json:"lastName,omitempty"`
 }
 
 type PostVideo struct {
@@ -195,6 +197,8 @@ func PostFromDB(p *dbmodels.Post) Post {
 	}
 	if p.R.ImpartWealth != nil {
 		out.ScreenName = p.R.ImpartWealth.ScreenName
+		out.FirstName = p.R.ImpartWealth.FirstName.String
+		out.LastName = p.R.ImpartWealth.LastName.String
 	}
 	if p.ReviewedAt.Valid {
 		out.ReviewedDatetime = p.ReviewedAt.Time

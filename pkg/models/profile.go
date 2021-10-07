@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 
 	r "github.com/Pallinder/go-randomdata"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -48,6 +49,8 @@ type Profile struct {
 	SuperAdmin            bool            `json:"superAdmin,omitempty"`
 	DeletedByAdmin        bool            `json:"deletedByAdmin,omitempty"`
 	PlaidAccessToken      string          `json:"plaidAccessToken,omitempty"`
+	FirstName             string          `json:"firstName,omitempty" conform:"trim,ucfirst"`
+	LastName              string          `json:"lastName,omitempty" conform:"trim,ucfirst"`
 }
 
 // Attributes for Impart Wealth
@@ -156,6 +159,8 @@ func (p Profile) DBUser() (*dbmodels.User, error) {
 		ScreenName:       p.ScreenName,
 		DeviceToken:      p.DeviceToken,
 		Admin:            false,
+		FirstName:        null.StringFrom(p.FirstName),
+		LastName:         null.StringFrom(p.LastName),
 	}
 	return out, nil
 }
@@ -190,6 +195,8 @@ func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error)
 		SuperAdmin:            u.SuperAdmin,
 		DeletedByAdmin:        u.DeletedByAdmin,
 		PlaidAccessToken:      u.PlaidAccessToken.String,
+		FirstName:             u.FirstName.String,
+		LastName:              u.LastName.String,
 	}
 
 	for i, hive := range u.R.MemberHiveHives {

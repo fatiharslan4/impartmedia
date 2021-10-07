@@ -181,19 +181,20 @@ type Services struct {
 func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services {
 	var err error
 	svcs := &Services{}
-	svcs.ProfileData = profiledata.NewMySQLStore(db, logger)
+
+	if cfg.Env == config.Local {
+		svcs.Notifications = impart.NewNoopNotificationService()
+	} else {
+		svcs.Notifications = impart.NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
+	}
+
+	svcs.ProfileData = profiledata.NewMySQLStore(db, logger, svcs.Notifications)
 	svcs.HiveData = hivedata.NewHiveService(db, logger)
 	// svcs.Plaid = plaid.NewPlaidService(db, logger)
 
 	svcs.Auth, err = auth.NewAuthService(cfg, svcs.ProfileData, logger)
 	if err != nil {
 		logger.Fatal("err creating auth service", zap.Error(err))
-	}
-
-	if cfg.Env == config.Local {
-		svcs.Notifications = impart.NewNoopNotificationService()
-	} else {
-		svcs.Notifications = impart.NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
 	}
 
 	profileValidator, err := cfg.GetProfileSchemaValidator()

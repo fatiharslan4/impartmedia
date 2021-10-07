@@ -3,10 +3,12 @@ package models
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -69,6 +71,7 @@ type Post struct {
 	Hives               []uint64         `json:"hives,omitempty"`
 	FirstName           string           `json:"firstName,omitempty"`
 	LastName            string           `json:"lastName,omitempty"`
+	FullName            string           `json:"FullName,omitempty"`
 }
 
 type PostVideo struct {
@@ -197,8 +200,9 @@ func PostFromDB(p *dbmodels.Post) Post {
 	}
 	if p.R.ImpartWealth != nil {
 		out.ScreenName = p.R.ImpartWealth.ScreenName
-		out.FirstName = p.R.ImpartWealth.FirstName.String
-		out.LastName = p.R.ImpartWealth.LastName.String
+		out.FirstName = strings.Title(p.R.ImpartWealth.FirstName)
+		out.LastName = strings.Title(p.R.ImpartWealth.LastName)
+		out.FirstName = strings.Title(fmt.Sprintf("%s %s", p.R.ImpartWealth.FirstName, p.R.ImpartWealth.LastName))
 	}
 	if p.ReviewedAt.Valid {
 		out.ReviewedDatetime = p.ReviewedAt.Time

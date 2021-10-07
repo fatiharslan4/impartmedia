@@ -133,10 +133,13 @@ func main() {
 		ctx.String(http.StatusOK, "pong")
 	})
 	var v1Route string
+	var v2Route string
 	if cfg.Env == config.Production || cfg.Env == config.Local {
 		v1Route = "v1"
+		v2Route = "v1.1"
 	} else {
 		v1Route = fmt.Sprintf("%s/v1", cfg.Env)
+		v2Route = fmt.Sprintf("%s/v1.1", cfg.Env)
 	}
 	err = mailchimp.SetKey(impart.MailChimpApiKey)
 	if err != nil {
@@ -144,15 +147,10 @@ func main() {
 	}
 
 	v1 := r.Group(v1Route)
+	setRouter(v1, services, logger, db)
 
-	v1.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
-	v1.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
-	v1.Use(services.Auth.DeviceIdentificationHandler()) //context for device identification
-	v1.Use(services.Auth.ClientIdentificationHandler()) //context for client identification
-	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
-
-	hive.SetupRoutes(v1, db, services.HiveData, services.Hive, logger)
-	profile.SetupRoutes(v1, services.ProfileData, services.Profile, logger, services.Notifications, services.Plaid)
+	v2 := r.Group(v2Route)
+	setRouter(v2, services, logger, db)
 
 	server := cfg.GetHttpServer()
 	server.Handler = r
@@ -161,6 +159,17 @@ func main() {
 		logger.Fatal("error serving", zap.Error(err))
 	}
 	logger.Info("done serving")
+}
+
+func setRouter(router *gin.RouterGroup, services *Services, logger *zap.Logger, db *sql.DB) {
+	router.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
+	router.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
+	router.Use(services.Auth.DeviceIdentificationHandler()) //context for device identification
+	router.Use(services.Auth.ClientIdentificationHandler()) //context for client identification
+	router.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
+
+	hive.SetupRoutes(router, db, services.HiveData, services.Hive, logger)
+	profile.SetupRoutes(router, services.ProfileData, services.Profile, logger, services.Notifications, services.Plaid)
 }
 
 func noRouteFunc(ctx *gin.Context) {

@@ -41,8 +41,8 @@ type User struct {
 	SuperAdmin       bool        `boil:"super_admin" json:"super_admin" toml:"super_admin" yaml:"super_admin"`
 	DeletedByAdmin   bool        `boil:"deleted_by_admin" json:"deleted_by_admin" toml:"deleted_by_admin" yaml:"deleted_by_admin"`
 	PlaidAccessToken null.String `boil:"plaid_access_token" json:"plaid_access_token,omitempty" toml:"plaid_access_token" yaml:"plaid_access_token,omitempty"`
-	FirstName        null.String `boil:"first_name" json:"first_name,omitempty" toml:"first_name" yaml:"first_name,omitempty"`
-	LastName         null.String `boil:"last_name" json:"last_name,omitempty" toml:"last_name" yaml:"last_name,omitempty"`
+	FirstName        string      `boil:"first_name" json:"first_name" toml:"first_name" yaml:"first_name"`
+	LastName         string      `boil:"last_name" json:"last_name" toml:"last_name" yaml:"last_name"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -152,8 +152,8 @@ var UserWhere = struct {
 	SuperAdmin       whereHelperbool
 	DeletedByAdmin   whereHelperbool
 	PlaidAccessToken whereHelpernull_String
-	FirstName        whereHelpernull_String
-	LastName         whereHelpernull_String
+	FirstName        whereHelperstring
+	LastName         whereHelperstring
 }{
 	ImpartWealthID:   whereHelperstring{field: "`user`.`impart_wealth_id`"},
 	AuthenticationID: whereHelperstring{field: "`user`.`authentication_id`"},
@@ -172,8 +172,8 @@ var UserWhere = struct {
 	SuperAdmin:       whereHelperbool{field: "`user`.`super_admin`"},
 	DeletedByAdmin:   whereHelperbool{field: "`user`.`deleted_by_admin`"},
 	PlaidAccessToken: whereHelpernull_String{field: "`user`.`plaid_access_token`"},
-	FirstName:        whereHelpernull_String{field: "`user`.`first_name`"},
-	LastName:         whereHelpernull_String{field: "`user`.`last_name`"},
+	FirstName:        whereHelperstring{field: "`user`.`first_name`"},
+	LastName:         whereHelperstring{field: "`user`.`last_name`"},
 }
 
 // UserRels is where relationship names are stored.

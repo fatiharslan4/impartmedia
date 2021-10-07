@@ -1629,6 +1629,7 @@ func (o HiveSlice) UpdateAll(ctx context.Context, exec boil.ContextExecutor, col
 
 var mySQLHiveUniqueColumns = []string{
 	"hive_id",
+	"name",
 }
 
 // Upsert attempts an insert using an executor, and does an update or ignore on conflict.

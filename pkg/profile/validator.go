@@ -18,13 +18,25 @@ import (
 
 var screenNameRegexp = regexp.MustCompile(`[[:alnum:]]+$`)
 
-func (ps *profileService) validateNewProfile(ctx context.Context, p models.Profile) impart.Error {
+func (ps *profileService) validateNewProfile(ctx context.Context, p models.Profile, apiVersion string) impart.Error {
 	var err error
 
 	if _, err = ksuid.Parse(p.ImpartWealthID); err != nil {
 		return impart.NewError(err, "invalid impartWealthId format")
 	}
 
+	if apiVersion == "v1.1" {
+		if len(strings.TrimSpace(p.FirstName)) == 0 {
+			return impart.NewError(impart.ErrBadRequest, string(impart.FirstNameRequired))
+		}
+		if len(strings.TrimSpace(p.LastName)) == 0 {
+			return impart.NewError(impart.ErrBadRequest, string(impart.LastNameRequired))
+		}
+	} else if apiVersion == "v1" {
+		if len(strings.TrimSpace(p.Attributes.Name)) == 0 {
+			return impart.NewError(impart.ErrBadRequest, string(impart.NameRequired))
+		}
+	}
 	// Validate doesn't exist
 	user, err := ps.profileStore.GetUser(ctx, p.ImpartWealthID)
 	if err != nil {

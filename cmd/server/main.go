@@ -214,9 +214,9 @@ func CORS(c *gin.Context) {
 
 	// First, we add the headers with need to enable CORS
 	// Make sure to adjust these headers to your needs
-	c.Header("Access-Control-Allow-Origin", `^https\:\/\/.*impartwealth\.com$`)
+	// c.Header("Access-Control-Allow-Origin", `^https\:\/\/.*impartwealth\.com$`)
 	// c.Header("Access-Control-Allow-Origin", "")
-	// c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Methods", "*")
 	c.Header("Access-Control-Allow-Headers", "*")
 	c.Header("Content-Type", "application/json")

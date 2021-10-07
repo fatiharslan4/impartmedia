@@ -25,7 +25,7 @@ const WaitList = "waitlist"
 // const MailChimpAudienceID = "a5ee0679a7"
 // const MailChimpApiKey = "1abab64c738af33e635e828b6296ba38-us20"
 const MailChimpApiKey = "1abab64c738af33e635e828b6296ba38-us20"
-const MailChimpAudienceID = "3d08ad08c8" //Yvette Finalized Campaign Account
+const MailChimpAudienceID = "a5ee0679a7" //Impartwealth Campaign Account
 
 func GetCtxAuthID(ctx context.Context) string {
 	return ctx.Value(AuthIDRequestContextKey).(string)

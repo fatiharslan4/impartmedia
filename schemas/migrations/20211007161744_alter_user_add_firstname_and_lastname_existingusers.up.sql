@@ -20,6 +20,3 @@ WHEN '' THEN profileData.lastName
 ELSE user.last_name
 END  ;
  
-
-ALTER TABLE user MODIFY  first_name NVARCHAR(200) NOT NULL;
-ALTER TABLE user MODIFY  last_name NVARCHAR(200) NOT NULL;

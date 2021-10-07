@@ -153,6 +153,9 @@ func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive
 	}
 	dbh, err = s.hiveData.NewHive(ctx, dbh)
 	if err != nil {
+		if strings.Contains(err.Error(), "Duplicate") {
+			return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("Hive name already exists - %s", hive.HiveName), impart.HiveID)
+		}
 		return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to create hive %s", hive.HiveName), impart.HiveID)
 	}
 
@@ -194,6 +197,9 @@ func (s *service) EditHive(ctx context.Context, hive models.Hive) (models.Hive, 
 	}
 	dbh, err := s.hiveData.EditHive(ctx, hive)
 	if err != nil {
+		if strings.Contains(err.Error(), "Duplicate") {
+			return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("Hive name already exists - %s", hive.HiveName), impart.HiveID)
+		}
 		return hive, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error when attempting to create hive %s", hive.HiveName))
 	}
 	out, err := models.HiveFromDB(dbh)

@@ -22,7 +22,6 @@
 				},
 				"hiveDescription": {
 					"maxLength": 5000,
-					"minLength": 10,
 					"type": "string"
 				},
 				"hiveDistributions": {

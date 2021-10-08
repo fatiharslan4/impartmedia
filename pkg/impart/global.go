@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"net"
 	"net/http"
+	"net/url"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -89,4 +91,12 @@ func GetCtxClientID(ctx context.Context) string {
 		return val.(string)
 	}
 	return ""
+}
+
+func GetApiVersion(url *url.URL) string {
+	if strings.Contains(url.Path, "v1.1") {
+		return "v1.1"
+	}
+	return "v1"
+
 }

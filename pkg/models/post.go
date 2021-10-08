@@ -202,7 +202,7 @@ func PostFromDB(p *dbmodels.Post) Post {
 		out.ScreenName = p.R.ImpartWealth.ScreenName
 		out.FirstName = strings.Title(p.R.ImpartWealth.FirstName)
 		out.LastName = strings.Title(p.R.ImpartWealth.LastName)
-		out.FirstName = strings.Title(fmt.Sprintf("%s %s", p.R.ImpartWealth.FirstName, p.R.ImpartWealth.LastName))
+		out.FullName = strings.Title(fmt.Sprintf("%s %s", p.R.ImpartWealth.FirstName, p.R.ImpartWealth.LastName))
 	}
 	if p.ReviewedAt.Valid {
 		out.ReviewedDatetime = p.ReviewedAt.Time

@@ -200,6 +200,12 @@ func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data Not
 	}
 	// print()
 	_, err = ns.Publish(input)
+	if err != nil {
+		ns.Logger.Error("push-notification : After publish input",
+			zap.Any("topicARN", topicARN),
+			zap.Error(err),
+		)
+	}
 	return err
 }
 

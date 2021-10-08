@@ -430,11 +430,11 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			m.logger.Error("End point ARN finding failed", zap.String("refToken", refToken),
 				zap.Error(err))
 		}
-		if endpointARN != "" && hives[0].NotificationTopicArn.String != "" {
-			m.notificationService.SubscribeTopic(ctx, userToUpdate.ImpartWealthID, hives[0].NotificationTopicArn.String, endpointARN)
-		}
 		if existingHive.NotificationTopicArn.String != "" {
 			m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToUpdate.ImpartWealthID, existingHive.NotificationTopicArn.String)
+		}
+		if endpointARN != "" && hives[0].NotificationTopicArn.String != "" {
+			m.notificationService.SubscribeTopic(ctx, userToUpdate.ImpartWealthID, hives[0].NotificationTopicArn.String, endpointARN)
 		}
 
 		mailChimpParams := &members.UpdateParams{

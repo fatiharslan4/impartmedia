@@ -175,6 +175,7 @@ func (p Profile) DBUser() (*dbmodels.User, error) {
 		}
 		out.LastName = strings.Trim(out.LastName, " ")
 	}
+	p.FullName = strings.Title(fmt.Sprintf("%s %s", p.FirstName, p.LastName))
 	return out, nil
 }
 

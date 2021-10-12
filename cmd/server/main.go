@@ -122,7 +122,8 @@ func main() {
 	r := gin.New()
 	r.Use(CORS)
 	r.Use(secure.Secure(secure.Options{
-		// AllowedHosts:          []string{"*"},
+		//AllowedHosts:          []string{"*"},
+		// AllowedHosts: []string{"localhost:3000", "ssl.example.com"},
 		//SSLRedirect: true,
 		// SSLHost:               "*",
 		SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
@@ -238,7 +239,17 @@ func CORS(c *gin.Context) {
 	// Make sure to adjust these headers to your needs
 	// c.Header("Access-Control-Allow-Origin", `^https\:\/\/.*impartwealth\.com$`)
 	// c.Header("Access-Control-Allow-Origin", "")
-	c.Header("Access-Control-Allow-Origin", "*")
+	allowedOrigins := []string{"http://localhost:3000", "https://webapp-qa.impartwealth.com", "http://webapp-qa.impartwealth.com", "https://webapp.impartwealth.com", "http://webapp.impartwealth.com", "http://webapp-staging.impartwealth.com", "https://webapp-staging.impartwealth.com"}
+	//   const origin = req.headers.origin;
+	// if (allowedOrigins.includes(origin)) {
+	//    res.setHeader('Access-Control-Allow-Origin', origin);
+	// }
+	for _, v := range allowedOrigins {
+		if v == c.Request.Header["Origin"][0] {
+			c.Header("Access-Control-Allow-Origin", c.Request.Header["Origin"][0])
+		}
+	}
+	// c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Methods", "*")
 	c.Header("Access-Control-Allow-Headers", "*")
 	c.Header("Content-Type", "application/json")

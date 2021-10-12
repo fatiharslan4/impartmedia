@@ -106,13 +106,13 @@ func main() {
 	defer db.Close()
 	defer logger.Sync()
 
-	if err := migrater.BootStrapAdminUsers(db, cfg.Env, logger); err != nil {
-		logger.Fatal("unable to bootstrap user", zap.Error(err))
-	}
+	// if err := migrater.BootStrapAdminUsers(db, cfg.Env, logger); err != nil {
+	// 	logger.Fatal("unable to bootstrap user", zap.Error(err))
+	// }
 
-	if err := migrater.BootStrapTopicHive(db, cfg.Env, logger); err != nil {
-		logger.Fatal("unable to bootstrap user", zap.Error(err))
-	}
+	// if err := migrater.BootStrapTopicHive(db, cfg.Env, logger); err != nil {
+	// 	logger.Fatal("unable to bootstrap user", zap.Error(err))
+	// }
 
 	// initiate global profanity detector
 	impart.InitProfanityDetector(db, logger)

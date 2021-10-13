@@ -238,19 +238,26 @@ func CORS(c *gin.Context) {
 	// First, we add the headers with need to enable CORS
 	// Make sure to adjust these headers to your needs
 	// c.Header("Access-Control-Allow-Origin", `^https\:\/\/.*impartwealth\.com$`)
-	// c.Header("Access-Control-Allow-Origin", "")
-	allowedOrigins := []string{"http://localhost:3000", "https://webapp-qa.impartwealth.com", "http://webapp-qa.impartwealth.com", "https://webapp.impartwealth.com", "http://webapp.impartwealth.com", "http://webapp-staging.impartwealth.com", "https://webapp-staging.impartwealth.com"}
-	//   const origin = req.headers.origin;
-	// if (allowedOrigins.includes(origin)) {
-	//    res.setHeader('Access-Control-Allow-Origin', origin);
+	// // c.Header("Access-Control-Allow-Origin", "")
+	// allowedOrigins := []string{"http://localhost:3000", "https://webapp-qa.impartwealth.com", "http://webapp-qa.impartwealth.com", "https://webapp.impartwealth.com", "http://webapp.impartwealth.com", "http://webapp-staging.impartwealth.com", "https://webapp-staging.impartwealth.com"}
+	// // // // //   const origin = req.headers.origin;
+	// // // // // if (allowedOrigins.includes(origin)) {
+	// // // // //    res.setHeader('Access-Col	ntrol-Allow-Origin', origin);
+	// // // // // }
+	// fmt.Println("the origin is", c.Request.Header["Origin"])
+	// for _, v := range allowedOrigins {
+	// 	if v == c.Request.Header["Origin"][0] {
+	// 		c.Header("Access-Control-Allow-Origin", c.Request.Header["Origin"][0])
+	// 	}
 	// }
-	for _, v := range allowedOrigins {
-		if v == c.Request.Header["Origin"][0] {
-			c.Header("Access-Control-Allow-Origin", c.Request.Header["Origin"][0])
-		}
-	}
-	// c.Header("Access-Control-Allow-Origin", "*")
-	c.Header("Access-Control-Allow-Methods", "*")
+	cfg, _ := config.GetImpart()
+	// if err != nil {
+	// 	logger.Fatal("error parsing config", zap.Error(err))
+	// }
+	fmt.Println("the allow origin are", cfg.AllowOrigin)
+
+	c.Header("Access-Control-Allow-Origin", cfg.AllowOrigin)
+	c.Header("Access-Control-Allow-Methods", "POST,GET,PATCH,PUT,DELETE,OPTION")
 	c.Header("Access-Control-Allow-Headers", "*")
 	c.Header("Content-Type", "application/json")
 	// Second, we handle the OPTIONS problem

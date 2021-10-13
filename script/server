@@ -36,6 +36,7 @@ function setup_env {
   export IMPART_DB_MIGRATION_PASSWORD=supersecretpassword
   export IMPART_DB_USERNAME=impart_crud
   export IMPART_DB_PASSWORD=supersecretpassword
+  export IMPART_ALLOW_ORIGIN="http://localhost:3000"
 }
 
 if [[ $(docker ps -q --filter "name=backend_mysql_1" --filter "health=healthy" | wc -l | xargs) -ne 1 ]]; then

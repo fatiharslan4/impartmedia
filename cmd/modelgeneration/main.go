@@ -26,6 +26,7 @@ var topLevelModels = map[string]interface{}{
 	"ScreenNameValidator":   models.ScreenNameValidator{},
 	"UserDevice":            models.UserDevice{},
 	"BlockUserInput":        models.BlockUserInput{},
+	"HiveRule":              models.HiveRule{},
 }
 
 func main() {

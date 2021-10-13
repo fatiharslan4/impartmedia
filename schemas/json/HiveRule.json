@@ -1,0 +1,46 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"$ref": "#/definitions/HiveRule",
+	"title": "HiveRule",
+	"definitions": {
+		"CriteriaData": {
+			"properties": {
+				"answerID": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"HiveRule": {
+			"required": [
+				"ruleName"
+			],
+			"properties": {
+				"ruleId": {
+					"type": "integer"
+				},
+				"ruleName": {
+					"maxLength": 60,
+					"minLength": 3,
+					"type": "string"
+				},
+				"status": {
+					"type": "boolean"
+				},
+				"criteria": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/CriteriaData"
+					},
+					"type": "array"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	}
+}

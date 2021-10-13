@@ -73,6 +73,9 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	adminRoutes.PATCH("/hives", handler.HiveBulkOperations())
 	adminRoutes.POST("/post", handler.CreatePostForMultipleHiveFunc())
 
+	hiveRulesRoutes := version.Group("/hive-rule")
+	hiveRulesRoutes.POST("/post", handler.CreateHiveulesFunc())
+	hiveRulesRoutes.GET("", handler.GetHiveulesFunc())
 }
 
 // RequestAuthorizationHandler Validates the bearer
@@ -1175,5 +1178,69 @@ func (hh *hiveHandler) CreatePostForMultipleHiveFunc() gin.HandlerFunc {
 		hh.logger.Debug("created post, returning", zap.Any("createdPost", p))
 
 		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Posts Created"})
+	}
+}
+
+func (hh *hiveHandler) CreateHiveulesFunc() gin.HandlerFunc {
+	///
+	/// Creating Hive Rules
+	///
+	return func(ctx *gin.Context) {
+
+		requestBody, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+		// impartErr := ValidateInput(gojsonschema.NewStringLoader(string(b)), types.HiveValidationModel)
+		// if impartErr != nil {
+		// 	ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+		// 	return
+		// }
+		hiveRule := models.HiveRule{}
+		err = json.Unmarshal(requestBody, &hiveRule)
+		if err != nil {
+			hh.logger.Error("Unable to unmarshal JSON Body",
+				zap.Error(err),
+				zap.Any("request", requestBody),
+			)
+		}
+		conform.Strings(&hiveRule)
+
+		// h, Err := hh.hiveService.CreateHive(ctx, hive)
+		// if Err != nil {
+		// 	ctx.JSON(Err.HttpStatus(), impart.ErrorResponse(Err))
+		// 	return
+		// }
+
+		// ctx.JSON(http.StatusOK, h)
+	}
+}
+
+func (hh *hiveHandler) GetHiveulesFunc() gin.HandlerFunc {
+	///
+	/// Get Hive Rules
+	///
+	return func(ctx *gin.Context) {
+		gpi := models.GetHiveInput{}
+		var err error
+		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
+		if err != nil {
+			hh.logger.Error("couldn't parse limit and offset", zap.Error(err))
+			impartErr := impart.NewError(impart.ErrUnknown, "couldn't parse limit and offset")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		hiveRules, nextPage, Err := hh.hiveService.GetHiveRules(ctx, gpi)
+		if Err != nil {
+			ctx.JSON(Err.HttpStatus(), impart.ErrorResponse(Err))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, models.PagedHiveRoleResponse{
+			HiveRules: hiveRules,
+			NextPage:  nextPage,
+		})
 	}
 }

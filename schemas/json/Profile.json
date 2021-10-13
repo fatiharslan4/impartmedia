@@ -152,6 +152,9 @@
 				},
 				"lastName": {
 					"type": "string"
+				},
+				"fullName": {
+					"type": "string"
 				}
 			},
 			"additionalProperties": false,

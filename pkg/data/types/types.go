@@ -26,6 +26,7 @@ var (
 	UserDeviceValidationModel Type = "UserDevice"
 	UserBlockValidationModel  Type = "BlockUserInput"
 	HiveValidationModel       Type = "Hive"
+	HiveRuleValidationModel   Type = "HiveRule"
 )
 
 var (

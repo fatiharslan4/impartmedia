@@ -239,7 +239,7 @@ func CORS(c *gin.Context) {
 	// Make sure to adjust these headers to your needs
 	// c.Header("Access-Control-Allow-Origin", `^https\:\/\/.*impartwealth\.com$`)
 	// c.Header("Access-Control-Allow-Origin", "")
-	allowedOrigins := []string{"http://localhost:3000", "https://webapp-qa.impartwealth.com", "http://webapp-qa.impartwealth.com", "https://webapp.impartwealth.com", "http://webapp.impartwealth.com", "http://webapp-staging.impartwealth.com", "https://webapp-staging.impartwealth.com"}
+	allowedOrigins := []string{`https://webapp-qa.impartwealth.com`, `https://webapp.impartwealth.com`, `https://webapp-staging.impartwealth.com`}
 	// //   const origin = req.headers.origin;
 	// // if (allowedOrigins.includes(origin)) {
 	// //    res.setHeader('Access-Control-Allow-Origin', origin);

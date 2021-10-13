@@ -250,7 +250,7 @@ func CORS(c *gin.Context) {
 		}
 	}
 	// c.Header("Access-Control-Allow-Origin", "*")
-	c.Header("Access-Control-Allow-Methods", "*")
+	c.Header("Access-Control-Allow-Methods", "POST,GET,PATCH,PUT,DELETE,OPTION")
 	c.Header("Access-Control-Allow-Headers", "*")
 	c.Header("Content-Type", "application/json")
 	// Second, we handle the OPTIONS problem

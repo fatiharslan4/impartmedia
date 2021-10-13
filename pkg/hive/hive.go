@@ -2,6 +2,7 @@ package hive
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -10,8 +11,13 @@ import (
 	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+
+	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
+
 	"go.uber.org/zap"
 )
 
@@ -318,4 +324,88 @@ func (s *service) HiveBulkOperations(ctx context.Context, hiveUpdates models.Hiv
 		}
 	}
 	return hiveOutputRslt
+}
+
+func (s *service) CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) (models.HiveRule, impart.Error) {
+
+	ctxUser := impart.GetCtxUser(ctx)
+	if !ctxUser.SuperAdmin {
+		return models.HiveRule{}, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
+	}
+	var answer_ids []uint
+	for _, criteria := range hiveRule.Criteria {
+		answer_ids = append(answer_ids, criteria.AnswerID...)
+		// for _, answer := range criteria.Answers {
+		// 	answer_ids = append(answer_ids, answer.Id)
+		// }
+	}
+	// for _, question := range hiveRule.Question {
+	// 	for _, answer := range question.Answers {
+	// 		answer_ids = append(answer_ids, answer.Id)
+	// 	}
+	// }
+	existHiveCriteria, err := dbmodels.HiveRulesCriteria(
+		qm.GroupBy("rule_id"),
+		dbmodels.HiveRulesCriteriumWhere.AnswerID.IN(answer_ids),
+	).All(ctx, s.db)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleCreationFailed))
+		}
+	}
+	if len(existHiveCriteria) > 0 {
+		return models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleExist))
+	}
+	// rule, err := hiveRule.ToDBModel()
+	// if err != nil {
+	// 	return models.HiveRule{}, impart.NewError(impart.ErrUnknown, "unable to convert hiveRule to  dbmodel")
+	// }
+	// dbh, err = s.hiveData.NewHive(ctx, dbh)
+
+	return models.HiveRule{}, nil
+}
+
+func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (models.HiveRules, *models.NextPage, impart.Error) {
+
+	ctxUser := impart.GetCtxUser(ctx)
+	if !ctxUser.SuperAdmin {
+		return models.HiveRules{}, nil, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
+	}
+
+	outOffset := &models.NextPage{
+		Offset: gpi.Offset,
+	}
+
+	if gpi.Limit <= 0 {
+		gpi.Limit = impart.DefaultLimit
+	} else if gpi.Limit > impart.DefaultLimit {
+		gpi.Limit = impart.MaxLimit
+	}
+	existHiveCriteria, err := dbmodels.HiveRules(
+		Offset(gpi.Offset),
+		Limit(gpi.Limit),
+		OrderBy("rule_id desc"),
+		Load(dbmodels.HiveRuleRels.RuleHiveRulesCriteria, OrderBy("hive_rules_criteria.rule_id asc , hive_rules_criteria.question_id asc")),
+		Load(Rels(dbmodels.HiveRuleRels.RuleHiveRulesCriteria, dbmodels.HiveRulesCriteriumRels.Question, dbmodels.QuestionRels.Answers)),
+		Load(Rels(dbmodels.HiveRuleRels.RuleHiveRulesCriteria, dbmodels.HiveRulesCriteriumRels.Answer)),
+		Load(dbmodels.HiveRuleRels.Hives),
+	).All(ctx, s.db)
+	if err != nil {
+		fmt.Println(err)
+		if err == sql.ErrNoRows {
+			return models.HiveRules{}, nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleNotExist))
+		} else {
+			return models.HiveRules{}, nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleFetchingFailed))
+		}
+	}
+	rule, err := models.HiveRulesFromDB(existHiveCriteria)
+	if err != nil {
+		return models.HiveRules{}, nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuletoDbmodel))
+	}
+	if len(rule) < gpi.Limit {
+		outOffset = nil
+	} else {
+		outOffset.Offset += len(rule)
+	}
+	return rule, outOffset, nil
 }

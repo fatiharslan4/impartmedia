@@ -75,7 +75,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	adminRoutes.PATCH("/hives", handler.HiveBulkOperations())
 	adminRoutes.POST("/post", handler.CreatePostForMultipleHiveFunc())
 
-	hiveRulesRoutes := version.Group("/hive-rule")
+	hiveRulesRoutes := version.Group("/hive/rules")
 	hiveRulesRoutes.POST("", handler.CreateHiveulesFunc())
 	hiveRulesRoutes.GET("", handler.GetHiveulesFunc())
 }

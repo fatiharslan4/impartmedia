@@ -391,8 +391,11 @@ func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (mo
 	} else if gpi.Limit > impart.DefaultLimit {
 		gpi.Limit = impart.MaxLimit
 	}
+	sortby := gpi.SortBy
 	if gpi.SortBy == "income" {
 		gpi.SortBy = "sortorder"
+	} else if gpi.SortBy == "rule_id" {
+		gpi.SortBy = "hive_rules.rule_id"
 	}
 	var ruleList models.HiveRuleLists
 	inputQuery := fmt.Sprintf(`SELECT hive_rules.rule_id,
@@ -516,8 +519,9 @@ func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (mo
 	}
 	inputQuery = fmt.Sprintf("%s LIMIT %d OFFSET %d", inputQuery, gpi.Limit, gpi.Offset)
 	if gpi.SortBy != "" {
-		inputQuery = fmt.Sprintf("Select * from (%s) output order by   ISNULL(%s)  ", inputQuery, gpi.SortBy)
+		inputQuery = fmt.Sprintf("Select * from (%s) output order by   ISNULL(%s)  ", inputQuery, sortby)
 	}
+	fmt.Println(inputQuery)
 	err := queries.Raw(inputQuery).Bind(ctx, s.db, &ruleList)
 	if err != nil {
 		return models.HiveRuleLists{}, nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleFetchingFailed))

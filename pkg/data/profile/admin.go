@@ -576,6 +576,8 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		}
 		userDatas[i] = *userData
 	}
+	m.logger.Info("User list created")
+
 	userOutput.Users = userDatas
 	userOutputRslt := &userOutput
 
@@ -583,10 +585,12 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	if err != nil {
 		return userOutputRslt
 	}
+	m.logger.Info("User get completed")
 	userOutputs, impartErr := m.UpdateBulkUserProfile(ctx, updateUsers, false, userOutputRslt)
 	if impartErr != nil {
 		return userOutputRslt
 	}
+	m.logger.Info("update get completed")
 	lenUser := len(userOutputRslt.Users)
 	status := ""
 	if userOutputRslt.Type == impart.AddToWaitlist {
@@ -594,11 +598,13 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	} else if userOutputRslt.Type == impart.AddToHive {
 		status = impart.Hive
 	}
+	m.logger.Info("status updated")
 	for _, user := range updateUsers {
 		for cnt := 0; cnt < lenUser; cnt++ {
 			if userOutputs.Users[cnt].ImpartWealthID == user.ImpartWealthID && userOutputs.Users[cnt].Value == 1 {
 				userOutputs.Users[cnt].Message = "User updated."
 				userOutputs.Users[cnt].Status = true
+				m.logger.Info("User status updating", zap.String("impartWealthID", user.ImpartWealthID))
 				break
 			}
 		}
@@ -608,11 +614,13 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 			}
 			_, err = members.Update(impart.MailChimpAudienceID, user.Email, mailChimpParams)
 			if err != nil {
+				m.logger.Info("mailchimp failed")
 				m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
 					zap.Error(err))
 			}
 		}
 	}
+	m.logger.Info("all process completed")
 	return userOutputs
 }
 

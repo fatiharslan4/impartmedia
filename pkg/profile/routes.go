@@ -181,6 +181,7 @@ func (ph *profileHandler) CreateProfileFunc() gin.HandlerFunc {
 			))
 		}
 
+		apiVersion := impart.GetApiVersion(ctx.Request.URL)
 		impartErrl := ph.profileService.ValidateSchema(gojsonschema.NewStringLoader(string(b)))
 		if impartErrl != nil {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
@@ -194,7 +195,7 @@ func (ph *profileHandler) CreateProfileFunc() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-		p, impartErr := ph.profileService.NewProfile(ctx, p)
+		p, impartErr := ph.profileService.NewProfile(ctx, p, apiVersion)
 		if impartErr != nil {
 			ph.logger.Error(impartErr.Error())
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))

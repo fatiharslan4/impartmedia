@@ -27,6 +27,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/profile"
+	"github.com/impartwealthapp/backend/pkg/secure"
 	"github.com/impartwealthapp/backend/pkg/tags"
 	"github.com/ory/graceful"
 	"go.uber.org/zap"
@@ -109,9 +110,9 @@ func main() {
 	// 	logger.Fatal("unable to bootstrap user", zap.Error(err))
 	// }
 
-	if err := migrater.BootStrapTopicHive(db, cfg.Env, logger); err != nil {
-		logger.Fatal("unable to bootstrap user", zap.Error(err))
-	}
+	// if err := migrater.BootStrapTopicHive(db, cfg.Env, logger); err != nil {
+	// 	logger.Fatal("unable to bootstrap user", zap.Error(err))
+	// }
 
 	// initiate global profanity detector
 	impart.InitProfanityDetector(db, logger)
@@ -120,6 +121,19 @@ func main() {
 
 	r := gin.New()
 	r.Use(CORS)
+	r.Use(secure.Secure(secure.Options{
+		//AllowedHosts:          []string{"*"},
+		// AllowedHosts: []string{"localhost:3000", "ssl.example.com"},
+		//SSLRedirect: true,
+		// SSLHost:               "*",
+		SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
+		STSSeconds:            315360000,
+		STSIncludeSubdomains:  true,
+		FrameDeny:             true,
+		ContentTypeNosniff:    true,
+		BrowserXssFilter:      true,
+		ContentSecurityPolicy: "default-src 'self'",
+	}))
 	r.RedirectTrailingSlash = true
 	r.Use(ginzap.RecoveryWithZap(logger, true))      // panics don't stop server
 	r.Use(ginzap.Ginzap(logger, time.RFC3339, true)) // logs all requests
@@ -133,10 +147,13 @@ func main() {
 		ctx.String(http.StatusOK, "pong")
 	})
 	var v1Route string
+	var v2Route string
 	if cfg.Env == config.Production || cfg.Env == config.Local {
 		v1Route = "v1"
+		v2Route = "v1.1"
 	} else {
 		v1Route = fmt.Sprintf("%s/v1", cfg.Env)
+		v2Route = fmt.Sprintf("%s/v1.1", cfg.Env)
 	}
 	err = mailchimp.SetKey(impart.MailChimpApiKey)
 	if err != nil {
@@ -144,15 +161,10 @@ func main() {
 	}
 
 	v1 := r.Group(v1Route)
+	setRouter(v1, services, logger, db)
 
-	v1.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
-	v1.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
-	v1.Use(services.Auth.DeviceIdentificationHandler()) //context for device identification
-	v1.Use(services.Auth.ClientIdentificationHandler()) //context for client identification
-	v1.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
-
-	hive.SetupRoutes(v1, db, services.HiveData, services.Hive, logger)
-	profile.SetupRoutes(v1, services.ProfileData, services.Profile, logger, services.Notifications, services.Plaid)
+	v2 := r.Group(v2Route)
+	setRouter(v2, services, logger, db)
 
 	server := cfg.GetHttpServer()
 	server.Handler = r
@@ -161,6 +173,17 @@ func main() {
 		logger.Fatal("error serving", zap.Error(err))
 	}
 	logger.Info("done serving")
+}
+
+func setRouter(router *gin.RouterGroup, services *Services, logger *zap.Logger, db *sql.DB) {
+	router.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
+	router.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
+	router.Use(services.Auth.DeviceIdentificationHandler()) //context for device identification
+	router.Use(services.Auth.ClientIdentificationHandler()) //context for client identification
+	router.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
+
+	hive.SetupRoutes(router, db, services.HiveData, services.Hive, logger)
+	profile.SetupRoutes(router, services.ProfileData, services.Profile, logger, services.Notifications, services.Plaid)
 }
 
 func noRouteFunc(ctx *gin.Context) {
@@ -214,10 +237,27 @@ func CORS(c *gin.Context) {
 
 	// First, we add the headers with need to enable CORS
 	// Make sure to adjust these headers to your needs
-	// c.Header("Access-Control-Allow-Origin", "https://*.impartwealth.com")
-	// c.Header("Access-Control-Allow-Origin", "http://localhost:3000")
-	c.Header("Access-Control-Allow-Origin", "*")
-	c.Header("Access-Control-Allow-Methods", "*")
+	// c.Header("Access-Control-Allow-Origin", `^https\:\/\/.*impartwealth\.com$`)
+	// // c.Header("Access-Control-Allow-Origin", "")
+	// allowedOrigins := []string{"http://localhost:3000", "https://webapp-qa.impartwealth.com", "http://webapp-qa.impartwealth.com", "https://webapp.impartwealth.com", "http://webapp.impartwealth.com", "http://webapp-staging.impartwealth.com", "https://webapp-staging.impartwealth.com"}
+	// // // // //   const origin = req.headers.origin;
+	// // // // // if (allowedOrigins.includes(origin)) {
+	// // // // //    res.setHeader('Access-Col	ntrol-Allow-Origin', origin);
+	// // // // // }
+	// fmt.Println("the origin is", c.Request.Header["Origin"])
+	// for _, v := range allowedOrigins {
+	// 	if v == c.Request.Header["Origin"][0] {
+	// 		c.Header("Access-Control-Allow-Origin", c.Request.Header["Origin"][0])
+	// 	}
+	// }
+	cfg, _ := config.GetImpart()
+	// if err != nil {
+	// 	logger.Fatal("error parsing config", zap.Error(err))
+	// }
+	fmt.Println("the allow origin are", cfg.AllowOrigin)
+
+	c.Header("Access-Control-Allow-Origin", cfg.AllowOrigin)
+	c.Header("Access-Control-Allow-Methods", "POST,GET,PATCH,PUT,DELETE,OPTION")
 	c.Header("Access-Control-Allow-Headers", "*")
 	c.Header("Content-Type", "application/json")
 	// Second, we handle the OPTIONS problem

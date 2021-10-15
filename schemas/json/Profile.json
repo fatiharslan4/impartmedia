@@ -146,6 +146,12 @@
 				},
 				"plaidAccessToken": {
 					"type": "string"
+				},
+				"firstName": {
+					"type": "string"
+				},
+				"lastName": {
+					"type": "string"
 				}
 			},
 			"additionalProperties": false,

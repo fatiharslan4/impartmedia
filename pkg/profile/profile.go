@@ -21,7 +21,7 @@ import (
 
 type Service interface {
 	QuestionnaireService
-	NewProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
+	NewProfile(ctx context.Context, p models.Profile, apiVersion string) (models.Profile, impart.Error)
 	GetProfile(ctx context.Context, getProfileInput GetProfileInput) (models.Profile, impart.Error)
 	UpdateProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
 	DeleteProfile(ctx context.Context, impartWealthID string, hardtDelete bool, deleteUser models.DeleteUserInput) impart.Error
@@ -124,7 +124,7 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 	return nil
 }
 
-func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error) {
+func (ps *profileService) NewProfile(ctx context.Context, p models.Profile, apiVersion string) (models.Profile, impart.Error) {
 	var empty models.Profile
 	var err error
 	var deviceToken string
@@ -137,6 +137,7 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	// check device token provided
 	//  check the device token is provided with either
 	// input deviceToken / with userDevices
+
 	deviceToken = p.DeviceToken
 	if (len(p.UserDevices) > 0 && p.UserDevices[0] != models.UserDevice{}) {
 		deviceToken = p.UserDevices[0].DeviceID
@@ -176,7 +177,7 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 		return empty, impart.NewError(impart.ErrUnknown, "unable to create profile; unknown state")
 	}
 
-	if impartErr := ps.validateNewProfile(ctx, p); impartErr != nil {
+	if impartErr := ps.validateNewProfile(ctx, p, apiVersion); impartErr != nil {
 		return empty, impartErr
 	}
 

@@ -392,7 +392,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 		msg = "User role changed to admin."
 	} else if gpi.Type == impart.AddToHive {
-		_, err := dbmodels.FindHive(ctx, m.db, gpi.HiveID)
+		nwHive, err := dbmodels.FindHive(ctx, m.db, gpi.HiveID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return msg, impart.NewError(impart.ErrNotFound, "Could not find the hive.")
@@ -424,17 +424,25 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		msg = "User added to hive."
 
-		refToken := impart.GetCtxDeviceToken(ctx)
-		endpointARN, err := m.notificationService.GetEndPointArn(ctx, refToken, "")
-		if err != nil {
-			m.logger.Error("End point ARN finding failed", zap.String("refToken", refToken),
-				zap.Error(err))
-		}
-		if endpointARN != "" && hives[0].NotificationTopicArn.String != "" {
-			m.notificationService.SubscribeTopic(ctx, userToUpdate.ImpartWealthID, hives[0].NotificationTopicArn.String, endpointARN)
-		}
 		if existingHive.NotificationTopicArn.String != "" {
 			m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToUpdate.ImpartWealthID, existingHive.NotificationTopicArn.String)
+		}
+
+		deviceDetails, devErr := m.GetUserDevices(ctx, "", userToUpdate.ImpartWealthID, "")
+		if devErr != nil {
+			m.logger.Error("unable to find device", zap.Error(err))
+		}
+		if len(deviceDetails) > 0 {
+			for _, device := range deviceDetails {
+				endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+				if err != nil {
+					m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+						zap.Error(err))
+				}
+				if endpointARN != "" && nwHive.NotificationTopicArn.String != "" {
+					m.notificationService.SubscribeTopic(ctx, userToUpdate.ImpartWealthID, nwHive.NotificationTopicArn.String, endpointARN)
+				}
+			}
 		}
 
 		mailChimpParams := &members.UpdateParams{

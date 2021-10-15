@@ -58,6 +58,7 @@ type Impart struct {
 	DBMigrationPassword string            `split_words:"true"`
 	SentryDSN           string            `split_words:"true"`
 	Media               map[string]string `split_words:"true"`
+	AllowOrigin         string            `split_words:"true"`
 }
 
 func GetImpart() (*Impart, error) {

@@ -270,3 +270,138 @@ func (h Hive) ToDBModel() (*dbmodels.Hive, error) {
 	}
 	return dbh, nil
 }
+
+type HiveRules []HiveRule
+type HiveRule struct {
+	RuleID    uint64         `json:"ruleId,omitempty"`
+	RuleName  string         `json:"ruleName" conform:"trim,omitempty,ucfirst" jsonschema:"minLength=3,maxLength=60"`
+	Status    bool           `json:"status,omitempty"`
+	Limit     int64          `json:"limit,omitempty"`
+	UserCount int64          `json:"userCount,omitempty"`
+	Question  []Question     `json:"questions,omitempty"`
+	Criteria  []CriteriaData `json:"criteria,omitempty"`
+	Hive      []Hive         `json:"hive,omitempty"`
+}
+
+type CriteriaData struct {
+	AnswerID []uint `json:"answerID,omitempty"`
+}
+
+func (hiverule HiveRule) ToDBModel() (*dbmodels.HiveRule, error) {
+	rule := &dbmodels.HiveRule{
+		Name:     hiverule.RuleName,
+		Status:   hiverule.Status,
+		MaxLimit: int64(hiverule.Limit),
+	}
+	return rule, nil
+}
+
+func HiveRulesFromDB(dbHiveRules dbmodels.HiveRuleSlice) (HiveRules, error) {
+	out := make(HiveRules, len(dbHiveRules), len(dbHiveRules))
+	for pos, dbh := range dbHiveRules {
+		hive, err := HiveRuleFromDB(dbh)
+		if err != nil {
+			return out, err
+		}
+		out[pos] = *hive
+	}
+	return out, nil
+}
+
+func HiveRuleFromDB(dbHive *dbmodels.HiveRule) (*HiveRule, error) {
+	out := HiveRule{
+		RuleID:    dbHive.RuleID,
+		RuleName:  dbHive.Name,
+		UserCount: dbHive.NoOfUsers,
+		Limit:     dbHive.MaxLimit,
+	}
+	if dbHive.R.Hives != nil {
+		hives := make(Hives, len(dbHive.R.Hives))
+		for pos, hive := range dbHive.R.Hives {
+			outhive := Hive{
+				HiveID:   hive.HiveID,
+				HiveName: hive.Name,
+			}
+			hives[pos] = outhive
+		}
+		out.Hive = hives
+	}
+	if dbHive.R.RuleHiveRulesCriteria != nil {
+		var questions []Question
+		var answer []Answer
+		var questionId uint
+		outhiveQuestion := Question{}
+
+		for _, hive := range dbHive.R.RuleHiveRulesCriteria {
+			if questionId == hive.QuestionID {
+				continue
+			}
+			answer = nil
+			outhiveQuestion = Question{
+				Id:           hive.QuestionID,
+				Name:         hive.R.Question.QuestionName,
+				QuestionText: hive.R.Question.Text,
+			}
+			for _, ansr := range dbHive.R.RuleHiveRulesCriteria {
+				if ansr.QuestionID == hive.QuestionID {
+					ans := Answer{
+						Id:   ansr.R.Answer.AnswerID,
+						Name: ansr.R.Answer.AnswerName,
+					}
+					answer = append(answer, ans)
+					outhiveQuestion.Answers = answer
+				}
+			}
+			questions = append(questions, outhiveQuestion)
+			questionId = hive.QuestionID
+		}
+		out.Question = questions
+	}
+
+	return &out, nil
+}
+
+type PagedHiveRoleResponse struct {
+	HiveRules HiveRuleLists `json:"hiveRules"`
+	NextPage  *NextPage     `json:"nextPage"`
+}
+
+type GetHiveInput struct {
+	// Limit is the maximum number of records that should be returns.  The API can optionally return
+	// less than Limit, if DynamoDB decides the items read were too large.
+	Limit     int
+	Offset    int
+	SortBy    string
+	SortOrder string
+}
+
+func HiveRuleDBToModel(hiverule *dbmodels.HiveRule) (*HiveRule, error) {
+	rule := &HiveRule{
+		RuleID:   hiverule.RuleID,
+		RuleName: hiverule.Name,
+		Status:   hiverule.Status,
+		Limit:    hiverule.MaxLimit,
+	}
+	return rule, nil
+}
+
+type HiveRuleLists []HiveRuleList
+type HiveRuleList struct {
+	RuleId           uint64 `json:"rule_id"`
+	Name             string `json:"name"`
+	MaxLimit         int    `json:"max_limit" `
+	NoOfUsers        int    `json:"no_of_users" `
+	Status           bool   `json:"status" `
+	HiveId           string `json:"hive_id" `
+	HiveName         string `json:"hive_name" `
+	Household        string `json:"household" `
+	Dependents       string `json:"dependents" `
+	Generation       string `json:"generation" `
+	Gender           string `json:"gender" `
+	Race             string `json:"race" `
+	Financialgoals   string `json:"financialgoals" `
+	Industry         string `json:"industry"`
+	Career           string `json:"career"`
+	Income           string `json:"income"`
+	EmploymentStatus string `json:"employment_status"`
+}

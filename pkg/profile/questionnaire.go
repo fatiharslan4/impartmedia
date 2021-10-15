@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -11,6 +12,9 @@ import (
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
 
@@ -122,7 +126,7 @@ func (ps *profileService) SaveQuestionnaire(ctx context.Context, questionnaire m
 	}
 
 	if questionnaire.Name == "onboarding" {
-		hivetype, err := ps.AssignHives(ctx, questionnaire)
+		hivetype, err := ps.AssignHives(ctx, questionnaire, answers)
 		if err != nil {
 			return false, err
 		} else {
@@ -243,7 +247,7 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 	return nil
 }
 
-func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.Questionnaire) (bool, impart.Error) {
+func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.Questionnaire, answer dbmodels.UserAnswerSlice) (bool, impart.Error) {
 	hives := dbmodels.HiveSlice{
 		&dbmodels.Hive{HiveID: DefaultHiveId},
 	}
@@ -260,6 +264,12 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		// 	&dbmodels.Hive{HiveID: *id},
 		// }
 	}
+	if hiveId := ps.isAssignHiveRule(ctx, questionnaire, answer); hiveId != nil {
+		hives = dbmodels.HiveSlice{
+			&dbmodels.Hive{HiveID: *hiveId},
+		}
+	}
+
 	err := ctxUser.SetMemberHiveHives(ctx, ps.db, false, hives...)
 	if err != nil {
 		ps.Logger().Error("error setting member hives", zap.Error(err))
@@ -323,4 +333,126 @@ func (ps *profileService) GetMakeUp(ctx context.Context) (interface{}, impart.Er
 		return nil, impart.NewError(impart.ErrUnknown, "unable to fetch the details")
 	}
 	return result, nil
+}
+
+func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire models.Questionnaire, answer dbmodels.UserAnswerSlice) *uint64 {
+	var answer_ids_str []string
+	for _, userAns := range answer {
+		answer_ids_str = append(answer_ids_str, strconv.Itoa(int(userAns.AnswerID)))
+	}
+	var ruleId uint64
+	// _, ruleId = hiveFun.CheckHiveRuleExist(ctx, answer_ids_str, ps.db, true)
+	existingRules := FindTheMatchingRules(ctx, answer_ids_str, ps.db)
+	if existingRules != nil {
+		min := existingRules[0]
+		for _, v := range existingRules {
+			if v > min {
+				min = v
+			}
+		}
+		ruleId = uint64(min)
+	}
+	if ruleId == 0 {
+		// no rule exist for the selection
+		return nil
+	}
+	if ruleId > 0 {
+		existHiveRule, _ := dbmodels.HiveRules(dbmodels.HiveRuleWhere.RuleID.EQ(ruleId),
+			Load(dbmodels.HiveRuleRels.Hives)).One(ctx, ps.db)
+
+		createNewhive := false
+		if existHiveRule != nil {
+			fmt.Println(existHiveRule.MaxLimit)
+			fmt.Println(existHiveRule.NoOfUsers)
+			fmt.Println(existHiveRule.Status)
+			if existHiveRule.MaxLimit > existHiveRule.NoOfUsers && existHiveRule.Status {
+				if existHiveRule.R.Hives != nil {
+					fmt.Println("--------")
+					// // we can add users into the existng hive
+					hive := existHiveRule.R.Hives[0]
+					existHiveRule.NoOfUsers = existHiveRule.NoOfUsers + 1
+					_, _ = existHiveRule.Update(ctx, ps.db, boil.Infer())
+					return &hive.HiveID
+				} else {
+					createNewhive = true
+				}
+			} else if ((existHiveRule.MaxLimit == existHiveRule.NoOfUsers) || (existHiveRule.MaxLimit < existHiveRule.NoOfUsers)) && existHiveRule.Status {
+				createNewhive = true
+			}
+			if createNewhive {
+				incment_hive_ID := (existHiveRule.NoOfUsers / existHiveRule.MaxLimit) + 1
+				hiveName := fmt.Sprintf("Rule %s-Hive %s", existHiveRule.Name, strconv.Itoa(int(incment_hive_ID)))
+				hive, _ := ps.hiveData.GetHivebyField(ctx, hiveName)
+				var hive_id uint64
+				if hive == nil {
+					hives := models.Hive{HiveName: hiveName}
+					hives, err := ps.hiveData.CreateHive(ctx, hives)
+					if err != nil {
+						ps.Logger().Error("New hive creation failed", zap.String("hive", hiveName),
+							zap.Error(err))
+					}
+					hive_id = hives.HiveID
+				} else {
+					hive_id = hive.HiveID
+				}
+				if hive_id > 0 {
+					newHive := &dbmodels.Hive{HiveID: hive_id}
+					errHive := existHiveRule.AddHives(ctx, ps.db, false, newHive)
+					if errHive != nil {
+						ps.Logger().Error("New hive rule map failed", zap.String("hive", hiveName),
+							zap.Error(errHive))
+					}
+					existHiveRule.NoOfUsers = existHiveRule.NoOfUsers + 1
+					_, _ = existHiveRule.Update(ctx, ps.db, boil.Infer())
+					return &newHive.HiveID
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func FindTheMatchingRules(ctx context.Context, answer_ids_str []string, db *sql.DB) []uint {
+	type existCriteria struct {
+		RuleId   uint64 `json:"rule_id"`
+		AnswerId string `json:"answer_id"  `
+	}
+	var existCriterias []existCriteria
+	err := queries.Raw(`SELECT rule_id,GROUP_CONCAT(answer_id)  as answer_id FROM hive_rules_criteria
+	group by rule_id;
+	`).Bind(ctx, db, &existCriterias)
+
+	if err != nil {
+		return nil
+	}
+
+	var dbRules []uint
+	found := false
+	for _, criteria := range existCriterias {
+		stringSlice := strings.Split(criteria.AnswerId, ",")
+		found = false
+		lenfound := 0
+		for _, newcriteria := range answer_ids_str {
+			for _, exist := range stringSlice {
+				if exist == newcriteria {
+					found = true
+					break
+				} else {
+					found = false
+				}
+			}
+			if !found {
+				break
+			}
+			if found {
+				lenfound = lenfound + 1
+				found = false
+			}
+		}
+		if len(answer_ids_str) == lenfound {
+			dbRules = append(dbRules, uint(criteria.RuleId))
+		}
+
+	}
+	return dbRules
 }

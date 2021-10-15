@@ -56,6 +56,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 						ELSE  user.lastlogin_at END as lastlogin_at ,
 					user.admin,
 					user.super_admin,
+					hivedata.hive as list,
 					COUNT(post.post_id) as post,
 					CASE WHEN hivedata.hives IS NULL THEN 'N.A' 
 								ELSE hivedata.hives END AS hive_id,
@@ -86,7 +87,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 
 					
 					LEFT JOIN (
-					SELECT user.impart_wealth_id,GROUP_CONCAT(member_hive_id)  as hives
+					SELECT user.impart_wealth_id,GROUP_CONCAT(member_hive_id)  as hives,member_hive_id as hive
 					FROM hive_members
 					join user on user.impart_wealth_id =hive_members.member_impart_wealth_id
 					GROUP BY user.impart_wealth_id 
@@ -194,10 +195,12 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	}
 	if gpi.SortBy == "created_at" {
 		gpi.SortBy = "user.created_at"
-	}
-	if gpi.SortBy == "income" {
+	} else if gpi.SortBy == "income" {
 		gpi.SortBy = "sortorder"
 		sortBy = "sortorder"
+	} else if gpi.SortBy == "waitlist" {
+		gpi.SortBy = "list"
+		sortBy = "list"
 	}
 	orderby := ""
 	if isSort {

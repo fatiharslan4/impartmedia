@@ -939,18 +939,25 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
 
-				refToken := impart.GetCtxDeviceToken(ctx)
-
-				endpointARN, err := m.notificationService.GetEndPointArn(ctx, refToken, "")
-				if err != nil {
-					m.logger.Error("End point ARN finding failed", zap.String("updateuser", user.Email),
-						zap.Error(err))
-				}
-				if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
-					m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
-				}
 				if existingHive.NotificationTopicArn.String != "" {
 					m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+				}
+
+				deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
+				if devErr != nil {
+					m.logger.Error("unable to find device", zap.Error(err))
+				}
+				if len(deviceDetails) > 0 {
+					for _, device := range deviceDetails {
+						endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+						if err != nil {
+							m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+								zap.Error(err))
+						}
+						if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
+							m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
+						}
+					}
 				}
 			}
 		}
@@ -1050,4 +1057,34 @@ func (m *mysqlStore) GetUserAnswer(ctx context.Context, impartWealthId string) (
 		}
 	}
 	return userAnswers, nil
+}
+
+//  GetUserDevice : Get the user device
+func (m *mysqlStore) GetUserDevices(ctx context.Context, token string, impartID string, deviceToken string) (dbmodels.UserDeviceSlice, error) {
+	where := []QueryMod{}
+	if impartID != "" {
+		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.ImpartWealthID), impartID))
+	}
+	if token != "" {
+		where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.Token), token))
+	}
+	if deviceToken != "" {
+		if deviceToken == "__NILL__" {
+			where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceToken), ""))
+		} else {
+			where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceToken), deviceToken))
+		}
+	}
+
+	where = append(where, Load(dbmodels.UserDeviceRels.ImpartWealth))
+	where = append(where, Load(dbmodels.UserDeviceRels.NotificationDeviceMappings))
+
+	device, err := dbmodels.UserDevices(where...).All(ctx, m.db)
+	if err == sql.ErrNoRows {
+		return nil, impart.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return device, err
 }

@@ -417,6 +417,21 @@ type FakeHiveService struct {
 		result1 *dbmodels.Hive
 		result2 error
 	}
+	NewHiveRuleStub        func(context.Context, *dbmodels.HiveRule, dbmodels.HiveRulesCriteriumSlice) (*dbmodels.HiveRule, error)
+	newHiveRuleMutex       sync.RWMutex
+	newHiveRuleArgsForCall []struct {
+		arg1 context.Context
+		arg2 *dbmodels.HiveRule
+		arg3 dbmodels.HiveRulesCriteriumSlice
+	}
+	newHiveRuleReturns struct {
+		result1 *dbmodels.HiveRule
+		result2 error
+	}
+	newHiveRuleReturnsOnCall map[int]struct {
+		result1 *dbmodels.HiveRule
+		result2 error
+	}
 	NewPostStub        func(context.Context, *dbmodels.Post, dbmodels.TagSlice) (*dbmodels.Post, error)
 	newPostMutex       sync.RWMutex
 	newPostArgsForCall []struct {
@@ -2436,6 +2451,72 @@ func (fake *FakeHiveService) NewHiveReturnsOnCall(i int, result1 *dbmodels.Hive,
 	}{result1, result2}
 }
 
+func (fake *FakeHiveService) NewHiveRule(arg1 context.Context, arg2 *dbmodels.HiveRule, arg3 dbmodels.HiveRulesCriteriumSlice) (*dbmodels.HiveRule, error) {
+	fake.newHiveRuleMutex.Lock()
+	ret, specificReturn := fake.newHiveRuleReturnsOnCall[len(fake.newHiveRuleArgsForCall)]
+	fake.newHiveRuleArgsForCall = append(fake.newHiveRuleArgsForCall, struct {
+		arg1 context.Context
+		arg2 *dbmodels.HiveRule
+		arg3 dbmodels.HiveRulesCriteriumSlice
+	}{arg1, arg2, arg3})
+	stub := fake.NewHiveRuleStub
+	fakeReturns := fake.newHiveRuleReturns
+	fake.recordInvocation("NewHiveRule", []interface{}{arg1, arg2, arg3})
+	fake.newHiveRuleMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeHiveService) NewHiveRuleCallCount() int {
+	fake.newHiveRuleMutex.RLock()
+	defer fake.newHiveRuleMutex.RUnlock()
+	return len(fake.newHiveRuleArgsForCall)
+}
+
+func (fake *FakeHiveService) NewHiveRuleCalls(stub func(context.Context, *dbmodels.HiveRule, dbmodels.HiveRulesCriteriumSlice) (*dbmodels.HiveRule, error)) {
+	fake.newHiveRuleMutex.Lock()
+	defer fake.newHiveRuleMutex.Unlock()
+	fake.NewHiveRuleStub = stub
+}
+
+func (fake *FakeHiveService) NewHiveRuleArgsForCall(i int) (context.Context, *dbmodels.HiveRule, dbmodels.HiveRulesCriteriumSlice) {
+	fake.newHiveRuleMutex.RLock()
+	defer fake.newHiveRuleMutex.RUnlock()
+	argsForCall := fake.newHiveRuleArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeHiveService) NewHiveRuleReturns(result1 *dbmodels.HiveRule, result2 error) {
+	fake.newHiveRuleMutex.Lock()
+	defer fake.newHiveRuleMutex.Unlock()
+	fake.NewHiveRuleStub = nil
+	fake.newHiveRuleReturns = struct {
+		result1 *dbmodels.HiveRule
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeHiveService) NewHiveRuleReturnsOnCall(i int, result1 *dbmodels.HiveRule, result2 error) {
+	fake.newHiveRuleMutex.Lock()
+	defer fake.newHiveRuleMutex.Unlock()
+	fake.NewHiveRuleStub = nil
+	if fake.newHiveRuleReturnsOnCall == nil {
+		fake.newHiveRuleReturnsOnCall = make(map[int]struct {
+			result1 *dbmodels.HiveRule
+			result2 error
+		})
+	}
+	fake.newHiveRuleReturnsOnCall[i] = struct {
+		result1 *dbmodels.HiveRule
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeHiveService) NewPost(arg1 context.Context, arg2 *dbmodels.Post, arg3 dbmodels.TagSlice) (*dbmodels.Post, error) {
 	fake.newPostMutex.Lock()
 	ret, specificReturn := fake.newPostReturnsOnCall[len(fake.newPostArgsForCall)]
@@ -3266,6 +3347,8 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.newCommentMutex.RUnlock()
 	fake.newHiveMutex.RLock()
 	defer fake.newHiveMutex.RUnlock()
+	fake.newHiveRuleMutex.RLock()
+	defer fake.newHiveRuleMutex.RUnlock()
 	fake.newPostMutex.RLock()
 	defer fake.newPostMutex.RUnlock()
 	fake.newPostForMultipleHivesMutex.RLock()

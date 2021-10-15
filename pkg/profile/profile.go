@@ -11,8 +11,10 @@ import (
 	"github.com/volatiletech/null/v8"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
+	hive_data "github.com/impartwealthapp/backend/pkg/data/hive"
 	profile_data "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/data/types"
+	hive_main "github.com/impartwealthapp/backend/pkg/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/xeipuuv/gojsonschema"
@@ -21,7 +23,7 @@ import (
 
 type Service interface {
 	QuestionnaireService
-	NewProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
+	NewProfile(ctx context.Context, p models.Profile, apiVersion string) (models.Profile, impart.Error)
 	GetProfile(ctx context.Context, getProfileInput GetProfileInput) (models.Profile, impart.Error)
 	UpdateProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error)
 	DeleteProfile(ctx context.Context, impartWealthID string, hardtDelete bool, deleteUser models.DeleteUserInput) impart.Error
@@ -59,7 +61,7 @@ type Service interface {
 	CreatePlaidProfile(ctx context.Context, plaid models.PlaidInput) (models.PlaidInput, impart.Error)
 }
 
-func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {
+func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string, hivedata hive_main.Service, hiveSotre hive_data.Hives) Service {
 	return &profileService{
 		stage:               stage,
 		SugaredLogger:       logger,
@@ -67,6 +69,8 @@ func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impar
 		notificationService: ns,
 		schemaValidator:     schema,
 		db:                  db,
+		hiveData:            hivedata,
+		hiveStore:           hiveSotre,
 	}
 }
 
@@ -77,6 +81,8 @@ type profileService struct {
 	schemaValidator     gojsonschema.JSONLoader
 	notificationService impart.NotificationService
 	db                  *sql.DB
+	hiveData            hive_main.Service
+	hiveStore           hive_data.Hives
 }
 
 func (ps *profileService) ScreenNameExists(ctx context.Context, screenName string) bool {
@@ -124,7 +130,7 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 	return nil
 }
 
-func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (models.Profile, impart.Error) {
+func (ps *profileService) NewProfile(ctx context.Context, p models.Profile, apiVersion string) (models.Profile, impart.Error) {
 	var empty models.Profile
 	var err error
 	var deviceToken string
@@ -137,6 +143,7 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 	// check device token provided
 	//  check the device token is provided with either
 	// input deviceToken / with userDevices
+
 	deviceToken = p.DeviceToken
 	if (len(p.UserDevices) > 0 && p.UserDevices[0] != models.UserDevice{}) {
 		deviceToken = p.UserDevices[0].DeviceID
@@ -176,7 +183,7 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile) (mod
 		return empty, impart.NewError(impart.ErrUnknown, "unable to create profile; unknown state")
 	}
 
-	if impartErr := ps.validateNewProfile(ctx, p); impartErr != nil {
+	if impartErr := ps.validateNewProfile(ctx, p, apiVersion); impartErr != nil {
 		return empty, impartErr
 	}
 

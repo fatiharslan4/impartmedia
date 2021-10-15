@@ -13,6 +13,9 @@ var (
 	Content        ErrorKey = "content"
 	ImpartWealthID ErrorKey = "ImpartWealthID"
 	Report         ErrorKey = "report"
+	HiveName       ErrorKey = "HiveName"
+	HiveRuleName   ErrorKey = "ruleName"
+	Limit          ErrorKey = "limit"
 )
 
 // From the arguments, first index should be key

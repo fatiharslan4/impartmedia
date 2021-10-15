@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -215,11 +216,11 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		lastQury = fmt.Sprintf("%s %s", lastQury, query)
 		lastQury = strings.Trim(lastQury, ",")
 		lastQury = fmt.Sprintf("%s ;", lastQury)
-		tx, err := ser.db.BeginTx(ctx, nil)
-		if err != nil {
-			ser.logger.Error("error attempting to log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
-		}
-		defer impart.CommitRollbackLogger(tx, err, ser.logger)
+		// tx, err := ser.db.BeginTx(ctx, nil)
+		// if err != nil {
+		// 	ser.logger.Error("error attempting to log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
+		// }
+		// defer impart.CommitRollbackLogger(tx, err, ser.logger)
 
 		_, err = queries.Raw(lastQury).QueryContext(ctx, ser.db)
 		if err != nil {
@@ -258,6 +259,12 @@ func InstitutionToModel(user *dbmodels.UserInstitution) UserInstitution {
 	institution.Weburl = user.R.Institution.Weburl
 	institution.ImpartWealthID = user.ImpartWealthID
 	institution.InstitutionName = user.R.Institution.InstitutionName
+	if institution.Weburl != "" {
+		weburl, err := url.Parse(institution.Weburl)
+		if err == nil {
+			institution.Weburl = weburl.Host
+		}
+	}
 	return institution
 }
 

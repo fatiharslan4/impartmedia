@@ -3,7 +3,9 @@ package models
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -48,6 +50,9 @@ type Profile struct {
 	SuperAdmin            bool            `json:"superAdmin,omitempty"`
 	DeletedByAdmin        bool            `json:"deletedByAdmin,omitempty"`
 	PlaidAccessToken      string          `json:"plaidAccessToken,omitempty"`
+	FirstName             string          `json:"firstName,omitempty" conform:"trim,ucfirst"`
+	LastName              string          `json:"lastName,omitempty" conform:"trim,ucfirst"`
+	FullName              string          `json:"fullName,omitempty" conform:"trim,ucfirst"`
 }
 
 // Attributes for Impart Wealth
@@ -156,7 +161,21 @@ func (p Profile) DBUser() (*dbmodels.User, error) {
 		ScreenName:       p.ScreenName,
 		DeviceToken:      p.DeviceToken,
 		Admin:            false,
+		FirstName:        p.FirstName,
+		LastName:         p.LastName,
 	}
+	if p.FirstName == "" {
+		names := strings.Fields(p.Attributes.Name)
+		for index, name := range names {
+			if index == 0 {
+				out.FirstName = name
+			} else {
+				out.LastName = fmt.Sprintf("%s %s", out.LastName, name)
+			}
+		}
+		out.LastName = strings.Trim(out.LastName, " ")
+	}
+	p.FullName = strings.Title(fmt.Sprintf("%s %s", p.FirstName, p.LastName))
 	return out, nil
 }
 
@@ -190,6 +209,9 @@ func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error)
 		SuperAdmin:            u.SuperAdmin,
 		DeletedByAdmin:        u.DeletedByAdmin,
 		PlaidAccessToken:      u.PlaidAccessToken.String,
+		FirstName:             strings.Title(u.FirstName),
+		LastName:              strings.Title(u.LastName),
+		FullName:              strings.Title(fmt.Sprintf("%s %s", u.FirstName, u.LastName)),
 	}
 
 	for i, hive := range u.R.MemberHiveHives {

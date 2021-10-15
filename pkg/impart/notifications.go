@@ -200,6 +200,12 @@ func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data Not
 	}
 	// print()
 	_, err = ns.Publish(input)
+	if err != nil {
+		ns.Logger.Error("push-notification : After publish input",
+			zap.Any("topicARN", topicARN),
+			zap.Error(err),
+		)
+	}
 	return err
 }
 
@@ -330,6 +336,11 @@ func (ns *snsAppleNotificationService) GetEndPointArn(ctx context.Context, devic
 			return "", err
 		}
 
+		ns.Logger.Info("platformEndpointARN ",
+			zap.Any("deviceToken", deviceToken),
+			zap.Any("platformEndpointARN", platformEndpointARN),
+		)
+
 	}
 	return platformEndpointARN, nil
 }
@@ -345,6 +356,10 @@ func (ns *snsAppleNotificationService) SyncTokenEndpoint(ctx context.Context, de
 			return "", err
 		}
 
+		ns.Logger.Info("platformEndpointARN -didn't receive a stored endpoint",
+			zap.Any("deviceToken", deviceToken),
+			zap.Any("platformEndpointARN", platformEndpointARN),
+		)
 	}
 
 	// Check existing endpoint
@@ -435,6 +450,12 @@ func (ns *snsAppleNotificationService) SubscribeTopic(ctx context.Context, impar
 			zap.String("platformApplicationARN", platformEndpointARN))
 		return err
 	}
+
+	ns.Logger.Info("SubscribeTopic",
+		zap.Any("topicARN", topicARN),
+		zap.Any("platformEndpointARN", platformEndpointARN),
+		zap.Any("resp", resp),
+	)
 
 	p := &dbmodels.NotificationSubscription{
 		ImpartWealthID:      impartWealthId,

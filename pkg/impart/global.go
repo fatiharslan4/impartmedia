@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"net"
 	"net/http"
+	"net/url"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -21,6 +23,9 @@ const ClientId = "web"
 const DefaultHiveID uint64 = 1
 const Hive = "hive"
 const WaitList = "waitlist"
+
+const DefaultLimit = 100
+const MaxLimit = 256
 
 // const MailChimpAudienceID = "a5ee0679a7"
 // const MailChimpApiKey = "1abab64c738af33e635e828b6296ba38-us20"
@@ -89,4 +94,12 @@ func GetCtxClientID(ctx context.Context) string {
 		return val.(string)
 	}
 	return ""
+}
+
+func GetApiVersion(url *url.URL) string {
+	if strings.Contains(url.Path, "v1.1") {
+		return "v1.1"
+	}
+	return "v1"
+
 }

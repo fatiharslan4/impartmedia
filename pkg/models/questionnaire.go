@@ -14,20 +14,20 @@ type Questionnaire struct {
 }
 
 type Question struct {
-	Id           uint     `json:"id"`
-	Name         string   `json:"name"`
-	SortOrder    uint     `json:"sortOrder"`
-	Type         string   `json:"type"`
-	TypeText     string   `json:"typeText"`
-	QuestionText string   `json:"questionText"`
-	Answers      []Answer `json:"answers"`
+	Id           uint     `json:"id,omitempty"`
+	Name         string   `json:"name,omitempty"`
+	SortOrder    uint     `json:"sortOrder,omitempty"`
+	Type         string   `json:"type,omitempty"`
+	TypeText     string   `json:"typeText,omitempty"`
+	QuestionText string   `json:"questionText,omitempty"`
+	Answers      []Answer `json:"answers,omitempty"`
 }
 
 type Answer struct {
-	Id        uint   `json:"id"`
-	Name      string `json:"name"`
-	SortOrder uint   `json:"sortOrder"`
-	Text      string `json:"text"`
+	Id        uint   `json:"id,omitempty"`
+	Name      string `json:"name,omitempty"`
+	SortOrder uint   `json:"sortOrder,omitempty"`
+	Text      string `json:"text,omitempty"`
 }
 
 func QuestionnaireFromDBModel(q *dbmodels.Questionnaire) Questionnaire {

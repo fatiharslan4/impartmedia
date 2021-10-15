@@ -11,8 +11,10 @@ import (
 	"github.com/volatiletech/null/v8"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
+	hive_data "github.com/impartwealthapp/backend/pkg/data/hive"
 	profile_data "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/data/types"
+	hive_main "github.com/impartwealthapp/backend/pkg/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/xeipuuv/gojsonschema"
@@ -59,7 +61,7 @@ type Service interface {
 	CreatePlaidProfile(ctx context.Context, plaid models.PlaidInput) (models.PlaidInput, impart.Error)
 }
 
-func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string) Service {
+func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string, hivedata hive_main.Service, hiveSotre hive_data.Hives) Service {
 	return &profileService{
 		stage:               stage,
 		SugaredLogger:       logger,
@@ -67,6 +69,8 @@ func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impar
 		notificationService: ns,
 		schemaValidator:     schema,
 		db:                  db,
+		hiveData:            hivedata,
+		hiveStore:           hiveSotre,
 	}
 }
 
@@ -77,6 +81,8 @@ type profileService struct {
 	schemaValidator     gojsonschema.JSONLoader
 	notificationService impart.NotificationService
 	db                  *sql.DB
+	hiveData            hive_main.Service
+	hiveStore           hive_data.Hives
 }
 
 func (ps *profileService) ScreenNameExists(ctx context.Context, screenName string) bool {

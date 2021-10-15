@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
@@ -14,8 +16,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
-	"github.com/volatiletech/sqlboiler/v4/queries/qm"
-
+	"github.com/volatiletech/sqlboiler/v4/queries"
 	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"go.uber.org/zap"
@@ -326,50 +327,59 @@ func (s *service) HiveBulkOperations(ctx context.Context, hiveUpdates models.Hiv
 	return hiveOutputRslt
 }
 
-func (s *service) CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) (models.HiveRule, impart.Error) {
+func (s *service) CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) (*models.HiveRule, impart.Error) {
 
 	ctxUser := impart.GetCtxUser(ctx)
 	if !ctxUser.SuperAdmin {
-		return models.HiveRule{}, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
+		return &models.HiveRule{}, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
 	}
 	var answer_ids []uint
-	for _, criteria := range hiveRule.Criteria {
-		answer_ids = append(answer_ids, criteria.AnswerID...)
-		// for _, answer := range criteria.Answers {
-		// 	answer_ids = append(answer_ids, answer.Id)
-		// }
-	}
-	// for _, question := range hiveRule.Question {
-	// 	for _, answer := range question.Answers {
-	// 		answer_ids = append(answer_ids, answer.Id)
-	// 	}
-	// }
-	existHiveCriteria, err := dbmodels.HiveRulesCriteria(
-		qm.GroupBy("rule_id"),
-		dbmodels.HiveRulesCriteriumWhere.AnswerID.IN(answer_ids),
-	).All(ctx, s.db)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleCreationFailed))
+	var answer_ids_str []string
+	hiveCriteria := dbmodels.HiveRulesCriteriumSlice{}
+	for _, question := range hiveRule.Question {
+		for _, answer := range question.Answers {
+			answer_ids = append(answer_ids, answer.Id)
+			answer_ids_str = append(answer_ids_str, strconv.Itoa(int(answer.Id)))
 		}
 	}
-	if len(existHiveCriteria) > 0 {
-		return models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleExist))
+	createNewHiveRule, _ := CheckHiveRuleExist(ctx, answer_ids_str, s.db, false)
+	if !createNewHiveRule {
+		/// rule exist
+		return &models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleExist))
 	}
-	// rule, err := hiveRule.ToDBModel()
-	// if err != nil {
-	// 	return models.HiveRule{}, impart.NewError(impart.ErrUnknown, "unable to convert hiveRule to  dbmodel")
-	// }
-	// dbh, err = s.hiveData.NewHive(ctx, dbh)
-
-	return models.HiveRule{}, nil
+	if createNewHiveRule {
+		/// create new exist
+		rule, err := hiveRule.ToDBModel()
+		if err != nil {
+			return &models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuletoDbmodel))
+		}
+		for _, question := range hiveRule.Question {
+			for _, answer := range question.Answers {
+				hives := dbmodels.HiveRulesCriteriumSlice{
+					&dbmodels.HiveRulesCriterium{AnswerID: answer.Id,
+						QuestionID: question.Id},
+				}
+				hiveCriteria = append(hiveCriteria, hives...)
+			}
+		}
+		output, err := s.hiveData.NewHiveRule(ctx, rule, hiveCriteria)
+		if err != nil {
+			if strings.Contains(err.Error(), "Duplicate") {
+				return &models.HiveRule{}, impart.NewError(impart.ErrExists, string(impart.HiveRuleNameExist), impart.HiveRuleName)
+			}
+			return &models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleCreationFailed))
+		}
+		out, _ := models.HiveRuleDBToModel(output)
+		return out, nil
+	}
+	return &models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleCreationFailed))
 }
 
-func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (models.HiveRules, *models.NextPage, impart.Error) {
+func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (models.HiveRuleLists, *models.NextPage, impart.Error) {
 
 	ctxUser := impart.GetCtxUser(ctx)
 	if !ctxUser.SuperAdmin {
-		return models.HiveRules{}, nil, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
+		return models.HiveRuleLists{}, nil, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
 	}
 
 	outOffset := &models.NextPage{
@@ -381,31 +391,217 @@ func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (mo
 	} else if gpi.Limit > impart.DefaultLimit {
 		gpi.Limit = impart.MaxLimit
 	}
-	existHiveCriteria, err := dbmodels.HiveRules(
-		Offset(gpi.Offset),
-		Limit(gpi.Limit),
-		OrderBy("rule_id desc"),
-		Load(dbmodels.HiveRuleRels.RuleHiveRulesCriteria, OrderBy("hive_rules_criteria.rule_id asc , hive_rules_criteria.question_id asc")),
-		Load(Rels(dbmodels.HiveRuleRels.RuleHiveRulesCriteria, dbmodels.HiveRulesCriteriumRels.Question, dbmodels.QuestionRels.Answers)),
-		Load(Rels(dbmodels.HiveRuleRels.RuleHiveRulesCriteria, dbmodels.HiveRulesCriteriumRels.Answer)),
-		Load(dbmodels.HiveRuleRels.Hives),
-	).All(ctx, s.db)
-	if err != nil {
-		fmt.Println(err)
-		if err == sql.ErrNoRows {
-			return models.HiveRules{}, nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleNotExist))
-		} else {
-			return models.HiveRules{}, nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleFetchingFailed))
-		}
+	sortby := gpi.SortBy
+	if gpi.SortBy == "income" {
+		gpi.SortBy = "sortorder"
+	} else if gpi.SortBy == "rule_id" {
+		gpi.SortBy = "hive_rules.rule_id"
 	}
-	rule, err := models.HiveRulesFromDB(existHiveCriteria)
-	if err != nil {
-		return models.HiveRules{}, nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuletoDbmodel))
+	var ruleList models.HiveRuleLists
+	inputQuery := fmt.Sprintf(`SELECT hive_rules.rule_id,
+						name,
+						max_limit,
+						no_of_users,
+						status,
+						CASE
+							WHEN hivedata.hives IS NULL THEN 'N.A'
+							ELSE hivedata.hives
+						END AS hive_id,
+						CASE
+							WHEN hivedata.hive_name IS NULL THEN 'N.A'
+							ELSE hivedata.hive_name
+						END AS hive_name,
+						CASE
+							WHEN criteria.Household IS NULL THEN 'NA'
+							ELSE criteria.Household
+						END AS household,
+						CASE
+							WHEN criteria.Dependents IS NULL THEN 'NA'
+							ELSE criteria.Dependents
+						END AS dependents,
+						CASE
+							WHEN criteria.Generation IS NULL THEN 'NA'
+							ELSE criteria.Generation
+						END AS generation,
+						CASE
+							WHEN criteria.Gender IS NULL THEN 'NA'
+							ELSE criteria.Gender
+						END AS gender,
+						CASE
+							WHEN criteria.Race IS NULL THEN 'NA'
+							ELSE criteria.Race
+						END AS race,
+						CASE
+							WHEN criteria.FinancialGoals IS NULL THEN 'NA'
+							ELSE criteria.FinancialGoals
+						END AS financialgoals,
+						CASE
+							WHEN criteria.Industry IS NULL THEN 'NA'
+							ELSE criteria.Industry
+						END AS industry,
+						CASE
+							WHEN criteria.Career IS NULL THEN 'NA'
+							ELSE criteria.Career
+						END AS career,
+						CASE
+							WHEN criteria.Income IS NULL THEN 'NA'
+							ELSE criteria.Income
+						END AS income,
+						CASE
+							WHEN criteria.EmploymentStatus IS NULL THEN 'NA'
+							ELSE criteria.EmploymentStatus
+						END AS employment_status,
+						criteria.sortorder AS sortorder
+					FROM hive_rules
+					LEFT JOIN
+					(SELECT hive_rule_map.rule_id,
+						GROUP_CONCAT(hive_rule_map.hive_id) AS hives,
+						GROUP_CONCAT(hive.name) AS hive_name
+					FROM hive_rule_map
+					JOIN hive_rules ON hive_rules.rule_id =hive_rule_map.rule_id
+					JOIN hive ON hive.hive_id=hive_rule_map.hive_id
+					GROUP BY hive_rules.rule_id) AS hivedata ON hivedata.rule_id = hive_rules.rule_id
+					LEFT JOIN
+					(SELECT rule_id,
+						GROUP_CONCAT(CASE
+											WHEN question.question_name = 'Income' THEN answer.sort_order
+											ELSE NULL
+										END) AS sortorder,
+						GROUP_CONCAT(CASE
+											WHEN question.question_name = 'Household' THEN answer.text
+											ELSE NULL
+										END) AS Household,
+						GROUP_CONCAT(CASE
+											WHEN question.question_name = 'Dependents' THEN answer.text
+											ELSE NULL
+										END) AS Dependents,
+						GROUP_CONCAT(CASE
+											WHEN question.question_name = 'Generation' THEN answer.text
+											ELSE NULL
+										END) AS Generation,
+						GROUP_CONCAT(CASE
+											WHEN question.question_name = 'Gender' THEN answer.text
+											ELSE NULL
+										END) AS 'Gender',
+						GROUP_CONCAT(CASE
+											WHEN question.question_name = 'Race' THEN answer.text
+											ELSE NULL
+										END) AS 'Race',
+						GROUP_CONCAT(CASE
+											WHEN question.question_name = 'FinancialGoals' THEN answer.text
+											ELSE NULL
+										END) AS 'FinancialGoals',
+						GROUP_CONCAT(CASE
+											WHEN question.question_name = 'Industry' THEN answer.text
+											ELSE NULL
+										END) AS 'Industry',
+						GROUP_CONCAT(CASE
+											WHEN question.question_name = 'Career' THEN answer.text
+											ELSE NULL
+										END) AS 'Career',
+						GROUP_CONCAT(CASE
+											WHEN question.question_name = 'Income' THEN answer.text
+											ELSE NULL
+										END) AS 'Income',
+						GROUP_CONCAT(CASE
+											WHEN question.question_name = 'EmploymentStatus' THEN answer.text
+											ELSE NULL
+										END) AS 'EmploymentStatus',
+						GROUP_CONCAT(answer.answer_id) AS 'answer_ids'
+					FROM hive_rules_criteria
+					INNER JOIN answer ON hive_rules_criteria.answer_id=answer.answer_id
+					INNER JOIN question ON answer.question_id=question.question_id
+					GROUP BY rule_id) AS criteria ON criteria.rule_id = hive_rules.rule_id
+					WHERE hive_rules.status IS TRUE
+					GROUP BY hive_rules.rule_id
+					`)
+	if gpi.SortBy != "" {
+		inputQuery = fmt.Sprintf("%s order by ISNULL(%s), %s %s ", inputQuery, gpi.SortBy, gpi.SortBy, gpi.SortOrder)
 	}
-	if len(rule) < gpi.Limit {
+	inputQuery = fmt.Sprintf("%s LIMIT %d OFFSET %d", inputQuery, gpi.Limit, gpi.Offset)
+	if gpi.SortBy != "" {
+		inputQuery = fmt.Sprintf("Select * from (%s) output order by   ISNULL(%s)  ", inputQuery, sortby)
+	}
+	fmt.Println(inputQuery)
+	err := queries.Raw(inputQuery).Bind(ctx, s.db, &ruleList)
+	if err != nil {
+		return models.HiveRuleLists{}, nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleFetchingFailed))
+	}
+	if len(ruleList) < gpi.Limit {
 		outOffset = nil
 	} else {
-		outOffset.Offset += len(rule)
+		outOffset.Offset += len(ruleList)
 	}
-	return rule, outOffset, nil
+	return ruleList, outOffset, nil
+}
+
+func CheckHiveRuleExist(ctx context.Context, answer_ids_str []string, db *sql.DB, returnExistRule bool) (bool, uint64) {
+	type existCriteria struct {
+		RuleId   uint64 `json:"rule_id"`
+		AnswerId string `json:"answer_id"  `
+	}
+	var existCriterias []existCriteria
+	err := queries.Raw(`SELECT rule_id,GROUP_CONCAT(answer_id)  as answer_id FROM hive_rules_criteria
+	group by rule_id;
+	`).Bind(ctx, db, &existCriterias)
+
+	if err != nil {
+		return false, 0
+	}
+
+	var existoringinalRules []uint
+	var dbRules []uint
+
+	newAnserIdcnt := len(answer_ids_str)
+	for _, criteria := range existCriterias {
+		dbRules = append(dbRules, uint(criteria.RuleId))
+		stringSlice := strings.Split(criteria.AnswerId, ",")
+
+		if newAnserIdcnt != len(stringSlice) {
+			existoringinalRules = append(existoringinalRules, uint(criteria.RuleId))
+			continue
+		}
+		// res := strings.Compare(answer_ids_str, stringSlice)
+
+		// if res {
+		// 	fmt.Println("Slices are equal")
+		// } else {
+		// 	fmt.Println("Slices are not equal")
+		// }
+		if reflect.DeepEqual(stringSlice, answer_ids_str) {
+			if returnExistRule {
+				return false, criteria.RuleId
+			}
+			fmt.Println("Slices are equal")
+		} else {
+			existoringinalRules = append(existoringinalRules, uint(criteria.RuleId))
+		}
+	}
+	if len(existoringinalRules) < len(dbRules) {
+		/// rule exist
+		return false, 0
+	}
+	if len(dbRules) == len(existoringinalRules) {
+		return true, 0
+	}
+	return false, 0
+}
+
+func (m *service) GetHivebyField(ctx context.Context, hiveName string) (*dbmodels.Hive, error) {
+	var clause QueryMod
+	if hiveName != "" {
+		clause = Where(fmt.Sprintf("%s = ?", dbmodels.HiveColumns.Name), hiveName)
+	}
+	usersWhere := []QueryMod{
+		clause,
+	}
+
+	u, err := dbmodels.Hives(usersWhere...).One(ctx, m.db)
+	if err == sql.ErrNoRows {
+		return nil, impart.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return u, err
 }

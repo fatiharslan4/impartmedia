@@ -61,6 +61,7 @@ type Hives interface {
 	GetHiveFromList(ctx context.Context, hiveIds []interface{}) (dbmodels.HiveSlice, error)
 	DeleteBulkHive(ctx context.Context, hiveIDs dbmodels.HiveSlice) error
 	PinPostForBulkPostAction(ctx context.Context, postHive map[uint64]uint64, pin bool, isAdminActivity bool) error
+	NewHiveRule(ctx context.Context, hiverule *dbmodels.HiveRule, hiveCriteria dbmodels.HiveRulesCriteriumSlice) (*dbmodels.HiveRule, error)
 }
 
 func (d *mysqlHiveData) GetHives(ctx context.Context) (dbmodels.HiveSlice, error) {
@@ -424,4 +425,16 @@ func (d *mysqlHiveData) PinPostForBulkPostAction(ctx context.Context, postHiveDe
 
 	return nil
 
+}
+
+func (d *mysqlHiveData) NewHiveRule(ctx context.Context, hiveRule *dbmodels.HiveRule, hiveCriteria dbmodels.HiveRulesCriteriumSlice) (*dbmodels.HiveRule, error) {
+	if err := hiveRule.Insert(ctx, d.db, boil.Infer()); err != nil {
+		d.logger.Error("HiveRule creation failed", zap.Error(err))
+		return nil, err
+	}
+	err := hiveRule.AddRuleHiveRulesCriteria(ctx, d.db, true, hiveCriteria...)
+	if err != nil {
+		d.logger.Error("HiveRule criteria creation failed", zap.Error(err))
+	}
+	return hiveRule, hiveRule.Reload(ctx, d.db)
 }

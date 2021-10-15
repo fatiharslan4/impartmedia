@@ -60,8 +60,9 @@ type Service interface {
 	EditBulkPostDetails(ctx context.Context, postUpdate models.PostUpdate) *models.PostUpdate
 	HiveBulkOperations(ctx context.Context, hiveUpdate models.HiveUpdate) *models.HiveUpdate
 
-	CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) (models.HiveRule, impart.Error)
-	GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (models.HiveRules, *models.NextPage, impart.Error)
+	CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) (*models.HiveRule, impart.Error)
+	GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (models.HiveRuleLists, *models.NextPage, impart.Error)
+	GetHivebyField(ctx context.Context, hiveName string) (*dbmodels.Hive, error)
 }
 
 const maxNotificationLength = 512

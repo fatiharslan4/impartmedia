@@ -276,9 +276,9 @@ type HiveRule struct {
 	RuleID    uint64         `json:"ruleId,omitempty"`
 	RuleName  string         `json:"ruleName" conform:"trim,omitempty,ucfirst" jsonschema:"minLength=3,maxLength=60"`
 	Status    bool           `json:"status,omitempty"`
-	Limit     int            `json:"limit,omitempty"`
-	UserCount int            `json:"userCount,omitempty"`
-	Question  []Question     `json:"question,omitempty"`
+	Limit     int64          `json:"limit,omitempty"`
+	UserCount int64          `json:"userCount,omitempty"`
+	Question  []Question     `json:"questions,omitempty"`
 	Criteria  []CriteriaData `json:"criteria,omitempty"`
 	Hive      []Hive         `json:"hive,omitempty"`
 }
@@ -312,8 +312,8 @@ func HiveRuleFromDB(dbHive *dbmodels.HiveRule) (*HiveRule, error) {
 	out := HiveRule{
 		RuleID:    dbHive.RuleID,
 		RuleName:  dbHive.Name,
-		UserCount: int(dbHive.NoOfUsers),
-		Limit:     int(dbHive.MaxLimit),
+		UserCount: dbHive.NoOfUsers,
+		Limit:     dbHive.MaxLimit,
 	}
 	if dbHive.R.Hives != nil {
 		hives := make(Hives, len(dbHive.R.Hives))
@@ -362,13 +362,46 @@ func HiveRuleFromDB(dbHive *dbmodels.HiveRule) (*HiveRule, error) {
 }
 
 type PagedHiveRoleResponse struct {
-	HiveRules HiveRules `json:"hiveRules"`
-	NextPage  *NextPage `json:"nextPage"`
+	HiveRules HiveRuleLists `json:"hiveRules"`
+	NextPage  *NextPage     `json:"nextPage"`
 }
 
 type GetHiveInput struct {
 	// Limit is the maximum number of records that should be returns.  The API can optionally return
 	// less than Limit, if DynamoDB decides the items read were too large.
-	Limit  int
-	Offset int
+	Limit     int
+	Offset    int
+	SortBy    string
+	SortOrder string
+}
+
+func HiveRuleDBToModel(hiverule *dbmodels.HiveRule) (*HiveRule, error) {
+	rule := &HiveRule{
+		RuleID:   hiverule.RuleID,
+		RuleName: hiverule.Name,
+		Status:   hiverule.Status,
+		Limit:    hiverule.MaxLimit,
+	}
+	return rule, nil
+}
+
+type HiveRuleLists []HiveRuleList
+type HiveRuleList struct {
+	RuleId           uint64 `json:"rule_id"`
+	Name             string `json:"name"`
+	MaxLimit         int    `json:"max_limit" `
+	NoOfUsers        int    `json:"no_of_users" `
+	Status           bool   `json:"status" `
+	HiveId           string `json:"hive_id" `
+	HiveName         string `json:"hive_name" `
+	Household        string `json:"household" `
+	Dependents       string `json:"dependents" `
+	Generation       string `json:"generation" `
+	Gender           string `json:"gender" `
+	Race             string `json:"race" `
+	Financialgoals   string `json:"financialgoals" `
+	Industry         string `json:"industry"`
+	Career           string `json:"career"`
+	Income           string `json:"income"`
+	EmploymentStatus string `json:"employment_status"`
 }

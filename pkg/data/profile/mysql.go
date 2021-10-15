@@ -901,8 +901,8 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 		} else if userUpdate.Type == impart.AddToWaitlist {
 			for _, h := range user.R.MemberHiveHives {
 				existinghiveid = h.HiveID
-				existingHive = h
 			}
+			existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
 			if existinghiveid == DefaultHiveId {
 				userUpdate.Users[userUpdateposition].Message = "User is already on waitlist."
 			} else {
@@ -918,11 +918,13 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
 
-				if existingHive.NotificationTopicArn.String != "" {
-					err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
-					if err != nil {
-						m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
-							zap.Error(err))
+				if existingHive != nil {
+					if existingHive.NotificationTopicArn.String != "" {
+						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+						if err != nil {
+							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
+								zap.Error(err))
+						}
 					}
 				}
 			}
@@ -931,8 +933,9 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 			m.logger.Info("user", zap.String("query", user.ImpartWealthID))
 			for _, h := range user.R.MemberHiveHives {
 				existinghiveid = h.HiveID
-				existingHive = h
+				// existingHive = h
 			}
+			existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
 			m.logger.Info("user-hive", zap.String("query", fmt.Sprintf("%d", existinghiveid)))
 			if existinghiveid == userUpdate.HiveID {
 				userUpdate.Users[userUpdateposition].Message = "User is already on hive."
@@ -946,11 +949,13 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
 
-				if existingHive.NotificationTopicArn.String != "" {
-					err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
-					if err != nil {
-						m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
-							zap.Error(err))
+				if existingHive != nil {
+					if existingHive.NotificationTopicArn.String != "" {
+						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+						if err != nil {
+							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
+								zap.Error(err))
+						}
 					}
 				}
 

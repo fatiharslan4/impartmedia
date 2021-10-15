@@ -44,6 +44,8 @@ type UserDetail struct {
 	SuperAdmin       bool        `json:"super_admin"`
 	AnswerIds        string      `json:"answer_ids"`
 	EmploymentStatus string      `json:"employment_status"`
+	List             uint64      `json:"List"`
+	Waitlist         bool        `json:"waitlist"`
 }
 
 type PagedUserResponse struct {

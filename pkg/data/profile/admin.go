@@ -371,8 +371,8 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 		_, err = members.Update(impart.MailChimpAudienceID, userToUpdate.Email, mailChimpParams)
 		if err != nil {
-			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
-			m.logger.Error(impartErr.Error())
+			m.logger.Error("MailChimp update failed", zap.String("Email", userToUpdate.Email),
+				zap.Error(err))
 		}
 
 		if existingHive.NotificationTopicArn.String != "" {
@@ -450,8 +450,8 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 		_, err = members.Update(impart.MailChimpAudienceID, userToUpdate.Email, mailChimpParams)
 		if err != nil {
-			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
-			m.logger.Error(impartErr.Error())
+			m.logger.Error("MailChimp update failed", zap.String("Email", userToUpdate.Email),
+				zap.Error(err))
 		}
 
 	}
@@ -562,7 +562,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	userOutput.Type = userUpdatesInput.Type
 	userOutput.HiveID = userUpdatesInput.HiveID
 	userOutput.Action = userUpdatesInput.Action
-	impartWealthIDs := make([]interface{}, 0, len(userUpdatesInput.Users))
+	impartWealthIDs := make([]interface{}, len(userUpdatesInput.Users))
 
 	for i, user := range userUpdatesInput.Users {
 		userData := &models.UserData{}
@@ -608,8 +608,8 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 			}
 			_, err = members.Update(impart.MailChimpAudienceID, user.Email, mailChimpParams)
 			if err != nil {
-				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
-				m.logger.Error(impartErr.Error())
+				m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
+					zap.Error(err))
 			}
 		}
 	}

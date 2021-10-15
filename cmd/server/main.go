@@ -127,7 +127,6 @@ func main() {
 		//SSLRedirect: true,
 		// SSLHost:               "*",
 		SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
-		STSSeconds:            315360000,
 		STSIncludeSubdomains:  true,
 		FrameDeny:             true,
 		ContentTypeNosniff:    true,

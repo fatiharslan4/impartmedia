@@ -391,6 +391,7 @@ type HiveRuleList struct {
 	Name             string `json:"name"`
 	MaxLimit         int    `json:"max_limit" `
 	NoOfUsers        int    `json:"no_of_users" `
+	Status           bool   `json:"status" `
 	HiveId           string `json:"hive_id" `
 	HiveName         string `json:"hive_name" `
 	Household        string `json:"household" `

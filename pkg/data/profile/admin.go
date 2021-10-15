@@ -56,6 +56,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 						ELSE  user.lastlogin_at END as lastlogin_at ,
 					user.admin,
 					user.super_admin,
+					hivedata.hive as list,
 					COUNT(post.post_id) as post,
 					CASE WHEN hivedata.hives IS NULL THEN 'N.A' 
 								ELSE hivedata.hives END AS hive_id,
@@ -86,7 +87,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 
 					
 					LEFT JOIN (
-					SELECT user.impart_wealth_id,GROUP_CONCAT(member_hive_id)  as hives
+					SELECT user.impart_wealth_id,GROUP_CONCAT(member_hive_id)  as hives,member_hive_id as hive
 					FROM hive_members
 					join user on user.impart_wealth_id =hive_members.member_impart_wealth_id
 					GROUP BY user.impart_wealth_id 
@@ -194,10 +195,12 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	}
 	if gpi.SortBy == "created_at" {
 		gpi.SortBy = "user.created_at"
-	}
-	if gpi.SortBy == "income" {
+	} else if gpi.SortBy == "income" {
 		gpi.SortBy = "sortorder"
 		sortBy = "sortorder"
+	} else if gpi.SortBy == "waitlist" {
+		gpi.SortBy = "list"
+		sortBy = "list"
 	}
 	orderby := ""
 	if isSort {
@@ -371,8 +374,8 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 		_, err = members.Update(impart.MailChimpAudienceID, userToUpdate.Email, mailChimpParams)
 		if err != nil {
-			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
-			m.logger.Error(impartErr.Error())
+			m.logger.Error("MailChimp update failed", zap.String("Email", userToUpdate.Email),
+				zap.Error(err))
 		}
 
 		if existingHive.NotificationTopicArn.String != "" {
@@ -450,8 +453,8 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 		_, err = members.Update(impart.MailChimpAudienceID, userToUpdate.Email, mailChimpParams)
 		if err != nil {
-			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
-			m.logger.Error(impartErr.Error())
+			m.logger.Error("MailChimp update failed", zap.String("Email", userToUpdate.Email),
+				zap.Error(err))
 		}
 
 	}
@@ -562,7 +565,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	userOutput.Type = userUpdatesInput.Type
 	userOutput.HiveID = userUpdatesInput.HiveID
 	userOutput.Action = userUpdatesInput.Action
-	impartWealthIDs := make([]interface{}, 0, len(userUpdatesInput.Users))
+	impartWealthIDs := make([]interface{}, len(userUpdatesInput.Users))
 
 	for i, user := range userUpdatesInput.Users {
 		userData := &models.UserData{}
@@ -576,6 +579,8 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		}
 		userDatas[i] = *userData
 	}
+	m.logger.Info("User list created")
+
 	userOutput.Users = userDatas
 	userOutputRslt := &userOutput
 
@@ -583,10 +588,12 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	if err != nil {
 		return userOutputRslt
 	}
+	m.logger.Info("User get completed")
 	userOutputs, impartErr := m.UpdateBulkUserProfile(ctx, updateUsers, false, userOutputRslt)
 	if impartErr != nil {
 		return userOutputRslt
 	}
+	m.logger.Info("update get completed")
 	lenUser := len(userOutputRslt.Users)
 	status := ""
 	if userOutputRslt.Type == impart.AddToWaitlist {
@@ -594,11 +601,13 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	} else if userOutputRslt.Type == impart.AddToHive {
 		status = impart.Hive
 	}
+	m.logger.Info("status updated")
 	for _, user := range updateUsers {
 		for cnt := 0; cnt < lenUser; cnt++ {
 			if userOutputs.Users[cnt].ImpartWealthID == user.ImpartWealthID && userOutputs.Users[cnt].Value == 1 {
 				userOutputs.Users[cnt].Message = "User updated."
 				userOutputs.Users[cnt].Status = true
+				m.logger.Info("User status updating", zap.String("impartWealthID", user.ImpartWealthID))
 				break
 			}
 		}
@@ -608,11 +617,13 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 			}
 			_, err = members.Update(impart.MailChimpAudienceID, user.Email, mailChimpParams)
 			if err != nil {
-				impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  updated to the mailchimp %v", err))
-				m.logger.Error(impartErr.Error())
+				m.logger.Info("mailchimp failed")
+				m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
+					zap.Error(err))
 			}
 		}
 	}
+	m.logger.Info("all process completed")
 	return userOutputs
 }
 

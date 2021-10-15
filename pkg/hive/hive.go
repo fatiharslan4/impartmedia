@@ -402,6 +402,7 @@ func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (mo
 						name,
 						max_limit,
 						no_of_users,
+						status,
 						CASE
 							WHEN hivedata.hives IS NULL THEN 'N.A'
 							ELSE hivedata.hives

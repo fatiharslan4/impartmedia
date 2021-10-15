@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -258,6 +259,12 @@ func InstitutionToModel(user *dbmodels.UserInstitution) UserInstitution {
 	institution.Weburl = user.R.Institution.Weburl
 	institution.ImpartWealthID = user.ImpartWealthID
 	institution.InstitutionName = user.R.Institution.InstitutionName
+	if institution.Weburl != "" {
+		weburl, err := url.Parse(institution.Weburl)
+		if err == nil {
+			institution.Weburl = weburl.Host
+		}
+	}
 	return institution
 }
 

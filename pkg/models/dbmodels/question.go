@@ -89,11 +89,13 @@ var QuestionRels = struct {
 	Questionnaire        string
 	Type                 string
 	Answers              string
+	HiveRulesCriteria    string
 	HiveUserDemographics string
 }{
 	Questionnaire:        "Questionnaire",
 	Type:                 "Type",
 	Answers:              "Answers",
+	HiveRulesCriteria:    "HiveRulesCriteria",
 	HiveUserDemographics: "HiveUserDemographics",
 }
 
@@ -102,6 +104,7 @@ type questionR struct {
 	Questionnaire        *Questionnaire           `boil:"Questionnaire" json:"Questionnaire" toml:"Questionnaire" yaml:"Questionnaire"`
 	Type                 *QuestionType            `boil:"Type" json:"Type" toml:"Type" yaml:"Type"`
 	Answers              AnswerSlice              `boil:"Answers" json:"Answers" toml:"Answers" yaml:"Answers"`
+	HiveRulesCriteria    HiveRulesCriteriumSlice  `boil:"HiveRulesCriteria" json:"HiveRulesCriteria" toml:"HiveRulesCriteria" yaml:"HiveRulesCriteria"`
 	HiveUserDemographics HiveUserDemographicSlice `boil:"HiveUserDemographics" json:"HiveUserDemographics" toml:"HiveUserDemographics" yaml:"HiveUserDemographics"`
 }
 
@@ -444,6 +447,27 @@ func (o *Question) Answers(mods ...qm.QueryMod) answerQuery {
 	return query
 }
 
+// HiveRulesCriteria retrieves all the hive_rules_criterium's HiveRulesCriteria with an executor.
+func (o *Question) HiveRulesCriteria(mods ...qm.QueryMod) hiveRulesCriteriumQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`hive_rules_criteria`.`question_id`=?", o.QuestionID),
+	)
+
+	query := HiveRulesCriteria(queryMods...)
+	queries.SetFrom(query.Query, "`hive_rules_criteria`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`hive_rules_criteria`.*"})
+	}
+
+	return query
+}
+
 // HiveUserDemographics retrieves all the hive_user_demographic's HiveUserDemographics with an executor.
 func (o *Question) HiveUserDemographics(mods ...qm.QueryMod) hiveUserDemographicQuery {
 	var queryMods []qm.QueryMod
@@ -771,6 +795,104 @@ func (questionL) LoadAnswers(ctx context.Context, e boil.ContextExecutor, singul
 	return nil
 }
 
+// LoadHiveRulesCriteria allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (questionL) LoadHiveRulesCriteria(ctx context.Context, e boil.ContextExecutor, singular bool, maybeQuestion interface{}, mods queries.Applicator) error {
+	var slice []*Question
+	var object *Question
+
+	if singular {
+		object = maybeQuestion.(*Question)
+	} else {
+		slice = *maybeQuestion.(*[]*Question)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &questionR{}
+		}
+		args = append(args, object.QuestionID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &questionR{}
+			}
+
+			for _, a := range args {
+				if a == obj.QuestionID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.QuestionID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`hive_rules_criteria`),
+		qm.WhereIn(`hive_rules_criteria.question_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load hive_rules_criteria")
+	}
+
+	var resultSlice []*HiveRulesCriterium
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice hive_rules_criteria")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on hive_rules_criteria")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for hive_rules_criteria")
+	}
+
+	if len(hiveRulesCriteriumAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.HiveRulesCriteria = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &hiveRulesCriteriumR{}
+			}
+			foreign.R.Question = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.QuestionID == foreign.QuestionID {
+				local.R.HiveRulesCriteria = append(local.R.HiveRulesCriteria, foreign)
+				if foreign.R == nil {
+					foreign.R = &hiveRulesCriteriumR{}
+				}
+				foreign.R.Question = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // LoadHiveUserDemographics allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
 func (questionL) LoadHiveUserDemographics(ctx context.Context, e boil.ContextExecutor, singular bool, maybeQuestion interface{}, mods queries.Applicator) error {
@@ -1007,6 +1129,59 @@ func (o *Question) AddAnswers(ctx context.Context, exec boil.ContextExecutor, in
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &answerR{
+				Question: o,
+			}
+		} else {
+			rel.R.Question = o
+		}
+	}
+	return nil
+}
+
+// AddHiveRulesCriteria adds the given related objects to the existing relationships
+// of the question, optionally inserting them as new records.
+// Appends related to o.R.HiveRulesCriteria.
+// Sets related.R.Question appropriately.
+func (o *Question) AddHiveRulesCriteria(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*HiveRulesCriterium) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.QuestionID = o.QuestionID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `hive_rules_criteria` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"question_id"}),
+				strmangle.WhereClause("`", "`", 0, hiveRulesCriteriumPrimaryKeyColumns),
+			)
+			values := []interface{}{o.QuestionID, rel.RuleID, rel.QuestionID, rel.AnswerID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.QuestionID = o.QuestionID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &questionR{
+			HiveRulesCriteria: related,
+		}
+	} else {
+		o.R.HiveRulesCriteria = append(o.R.HiveRulesCriteria, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &hiveRulesCriteriumR{
 				Question: o,
 			}
 		} else {

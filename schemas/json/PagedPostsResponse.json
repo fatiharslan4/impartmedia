@@ -338,6 +338,15 @@
 						"type": "integer"
 					},
 					"type": "array"
+				},
+				"firstName": {
+					"type": "string"
+				},
+				"lastName": {
+					"type": "string"
+				},
+				"FullName": {
+					"type": "string"
 				}
 			},
 			"additionalProperties": false,

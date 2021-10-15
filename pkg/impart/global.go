@@ -24,6 +24,9 @@ const DefaultHiveID uint64 = 1
 const Hive = "hive"
 const WaitList = "waitlist"
 
+const DefaultLimit = 100
+const MaxLimit = 256
+
 // const MailChimpAudienceID = "a5ee0679a7"
 // const MailChimpApiKey = "1abab64c738af33e635e828b6296ba38-us20"
 const MailChimpApiKey = "1abab64c738af33e635e828b6296ba38-us20"

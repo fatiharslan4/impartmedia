@@ -1,0 +1,242 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"$ref": "#/definitions/HiveRule",
+	"title": "HiveRule",
+	"definitions": {
+		"Answer": {
+			"properties": {
+				"id": {
+					"type": "integer"
+				},
+				"name": {
+					"type": "string"
+				},
+				"sortOrder": {
+					"type": "integer"
+				},
+				"text": {
+					"type": "string"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"CriteriaData": {
+			"properties": {
+				"answerID": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"Hive": {
+			"required": [
+				"hiveName",
+				"hiveDescription"
+			],
+			"properties": {
+				"hiveId": {
+					"type": "integer"
+				},
+				"hiveName": {
+					"maxLength": 60,
+					"minLength": 3,
+					"type": "string"
+				},
+				"hiveDescription": {
+					"maxLength": 5000,
+					"type": "string"
+				},
+				"hiveDistributions": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/HiveDistribution"
+					},
+					"type": "array"
+				},
+				"pinnedPostId": {
+					"type": "integer"
+				},
+				"tagComparisons": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/TagComparison"
+					},
+					"type": "array"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"HiveDistribution": {
+			"required": [
+				"displayText",
+				"displayValue",
+				"sortValue"
+			],
+			"properties": {
+				"displayText": {
+					"type": "string"
+				},
+				"displayValue": {
+					"type": "string"
+				},
+				"sortValue": {
+					"type": "integer"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"HiveRule": {
+			"required": [
+				"ruleName"
+			],
+			"properties": {
+				"ruleId": {
+					"type": "integer"
+				},
+				"ruleName": {
+					"maxLength": 60,
+					"minLength": 3,
+					"type": "string"
+				},
+				"status": {
+					"type": "boolean"
+				},
+				"limit": {
+					"type": "integer"
+				},
+				"userCount": {
+					"type": "integer"
+				},
+				"questions": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/Question"
+					},
+					"type": "array"
+				},
+				"criteria": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/CriteriaData"
+					},
+					"type": "array"
+				},
+				"hive": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/Hive"
+					},
+					"type": "array"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"Percentile": {
+			"required": [
+				"percent",
+				"highValue"
+			],
+			"properties": {
+				"percent": {
+					"type": "integer"
+				},
+				"highValue": {
+					"type": "integer"
+				},
+				"displayValue": {
+					"type": "string"
+				},
+				"fill": {
+					"type": "boolean"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"Question": {
+			"properties": {
+				"id": {
+					"type": "integer"
+				},
+				"name": {
+					"type": "string"
+				},
+				"sortOrder": {
+					"type": "integer"
+				},
+				"type": {
+					"type": "string"
+				},
+				"typeText": {
+					"type": "string"
+				},
+				"questionText": {
+					"type": "string"
+				},
+				"answers": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/Answer"
+					},
+					"type": "array"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		},
+		"TagComparison": {
+			"required": [
+				"tagId",
+				"sortOrder",
+				"percentile",
+				"displayPercentile",
+				"value",
+				"displayScope",
+				"percentiles"
+			],
+			"properties": {
+				"tagId": {
+					"type": "integer"
+				},
+				"sortOrder": {
+					"type": "integer"
+				},
+				"percentile": {
+					"type": "integer"
+				},
+				"displayPercentile": {
+					"type": "string"
+				},
+				"value": {
+					"type": "integer"
+				},
+				"displayValue": {
+					"type": "string"
+				},
+				"displayScope": {
+					"type": "string"
+				},
+				"displayDescription": {
+					"type": "string"
+				},
+				"percentiles": {
+					"items": {
+						"$schema": "http://json-schema.org/draft-04/schema#",
+						"$ref": "#/definitions/Percentile"
+					},
+					"type": "array"
+				}
+			},
+			"additionalProperties": false,
+			"type": "object"
+		}
+	}
+}

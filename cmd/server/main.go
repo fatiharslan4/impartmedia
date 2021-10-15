@@ -127,7 +127,6 @@ func main() {
 		//SSLRedirect: true,
 		// SSLHost:               "*",
 		SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
-		STSSeconds:            315360000,
 		STSIncludeSubdomains:  true,
 		FrameDeny:             true,
 		ContentTypeNosniff:    true,
@@ -225,11 +224,12 @@ func setupServices(cfg *config.Impart, db *sql.DB, logger *zap.Logger) *Services
 		logger.Fatal("err creating profile schema validator", zap.Error(err))
 	}
 
-	svcs.Profile = profile.New(logger.Sugar(), db, svcs.ProfileData, svcs.Notifications, profileValidator, string(cfg.Env))
-
 	svcs.MediaStorage = media.LoadMediaConfig(cfg)
 	svcs.Hive = hive.New(cfg, db, logger, svcs.MediaStorage)
 	svcs.Plaid = plaid.New(db, logger, svcs.Hive)
+
+	svcs.Profile = profile.New(logger.Sugar(), db, svcs.ProfileData, svcs.Notifications, profileValidator, string(cfg.Env), svcs.Hive, svcs.HiveData)
+
 	return svcs
 }
 

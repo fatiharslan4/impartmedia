@@ -16,10 +16,12 @@ import (
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	authdata "github.com/impartwealthapp/backend/pkg/data/auth"
 	hivedata "github.com/impartwealthapp/backend/pkg/data/hive"
+	"github.com/impartwealthapp/backend/pkg/data/types"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/leebenson/conform"
 	"github.com/otiai10/opengraph/v2"
+	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/zap"
 )
 
@@ -73,6 +75,9 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	adminRoutes.PATCH("/hives", handler.HiveBulkOperations())
 	adminRoutes.POST("/post", handler.CreatePostForMultipleHiveFunc())
 
+	hiveRulesRoutes := version.Group("/hive/rules")
+	hiveRulesRoutes.POST("", handler.CreateHiveulesFunc())
+	hiveRulesRoutes.GET("", handler.GetHiveulesFunc())
 }
 
 // RequestAuthorizationHandler Validates the bearer
@@ -1175,5 +1180,77 @@ func (hh *hiveHandler) CreatePostForMultipleHiveFunc() gin.HandlerFunc {
 		hh.logger.Debug("created post, returning", zap.Any("createdPost", p))
 
 		ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "Posts Created"})
+	}
+}
+
+func (hh *hiveHandler) CreateHiveulesFunc() gin.HandlerFunc {
+	///
+	/// Creating Hive Rules
+	///
+	return func(ctx *gin.Context) {
+
+		requestBody, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+		impartErr := ValidateInput(gojsonschema.NewStringLoader(string(requestBody)), types.HiveRuleValidationModel)
+		if impartErr != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+		hiveRule := models.HiveRule{}
+		err = json.Unmarshal(requestBody, &hiveRule)
+		if err != nil {
+			hh.logger.Error("Unable to unmarshal JSON Body",
+				zap.Error(err),
+				zap.Any("request", requestBody),
+			)
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to unmarshal JSON Body to a Post")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		// conform.Strings(&hiveRule)
+
+		hiveRules, Err := hh.hiveService.CreateHiveRule(ctx, hiveRule)
+		if Err != nil {
+			ctx.JSON(Err.HttpStatus(), impart.ErrorResponse(Err))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, hiveRules)
+	}
+}
+
+func (hh *hiveHandler) GetHiveulesFunc() gin.HandlerFunc {
+	///
+	/// Get Hive Rules
+	///
+	return func(ctx *gin.Context) {
+		gpi := models.GetHiveInput{}
+		var err error
+		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
+		if err != nil {
+			hh.logger.Error("couldn't parse limit and offset", zap.Error(err))
+			impartErr := impart.NewError(impart.ErrUnknown, "couldn't parse limit and offset")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		params := ctx.Request.URL.Query()
+		if sort := strings.TrimSpace(params.Get("sort_by")); sort != "" {
+			gpi.SortBy = strings.TrimSpace(params.Get("sort_by"))
+			gpi.SortOrder = strings.TrimSpace(params.Get("order"))
+		}
+		hiveRules, nextPage, Err := hh.hiveService.GetHiveRules(ctx, gpi)
+		if Err != nil {
+			ctx.JSON(Err.HttpStatus(), impart.ErrorResponse(Err))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, models.PagedHiveRoleResponse{
+			HiveRules: hiveRules,
+			NextPage:  nextPage,
+		})
 	}
 }

@@ -149,14 +149,21 @@ var allowedRoutesBase = map[string]string{
 func (a *authService) SetUnauthenticatedRoutes(cfg *config.Impart) {
 	a.unauthenticatedRoutes = make(map[string]string)
 	var v1Route string
+	var v2Route string
 	if cfg.Env == config.Production || cfg.Env == config.Local {
 		v1Route = "/v1"
+		v2Route = "/v1.1"
 	} else {
 		v1Route = fmt.Sprintf("/%s/v1", cfg.Env)
+		v2Route = fmt.Sprintf("/%s/v1.1", cfg.Env)
 	}
 
 	for k, v := range allowedRoutesBase {
 		route := fmt.Sprintf(k, v1Route)
+		a.unauthenticatedRoutes[route] = v
+	}
+	for k, v := range allowedRoutesBase {
+		route := fmt.Sprintf(k, v2Route)
 		a.unauthenticatedRoutes[route] = v
 	}
 

@@ -343,8 +343,7 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 		answer_ids_str = append(answer_ids_str, strconv.Itoa(int(userAns.AnswerID)))
 	}
 	var ruleId uint64
-	existingRules := FindTheMatchingRules(ctx, answer_ids_str, ps.db)
-	fmt.Println(existingRules)
+	existingRules := FindTheMatchingRules(ctx, answer_ids_str, ps.db, ps.Logger())
 	if existingRules != nil {
 		max := existingRules[0]
 		for _, v := range existingRules {
@@ -414,7 +413,7 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 	return nil
 }
 
-func FindTheMatchingRules(ctx context.Context, user_selection []string, db *sql.DB) []uint {
+func FindTheMatchingRules(ctx context.Context, user_selection []string, db *sql.DB, log *zap.Logger) []uint {
 	type existCriteria struct {
 		RuleId   uint64 `json:"rule_id"`
 		AnswerId string `json:"answer_id"  `
@@ -434,28 +433,42 @@ func FindTheMatchingRules(ctx context.Context, user_selection []string, db *sql.
 		ruleCheck := false
 		sort.Strings(existingRules)
 		sort.Strings(user_selection)
+		log.Info("existingRules", zap.Any("existingRules", existingRules),
+			zap.Any("user_selection", user_selection))
 		if len(existingRules) > len(user_selection) {
+			log.Info("existingRules and user selection are different in count")
 			continue
 		}
 		if len(existingRules) == len(user_selection) {
 			if reflect.DeepEqual(existingRules, user_selection) {
+				log.Info("existingRules and user selection are same with same count")
 				existDbRules = append(existDbRules, uint(criteria.RuleId))
 				continue
 			}
 		} else {
+			log.Info("existingRules are less numbher than user selection ")
 			for _, rule := range existingRules {
+				log.Info("existingRules", zap.Any("existingRules", existingRules),
+					zap.Any("user_selection", user_selection),
+					zap.Any("current chekcing of existing rule:", rule))
 				index := SearchString(user_selection, rule)
 				if !index {
+					log.Info("one answer in existng rule is not in userselection",
+						zap.Any("ruleCheck", ruleCheck))
 					ruleCheck = true
 					break
 				}
 			}
 			if !ruleCheck {
+				log.Info("this existng rule is ok for user selection", zap.Any("existingRules", existingRules),
+					zap.Any("user_selection", user_selection),
+					zap.Any("rule id", criteria.RuleId))
 				existDbRules = append(existDbRules, uint(criteria.RuleId))
 			}
 		}
 
 	}
+	log.Info("Rule list", zap.Any("existDbRules", existDbRules))
 	return existDbRules
 }
 

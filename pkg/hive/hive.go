@@ -404,11 +404,11 @@ func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (mo
 						no_of_users,
 						status,
 						CASE
-							WHEN hivedata.hives IS NULL THEN 'N.A'
+							WHEN hivedata.hives IS NULL THEN 'NA'
 							ELSE hivedata.hives
 						END AS hive_id,
 						CASE
-							WHEN hivedata.hive_name IS NULL THEN 'N.A'
+							WHEN hivedata.hive_name IS NULL THEN 'NA'
 							ELSE hivedata.hive_name
 						END AS hive_name,
 						CASE

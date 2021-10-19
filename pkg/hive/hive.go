@@ -150,10 +150,10 @@ func (s *service) GetHives(ctx context.Context) (models.Hives, impart.Error) {
 func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive, impart.Error) {
 	var err error
 
-	ctxUser := impart.GetCtxUser(ctx)
-	if !ctxUser.SuperAdmin {
-		return models.Hive{}, impart.NewError(impart.ErrUnauthorized, "non-admin users cannot create hives.")
-	}
+	// ctxUser := impart.GetCtxUser(ctx)
+	// if !ctxUser.SuperAdmin {
+	// 	return models.Hive{}, impart.NewError(impart.ErrUnauthorized, "non-admin users cannot create hives.")
+	// }
 	if len(strings.TrimSpace(hive.HiveName)) < 3 {
 		return models.Hive{}, impart.NewError(impart.ErrBadRequest, "Hivename must be greater than or equal to 3.")
 	}

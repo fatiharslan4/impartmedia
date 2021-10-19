@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -549,42 +550,15 @@ func CheckHiveRuleExist(ctx context.Context, answer_ids_str []string, db *sql.DB
 		return false, 0
 	}
 
-	var existoringinalRules []uint
-	var dbRules []uint
-
-	newAnserIdcnt := len(answer_ids_str)
 	for _, criteria := range existCriterias {
-		dbRules = append(dbRules, uint(criteria.RuleId))
 		stringSlice := strings.Split(criteria.AnswerId, ",")
-
-		if newAnserIdcnt != len(stringSlice) {
-			existoringinalRules = append(existoringinalRules, uint(criteria.RuleId))
-			continue
-		}
-		// res := strings.Compare(answer_ids_str, stringSlice)
-
-		// if res {
-		// 	fmt.Println("Slices are equal")
-		// } else {
-		// 	fmt.Println("Slices are not equal")
-		// }
+		sort.Strings(stringSlice)
+		sort.Strings(answer_ids_str)
 		if reflect.DeepEqual(stringSlice, answer_ids_str) {
-			if returnExistRule {
-				return false, criteria.RuleId
-			}
-			fmt.Println("Slices are equal")
-		} else {
-			existoringinalRules = append(existoringinalRules, uint(criteria.RuleId))
+			return false, 0
 		}
 	}
-	if len(existoringinalRules) < len(dbRules) {
-		/// rule exist
-		return false, 0
-	}
-	if len(dbRules) == len(existoringinalRules) {
-		return true, 0
-	}
-	return false, 0
+	return true, 0
 }
 
 func (m *service) GetHivebyField(ctx context.Context, hiveName string) (*dbmodels.Hive, error) {

@@ -332,6 +332,13 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
 			return
 		}
 
+		if screenNameRegexp.FindString(p.ScreenName) != p.ScreenName {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Invalid screen name, must be alphanumeric characters only", impart.ScreenName)
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
 		valid := ph.profileService.ScreenNameExists(ctx, p.ScreenName)
 		if valid {
 			impartErr := impart.NewError(impart.ErrBadRequest, "Screen name is already taken.")

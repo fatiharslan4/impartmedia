@@ -155,18 +155,24 @@ func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive
 	// 	return models.Hive{}, impart.NewError(impart.ErrUnauthorized, "non-admin users cannot create hives.")
 	// }
 	if len(strings.TrimSpace(hive.HiveName)) < 3 {
+		s.logger.Error("Hive Creation Failed", zap.Any("Hivename must be greater than or equal to 3.", hive.HiveName))
 		return models.Hive{}, impart.NewError(impart.ErrBadRequest, "Hivename must be greater than or equal to 3.")
 	}
 	if len(strings.TrimSpace(hive.HiveName)) > 60 {
+		s.logger.Error("Hive Creation Failed", zap.Any("Hivename must be less than or equal to 60.", hive.HiveName))
 		return models.Hive{}, impart.NewError(impart.ErrBadRequest, "Hivename must be less than or equal to 60.")
 	}
 
 	dbh, err := hive.ToDBModel()
 	if err != nil {
+		s.logger.Error("Hive Creation Failed", zap.Any("Hivename.", hive.HiveName),
+			zap.Error(err))
 		return models.Hive{}, impart.NewError(impart.ErrUnknown, "unable to convert hives to  dbmodel")
 	}
 	dbh, err = s.hiveData.NewHive(ctx, dbh)
 	if err != nil {
+		s.logger.Error("Hive Creation Failed", zap.Any("Hivename.", hive.HiveName),
+			zap.Error(err))
 		if strings.Contains(err.Error(), "Duplicate") {
 			return hive, impart.NewError(impart.ErrUnknown, "Hive name already exists.", impart.HiveID)
 		}

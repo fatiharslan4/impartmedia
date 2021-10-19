@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -341,16 +343,16 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 		answer_ids_str = append(answer_ids_str, strconv.Itoa(int(userAns.AnswerID)))
 	}
 	var ruleId uint64
-	// _, ruleId = hiveFun.CheckHiveRuleExist(ctx, answer_ids_str, ps.db, true)
 	existingRules := FindTheMatchingRules(ctx, answer_ids_str, ps.db)
+	fmt.Println(existingRules)
 	if existingRules != nil {
-		min := existingRules[0]
+		max := existingRules[0]
 		for _, v := range existingRules {
-			if v > min {
-				min = v
+			if v > max {
+				max = v
 			}
 		}
-		ruleId = uint64(min)
+		ruleId = uint64(max)
 	}
 	if ruleId == 0 {
 		// no rule exist for the selection
@@ -412,47 +414,56 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 	return nil
 }
 
-func FindTheMatchingRules(ctx context.Context, answer_ids_str []string, db *sql.DB) []uint {
+func FindTheMatchingRules(ctx context.Context, user_selection []string, db *sql.DB) []uint {
 	type existCriteria struct {
 		RuleId   uint64 `json:"rule_id"`
 		AnswerId string `json:"answer_id"  `
 	}
 	var existCriterias []existCriteria
 	err := queries.Raw(`SELECT rule_id,GROUP_CONCAT(answer_id)  as answer_id FROM hive_rules_criteria
-	group by rule_id;
+	group by rule_id order by rule_id desc ;
 	`).Bind(ctx, db, &existCriterias)
 
 	if err != nil {
 		return nil
 	}
 
-	var dbRules []uint
-	found := false
+	var existDbRules []uint
 	for _, criteria := range existCriterias {
-		stringSlice := strings.Split(criteria.AnswerId, ",")
-		found = false
-		lenfound := 0
-		for _, newcriteria := range answer_ids_str {
-			for _, exist := range stringSlice {
-				if exist == newcriteria {
-					found = true
+		existingRules := strings.Split(criteria.AnswerId, ",")
+		ruleCheck := false
+		sort.Strings(existingRules)
+		sort.Strings(user_selection)
+		if len(existingRules) > len(user_selection) {
+			continue
+		}
+		if len(existingRules) == len(user_selection) {
+			if reflect.DeepEqual(existingRules, user_selection) {
+				existDbRules = append(existDbRules, uint(criteria.RuleId))
+				continue
+			}
+		} else {
+			for _, rule := range existingRules {
+				index := SearchString(user_selection, rule)
+				if !index {
+					ruleCheck = true
 					break
-				} else {
-					found = false
 				}
 			}
-			if !found {
-				break
+			if !ruleCheck {
+				existDbRules = append(existDbRules, uint(criteria.RuleId))
 			}
-			if found {
-				lenfound = lenfound + 1
-				found = false
-			}
-		}
-		if len(answer_ids_str) == lenfound {
-			dbRules = append(dbRules, uint(criteria.RuleId))
 		}
 
 	}
-	return dbRules
+	return existDbRules
+}
+
+func SearchString(input []string, searchItem string) bool {
+	for _, newcriteria := range input {
+		if newcriteria == searchItem {
+			return true
+		}
+	}
+	return false
 }

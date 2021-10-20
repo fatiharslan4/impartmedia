@@ -548,8 +548,11 @@ func CheckHiveRuleExist(ctx context.Context, answer_ids_str []string, db *sql.DB
 		AnswerId string `json:"answer_id"  `
 	}
 	var existCriterias []existCriteria
-	err := queries.Raw(`SELECT rule_id,GROUP_CONCAT(answer_id)  as answer_id FROM hive_rules_criteria
-	group by rule_id;
+	err := queries.Raw(`SELECT hive_rules_criteria.rule_id,GROUP_CONCAT(answer_id)  as answer_id 
+						FROM hive_rules_criteria
+						join hive_rules on hive_rules.rule_id=hive_rules_criteria.rule_id
+						where status=true
+						group by rule_id order by rule_id desc;
 	`).Bind(ctx, db, &existCriterias)
 
 	if err != nil {

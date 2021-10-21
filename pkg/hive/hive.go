@@ -340,6 +340,9 @@ func (s *service) CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) 
 	if !ctxUser.SuperAdmin {
 		return &models.HiveRule{}, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
 	}
+	if hiveRule.Limit <= 0 {
+		return &models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleLimit))
+	}
 	var answer_ids []uint
 	var answer_ids_str []string
 	hiveCriteria := dbmodels.HiveRulesCriteriumSlice{}
@@ -519,7 +522,6 @@ func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (mo
 					INNER JOIN answer ON hive_rules_criteria.answer_id=answer.answer_id
 					INNER JOIN question ON answer.question_id=question.question_id
 					GROUP BY rule_id) AS criteria ON criteria.rule_id = hive_rules.rule_id
-					WHERE hive_rules.status IS TRUE
 					GROUP BY hive_rules.rule_id
 					`)
 	if gpi.SortBy != "" {
@@ -529,7 +531,6 @@ func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (mo
 	if gpi.SortBy != "" {
 		inputQuery = fmt.Sprintf("Select * from (%s) output order by   ISNULL(%s)  ", inputQuery, sortby)
 	}
-	fmt.Println(inputQuery)
 	err := queries.Raw(inputQuery).Bind(ctx, s.db, &ruleList)
 	if err != nil {
 		return models.HiveRuleLists{}, nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleFetchingFailed))

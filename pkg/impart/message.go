@@ -3,8 +3,8 @@ package impart
 type Message string
 
 var (
-	FirstNameRequired      Message = "Firstname required."
-	LastNameRequired       Message = "Lastname required."
+	FirstNameRequired      Message = "First name is required."
+	LastNameRequired       Message = "Last name is required."
 	NameRequired           Message = "Name required."
 	SuperAdminOnly         Message = "Current user does not have the permission."
 	HiveRuleCreationFailed Message = "Hive rule creation failed."

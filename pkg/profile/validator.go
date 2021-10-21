@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/mail"
 	"regexp"
@@ -80,13 +81,13 @@ func (ps *profileService) validateNewProfile(ctx context.Context, p models.Profi
 		}
 	}
 	if user != nil {
-		return impart.NewError(impart.ErrExists, "email already exists!", impart.Email)
+		return impart.NewError(impart.ErrExists, "Email already in use.", impart.Email)
 	}
 
 	if screenNameRegexp.FindString(p.ScreenName) != p.ScreenName {
 		{
 			ps.Logger().Error("invalid screen name", zap.String("screenName", p.ScreenName))
-			return impart.NewError(impart.ErrBadRequest, "invalid screen name, must be alphanumeric characters only", impart.ScreenName)
+			return impart.NewError(impart.ErrBadRequest, "Invalid characters, please use letters and numbers only.", impart.ScreenName)
 		}
 	}
 	user, err = ps.profileStore.GetUserFromScreenName(ctx, p.ScreenName)
@@ -126,7 +127,7 @@ func (ps *profileService) ValidateSchema(document gojsonschema.JSONLoader) (erro
 	return errors
 }
 
-func (ps *profileService) ValidateScreenNameInput(document gojsonschema.JSONLoader) (errors []impart.Error) {
+func (ps *profileService) ValidateScreenNameInput(document gojsonschema.JSONLoader, screenName []byte) (errors []impart.Error) {
 	v := gojsonschema.NewReferenceLoader(fmt.Sprintf("file://%s", "./schemas/json/ScreenNameValidator.json"))
 	_, err := v.LoadJSON()
 	if err != nil {
@@ -147,10 +148,21 @@ func (ps *profileService) ValidateScreenNameInput(document gojsonschema.JSONLoad
 		return nil
 	}
 	// msg := fmt.Sprintf("%v validations errors.\n", len(result.Errors()))
+	screenname := models.ScreenNameValidator{}
+	err = json.Unmarshal(screenName, &screenname)
+
 	msg := "validations errors"
+	msgDes := ""
 	for i, desc := range result.Errors() {
-		msg += fmt.Sprintf("%v: %s\n", i, desc)
-		er := impart.NewError(impart.ErrValidationError, fmt.Sprintf("%s ", desc), impart.ErrorKey(desc.Field()))
+		if len(strings.TrimSpace(screenname.ScreenName)) < 8 {
+			msgDes += "Screen name too short, must be 8 or more characters"
+		} else if len(strings.TrimSpace(screenname.ScreenName)) > 15 {
+			msgDes += "Screen name too long, must be 15 or less characters"
+		} else {
+			msg += fmt.Sprintf("%v: %s\n", i, desc)
+			msgDes = fmt.Sprintf("%s ", desc)
+		}
+		er := impart.NewError(impart.ErrValidationError, msgDes, impart.ErrorKey(desc.Field()))
 		errors = append(errors, er)
 	}
 	return errors
@@ -199,7 +211,7 @@ func (ps *profileService) ValidateScreenNameString(ctx context.Context, screenNa
 	var err impart.Error
 	for _, str := range invalidStrings {
 		if ok := strings.Index(strings.ToLower(screenName), str); ok > -1 {
-			err = impart.NewError(impart.ErrValidationError, "this screen name is not allowed.")
+			err = impart.NewError(impart.ErrValidationError, "Screen name includes invalid terms.")
 			break
 		}
 	}

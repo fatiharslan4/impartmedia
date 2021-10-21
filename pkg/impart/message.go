@@ -13,4 +13,5 @@ var (
 	HiveRuleFetchingFailed Message = "Fetching hive rule failed."
 	HiveRuletoDbmodel      Message = "Unable to convert hiveRules to  dbmodel."
 	HiveRuleNameExist      Message = "Hive rule name already exists."
+	HiveRuleLimit          Message = "Hive rule limit must be greater than 0."
 )

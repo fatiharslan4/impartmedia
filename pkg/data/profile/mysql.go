@@ -936,6 +936,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				// existingHive = h
 			}
 			// existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
+			// m.logger.Info("addtohive started- existing hive", zap.Any("existingHive", existingHive))
 			m.logger.Info("user-hive", zap.String("query", fmt.Sprintf("%d", existinghiveid)))
 			if existinghiveid == userUpdate.HiveID {
 				userUpdate.Users[userUpdateposition].Message = "User is already on hive."
@@ -963,7 +964,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				// if devErr != nil {
 				// 	m.logger.Error("unable to find device", zap.Error(err))
 				// }
-				// if len(deviceDetails) > 0 {
+				// if deviceDetails != nil {
 				// 	for _, device := range deviceDetails {
 				// 		endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
 				// 		if err != nil {

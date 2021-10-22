@@ -318,7 +318,7 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
 		}
 
 		// validate the inputs
-		impartErrl := ph.profileService.ValidateScreenNameInput(gojsonschema.NewStringLoader(string(b)))
+		impartErrl := ph.profileService.ValidateScreenNameInput(gojsonschema.NewStringLoader(string(b)), b)
 		if impartErrl != nil {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
 			return
@@ -334,9 +334,16 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
 			return
 		}
 
+		if screenNameRegexp.FindString(p.ScreenName) != p.ScreenName {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Invalid characters, please use letters and numbers only.", impart.ScreenName)
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
 		valid := ph.profileService.ScreenNameExists(ctx, p.ScreenName)
 		if valid {
-			impartErr := impart.NewError(impart.ErrBadRequest, "Screen name is already taken.")
+			impartErr := impart.NewError(impart.ErrBadRequest, "Screen name already in use.")
 			ph.logger.Error(impartErr.Error())
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
@@ -345,7 +352,7 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
 		// validate the input string, it should not contain some words
 		err = ph.profileService.ValidateScreenNameString(ctx, p.ScreenName)
 		if err != nil {
-			impartErr := impart.NewError(impart.ErrBadRequest, "This screen name is not allowed.")
+			impartErr := impart.NewError(impart.ErrBadRequest, "Screen name includes invalid terms.")
 			ph.logger.Error(impartErr.Error())
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return

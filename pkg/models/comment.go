@@ -3,9 +3,11 @@ package models
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
 
 	r "github.com/Pallinder/go-randomdata"
@@ -42,6 +44,9 @@ type Comment struct {
 	ReviewedDatetime time.Time        `json:"reviewedDatetime,omitempty"`
 	ParentCommentID  uint64           `json:"parentCommentId"`
 	Deleted          bool             `json:"deleted,omitempty"`
+	FirstName        string           `json:"firstName,omitempty"`
+	LastName         string           `json:"lastName,omitempty"`
+	FullName         string           `json:"fullName,omitempty"`
 }
 
 func (comments Comments) Latest() time.Time {
@@ -141,6 +146,9 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 	}
 	if c.R.ImpartWealth != nil {
 		out.ScreenName = c.R.ImpartWealth.ScreenName
+		out.FirstName = strings.Title(c.R.ImpartWealth.FirstName)
+		out.LastName = strings.Title(c.R.ImpartWealth.LastName)
+		out.FullName = strings.Title(fmt.Sprintf("%s %s", c.R.ImpartWealth.FirstName, c.R.ImpartWealth.LastName))
 	}
 	if len(c.R.CommentReactions) > 0 {
 		out.PostCommentTrack = PostCommentTrackFromDB(nil, c.R.CommentReactions[0])

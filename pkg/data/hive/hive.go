@@ -80,10 +80,10 @@ func (d *mysqlHiveData) GetHive(ctx context.Context, hiveID uint64) (*dbmodels.H
 }
 
 func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error) {
-	ctxUser := impart.GetCtxUser(ctx)
-	if !ctxUser.SuperAdmin {
-		return nil, impart.ErrUnauthorized
-	}
+	// ctxUser := impart.GetCtxUser(ctx)
+	// if !ctxUser.SuperAdmin {
+	// 	return nil, impart.ErrUnauthorized
+	// }
 	if err := hive.Insert(ctx, d.db, boil.Infer()); err != nil {
 		d.logger.Error("Hive creation failed", zap.Error(err))
 		return nil, err

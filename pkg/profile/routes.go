@@ -97,6 +97,8 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	plaidInstitutionAccountRoutes := version.Group("/plaid/accounts")
 	plaidInstitutionAccountRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionAccounts())
 
+	cookiesRoutes := version.Group("/cookies")
+	cookiesRoutes.POST("/", handler.CreateCookies())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -1135,6 +1137,16 @@ func (ph *profileHandler) CreateMailChimpForExistingUsers() gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, "Failed")
 		}
 		ctx.JSON(http.StatusOK, "Success")
+	}
+}
+
+func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// ctx.Header("Set-Cookie", "foo=bar; HttpOnly")
+		ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+			impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+		))
+		return
 	}
 }
 

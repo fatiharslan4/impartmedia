@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 
@@ -283,7 +284,8 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile, apiV
 		EmailAddress: dbUser.Email,
 		Status:       members.StatusSubscribed,
 	}
-	_, err = members.New(impart.MailChimpAudienceID, mailChimpParams)
+	cfg, _ := config.GetImpart()
+	_, err = members.New(cfg.MailchimpAudienceId, mailChimpParams)
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  added to the mailchimp %v", err))
 		ps.Logger().Error(impartErr.Error())

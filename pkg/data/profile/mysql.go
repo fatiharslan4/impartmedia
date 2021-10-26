@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -894,7 +895,12 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 			if user.Admin {
 				userUpdate.Users[userUpdateposition].Message = "User is already admin."
 			} else {
-				query := fmt.Sprintf("Update user set admin=true  where impart_wealth_id='%s';", user.ImpartWealthID)
+				rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
+				admin := impart.GetAvatharLettersAdmin()
+				adminindex := rand.Intn(len(admin))
+				adminColor := admin[adminindex]
+
+				query := fmt.Sprintf("Update user set admin=true and avatar_background=%s and  where impart_wealth_id='%s';", adminColor, user.ImpartWealthID)
 				updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
 				userUpdate.Users[userUpdateposition].Value = 1
 			}

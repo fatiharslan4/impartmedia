@@ -43,6 +43,8 @@ type User struct {
 	PlaidAccessToken null.String `boil:"plaid_access_token" json:"plaid_access_token,omitempty" toml:"plaid_access_token" yaml:"plaid_access_token,omitempty"`
 	FirstName        string      `boil:"first_name" json:"first_name" toml:"first_name" yaml:"first_name"`
 	LastName         string      `boil:"last_name" json:"last_name" toml:"last_name" yaml:"last_name"`
+	AvatarBackground string      `boil:"avatar_background" json:"avatar_background" toml:"avatar_background" yaml:"avatar_background"`
+	AvatarLetter     string      `boil:"avatar_letter" json:"avatar_letter" toml:"avatar_letter" yaml:"avatar_letter"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -68,6 +70,8 @@ var UserColumns = struct {
 	PlaidAccessToken string
 	FirstName        string
 	LastName         string
+	AvatarBackground string
+	AvatarLetter     string
 }{
 	ImpartWealthID:   "impart_wealth_id",
 	AuthenticationID: "authentication_id",
@@ -88,6 +92,8 @@ var UserColumns = struct {
 	PlaidAccessToken: "plaid_access_token",
 	FirstName:        "first_name",
 	LastName:         "last_name",
+	AvatarBackground: "avatar_background",
+	AvatarLetter:     "avatar_letter",
 }
 
 var UserTableColumns = struct {
@@ -110,6 +116,8 @@ var UserTableColumns = struct {
 	PlaidAccessToken string
 	FirstName        string
 	LastName         string
+	AvatarBackground string
+	AvatarLetter     string
 }{
 	ImpartWealthID:   "user.impart_wealth_id",
 	AuthenticationID: "user.authentication_id",
@@ -130,6 +138,8 @@ var UserTableColumns = struct {
 	PlaidAccessToken: "user.plaid_access_token",
 	FirstName:        "user.first_name",
 	LastName:         "user.last_name",
+	AvatarBackground: "user.avatar_background",
+	AvatarLetter:     "user.avatar_letter",
 }
 
 // Generated where
@@ -154,6 +164,8 @@ var UserWhere = struct {
 	PlaidAccessToken whereHelpernull_String
 	FirstName        whereHelperstring
 	LastName         whereHelperstring
+	AvatarBackground whereHelperstring
+	AvatarLetter     whereHelperstring
 }{
 	ImpartWealthID:   whereHelperstring{field: "`user`.`impart_wealth_id`"},
 	AuthenticationID: whereHelperstring{field: "`user`.`authentication_id`"},
@@ -174,6 +186,8 @@ var UserWhere = struct {
 	PlaidAccessToken: whereHelpernull_String{field: "`user`.`plaid_access_token`"},
 	FirstName:        whereHelperstring{field: "`user`.`first_name`"},
 	LastName:         whereHelperstring{field: "`user`.`last_name`"},
+	AvatarBackground: whereHelperstring{field: "`user`.`avatar_background`"},
+	AvatarLetter:     whereHelperstring{field: "`user`.`avatar_letter`"},
 }
 
 // UserRels is where relationship names are stored.
@@ -236,8 +250,8 @@ func (*userR) NewStruct() *userR {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked", "feedback", "lastlogin_at", "super_admin", "deleted_by_admin", "plaid_access_token", "first_name", "last_name"}
-	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "feedback", "lastlogin_at", "plaid_access_token", "first_name", "last_name"}
+	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked", "feedback", "lastlogin_at", "super_admin", "deleted_by_admin", "plaid_access_token", "first_name", "last_name", "avatar_background", "avatar_letter"}
+	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "feedback", "lastlogin_at", "plaid_access_token", "first_name", "last_name", "avatar_background", "avatar_letter"}
 	userColumnsWithDefault    = []string{"blocked", "super_admin", "deleted_by_admin"}
 	userPrimaryKeyColumns     = []string{"impart_wealth_id"}
 )

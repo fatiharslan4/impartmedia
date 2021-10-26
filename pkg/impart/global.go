@@ -103,3 +103,15 @@ func GetApiVersion(url *url.URL) string {
 	return "v1"
 
 }
+
+func GetAvatharBackground() []string {
+	return []string{"#30A096", "#DE750D", "#F4D304"}
+}
+
+func GetAvatharLetters() []string {
+	return []string{"#FFFFFF"}
+}
+
+func GetAvatharLettersAdmin() []string {
+	return []string{"#4D4D4F"}
+}

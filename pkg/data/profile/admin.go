@@ -3,7 +3,9 @@ package profile
 import (
 	"context"
 	"database/sql"
+	"math/rand"
 	"sort"
+	"time"
 
 	"fmt"
 
@@ -391,6 +393,12 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			return msg, impart.NewError(impart.ErrBadRequest, "User is already admin.")
 		}
 		userToUpdate.Admin = true
+
+		rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
+		admin := impart.GetAvatharLettersAdmin()
+		adminindex := rand.Intn(len(admin))
+		userToUpdate.AvatarBackground = admin[adminindex]
+
 		err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
 		if err != nil {
 			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as user")

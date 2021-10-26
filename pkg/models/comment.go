@@ -47,6 +47,8 @@ type Comment struct {
 	FirstName        string           `json:"firstName,omitempty"`
 	LastName         string           `json:"lastName,omitempty"`
 	FullName         string           `json:"fullName,omitempty"`
+	AvatarBackground string           `json:"avatarBackground,omitempty"`
+	AvatarLetter     string           `json:"avatarLetter,omitempty"`
 }
 
 func (comments Comments) Latest() time.Time {
@@ -149,6 +151,8 @@ func CommentFromDBModel(c *dbmodels.Comment) Comment {
 		out.FirstName = strings.Title(c.R.ImpartWealth.FirstName)
 		out.LastName = strings.Title(c.R.ImpartWealth.LastName)
 		out.FullName = strings.Title(fmt.Sprintf("%s %s", c.R.ImpartWealth.FirstName, c.R.ImpartWealth.LastName))
+		out.AvatarBackground = c.R.ImpartWealth.AvatarBackground
+		out.AvatarLetter = c.R.ImpartWealth.AvatarLetter
 	}
 	if len(c.R.CommentReactions) > 0 {
 		out.PostCommentTrack = PostCommentTrackFromDB(nil, c.R.CommentReactions[0])

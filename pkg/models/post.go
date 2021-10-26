@@ -72,6 +72,8 @@ type Post struct {
 	FirstName           string           `json:"firstName,omitempty"`
 	LastName            string           `json:"lastName,omitempty"`
 	FullName            string           `json:"FullName,omitempty"`
+	AvatarBackground    string           `json:"avatarBackground,omitempty"`
+	AvatarLetter        string           `json:"avatarLetter,omitempty"`
 }
 
 type PostVideo struct {
@@ -203,6 +205,8 @@ func PostFromDB(p *dbmodels.Post) Post {
 		out.FirstName = strings.Title(p.R.ImpartWealth.FirstName)
 		out.LastName = strings.Title(p.R.ImpartWealth.LastName)
 		out.FullName = strings.Title(fmt.Sprintf("%s %s", p.R.ImpartWealth.FirstName, p.R.ImpartWealth.LastName))
+		out.AvatarBackground = p.R.ImpartWealth.AvatarBackground
+		out.AvatarLetter = p.R.ImpartWealth.AvatarLetter
 	}
 	if p.ReviewedAt.Valid {
 		out.ReviewedDatetime = p.ReviewedAt.Time

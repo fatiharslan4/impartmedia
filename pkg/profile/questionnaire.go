@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -320,7 +321,8 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		MergeFields: mergeFlds,
 	}
 
-	_, err = members.Update(impart.MailChimpAudienceID, ctxUser.Email, mailChimpParams)
+	cfg, _ := config.GetImpart()
+	_, err = members.Update(cfg.MailchimpAudienceId, ctxUser.Email, mailChimpParams)
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  added to the mailchimp %v", err))
 		ps.Logger().Error(impartErr.Error())

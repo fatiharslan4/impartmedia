@@ -3,11 +3,14 @@ package profile
 import (
 	"context"
 	"database/sql"
+	"math/rand"
 	"sort"
+	"time"
 
 	"fmt"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -343,6 +346,7 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error) {
 	msg := ""
 	var existingHiveId uint64
+	cfg, _ := config.GetImpart()
 	if gpi.Type == impart.AddToWaitlist {
 		hives := dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: DefaultHiveId},
@@ -372,7 +376,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		mailChimpParams := &members.UpdateParams{
 			MergeFields: map[string]interface{}{"STATUS": impart.WaitList},
 		}
-		_, err = members.Update(impart.MailChimpAudienceID, userToUpdate.Email, mailChimpParams)
+		_, err = members.Update(cfg.MailchimpAudienceId, userToUpdate.Email, mailChimpParams)
 		if err != nil {
 			m.logger.Error("MailChimp update failed", zap.String("Email", userToUpdate.Email),
 				zap.Error(err))
@@ -389,6 +393,12 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			return msg, impart.NewError(impart.ErrBadRequest, "User is already admin.")
 		}
 		userToUpdate.Admin = true
+
+		rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
+		admin := impart.GetAvatharLettersAdmin()
+		adminindex := rand.Intn(len(admin))
+		userToUpdate.AvatarBackground = admin[adminindex]
+
 		err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
 		if err != nil {
 			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as user")
@@ -451,7 +461,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		mailChimpParams := &members.UpdateParams{
 			MergeFields: map[string]interface{}{"STATUS": impart.Hive},
 		}
-		_, err = members.Update(impart.MailChimpAudienceID, userToUpdate.Email, mailChimpParams)
+		_, err = members.Update(cfg.MailchimpAudienceId, userToUpdate.Email, mailChimpParams)
 		if err != nil {
 			m.logger.Error("MailChimp update failed", zap.String("Email", userToUpdate.Email),
 				zap.Error(err))
@@ -566,6 +576,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	userOutput.HiveID = userUpdatesInput.HiveID
 	userOutput.Action = userUpdatesInput.Action
 	impartWealthIDs := make([]interface{}, len(userUpdatesInput.Users))
+	cfg, _ := config.GetImpart()
 
 	for i, user := range userUpdatesInput.Users {
 		userData := &models.UserData{}
@@ -615,7 +626,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 			mailChimpParams := &members.UpdateParams{
 				MergeFields: map[string]interface{}{"STATUS": status},
 			}
-			_, err = members.Update(impart.MailChimpAudienceID, user.Email, mailChimpParams)
+			_, err = members.Update(cfg.MailchimpAudienceId, user.Email, mailChimpParams)
 			if err != nil {
 				m.logger.Info("mailchimp failed")
 				m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
@@ -656,6 +667,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 		return userOutputRslt
 	}
 	lenUser := len(userOutputRslt.Users)
+	cfg, _ := config.GetImpart()
 	for _, user := range deleteUser {
 		for cnt := 0; cnt < lenUser; cnt++ {
 			if userOutputRslt.Users[cnt].ImpartWealthID == user.ImpartWealthID {
@@ -664,7 +676,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 				break
 			}
 		}
-		err = members.Delete(impart.MailChimpAudienceID, user.Email)
+		err = members.Delete(cfg.MailchimpAudienceId, user.Email)
 		if err != nil {
 			m.logger.Error("Delete user requset failed in Mailchimp.", zap.String("deleteUser", user.ImpartWealthID),
 				zap.String("contextUser", user.ImpartWealthID))

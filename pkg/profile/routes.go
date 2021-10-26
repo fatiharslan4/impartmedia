@@ -1150,10 +1150,40 @@ func (ph *profileHandler) CreateMailChimpForExistingUsers() gin.HandlerFunc {
 func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// ctx.Header("Set-Cookie", "foo=bar; HttpOnly")
-		ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
-			impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
-		))
-		return
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+		p := models.CreateCookie{}
+		stdErr := json.Unmarshal(b, &p)
+		if stdErr != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Profile")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		fmt.Println(p.AccessToken)
+		fmt.Println(p.RefreshToken)
+		// w http.ResponseWriter:=
+		// cookie := http.Cookie{}
+		// cookie.Name = "PLAY_SESSION"
+		// cookie.Value = "Test" + "-" + "Test Cookie"
+		// cookie.Path = "/"
+		// cookie.Domain = "Test Domain"
+		// cookie.HttpOnly = true
+		// // http.SetCookie(w, &cookie)
+		ctx.SetCookie("accessToken", p.AccessToken, 10, "/", "localhost", true, true)
+		ctx.SetCookie("refreshToken", p.RefreshToken, 10, "/", "localhost", true, true)
+		// ctx.JSON(http.StatusOK, "Success")
+		// ctx.Header("set-cookie", "foo=bar")
+		ctx.JSON(http.StatusOK, "Success")
+		// ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+		// 	impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+		// ))
+		// return
 	}
 }
 

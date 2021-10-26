@@ -27,7 +27,6 @@ import (
 	"github.com/impartwealthapp/backend/pkg/hive"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/profile"
-	"github.com/impartwealthapp/backend/pkg/secure"
 	"github.com/impartwealthapp/backend/pkg/tags"
 	"github.com/ory/graceful"
 	"go.uber.org/zap"
@@ -121,18 +120,18 @@ func main() {
 
 	r := gin.New()
 	r.Use(CORS)
-	r.Use(secure.Secure(secure.Options{
-		//AllowedHosts:          []string{"*"},
-		// AllowedHosts: []string{"localhost:3000", "ssl.example.com"},
-		//SSLRedirect: true,
-		// SSLHost:               "*",
-		SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
-		STSIncludeSubdomains:  true,
-		FrameDeny:             true,
-		ContentTypeNosniff:    true,
-		BrowserXssFilter:      true,
-		ContentSecurityPolicy: "default-src 'self'",
-	}))
+	// r.Use(secure.Secure(secure.Options{
+	// 	//AllowedHosts:          []string{"*"},
+	// 	// AllowedHosts: []string{"localhost:3000", "ssl.example.com"},
+	// 	//SSLRedirect: true,
+	// 	// SSLHost:               "*",
+	// 	SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
+	// 	STSIncludeSubdomains:  true,
+	// 	FrameDeny:             true,
+	// 	ContentTypeNosniff:    true,
+	// 	BrowserXssFilter:      true,
+	// 	ContentSecurityPolicy: "default-src 'self'",
+	// }))
 	r.RedirectTrailingSlash = true
 	r.Use(ginzap.RecoveryWithZap(logger, true))      // panics don't stop server
 	r.Use(ginzap.Ginzap(logger, time.RFC3339, true)) // logs all requests

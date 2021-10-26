@@ -1157,7 +1157,6 @@ func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
 			))
 		}
-		fmt.Println("the raw data is", b)
 		p := models.CreateCookie{}
 		stdErr := json.Unmarshal(b, &p)
 		if stdErr != nil {
@@ -1166,7 +1165,6 @@ func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-		fmt.Println("the cookie data", p)
 		fmt.Println(p.AccessToken)
 		fmt.Println(p.RefreshToken)
 		// w http.ResponseWriter:=
@@ -1176,11 +1174,11 @@ func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 		// cookie.Path = "/"
 		// cookie.Domain = "Test Domain"
 		// cookie.HttpOnly = true
-		// // w := http.ResponseWriter{}
 		// // http.SetCookie(w, &cookie)
-		// ctx.SetCookie("name", "Shimin Li", 10, "/", "localhost", false, true)
+		ctx.SetCookie("accessToken", p.AccessToken, 10, "/", "localhost", true, true)
+		ctx.SetCookie("refreshToken", p.RefreshToken, 10, "/", "localhost", true, true)
 		// ctx.JSON(http.StatusOK, "Success")
-		ctx.Header("set-cookie", "foo=bar")
+		// ctx.Header("set-cookie", "foo=bar")
 		ctx.JSON(http.StatusOK, "Success")
 		// ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
 		// 	impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),

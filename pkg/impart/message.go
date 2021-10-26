@@ -14,4 +14,5 @@ var (
 	HiveRuletoDbmodel      Message = "Unable to convert hiveRules to  dbmodel."
 	HiveRuleNameExist      Message = "Hive rule name already exists."
 	HiveRuleLimit          Message = "Hive rule limit must be greater than 0."
+	HiveRuleUpdateFailed   Message = "Hive rule updation failed."
 )

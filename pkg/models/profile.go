@@ -77,8 +77,8 @@ type UpdateReadCommunity struct {
 }
 
 type CreateCookie struct {
-	accessToken  string `json:"accessToken,omitempty"`
-	refreshToken string `json:"refreshToken,omitempty"`
+	AccessToken  string `json:"accessToken,omitempty"`
+	RefreshToken string `json:"refreshToken,omitempty"`
 }
 
 type NotificationProfile struct {

@@ -1167,6 +1167,8 @@ func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 			return
 		}
 		fmt.Println("the cookie data", p)
+		fmt.Println(p.AccessToken)
+		fmt.Println(p.RefreshToken)
 		// w http.ResponseWriter:=
 		// cookie := http.Cookie{}
 		// cookie.Name = "PLAY_SESSION"
@@ -1183,7 +1185,7 @@ func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 		// ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
 		// 	impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
 		// ))
-		return
+		// return
 	}
 }
 

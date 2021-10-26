@@ -29,6 +29,13 @@ function setup_local_env {
   export IMPART_DB_MIGRATION_PASSWORD=supersecretpassword
   export IMPART_DB_USERNAME=impart_crud
   export IMPART_DB_PASSWORD=supersecretpassword
+  export IMPART_MAILCHIMP_APIKEY="153b0a27bf4c930aa92b738974331333"
+  export IMPART_MAILCHIMP_AUDIENCE_ID="5fc34548d1"
+  export IMPART_PLAID_CLIENT_ID="6136f385219f3b0010085168"
+  export IMPART_PLAID_SECRET="6fae35ee0ce476ebb02f7dbee199e4"
+  export IMPART_AUTH_DOMAIN="impartwealth.auth0.com"
+  export IMPART_AUTH0_MANAGEMENT_CLIENT="wK78yrI3H2CSoWr0iscR5lItcZdjcLBA"
+  export IMPART_AUTH0_MANAGEMENT_CLIENT_SECRET="X3bXip3IZTQcLRoYIQ5VkMfSQdqcSZdJtdZpQd8w5-D22wK3vCt5HjMBo3Et93cJ"
 }
 
 if [[ $(docker ps -q --filter "name=backend_mysql_1" --filter "health=healthy" | wc -l) -ne 1 ]]; then

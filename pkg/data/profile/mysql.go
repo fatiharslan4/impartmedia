@@ -10,6 +10,7 @@ import (
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/google/uuid"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	authdata "github.com/impartwealthapp/backend/pkg/data/auth"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -723,7 +724,8 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		return impart.NewError(err, "User Deletion failed")
 	}
 	// // delete user from mailChimp
-	err = members.Delete(impart.MailChimpAudienceID, orgEmail)
+	cfg, _ := config.GetImpart()
+	err = members.Delete(cfg.MailchimpAudienceId, orgEmail)
 	if err != nil {
 		m.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", userToDelete.ImpartWealthID),
 			zap.String("contextUser", userToDelete.ImpartWealthID))
@@ -1018,7 +1020,8 @@ func (m *mysqlStore) CreateMailChimpForExistingUsers(ctx context.Context) error 
 	params := &members.GetParams{
 		Status: members.StatusSubscribed,
 	}
-	listMembers, err := members.Get(impart.MailChimpAudienceID, params)
+	cfg, _ := config.GetImpart()
+	listMembers, err := members.Get(cfg.MailchimpAudienceId, params)
 	if err != nil {
 		return err
 	}
@@ -1045,7 +1048,7 @@ func (m *mysqlStore) CreateMailChimpForExistingUsers(ctx context.Context) error 
 				Status:       members.StatusSubscribed,
 				MergeFields:  mergeFlds,
 			}
-			_, err := members.New(impart.MailChimpAudienceID, params)
+			_, err := members.New(cfg.MailchimpAudienceId, params)
 			if err != nil {
 				m.logger.Info("new user requset failed in MailChimp", zap.String("updateuser", user.Email),
 					zap.String("contextUser", user.ImpartWealthID))

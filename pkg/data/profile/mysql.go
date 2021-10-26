@@ -222,32 +222,32 @@ func (m *mysqlStore) SaveUserQuestionnaire(ctx context.Context, answers dbmodels
 			return err
 		}
 
-		var userDemo dbmodels.UserDemographic
-		err = dbmodels.NewQuery(
-			qm.Select("*"),
-			qm.Where("answer_id = ?", a.AnswerID),
-			qm.From("user_demographic"),
-		).Bind(ctx, m.db, &userDemo)
+		// var userDemo dbmodels.UserDemographic
+		// err = dbmodels.NewQuery(
+		// 	qm.Select("*"),
+		// 	qm.Where("answer_id = ?", a.AnswerID),
+		// 	qm.From("user_demographic"),
+		// ).Bind(ctx, m.db, &userDemo)
 
-		if err == nil {
-			existData := &userDemo
-			existData.UserCount = existData.UserCount + 1
-			_, err = existData.Update(ctx, m.db, boil.Infer())
-		}
+		// if err == nil {
+		// 	existData := &userDemo
+		// 	existData.UserCount = existData.UserCount + 1
+		// 	_, err = existData.Update(ctx, m.db, boil.Infer())
+		// }
 
-		var hiveUserdemo dbmodels.HiveUserDemographic
-		err = dbmodels.NewQuery(
-			qm.Select("*"),
-			qm.Where("answer_id = ?", a.AnswerID),
-			qm.Where("hive_id = ?", DefaultHiveId),
-			qm.From("hive_user_demographic"),
-		).Bind(ctx, m.db, &hiveUserdemo)
+		// var hiveUserdemo dbmodels.HiveUserDemographic
+		// err = dbmodels.NewQuery(
+		// 	qm.Select("*"),
+		// 	qm.Where("answer_id = ?", a.AnswerID),
+		// 	qm.Where("hive_id = ?", DefaultHiveId),
+		// 	qm.From("hive_user_demographic"),
+		// ).Bind(ctx, m.db, &hiveUserdemo)
 
-		if err == nil {
-			existUserData := &hiveUserdemo
-			existUserData.UserCount = existUserData.UserCount + 1
-			_, err = existUserData.Update(ctx, m.db, boil.Infer())
-		}
+		// if err == nil {
+		// 	existUserData := &hiveUserdemo
+		// 	existUserData.UserCount = existUserData.UserCount + 1
+		// 	_, err = existUserData.Update(ctx, m.db, boil.Infer())
+		// }
 	}
 	tx.Commit()
 	return nil

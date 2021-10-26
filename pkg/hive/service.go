@@ -63,6 +63,7 @@ type Service interface {
 	CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) (*models.HiveRule, impart.Error)
 	GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (models.HiveRuleLists, *models.NextPage, impart.Error)
 	GetHivebyField(ctx context.Context, hiveName string) (*dbmodels.Hive, error)
+	EditHiveRule(ctx context.Context, hiveRule models.HiveRule) (*models.HiveRule, impart.Error)
 }
 
 const maxNotificationLength = 512

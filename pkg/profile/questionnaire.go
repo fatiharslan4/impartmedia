@@ -490,13 +490,14 @@ func SearchString(input []string, searchItem string) bool {
 
 func (ps *profileService) AssignHiveDemograpics(ctx context.Context, answer dbmodels.UserAnswerSlice, hiveId *uint64) error {
 
-	inParamValues := make([]interface{}, len(answer))
-	for i, id := range answer {
-		inParamValues[i] = id
-	}
+	inParamValues := ""
 
-	updateHiveDemograph := "update user_demographic set user_count=user_count+1 where answer_id in (?); update hive_user_demographic set user_count=user_count+1 where answer_id in (?) and hive_id = ?;"
-	_, err := queries.Raw(updateHiveDemograph, inParamValues, inParamValues, hiveId).ExecContext(ctx, ps.db)
+	for _, id := range answer {
+		inParamValues = fmt.Sprintf("%s %d ,", inParamValues, id.AnswerID)
+	}
+	inParamValues = strings.Trim(inParamValues, ",")
+	updateHiveDemograph := fmt.Sprintf("update user_demographic set user_count=user_count+1 where answer_id in (%s); update hive_user_demographic set user_count=user_count+1 where answer_id in (%s) and hive_id = %d;", inParamValues, inParamValues, 42)
+	_, err := queries.Raw(updateHiveDemograph).ExecContext(ctx, ps.db)
 	if err != nil {
 		return err
 	}

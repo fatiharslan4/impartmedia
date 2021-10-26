@@ -76,6 +76,11 @@ type UpdateReadCommunity struct {
 	IsUpdate bool `json:"isUpdate,omitempty"`
 }
 
+type CreateCookie struct {
+	accessToken  string `json:"accessToken,omitempty"`
+	refreshToken string `json:"refreshToken,omitempty"`
+}
+
 type NotificationProfile struct {
 	DeviceToken            string        `json:"deviceToken,omitempty"`
 	AWSPlatformEndpointARN string        `json:"awsPlatformEndpointARN,omitempty"`

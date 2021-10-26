@@ -862,11 +862,11 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 	updateHivequery := ""
 	existinghiveid := DefaultHiveId
 	userHiveDemoexist := make(map[uint64]map[uint64]int)
-	// var existingHive *dbmodels.Hive
-	// var newHive *dbmodels.Hive
+	var existingHive *dbmodels.Hive
+	var newHive *dbmodels.Hive
 	if userUpdate.Type == impart.AddToHive {
 		var err error
-		// newHive, err = dbmodels.FindHive(ctx, m.db, userUpdate.HiveID)
+		newHive, err = dbmodels.FindHive(ctx, m.db, userUpdate.HiveID)
 		if err != nil {
 			return userUpdate, err
 		}
@@ -902,7 +902,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 			for _, h := range user.R.MemberHiveHives {
 				existinghiveid = h.HiveID
 			}
-			// existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
+			existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
 			if existinghiveid == DefaultHiveId {
 				userUpdate.Users[userUpdateposition].Message = "User is already on waitlist."
 			} else {
@@ -918,15 +918,15 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
 
-				// if existingHive != nil {
-				// 	if existingHive.NotificationTopicArn.String != "" {
-				// 		err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
-				// 		if err != nil {
-				// 			m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
-				// 				zap.Error(err))
-				// 		}
-				// 	}
-				// }
+				if existingHive != nil {
+					if existingHive.NotificationTopicArn.String != "" {
+						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+						if err != nil {
+							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
+								zap.Error(err))
+						}
+					}
+				}
 			}
 		} else if userUpdate.Type == impart.AddToHive {
 			m.logger.Info("addtohive started", zap.String("query", impart.AddToHive))
@@ -935,8 +935,8 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				existinghiveid = h.HiveID
 				// existingHive = h
 			}
-			// existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
-			// m.logger.Info("addtohive started- existing hive", zap.Any("existingHive", existingHive))
+			existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
+			m.logger.Info("addtohive started- existing hive", zap.Any("existingHive", existingHive))
 			m.logger.Info("user-hive", zap.String("query", fmt.Sprintf("%d", existinghiveid)))
 			if existinghiveid == userUpdate.HiveID {
 				userUpdate.Users[userUpdateposition].Message = "User is already on hive."
@@ -950,36 +950,36 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
 
-				// if existingHive != nil {
-				// 	if existingHive.NotificationTopicArn.String != "" {
-				// 		err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
-				// 		if err != nil {
-				// 			m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
-				// 				zap.Error(err))
-				// 		}
-				// 	}
-				// }
+				if existingHive != nil {
+					if existingHive.NotificationTopicArn.String != "" {
+						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+						if err != nil {
+							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
+								zap.Error(err))
+						}
+					}
+				}
 
-				// deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
-				// if devErr != nil {
-				// 	m.logger.Error("unable to find device", zap.Error(err))
-				// }
-				// if deviceDetails != nil {
-				// 	for _, device := range deviceDetails {
-				// 		endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
-				// 		if err != nil {
-				// 			m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
-				// 				zap.Error(err))
-				// 		}
-				// 		if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
-				// 			err := m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
-				// 			if err != nil {
-				// 				m.logger.Error("SubscribeTopic", zap.String("DeviceToken", device.DeviceToken),
-				// 					zap.Error(err))
-				// 			}
-				// 		}
-				// 	}
-				// }
+				deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
+				if devErr != nil {
+					m.logger.Error("unable to find device", zap.Error(err))
+				}
+				if deviceDetails != nil {
+					for _, device := range deviceDetails {
+						endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+						if err != nil {
+							m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+								zap.Error(err))
+						}
+						if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
+							err := m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
+							if err != nil {
+								m.logger.Error("SubscribeTopic", zap.String("DeviceToken", device.DeviceToken),
+									zap.Error(err))
+							}
+						}
+					}
+				}
 			}
 		}
 	}

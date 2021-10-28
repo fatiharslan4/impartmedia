@@ -155,6 +155,12 @@
 				},
 				"fullName": {
 					"type": "string"
+				},
+				"avatarBackground": {
+					"type": "string"
+				},
+				"avatarLetter": {
+					"type": "string"
 				}
 			},
 			"additionalProperties": false,

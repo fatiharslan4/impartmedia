@@ -78,6 +78,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	hiveRulesRoutes := version.Group("/hive/rules")
 	hiveRulesRoutes.POST("", handler.CreateHiveulesFunc())
 	hiveRulesRoutes.GET("", handler.GetHiveulesFunc())
+	hiveRulesRoutes.PATCH(":ruleId", handler.EditHiveRulesFunc())
 }
 
 // RequestAuthorizationHandler Validates the bearer
@@ -1252,5 +1253,50 @@ func (hh *hiveHandler) GetHiveulesFunc() gin.HandlerFunc {
 			HiveRules: hiveRules,
 			NextPage:  nextPage,
 		})
+	}
+}
+
+func (hh *hiveHandler) EditHiveRulesFunc() gin.HandlerFunc {
+	///
+	/// Edit Hive Rules
+	///
+	return func(ctx *gin.Context) {
+
+		var ruleId uint64
+		var impartErr impart.Error
+		if ruleId, impartErr = ctxUint64Param(ctx, "ruleId"); impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		requestBody, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+		hiveRule := models.HiveRule{}
+		err = json.Unmarshal(requestBody, &hiveRule)
+		if err != nil {
+			hh.logger.Error("Unable to unmarshal JSON Body",
+				zap.Error(err),
+				zap.Any("request", requestBody),
+			)
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to unmarshal JSON Body to a Post")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		hiveRule.RuleID = ruleId
+
+		_, Err := hh.hiveService.EditHiveRule(ctx, hiveRule)
+		if Err != nil {
+			ctx.JSON(Err.HttpStatus(), impart.ErrorResponse(Err))
+			return
+		}
+		if hiveRule.Status {
+			ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "The Rule is Enabled"})
+		} else {
+			ctx.JSON(http.StatusOK, gin.H{"status": false, "message": "The Rule is Disabled"})
+		}
 	}
 }

@@ -81,6 +81,15 @@
 				},
 				"deleted": {
 					"type": "boolean"
+				},
+				"firstName": {
+					"type": "string"
+				},
+				"lastName": {
+					"type": "string"
+				},
+				"fullName": {
+					"type": "string"
 				}
 			},
 			"additionalProperties": false,

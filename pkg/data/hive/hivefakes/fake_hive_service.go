@@ -7,6 +7,7 @@ import (
 	"time"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
+	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 )
@@ -124,7 +125,7 @@ type FakeHiveService struct {
 		result1 *dbmodels.Hive
 		result2 error
 	}
-	EditHiveRuleStub        func(context.Context, models.HiveRule) (*dbmodels.HiveRule, error)
+	EditHiveRuleStub        func(context.Context, models.HiveRule) (*dbmodels.HiveRule, impart.Error)
 	editHiveRuleMutex       sync.RWMutex
 	editHiveRuleArgsForCall []struct {
 		arg1 context.Context
@@ -132,11 +133,11 @@ type FakeHiveService struct {
 	}
 	editHiveRuleReturns struct {
 		result1 *dbmodels.HiveRule
-		result2 error
+		result2 impart.Error
 	}
 	editHiveRuleReturnsOnCall map[int]struct {
 		result1 *dbmodels.HiveRule
-		result2 error
+		result2 impart.Error
 	}
 	EditPostStub        func(context.Context, *dbmodels.Post, dbmodels.TagSlice, bool, *dbmodels.PostVideo, *dbmodels.PostURL, []models.File, string) (*dbmodels.Post, error)
 	editPostMutex       sync.RWMutex
@@ -1181,7 +1182,7 @@ func (fake *FakeHiveService) EditHiveReturnsOnCall(i int, result1 *dbmodels.Hive
 	}{result1, result2}
 }
 
-func (fake *FakeHiveService) EditHiveRule(arg1 context.Context, arg2 models.HiveRule) (*dbmodels.HiveRule, error) {
+func (fake *FakeHiveService) EditHiveRule(arg1 context.Context, arg2 models.HiveRule) (*dbmodels.HiveRule, impart.Error) {
 	fake.editHiveRuleMutex.Lock()
 	ret, specificReturn := fake.editHiveRuleReturnsOnCall[len(fake.editHiveRuleArgsForCall)]
 	fake.editHiveRuleArgsForCall = append(fake.editHiveRuleArgsForCall, struct {
@@ -1207,7 +1208,7 @@ func (fake *FakeHiveService) EditHiveRuleCallCount() int {
 	return len(fake.editHiveRuleArgsForCall)
 }
 
-func (fake *FakeHiveService) EditHiveRuleCalls(stub func(context.Context, models.HiveRule) (*dbmodels.HiveRule, error)) {
+func (fake *FakeHiveService) EditHiveRuleCalls(stub func(context.Context, models.HiveRule) (*dbmodels.HiveRule, impart.Error)) {
 	fake.editHiveRuleMutex.Lock()
 	defer fake.editHiveRuleMutex.Unlock()
 	fake.EditHiveRuleStub = stub
@@ -1220,29 +1221,29 @@ func (fake *FakeHiveService) EditHiveRuleArgsForCall(i int) (context.Context, mo
 	return argsForCall.arg1, argsForCall.arg2
 }
 
-func (fake *FakeHiveService) EditHiveRuleReturns(result1 *dbmodels.HiveRule, result2 error) {
+func (fake *FakeHiveService) EditHiveRuleReturns(result1 *dbmodels.HiveRule, result2 impart.Error) {
 	fake.editHiveRuleMutex.Lock()
 	defer fake.editHiveRuleMutex.Unlock()
 	fake.EditHiveRuleStub = nil
 	fake.editHiveRuleReturns = struct {
 		result1 *dbmodels.HiveRule
-		result2 error
+		result2 impart.Error
 	}{result1, result2}
 }
 
-func (fake *FakeHiveService) EditHiveRuleReturnsOnCall(i int, result1 *dbmodels.HiveRule, result2 error) {
+func (fake *FakeHiveService) EditHiveRuleReturnsOnCall(i int, result1 *dbmodels.HiveRule, result2 impart.Error) {
 	fake.editHiveRuleMutex.Lock()
 	defer fake.editHiveRuleMutex.Unlock()
 	fake.EditHiveRuleStub = nil
 	if fake.editHiveRuleReturnsOnCall == nil {
 		fake.editHiveRuleReturnsOnCall = make(map[int]struct {
 			result1 *dbmodels.HiveRule
-			result2 error
+			result2 impart.Error
 		})
 	}
 	fake.editHiveRuleReturnsOnCall[i] = struct {
 		result1 *dbmodels.HiveRule
-		result2 error
+		result2 impart.Error
 	}{result1, result2}
 }
 

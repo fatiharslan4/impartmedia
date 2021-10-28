@@ -1288,15 +1288,15 @@ func (hh *hiveHandler) EditHiveRulesFunc() gin.HandlerFunc {
 		}
 		hiveRule.RuleID = ruleId
 
-		_, Err := hh.hiveService.EditHiveRule(ctx, hiveRule)
-		if Err != nil {
-			ctx.JSON(Err.HttpStatus(), impart.ErrorResponse(Err))
+		_, editErr := hh.hiveService.EditHiveRule(ctx, hiveRule)
+		if editErr != nil {
+			ctx.JSON(editErr.HttpStatus(), impart.ErrorResponse(editErr))
 			return
 		}
 		if hiveRule.Status {
-			ctx.JSON(http.StatusOK, gin.H{"status": true, "message": "The Rule is Enabled"})
+			ctx.JSON(http.StatusOK, gin.H{"status": true, "message": string(impart.HiveRuleEnabled)})
 		} else {
-			ctx.JSON(http.StatusOK, gin.H{"status": false, "message": "The Rule is Disabled"})
+			ctx.JSON(http.StatusOK, gin.H{"status": false, "message": string(impart.HiveRuleDisabled)})
 		}
 	}
 }

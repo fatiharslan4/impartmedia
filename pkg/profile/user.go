@@ -180,11 +180,12 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 			if hiveData.NotificationTopicArn.String != "" {
 				ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
 			}
-		} else {
-			if hiveData.NotificationTopicArn.String != "" {
-				ps.notificationService.UnsubscribeTopicForDevice(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
-			}
 		}
+		//  else {
+		// 	if hiveData.NotificationTopicArn.String != "" {
+		// 		ps.notificationService.UnsubscribeTopicForDevice(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
+		// 	}
+		// }
 	} else {
 		if hiveData.NotificationTopicArn.String != "" {
 			ps.notificationService.UnsubscribeTopicForDevice(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)

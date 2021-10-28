@@ -49,7 +49,7 @@ type Comment struct {
 	FullName         string           `json:"fullName,omitempty"`
 	AvatarBackground string           `json:"avatarBackground,omitempty"`
 	AvatarLetter     string           `json:"avatarLetter,omitempty"`
-	Admin            bool             `json:"admin,omitempty"`
+	Admin            bool             `json:"admin"`
 }
 
 func (comments Comments) Latest() time.Time {

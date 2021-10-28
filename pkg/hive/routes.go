@@ -78,7 +78,7 @@ func SetupRoutes(version *gin.RouterGroup, db *sql.DB, hiveData hivedata.Hives, 
 	hiveRulesRoutes := version.Group("/hive/rules")
 	hiveRulesRoutes.POST("", handler.CreateHiveulesFunc())
 	hiveRulesRoutes.GET("", handler.GetHiveulesFunc())
-	hiveRulesRoutes.PUT(":ruleId", handler.EditHiveRulesFunc())
+	hiveRulesRoutes.PATCH(":ruleId", handler.EditHiveRulesFunc())
 }
 
 // RequestAuthorizationHandler Validates the bearer

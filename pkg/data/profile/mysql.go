@@ -905,6 +905,16 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				query := fmt.Sprintf("Update user set admin=true and avatar_background=%s and  where impart_wealth_id='%s';", adminColor, user.ImpartWealthID)
 				updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
 				userUpdate.Users[userUpdateposition].Value = 1
+
+				if user.R.MemberHiveHives != nil {
+					if user.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, user.R.MemberHiveHives[0].NotificationTopicArn.String)
+						if err != nil {
+							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", user.R.MemberHiveHives[0].NotificationTopicArn.String),
+								zap.Error(err))
+						}
+					}
+				}
 			}
 		} else if userUpdate.Type == impart.AddToWaitlist {
 			for _, h := range user.R.MemberHiveHives {

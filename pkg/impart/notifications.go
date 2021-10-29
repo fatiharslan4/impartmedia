@@ -619,7 +619,7 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 	}
 	cfg, _ := config.GetImpart()
 	if cfg.Env != config.Local {
-		s := &snsAppleNotificationService{}
+		notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
 		for _, hive := range posts {
 			pushNotification := Alert{
 				Title: aws.String(title),
@@ -631,7 +631,7 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 				EventDatetime: CurrentUTC(),
 				HiveID:        hive.HiveID,
 			}
-			err = s.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
+			err = notification.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
 			if err != nil {
 				logger.Error("error sending notification to topic", zap.Error(err))
 			}

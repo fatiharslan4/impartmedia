@@ -154,7 +154,7 @@ func main() {
 		v1Route = fmt.Sprintf("%s/v1", cfg.Env)
 		v2Route = fmt.Sprintf("%s/v1.1", cfg.Env)
 	}
-	err = mailchimp.SetKey(cfg.MailchimpApikey)
+	err = mailchimp.SetKey(impart.MailChimpApiKey)
 	if err != nil {
 		logger.Info("Error connecting Mailchimp", zap.Error(err),
 			zap.Any("MailchimpApikey", cfg.MailchimpApikey))

@@ -594,17 +594,19 @@ const title = "This Week’s Activity"
 
 func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 	logger.Info("NotifyWeeklyActivity- start")
+	fmt.Println("12")
 	c := cron.New()
-	c.AddFunc("*/1 * * * *", func() {})
-	lastweekTime := CurrentUTC().AddDate(0, 0, -7)
+	// c.AddFunc("*/1 * * * *", func() {})
+	c.AddFunc("*/10 * * * *", func() {
+		lastweekTime := CurrentUTC().AddDate(0, 0, -7)
 
-	type PostCount struct {
-		HiveID               uint64      `json:"hive_id"`
-		Post                 uint64      `json:"post"`
-		NotificationTopicArn null.String `json:"notification_topic_arn"`
-	}
-	var posts []PostCount
-	err := queries.Raw(`
+		type PostCount struct {
+			HiveID               uint64      `json:"hive_id"`
+			Post                 uint64      `json:"post"`
+			NotificationTopicArn null.String `json:"notification_topic_arn"`
+		}
+		var posts []PostCount
+		err := queries.Raw(`
 			select count(post_id) as post , post.hive_id as hive_id , hive.notification_topic_arn
 			from post
 			join hive on post.hive_id=hive.hive_id and hive.deleted_at is null
@@ -614,35 +616,37 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 			group by hive_id
 	`, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &posts)
 
-	if err != nil {
-		logger.Error("error while fetching data ", zap.Error(err))
-		// return err
-	}
-	cfg, _ := config.GetImpart()
-	if cfg.Env != config.Local {
-		notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
-		logger.Info("Notification- fetching complted")
-		for _, hive := range posts {
-			pushNotification := Alert{
-				Title: aws.String(title),
-				Body: aws.String(
-					fmt.Sprintf("Check out %d new posts in your Hive this week", hive.Post),
-				),
-			}
-			additionalData := NotificationData{
-				EventDatetime: CurrentUTC(),
-				HiveID:        hive.HiveID,
-			}
-			Logger.Info("Notification",
-				zap.Any("pushNotification", pushNotification),
-				zap.Any("additionalData", additionalData),
-				zap.Any("hive", hive),
-			)
-			err = notification.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
-			if err != nil {
-				logger.Error("error sending notification to topic", zap.Error(err))
-			}
-
+		if err != nil {
+			logger.Error("error while fetching data ", zap.Error(err))
+			// return err
 		}
-	}
+		cfg, _ := config.GetImpart()
+		if cfg.Env != config.Local {
+			notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
+			logger.Info("Notification- fetching complted")
+			for _, hive := range posts {
+				pushNotification := Alert{
+					Title: aws.String(title),
+					Body: aws.String(
+						fmt.Sprintf("Check out %d new posts in your Hive this week", hive.Post),
+					),
+				}
+				additionalData := NotificationData{
+					EventDatetime: CurrentUTC(),
+					HiveID:        hive.HiveID,
+				}
+				Logger.Info("Notification",
+					zap.Any("pushNotification", pushNotification),
+					zap.Any("additionalData", additionalData),
+					zap.Any("hive", hive),
+				)
+				err = notification.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
+				if err != nil {
+					logger.Error("error sending notification to topic", zap.Error(err))
+				}
+
+			}
+		}
+	})
+	c.Start()
 }

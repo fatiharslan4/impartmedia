@@ -598,7 +598,7 @@ func (s *service) EditHiveRule(ctx context.Context, hiveRule models.HiveRule) (*
 	}
 	output, err := s.hiveData.EditHiveRule(ctx, hiveRule)
 	if err != nil {
-		return &hiveRule, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleUpdateFailed))
+		return &hiveRule, err
 	}
 	out, _ := models.HiveRuleDBToModel(output)
 	return out, nil

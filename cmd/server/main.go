@@ -156,7 +156,8 @@ func main() {
 	}
 	err = mailchimp.SetKey(cfg.MailchimpApikey)
 	if err != nil {
-		logger.Info("Error connecting Mailchimp", zap.Error(err))
+		logger.Info("Error connecting Mailchimp", zap.Error(err),
+			zap.Any("MailchimpApikey", cfg.MailchimpApikey))
 	}
 
 	v1 := r.Group(v1Route)

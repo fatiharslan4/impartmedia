@@ -594,10 +594,9 @@ const title = "This Week’s Activity"
 
 func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 	logger.Info("NotifyWeeklyActivity- start")
-	fmt.Println("12")
 	c := cron.New()
 	// c.AddFunc("*/1 * * * *", func() {})
-	c.AddFunc("*/10 * * * *", func() {
+	c.AddFunc("*/30 * * * *", func() {
 		lastweekTime := CurrentUTC().AddDate(0, 0, -7)
 
 		type PostCount struct {
@@ -614,6 +613,7 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 			and hive.deleted_at is null
 			and post.created_at between ? and ?
 			group by hive_id
+			having count(post_id)>3 ;
 	`, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &posts)
 
 		if err != nil {

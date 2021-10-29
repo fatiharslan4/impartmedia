@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -21,8 +22,11 @@ import (
 
 func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 	configuration := plaid.NewConfiguration()
-	configuration.AddDefaultHeader("PLAID-CLIENT-ID", PLAID_CLIENT_ID)
-	configuration.AddDefaultHeader("PLAID-SECRET", PLAID_SECRET)
+	cfg, _ := config.GetImpart()
+	if cfg != nil {
+		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
+		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
+	}
 	configuration.UseEnvironment(plaid.Sandbox)
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
@@ -52,8 +56,11 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 	}
 
 	configuration := plaid.NewConfiguration()
-	configuration.AddDefaultHeader("PLAID-CLIENT-ID", PLAID_CLIENT_ID)
-	configuration.AddDefaultHeader("PLAID-SECRET", PLAID_SECRET)
+	cfg, _ := config.GetImpart()
+	if cfg != nil {
+		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
+		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
+	}
 	configuration.UseEnvironment(plaid.Sandbox)
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
@@ -180,9 +187,12 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 	}
 
 	configuration := plaid.NewConfiguration()
-	configuration.AddDefaultHeader("PLAID-CLIENT-ID", PLAID_CLIENT_ID)
-	configuration.AddDefaultHeader("PLAID-SECRET", PLAID_SECRET)
-	configuration.UseEnvironment(plaid.Sandbox)
+	cfg, _ := config.GetImpart()
+	if cfg != nil {
+		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
+		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
+		configuration.UseEnvironment(plaid.Sandbox)
+	}
 	client := plaid.NewAPIClient(configuration)
 
 	userData := UserAccount{}
@@ -263,6 +273,7 @@ func InstitutionToModel(user *dbmodels.UserInstitution) UserInstitution {
 		weburl, err := url.Parse(institution.Weburl)
 		if err == nil {
 			institution.Weburl = weburl.Host
+			// host, _, _ := net.SplitHostPort(weburl.Host)
 		}
 	}
 	return institution

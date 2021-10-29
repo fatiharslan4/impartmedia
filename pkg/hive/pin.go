@@ -10,7 +10,7 @@ import (
 )
 
 const adminPostNotification = "Your Hive is Buzzing"
-const title = "New post"
+const title = "New Post in Your Hive"
 const body = "Admin added a post on Your Hive"
 
 // This is a lot of branches; should probably be broken up.
@@ -41,14 +41,12 @@ func (s *service) PinPost(ctx context.Context, hiveID, postID uint64, pin bool, 
 	if pin && dbHive.PinnedPostID.Uint64 == dbPost.PostID {
 		pushNotification := impart.Alert{
 			Title: aws.String(title),
-			Body:  aws.String(body),
+			Body:  aws.String(dbPost.Subject),
 		}
-
 		additionalData := impart.NotificationData{
 			EventDatetime: impart.CurrentUTC(),
 			PostID:        dbPost.PostID,
 		}
-
 		err = s.notificationService.NotifyTopic(ctx, additionalData, pushNotification, dbHive.NotificationTopicArn.String)
 		if err != nil {
 			s.logger.Error("error sending notification to topic", zap.Error(err))

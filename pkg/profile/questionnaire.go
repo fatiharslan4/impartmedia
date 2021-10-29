@@ -4,11 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -264,7 +267,8 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		// 	&dbmodels.Hive{HiveID: *id},
 		// }
 	}
-	if hiveId := ps.isAssignHiveRule(ctx, questionnaire, answer); hiveId != nil {
+	var hiveId *uint64
+	if hiveId = ps.isAssignHiveRule(ctx, questionnaire, answer); hiveId != nil {
 		hives = dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: *hiveId},
 		}
@@ -275,9 +279,14 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		ps.Logger().Error("error setting member hives", zap.Error(err))
 		return isnewhive, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
 	}
+	err = ps.AssignHiveDemograpics(ctx, answer, hiveId)
+	if err != nil {
+		ps.Logger().Error("error in update user demogrpahics", zap.Error(err))
+	}
 	if isnewhive {
 		status = impart.Hive
 	}
+
 	profile, err := dbmodels.Profiles(dbmodels.ProfileWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)).One(ctx, ps.db)
 
 	if err != nil {
@@ -318,7 +327,8 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		MergeFields: mergeFlds,
 	}
 
-	_, err = members.Update(impart.MailChimpAudienceID, ctxUser.Email, mailChimpParams)
+	cfg, _ := config.GetImpart()
+	_, err = members.Update(cfg.MailchimpAudienceId, ctxUser.Email, mailChimpParams)
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  added to the mailchimp %v", err))
 		ps.Logger().Error(impartErr.Error())
@@ -341,16 +351,15 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 		answer_ids_str = append(answer_ids_str, strconv.Itoa(int(userAns.AnswerID)))
 	}
 	var ruleId uint64
-	// _, ruleId = hiveFun.CheckHiveRuleExist(ctx, answer_ids_str, ps.db, true)
-	existingRules := FindTheMatchingRules(ctx, answer_ids_str, ps.db)
+	existingRules := FindTheMatchingRules(ctx, answer_ids_str, ps.db, ps.Logger())
 	if existingRules != nil {
-		min := existingRules[0]
+		max := existingRules[0]
 		for _, v := range existingRules {
-			if v > min {
-				min = v
+			if v > max {
+				max = v
 			}
 		}
-		ruleId = uint64(min)
+		ruleId = uint64(max)
 	}
 	if ruleId == 0 {
 		// no rule exist for the selection
@@ -362,12 +371,8 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 
 		createNewhive := false
 		if existHiveRule != nil {
-			fmt.Println(existHiveRule.MaxLimit)
-			fmt.Println(existHiveRule.NoOfUsers)
-			fmt.Println(existHiveRule.Status)
 			if existHiveRule.MaxLimit > existHiveRule.NoOfUsers && existHiveRule.Status {
 				if existHiveRule.R.Hives != nil {
-					fmt.Println("--------")
 					// // we can add users into the existng hive
 					hive := existHiveRule.R.Hives[0]
 					existHiveRule.NoOfUsers = existHiveRule.NoOfUsers + 1
@@ -412,47 +417,90 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 	return nil
 }
 
-func FindTheMatchingRules(ctx context.Context, answer_ids_str []string, db *sql.DB) []uint {
+func FindTheMatchingRules(ctx context.Context, user_selection []string, db *sql.DB, log *zap.Logger) []uint {
 	type existCriteria struct {
 		RuleId   uint64 `json:"rule_id"`
 		AnswerId string `json:"answer_id"  `
 	}
 	var existCriterias []existCriteria
-	err := queries.Raw(`SELECT rule_id,GROUP_CONCAT(answer_id)  as answer_id FROM hive_rules_criteria
-	group by rule_id;
+	err := queries.Raw(`SELECT hive_rules_criteria.rule_id,GROUP_CONCAT(answer_id)  as answer_id 
+						FROM hive_rules_criteria
+						join hive_rules on hive_rules.rule_id=hive_rules_criteria.rule_id
+						where status=true
+						group by rule_id order by rule_id desc ;
 	`).Bind(ctx, db, &existCriterias)
 
 	if err != nil {
 		return nil
 	}
 
-	var dbRules []uint
-	found := false
+	var existDbRules []uint
 	for _, criteria := range existCriterias {
-		stringSlice := strings.Split(criteria.AnswerId, ",")
-		found = false
-		lenfound := 0
-		for _, newcriteria := range answer_ids_str {
-			for _, exist := range stringSlice {
-				if exist == newcriteria {
-					found = true
+		existingRules := strings.Split(criteria.AnswerId, ",")
+		ruleCheck := false
+		sort.Strings(existingRules)
+		sort.Strings(user_selection)
+		log.Info("existingRules", zap.Any("existingRules", existingRules),
+			zap.Any("user_selection", user_selection))
+		if len(existingRules) > len(user_selection) {
+			log.Info("existingRules and user selection are different in count")
+			continue
+		}
+		if len(existingRules) == len(user_selection) {
+			if reflect.DeepEqual(existingRules, user_selection) {
+				log.Info("existingRules and user selection are same with same count")
+				existDbRules = append(existDbRules, uint(criteria.RuleId))
+				continue
+			}
+		} else {
+			log.Info("existingRules are less numbher than user selection ")
+			for _, rule := range existingRules {
+				log.Info("existingRules", zap.Any("existingRules", existingRules),
+					zap.Any("user_selection", user_selection),
+					zap.Any("current chekcing of existing rule:", rule))
+				index := SearchString(user_selection, rule)
+				if !index {
+					log.Info("one answer in existng rule is not in userselection",
+						zap.Any("ruleCheck", ruleCheck))
+					ruleCheck = true
 					break
-				} else {
-					found = false
 				}
 			}
-			if !found {
-				break
+			if !ruleCheck {
+				log.Info("this existng rule is ok for user selection", zap.Any("existingRules", existingRules),
+					zap.Any("user_selection", user_selection),
+					zap.Any("rule id", criteria.RuleId))
+				existDbRules = append(existDbRules, uint(criteria.RuleId))
 			}
-			if found {
-				lenfound = lenfound + 1
-				found = false
-			}
-		}
-		if len(answer_ids_str) == lenfound {
-			dbRules = append(dbRules, uint(criteria.RuleId))
 		}
 
 	}
-	return dbRules
+	log.Info("Rule list", zap.Any("existDbRules", existDbRules))
+	return existDbRules
+}
+
+func SearchString(input []string, searchItem string) bool {
+	for _, newcriteria := range input {
+		if newcriteria == searchItem {
+			return true
+		}
+	}
+	return false
+}
+
+func (ps *profileService) AssignHiveDemograpics(ctx context.Context, answer dbmodels.UserAnswerSlice, hiveId *uint64) error {
+
+	inParamValues := ""
+
+	for _, id := range answer {
+		inParamValues = fmt.Sprintf("%s %d ,", inParamValues, id.AnswerID)
+	}
+	inParamValues = strings.Trim(inParamValues, ",")
+	updateHiveDemograph := fmt.Sprintf("update user_demographic set user_count=user_count+1 where answer_id in (%s); update hive_user_demographic set user_count=user_count+1 where answer_id in (%s) and hive_id = %d;", inParamValues, inParamValues, 42)
+	_, err := queries.Raw(updateHiveDemograph).ExecContext(ctx, ps.db)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

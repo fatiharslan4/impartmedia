@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -62,6 +63,7 @@ type Hives interface {
 	DeleteBulkHive(ctx context.Context, hiveIDs dbmodels.HiveSlice) error
 	PinPostForBulkPostAction(ctx context.Context, postHive map[uint64]uint64, pin bool, isAdminActivity bool) error
 	NewHiveRule(ctx context.Context, hiverule *dbmodels.HiveRule, hiveCriteria dbmodels.HiveRulesCriteriumSlice) (*dbmodels.HiveRule, error)
+	EditHiveRule(ctx context.Context, hiverule models.HiveRule) (*dbmodels.HiveRule, impart.Error)
 }
 
 func (d *mysqlHiveData) GetHives(ctx context.Context) (dbmodels.HiveSlice, error) {
@@ -80,10 +82,10 @@ func (d *mysqlHiveData) GetHive(ctx context.Context, hiveID uint64) (*dbmodels.H
 }
 
 func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmodels.Hive, error) {
-	ctxUser := impart.GetCtxUser(ctx)
-	if !ctxUser.SuperAdmin {
-		return nil, impart.ErrUnauthorized
-	}
+	// ctxUser := impart.GetCtxUser(ctx)
+	// if !ctxUser.SuperAdmin {
+	// 	return nil, impart.ErrUnauthorized
+	// }
 	if err := hive.Insert(ctx, d.db, boil.Infer()); err != nil {
 		d.logger.Error("Hive creation failed", zap.Error(err))
 		return nil, err
@@ -344,11 +346,12 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 		return err
 	}
 	// // Update mailChimp
+	cfg, _ := config.GetImpart()
 	for hiveUser := range allUser {
 		mailChimpParams := &members.UpdateParams{
 			MergeFields: map[string]interface{}{"STATUS": impart.WaitList},
 		}
-		_, err = members.Update(impart.MailChimpAudienceID, allUser[hiveUser], mailChimpParams)
+		_, err = members.Update(cfg.MailchimpAudienceId, allUser[hiveUser], mailChimpParams)
 		if err != nil {
 			d.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", allUser[hiveUser]),
 				zap.String("contextUser", allUser[hiveUser]))
@@ -437,4 +440,24 @@ func (d *mysqlHiveData) NewHiveRule(ctx context.Context, hiveRule *dbmodels.Hive
 		d.logger.Error("HiveRule criteria creation failed", zap.Error(err))
 	}
 	return hiveRule, hiveRule.Reload(ctx, d.db)
+}
+
+func (d *mysqlHiveData) EditHiveRule(ctx context.Context, hiveRule models.HiveRule) (*dbmodels.HiveRule, impart.Error) {
+
+	existing, err := dbmodels.FindHiveRule(ctx, d.db, hiveRule.RuleID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, impart.NewError(impart.ErrNotFound, string(impart.HiveRuleNotExist))
+		}
+		return nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleFetchingFailed))
+	}
+	if existing.Status == hiveRule.Status {
+		return nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleSameStatus))
+	}
+	existing.Status = hiveRule.Status
+	if _, err := existing.Update(ctx, d.db, boil.Infer()); err != nil {
+		return nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleUpdateFailed))
+	}
+
+	return existing, nil
 }

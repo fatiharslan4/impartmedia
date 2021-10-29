@@ -4,9 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"reflect"
 	"strings"
+	"time"
 
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 
@@ -30,7 +33,7 @@ type Service interface {
 	ScreenNameExists(ctx context.Context, screenName string) bool
 
 	ValidateSchema(document gojsonschema.JSONLoader) []impart.Error
-	ValidateScreenNameInput(document gojsonschema.JSONLoader) []impart.Error
+	ValidateScreenNameInput(document gojsonschema.JSONLoader, scrnName []byte) []impart.Error
 	ValidateScreenNameString(ctx context.Context, screenName string) impart.Error
 	ValidateInput(document gojsonschema.JSONLoader, validationModel types.Type) []impart.Error
 	Logger() *zap.Logger
@@ -211,6 +214,14 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile, apiV
 	// dbUser.AwsSNSAppArn = endpointARN
 	// hide this : end
 
+	rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
+	background := impart.GetAvatharBackground()
+	backgroundindex := rand.Intn(len(background))
+	dbUser.AvatarBackground = background[backgroundindex]
+
+	letter := impart.GetAvatharLetters()
+	letterindex := rand.Intn(len(letter))
+	dbUser.AvatarLetter = letter[letterindex]
 	err = ps.profileStore.CreateUserProfile(ctx, dbUser, dbProfile)
 	if err != nil {
 		ps.Error(err)
@@ -283,7 +294,8 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile, apiV
 		EmailAddress: dbUser.Email,
 		Status:       members.StatusSubscribed,
 	}
-	_, err = members.New(impart.MailChimpAudienceID, mailChimpParams)
+	cfg, _ := config.GetImpart()
+	_, err = members.New(cfg.MailchimpAudienceId, mailChimpParams)
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  added to the mailchimp %v", err))
 		ps.Logger().Error(impartErr.Error())

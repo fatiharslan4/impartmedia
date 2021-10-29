@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -149,23 +150,29 @@ func (s *service) GetHives(ctx context.Context) (models.Hives, impart.Error) {
 func (s *service) CreateHive(ctx context.Context, hive models.Hive) (models.Hive, impart.Error) {
 	var err error
 
-	ctxUser := impart.GetCtxUser(ctx)
-	if !ctxUser.SuperAdmin {
-		return models.Hive{}, impart.NewError(impart.ErrUnauthorized, "non-admin users cannot create hives.")
-	}
+	// ctxUser := impart.GetCtxUser(ctx)
+	// if !ctxUser.SuperAdmin {
+	// 	return models.Hive{}, impart.NewError(impart.ErrUnauthorized, "non-admin users cannot create hives.")
+	// }
 	if len(strings.TrimSpace(hive.HiveName)) < 3 {
+		s.logger.Error("Hive Creation Failed", zap.Any("Hivename must be greater than or equal to 3.", hive.HiveName))
 		return models.Hive{}, impart.NewError(impart.ErrBadRequest, "Hivename must be greater than or equal to 3.")
 	}
 	if len(strings.TrimSpace(hive.HiveName)) > 60 {
+		s.logger.Error("Hive Creation Failed", zap.Any("Hivename must be less than or equal to 60.", hive.HiveName))
 		return models.Hive{}, impart.NewError(impart.ErrBadRequest, "Hivename must be less than or equal to 60.")
 	}
 
 	dbh, err := hive.ToDBModel()
 	if err != nil {
+		s.logger.Error("Hive Creation Failed", zap.Any("Hivename.", hive.HiveName),
+			zap.Error(err))
 		return models.Hive{}, impart.NewError(impart.ErrUnknown, "unable to convert hives to  dbmodel")
 	}
 	dbh, err = s.hiveData.NewHive(ctx, dbh)
 	if err != nil {
+		s.logger.Error("Hive Creation Failed", zap.Any("Hivename.", hive.HiveName),
+			zap.Error(err))
 		if strings.Contains(err.Error(), "Duplicate") {
 			return hive, impart.NewError(impart.ErrUnknown, "Hive name already exists.", impart.HiveID)
 		}
@@ -332,6 +339,9 @@ func (s *service) CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) 
 	ctxUser := impart.GetCtxUser(ctx)
 	if !ctxUser.SuperAdmin {
 		return &models.HiveRule{}, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
+	}
+	if hiveRule.Limit <= 0 {
+		return &models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleLimit))
 	}
 	var answer_ids []uint
 	var answer_ids_str []string
@@ -512,7 +522,6 @@ func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (mo
 					INNER JOIN answer ON hive_rules_criteria.answer_id=answer.answer_id
 					INNER JOIN question ON answer.question_id=question.question_id
 					GROUP BY rule_id) AS criteria ON criteria.rule_id = hive_rules.rule_id
-					WHERE hive_rules.status IS TRUE
 					GROUP BY hive_rules.rule_id
 					`)
 	if gpi.SortBy != "" {
@@ -522,7 +531,6 @@ func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (mo
 	if gpi.SortBy != "" {
 		inputQuery = fmt.Sprintf("Select * from (%s) output order by   ISNULL(%s)  ", inputQuery, sortby)
 	}
-	fmt.Println(inputQuery)
 	err := queries.Raw(inputQuery).Bind(ctx, s.db, &ruleList)
 	if err != nil {
 		return models.HiveRuleLists{}, nil, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleFetchingFailed))
@@ -541,50 +549,26 @@ func CheckHiveRuleExist(ctx context.Context, answer_ids_str []string, db *sql.DB
 		AnswerId string `json:"answer_id"  `
 	}
 	var existCriterias []existCriteria
-	err := queries.Raw(`SELECT rule_id,GROUP_CONCAT(answer_id)  as answer_id FROM hive_rules_criteria
-	group by rule_id;
+	err := queries.Raw(`SELECT hive_rules_criteria.rule_id,GROUP_CONCAT(answer_id)  as answer_id 
+						FROM hive_rules_criteria
+						join hive_rules on hive_rules.rule_id=hive_rules_criteria.rule_id
+						where status=true
+						group by rule_id order by rule_id desc;
 	`).Bind(ctx, db, &existCriterias)
 
 	if err != nil {
 		return false, 0
 	}
 
-	var existoringinalRules []uint
-	var dbRules []uint
-
-	newAnserIdcnt := len(answer_ids_str)
 	for _, criteria := range existCriterias {
-		dbRules = append(dbRules, uint(criteria.RuleId))
 		stringSlice := strings.Split(criteria.AnswerId, ",")
-
-		if newAnserIdcnt != len(stringSlice) {
-			existoringinalRules = append(existoringinalRules, uint(criteria.RuleId))
-			continue
-		}
-		// res := strings.Compare(answer_ids_str, stringSlice)
-
-		// if res {
-		// 	fmt.Println("Slices are equal")
-		// } else {
-		// 	fmt.Println("Slices are not equal")
-		// }
+		sort.Strings(stringSlice)
+		sort.Strings(answer_ids_str)
 		if reflect.DeepEqual(stringSlice, answer_ids_str) {
-			if returnExistRule {
-				return false, criteria.RuleId
-			}
-			fmt.Println("Slices are equal")
-		} else {
-			existoringinalRules = append(existoringinalRules, uint(criteria.RuleId))
+			return false, 0
 		}
 	}
-	if len(existoringinalRules) < len(dbRules) {
-		/// rule exist
-		return false, 0
-	}
-	if len(dbRules) == len(existoringinalRules) {
-		return true, 0
-	}
-	return false, 0
+	return true, 0
 }
 
 func (m *service) GetHivebyField(ctx context.Context, hiveName string) (*dbmodels.Hive, error) {
@@ -604,4 +588,18 @@ func (m *service) GetHivebyField(ctx context.Context, hiveName string) (*dbmodel
 		return nil, err
 	}
 	return u, err
+}
+
+func (s *service) EditHiveRule(ctx context.Context, hiveRule models.HiveRule) (*models.HiveRule, impart.Error) {
+
+	ctxUser := impart.GetCtxUser(ctx)
+	if !ctxUser.SuperAdmin {
+		return &hiveRule, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
+	}
+	output, err := s.hiveData.EditHiveRule(ctx, hiveRule)
+	if err != nil {
+		return &hiveRule, err
+	}
+	out, _ := models.HiveRuleDBToModel(output)
+	return out, nil
 }

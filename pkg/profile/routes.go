@@ -97,6 +97,8 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	plaidInstitutionAccountRoutes := version.Group("/plaid/accounts")
 	plaidInstitutionAccountRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionAccounts())
 
+	cookiesRoutes := version.Group("/cookies")
+	cookiesRoutes.POST("/", handler.CreateCookies())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -316,7 +318,7 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
 		}
 
 		// validate the inputs
-		impartErrl := ph.profileService.ValidateScreenNameInput(gojsonschema.NewStringLoader(string(b)))
+		impartErrl := ph.profileService.ValidateScreenNameInput(gojsonschema.NewStringLoader(string(b)), b)
 		if impartErrl != nil {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
 			return
@@ -333,7 +335,7 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
 		}
 
 		if screenNameRegexp.FindString(p.ScreenName) != p.ScreenName {
-			impartErr := impart.NewError(impart.ErrBadRequest, "Invalid screen name, must be alphanumeric characters only", impart.ScreenName)
+			impartErr := impart.NewError(impart.ErrBadRequest, "Invalid characters, please use letters and numbers only.", impart.ScreenName)
 			ph.logger.Error(impartErr.Error())
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
@@ -341,7 +343,7 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
 
 		valid := ph.profileService.ScreenNameExists(ctx, p.ScreenName)
 		if valid {
-			impartErr := impart.NewError(impart.ErrBadRequest, "Screen name is already taken.")
+			impartErr := impart.NewError(impart.ErrBadRequest, "Screen name already in use.")
 			ph.logger.Error(impartErr.Error())
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
@@ -350,7 +352,7 @@ func (ph *profileHandler) ValidateScreenName() gin.HandlerFunc {
 		// validate the input string, it should not contain some words
 		err = ph.profileService.ValidateScreenNameString(ctx, p.ScreenName)
 		if err != nil {
-			impartErr := impart.NewError(impart.ErrBadRequest, "This screen name is not allowed.")
+			impartErr := impart.NewError(impart.ErrBadRequest, "Screen name includes invalid terms.")
 			ph.logger.Error(impartErr.Error())
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
@@ -1142,6 +1144,46 @@ func (ph *profileHandler) CreateMailChimpForExistingUsers() gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, "Failed")
 		}
 		ctx.JSON(http.StatusOK, "Success")
+	}
+}
+
+func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// ctx.Header("Set-Cookie", "foo=bar; HttpOnly")
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+		p := models.CreateCookie{}
+		stdErr := json.Unmarshal(b, &p)
+		if stdErr != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to Deserialize JSON Body to a Profile")
+			ph.logger.Error(impartErr.Error())
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		fmt.Println(p.AccessToken)
+		fmt.Println(p.RefreshToken)
+		// w http.ResponseWriter:=
+		// cookie := http.Cookie{}
+		// cookie.Name = "PLAY_SESSION"
+		// cookie.Value = "Test" + "-" + "Test Cookie"
+		// cookie.Path = "/"
+		// cookie.Domain = "Test Domain"
+		// cookie.HttpOnly = true
+		// // http.SetCookie(w, &cookie)
+		ctx.SetCookie("accessToken", p.AccessToken, 10, "/", "localhost", true, true)
+		ctx.SetCookie("refreshToken", p.RefreshToken, 10, "/", "localhost", true, true)
+		// ctx.JSON(http.StatusOK, "Success")
+		// ctx.Header("set-cookie", "foo=bar")
+		ctx.JSON(http.StatusOK, "Success")
+		// ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+		// 	impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+		// ))
+		// return
 	}
 }
 

@@ -405,15 +405,15 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 		msg = "User role changed to admin."
 
-		// if userToUpdate.R.MemberHiveHives != nil {
-		// 	if userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
-		// 		err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToUpdate.ImpartWealthID, userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String)
-		// 		if err != nil {
-		// 			m.logger.Error("SubscribeTopic", zap.String("DeviceToken", userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String),
-		// 				zap.Error(err))
-		// 		}
-		// 	}
-		// }
+		if userToUpdate.R.MemberHiveHives != nil {
+			if userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+				err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToUpdate.ImpartWealthID, userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String)
+				if err != nil {
+					m.logger.Error("SubscribeTopic", zap.String("DeviceToken", userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String),
+						zap.Error(err))
+				}
+			}
+		}
 
 	} else if gpi.Type == impart.AddToHive {
 		nwHive, err := dbmodels.FindHive(ctx, m.db, gpi.HiveID)

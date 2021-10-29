@@ -620,6 +620,7 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 	cfg, _ := config.GetImpart()
 	if cfg.Env != config.Local {
 		notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
+		logger.Info("Notification- fetching complted")
 		for _, hive := range posts {
 			pushNotification := Alert{
 				Title: aws.String(title),
@@ -631,6 +632,11 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 				EventDatetime: CurrentUTC(),
 				HiveID:        hive.HiveID,
 			}
+			Logger.Info("Notification",
+				zap.Any("pushNotification", pushNotification),
+				zap.Any("additionalData", additionalData),
+				zap.Any("hive", hive),
+			)
 			err = notification.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
 			if err != nil {
 				logger.Error("error sending notification to topic", zap.Error(err))

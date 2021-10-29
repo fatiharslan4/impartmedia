@@ -593,6 +593,7 @@ func (ns *snsAppleNotificationService) CreateNotificationTopic(ctx context.Conte
 const title = "This Week’s Activity"
 
 func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
+	logger.Info("NotifyWeeklyActivity- start")
 	c := cron.New()
 	c.AddFunc("*/1 * * * *", func() {})
 	lastweekTime := CurrentUTC().AddDate(0, 0, -7)

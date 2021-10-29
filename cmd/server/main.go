@@ -115,6 +115,7 @@ func main() {
 
 	// initiate global profanity detector
 	impart.InitProfanityDetector(db, logger)
+	impart.NotifyWeeklyActivity(db, logger)
 
 	services := setupServices(cfg, db, logger)
 

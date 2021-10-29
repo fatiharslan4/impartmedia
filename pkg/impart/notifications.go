@@ -597,7 +597,7 @@ const title = "This Week’s Activity"
 func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 	logger.Info("NotifyWeeklyActivity- start")
 	c := cron.New()
-	c.AddFunc("5 * * * *", func() {
+	c.AddFunc("*/30 * * * *", func() {
 		lastweekTime := CurrentUTC().AddDate(0, 0, -7)
 
 		type PostCount struct {

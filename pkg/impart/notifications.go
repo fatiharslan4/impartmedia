@@ -9,8 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/robfig/cron"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -45,6 +49,7 @@ type NotificationData struct {
 	EventDatetime time.Time `json:"eventDatetime"`
 	PostID        uint64    `json:"postId,omitempty"`
 	CommentID     uint64    `json:"commentId,omitempty"`
+	HiveID        uint64    `json:"hiveId,omitempty"`
 }
 
 type noopNotificationService struct {
@@ -583,4 +588,54 @@ func (ns *snsAppleNotificationService) CreateNotificationTopic(ctx context.Conte
 		return nil, err
 	}
 	return topicOutput, nil
+}
+
+const title = "This Week’s Activity"
+
+func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
+	c := cron.New()
+	c.AddFunc("*/1 * * * *", func() {})
+	lastweekTime := CurrentUTC().AddDate(0, 0, -7)
+
+	type PostCount struct {
+		HiveID               uint64      `json:"hive_id"`
+		Post                 uint64      `json:"post"`
+		NotificationTopicArn null.String `json:"notification_topic_arn"`
+	}
+	var posts []PostCount
+	err := queries.Raw(`
+			select count(post_id) as post , post.hive_id as hive_id , hive.notification_topic_arn
+			from post
+			join hive on post.hive_id=hive.hive_id and hive.deleted_at is null
+			where post.deleted_at is null 
+			and hive.deleted_at is null
+			and post.created_at between ? and ?
+			group by hive_id
+	`, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &posts)
+
+	if err != nil {
+		logger.Error("error while fetching data ", zap.Error(err))
+		// return err
+	}
+	cfg, _ := config.GetImpart()
+	if cfg.Env != config.Local {
+		s := &snsAppleNotificationService{}
+		for _, hive := range posts {
+			pushNotification := Alert{
+				Title: aws.String(title),
+				Body: aws.String(
+					fmt.Sprintf("Check out %d new posts in your Hive this week", hive.Post),
+				),
+			}
+			additionalData := NotificationData{
+				EventDatetime: CurrentUTC(),
+				HiveID:        hive.HiveID,
+			}
+			err = s.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
+			if err != nil {
+				logger.Error("error sending notification to topic", zap.Error(err))
+			}
+
+		}
+	}
 }

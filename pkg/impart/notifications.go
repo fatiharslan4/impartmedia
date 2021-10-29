@@ -11,10 +11,12 @@ import (
 
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/robfig/cron"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
+
+	// "gopkg.in/robfig/cron.v2"
+	"github.com/robfig/cron/v3"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -595,8 +597,7 @@ const title = "This Week’s Activity"
 func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 	logger.Info("NotifyWeeklyActivity- start")
 	c := cron.New()
-	// c.AddFunc("*/1 * * * *", func() {})
-	c.AddFunc("*/30 * * * *", func() {
+	c.AddFunc("5 * * * *", func() {
 		lastweekTime := CurrentUTC().AddDate(0, 0, -7)
 
 		type PostCount struct {

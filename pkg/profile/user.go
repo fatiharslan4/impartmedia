@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
-	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -320,8 +319,8 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 	err = ps.profileStore.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
 
 	// // delete user from mailchimp
-	cfg, _ := config.GetImpart()
-	err = members.Delete(cfg.MailchimpAudienceId, dbUser.Email)
+	// cfg, _ := config.GetImpart()
+	err = members.Delete(impart.MailChimpAudienceID, dbUser.Email)
 	if err != nil {
 		ps.Logger().Error("Delete user requset failed in MailChimp", zap.String("blockUser", ctxUser.ImpartWealthID),
 			zap.String("User", ctxUser.ImpartWealthID))

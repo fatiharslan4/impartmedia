@@ -9,8 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
 
 	"github.com/robfig/cron/v3"
 
@@ -593,62 +596,62 @@ const title = "This Week’s Activity"
 func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 	logger.Info("NotifyWeeklyActivity- start")
 	c := cron.New()
-	entry := c.Entries()
-	for _, ent := range entry {
-		c.Remove(ent.ID)
+	// entry := c.Entries()
+	// for _, ent := range entry {
+	// 	c.Remove(ent.ID)
 
-	}
-	// c.AddFunc("*/30 * * * *", func() {
-	// 	lastweekTime := CurrentUTC().AddDate(0, 0, -7)
+	// }
+	c.AddFunc("*/5 * * * *", func() {
+		lastweekTime := CurrentUTC().AddDate(0, 0, -7)
 
-	// 	type PostCount struct {
-	// 		HiveID               uint64      `json:"hive_id"`
-	// 		Post                 uint64      `json:"post"`
-	// 		NotificationTopicArn null.String `json:"notification_topic_arn"`
-	// 	}
-	// 	var posts []PostCount
-	// 	err := queries.Raw(`
-	// 		select count(post_id) as post , post.hive_id as hive_id , hive.notification_topic_arn
-	// 		from post
-	// 		join hive on post.hive_id=hive.hive_id and hive.deleted_at is null
-	// 		where post.deleted_at is null
-	// 		and hive.deleted_at is null
-	// 		and post.created_at between ? and ?
-	// 		group by hive_id
-	// 		having count(post_id)>3 ;
-	// `, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &posts)
+		type PostCount struct {
+			HiveID               uint64      `json:"hive_id"`
+			Post                 uint64      `json:"post"`
+			NotificationTopicArn null.String `json:"notification_topic_arn"`
+		}
+		var posts []PostCount
+		err := queries.Raw(`
+			select count(post_id) as post , post.hive_id as hive_id , hive.notification_topic_arn
+			from post
+			join hive on post.hive_id=hive.hive_id and hive.deleted_at is null
+			where post.deleted_at is null
+			and hive.deleted_at is null
+			and post.created_at between ? and ?
+			group by hive_id
+			having count(post_id)>3 ;
+	`, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &posts)
 
-	// 	if err != nil {
-	// 		logger.Error("error while fetching data ", zap.Error(err))
-	// 		// return err
-	// 	}
-	// 	cfg, _ := config.GetImpart()
-	// 	if cfg.Env != config.Local {
-	// 		notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
-	// 		logger.Info("Notification- fetching complted")
-	// 		for _, hive := range posts {
-	// 			pushNotification := Alert{
-	// 				Title: aws.String(title),
-	// 				Body: aws.String(
-	// 					fmt.Sprintf("Check out %d new posts in your Hive this week", hive.Post),
-	// 				),
-	// 			}
-	// 			additionalData := NotificationData{
-	// 				EventDatetime: CurrentUTC(),
-	// 				HiveID:        hive.HiveID,
-	// 			}
-	// 			Logger.Info("Notification",
-	// 				zap.Any("pushNotification", pushNotification),
-	// 				zap.Any("additionalData", additionalData),
-	// 				zap.Any("hive", hive),
-	// 			)
-	// 			err = notification.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
-	// 			if err != nil {
-	// 				logger.Error("error sending notification to topic", zap.Error(err))
-	// 			}
+		if err != nil {
+			logger.Error("error while fetching data ", zap.Error(err))
+			// return err
+		}
+		cfg, _ := config.GetImpart()
+		if cfg.Env != config.Local {
+			notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
+			logger.Info("Notification- fetching complted")
+			for _, hive := range posts {
+				pushNotification := Alert{
+					Title: aws.String(title),
+					Body: aws.String(
+						fmt.Sprintf("Check out %d new posts in your Hive this week", hive.Post),
+					),
+				}
+				additionalData := NotificationData{
+					EventDatetime: CurrentUTC(),
+					HiveID:        hive.HiveID,
+				}
+				Logger.Info("Notification",
+					zap.Any("pushNotification", pushNotification),
+					zap.Any("additionalData", additionalData),
+					zap.Any("hive", hive),
+				)
+				err = notification.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
+				if err != nil {
+					logger.Error("error sending notification to topic", zap.Error(err))
+				}
 
-	// 		}
-	// 	}
-	// })
-	// c.Start()
+			}
+		}
+	})
+	c.Start()
 }

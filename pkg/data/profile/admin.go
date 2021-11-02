@@ -588,7 +588,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	userOutput.Action = userUpdatesInput.Action
 	impartWealthIDs := make([]interface{}, len(userUpdatesInput.Users))
 	// cfg, _ := config.GetImpart()
-
+	ctxUser := impart.GetCtxUser(ctx)
 	for i, user := range userUpdatesInput.Users {
 		userData := &models.UserData{}
 		userData.ImpartWealthID = user.ImpartWealthID
@@ -596,7 +596,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		userData.Status = false
 		userData.Message = "No update activity."
 		userData.Value = 0
-		if user.ImpartWealthID != "" {
+		if user.ImpartWealthID != "" && ctxUser.ImpartWealthID != user.ImpartWealthID {
 			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
 		}
 		userDatas[i] = *userData
@@ -606,7 +606,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	userOutput.Users = userDatas
 	userOutputRslt := &userOutput
 
-	updateUsers, err := m.getUserAll(ctx, impartWealthIDs)
+	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, false)
 	if err != nil {
 		return userOutputRslt
 	}
@@ -654,13 +654,14 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 	userDatas := make([]models.UserData, len(userUpdatesInput.Users), len(userUpdatesInput.Users))
 	userOutput.Type = userUpdatesInput.Type
 	impartWealthIDs := make([]interface{}, 0, len(userUpdatesInput.Users))
+	ctxUser := impart.GetCtxUser(ctx)
 	for i, user := range userUpdatesInput.Users {
 		userData := &models.UserData{}
 		userData.ImpartWealthID = user.ImpartWealthID
 		userData.Status = false
 		userData.ScreenName = user.ScreenName
 		userData.Message = "No delete activity."
-		if user.ImpartWealthID != "" {
+		if user.ImpartWealthID != "" && ctxUser.ImpartWealthID != user.ImpartWealthID {
 			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
 		}
 		userDatas[i] = *userData
@@ -669,7 +670,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 
 	userOutputRslt := &userOutput
 
-	deleteUser, err := m.getUserAll(ctx, impartWealthIDs)
+	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, true)
 	if err != nil || len(deleteUser) == 0 {
 		return userOutputRslt
 	}

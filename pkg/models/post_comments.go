@@ -52,6 +52,7 @@ type PostComment struct {
 	FullName            string           `json:"fullName,omitempty"`
 	AvatarBackground    string           `json:"avatarBackground,omitempty"`
 	AvatarLetter        string           `json:"avatarLetter,omitempty"`
+	Admin               bool             `json:"admin,omitempty"`
 }
 
 func PostCommentsLimit(dbPosts dbmodels.PostSlice, dbcomments dbmodels.CommentSlice, limit int) PostComments {
@@ -95,6 +96,7 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment) PostComment {
 			out.FullName = strings.Title(fmt.Sprintf("%s %s", p.R.ImpartWealth.FirstName, p.R.ImpartWealth.LastName))
 			out.AvatarBackground = p.R.ImpartWealth.AvatarBackground
 			out.AvatarLetter = p.R.ImpartWealth.AvatarLetter
+			out.Admin = p.R.ImpartWealth.Admin
 		}
 		if p.ReviewedAt.Valid {
 			out.ReviewedDatetime = p.ReviewedAt.Time
@@ -174,11 +176,12 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment) PostComment {
 		}
 		if c.R.ImpartWealth != nil {
 			out.ScreenName = c.R.ImpartWealth.ScreenName
-			out.FirstName = strings.Title(p.R.ImpartWealth.FirstName)
-			out.LastName = strings.Title(p.R.ImpartWealth.LastName)
-			out.FullName = strings.Title(fmt.Sprintf("%s %s", p.R.ImpartWealth.FirstName, p.R.ImpartWealth.LastName))
-			out.AvatarBackground = p.R.ImpartWealth.AvatarBackground
-			out.AvatarLetter = p.R.ImpartWealth.AvatarLetter
+			out.FirstName = strings.Title(c.R.ImpartWealth.FirstName)
+			out.LastName = strings.Title(c.R.ImpartWealth.LastName)
+			out.FullName = strings.Title(fmt.Sprintf("%s %s", c.R.ImpartWealth.FirstName, c.R.ImpartWealth.LastName))
+			out.AvatarBackground = c.R.ImpartWealth.AvatarBackground
+			out.AvatarLetter = c.R.ImpartWealth.AvatarLetter
+			out.Admin = c.R.ImpartWealth.Admin
 		}
 		if len(c.R.CommentReactions) > 0 {
 			out.PostCommentTrack = PostCommentTrackFromDB(nil, c.R.CommentReactions[0])

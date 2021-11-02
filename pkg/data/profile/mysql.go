@@ -763,7 +763,7 @@ func (m *mysqlStore) UpdateHiveUserDemographic(ctx context.Context, answerIds []
 	}
 	return tx.Commit()
 }
-func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}) (dbmodels.UserSlice, error) {
+func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}, isUserDelete bool) (dbmodels.UserSlice, error) {
 	var clause QueryMod
 	clause = WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...)
 	newcluse := Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Blocked), false)
@@ -775,6 +775,10 @@ func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface
 		Load(dbmodels.UserRels.ImpartWealthUserDevices),
 		Load(dbmodels.UserRels.ImpartWealthUserConfigurations),
 		Load(dbmodels.UserRels.ImpartWealthUserAnswers),
+	}
+	if isUserDelete {
+		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Admin), false))
+		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.SuperAdmin), false))
 	}
 
 	u, err := dbmodels.Users(usersWhere...).All(ctx, m.db)

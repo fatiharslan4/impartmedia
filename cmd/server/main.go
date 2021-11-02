@@ -160,10 +160,10 @@ func main() {
 	}
 
 	v1 := r.Group(v1Route)
-	setRouter(v1, services, logger, db, v1Route)
+	setRouter(v1, services, logger, db, "v1")
 
 	v2 := r.Group(v2Route)
-	setRouter(v2, services, logger, db, v2Route)
+	setRouter(v2, services, logger, db, "")
 
 	server := cfg.GetHttpServer()
 	server.Handler = r

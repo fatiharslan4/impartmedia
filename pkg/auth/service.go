@@ -69,23 +69,28 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 		}
 		// parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
 		token, _ := ctx.Cookie("token")
+
 		// if token != nil {
 
 		// }
-		// if len(parts) != 2 || parts[0] != AuthorizationHeaderBearerType || len(parts[0]) == 0 || len(parts[1]) == 0 {
-		// 	a.logger.Info("invalid authorization header", zap.Strings("split_authz_header", parts))
-		// 	err := impart.NewError(impart.ErrUnauthorized, "invalid authorization header")
-		// 	ctx.AbortWithStatusJSON(http.StatusUnauthorized, impart.ErrorResponse(err))
-		// 	return
+		// if ctx.Request.URL.Path == "/v1/cookies/" {
+
 		// }
 
-		// var new_token string
-		// if token != "" {
-		// 	new_token = token
-		// } else {
-		// 	new_token = parts[1]
-		// }
-		claims, err := ValidateAuth0Token(token, a.Auth0Certs, a.logger.Sugar())
+		var new_token string
+		if ctx.Request.URL.Path != "/v1/cookies/" {
+			new_token = token
+		} else {
+			parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
+			if len(parts) != 2 || parts[0] != AuthorizationHeaderBearerType || len(parts[0]) == 0 || len(parts[1]) == 0 {
+				a.logger.Info("invalid authorization header", zap.Strings("split_authz_header", parts))
+				err := impart.NewError(impart.ErrUnauthorized, "invalid authorization header")
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, impart.ErrorResponse(err))
+				return
+			}
+			new_token = parts[1]
+		}
+		claims, err := ValidateAuth0Token(new_token, a.Auth0Certs, a.logger.Sugar())
 		if err != nil {
 			a.logger.Error("couldn't validate token", zap.Error(err))
 			err := impart.NewError(impart.ErrUnauthorized, "couldn't validate token")
@@ -151,7 +156,6 @@ var allowedRoutesBase = map[string]string{
 	"%s/profiles/new":                  http.MethodGet,
 	"%s/questionnaires":                http.MethodGet,
 	"%s/profiles/validate/screen-name": http.MethodGet,
-	"%s/cookies":                       http.MethodPost,
 }
 
 func (a *authService) SetUnauthenticatedRoutes(cfg *config.Impart) {

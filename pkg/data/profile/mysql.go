@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -220,32 +221,32 @@ func (m *mysqlStore) SaveUserQuestionnaire(ctx context.Context, answers dbmodels
 			return err
 		}
 
-		var userDemo dbmodels.UserDemographic
-		err = dbmodels.NewQuery(
-			qm.Select("*"),
-			qm.Where("answer_id = ?", a.AnswerID),
-			qm.From("user_demographic"),
-		).Bind(ctx, m.db, &userDemo)
+		// var userDemo dbmodels.UserDemographic
+		// err = dbmodels.NewQuery(
+		// 	qm.Select("*"),
+		// 	qm.Where("answer_id = ?", a.AnswerID),
+		// 	qm.From("user_demographic"),
+		// ).Bind(ctx, m.db, &userDemo)
 
-		if err == nil {
-			existData := &userDemo
-			existData.UserCount = existData.UserCount + 1
-			_, err = existData.Update(ctx, m.db, boil.Infer())
-		}
+		// if err == nil {
+		// 	existData := &userDemo
+		// 	existData.UserCount = existData.UserCount + 1
+		// 	_, err = existData.Update(ctx, m.db, boil.Infer())
+		// }
 
-		var hiveUserdemo dbmodels.HiveUserDemographic
-		err = dbmodels.NewQuery(
-			qm.Select("*"),
-			qm.Where("answer_id = ?", a.AnswerID),
-			qm.Where("hive_id = ?", DefaultHiveId),
-			qm.From("hive_user_demographic"),
-		).Bind(ctx, m.db, &hiveUserdemo)
+		// var hiveUserdemo dbmodels.HiveUserDemographic
+		// err = dbmodels.NewQuery(
+		// 	qm.Select("*"),
+		// 	qm.Where("answer_id = ?", a.AnswerID),
+		// 	qm.Where("hive_id = ?", DefaultHiveId),
+		// 	qm.From("hive_user_demographic"),
+		// ).Bind(ctx, m.db, &hiveUserdemo)
 
-		if err == nil {
-			existUserData := &hiveUserdemo
-			existUserData.UserCount = existUserData.UserCount + 1
-			_, err = existUserData.Update(ctx, m.db, boil.Infer())
-		}
+		// if err == nil {
+		// 	existUserData := &hiveUserdemo
+		// 	existUserData.UserCount = existUserData.UserCount + 1
+		// 	_, err = existUserData.Update(ctx, m.db, boil.Infer())
+		// }
 	}
 	tx.Commit()
 	return nil
@@ -723,6 +724,7 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		return impart.NewError(err, "User Deletion failed")
 	}
 	// // delete user from mailChimp
+	// cfg, _ := config.GetImpart()
 	err = members.Delete(impart.MailChimpAudienceID, orgEmail)
 	if err != nil {
 		m.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", userToDelete.ImpartWealthID),
@@ -761,7 +763,7 @@ func (m *mysqlStore) UpdateHiveUserDemographic(ctx context.Context, answerIds []
 	}
 	return tx.Commit()
 }
-func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}) (dbmodels.UserSlice, error) {
+func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}, isUserDelete bool) (dbmodels.UserSlice, error) {
 	var clause QueryMod
 	clause = WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...)
 	newcluse := Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Blocked), false)
@@ -773,6 +775,10 @@ func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface
 		Load(dbmodels.UserRels.ImpartWealthUserDevices),
 		Load(dbmodels.UserRels.ImpartWealthUserConfigurations),
 		Load(dbmodels.UserRels.ImpartWealthUserAnswers),
+	}
+	if isUserDelete {
+		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Admin), false))
+		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.SuperAdmin), false))
 	}
 
 	u, err := dbmodels.Users(usersWhere...).All(ctx, m.db)
@@ -862,11 +868,11 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 	updateHivequery := ""
 	existinghiveid := DefaultHiveId
 	userHiveDemoexist := make(map[uint64]map[uint64]int)
-	// var existingHive *dbmodels.Hive
-	// var newHive *dbmodels.Hive
+	var existingHive *dbmodels.Hive
+	var newHive *dbmodels.Hive
 	if userUpdate.Type == impart.AddToHive {
 		var err error
-		// newHive, err = dbmodels.FindHive(ctx, m.db, userUpdate.HiveID)
+		newHive, err = dbmodels.FindHive(ctx, m.db, userUpdate.HiveID)
 		if err != nil {
 			return userUpdate, err
 		}
@@ -894,15 +900,30 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 			if user.Admin {
 				userUpdate.Users[userUpdateposition].Message = "User is already admin."
 			} else {
-				query := fmt.Sprintf("Update user set admin=true  where impart_wealth_id='%s';", user.ImpartWealthID)
+				rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
+				admin := impart.GetAvatharLettersAdmin()
+				adminindex := rand.Intn(len(admin))
+				adminColor := admin[adminindex]
+
+				query := fmt.Sprintf("Update user set admin=true and avatar_background=%s and  where impart_wealth_id='%s';", adminColor, user.ImpartWealthID)
 				updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
 				userUpdate.Users[userUpdateposition].Value = 1
+
+				if user.R.MemberHiveHives != nil {
+					if user.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, user.R.MemberHiveHives[0].NotificationTopicArn.String)
+						if err != nil {
+							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", user.R.MemberHiveHives[0].NotificationTopicArn.String),
+								zap.Error(err))
+						}
+					}
+				}
 			}
 		} else if userUpdate.Type == impart.AddToWaitlist {
 			for _, h := range user.R.MemberHiveHives {
 				existinghiveid = h.HiveID
 			}
-			// existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
+			existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
 			if existinghiveid == DefaultHiveId {
 				userUpdate.Users[userUpdateposition].Message = "User is already on waitlist."
 			} else {
@@ -918,15 +939,15 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
 
-				// if existingHive != nil {
-				// 	if existingHive.NotificationTopicArn.String != "" {
-				// 		err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
-				// 		if err != nil {
-				// 			m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
-				// 				zap.Error(err))
-				// 		}
-				// 	}
-				// }
+				if existingHive != nil {
+					if existingHive.NotificationTopicArn.String != "" {
+						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+						if err != nil {
+							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
+								zap.Error(err))
+						}
+					}
+				}
 			}
 		} else if userUpdate.Type == impart.AddToHive {
 			m.logger.Info("addtohive started", zap.String("query", impart.AddToHive))
@@ -935,8 +956,8 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				existinghiveid = h.HiveID
 				// existingHive = h
 			}
-			// existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
-			// m.logger.Info("addtohive started- existing hive", zap.Any("existingHive", existingHive))
+			existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
+			m.logger.Info("addtohive started- existing hive", zap.Any("existingHive", existingHive))
 			m.logger.Info("user-hive", zap.String("query", fmt.Sprintf("%d", existinghiveid)))
 			if existinghiveid == userUpdate.HiveID {
 				userUpdate.Users[userUpdateposition].Message = "User is already on hive."
@@ -950,36 +971,36 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
 
-				// if existingHive != nil {
-				// 	if existingHive.NotificationTopicArn.String != "" {
-				// 		err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
-				// 		if err != nil {
-				// 			m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
-				// 				zap.Error(err))
-				// 		}
-				// 	}
-				// }
+				if existingHive != nil {
+					if existingHive.NotificationTopicArn.String != "" {
+						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+						if err != nil {
+							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
+								zap.Error(err))
+						}
+					}
+				}
 
-				// deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
-				// if devErr != nil {
-				// 	m.logger.Error("unable to find device", zap.Error(err))
-				// }
-				// if deviceDetails != nil {
-				// 	for _, device := range deviceDetails {
-				// 		endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
-				// 		if err != nil {
-				// 			m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
-				// 				zap.Error(err))
-				// 		}
-				// 		if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
-				// 			err := m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
-				// 			if err != nil {
-				// 				m.logger.Error("SubscribeTopic", zap.String("DeviceToken", device.DeviceToken),
-				// 					zap.Error(err))
-				// 			}
-				// 		}
-				// 	}
-				// }
+				deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
+				if devErr != nil {
+					m.logger.Error("unable to find device", zap.Error(err))
+				}
+				if deviceDetails != nil {
+					for _, device := range deviceDetails {
+						endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+						if err != nil {
+							m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+								zap.Error(err))
+						}
+						if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
+							err := m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
+							if err != nil {
+								m.logger.Error("SubscribeTopic", zap.String("DeviceToken", device.DeviceToken),
+									zap.Error(err))
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -1018,6 +1039,7 @@ func (m *mysqlStore) CreateMailChimpForExistingUsers(ctx context.Context) error 
 	params := &members.GetParams{
 		Status: members.StatusSubscribed,
 	}
+	// cfg, _ := config.GetImpart()
 	listMembers, err := members.Get(impart.MailChimpAudienceID, params)
 	if err != nil {
 		return err

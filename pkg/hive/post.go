@@ -450,18 +450,18 @@ func (s *service) BuildPostNotificationData(input models.PostNotificationInput) 
 	case types.UpVote:
 		// make alert
 		alert = impart.Alert{
-			Title: aws.String("New Post Like"),
+			Title: aws.String("New Activity on Your Post"),
 			Body: aws.String(
-				fmt.Sprintf("%s has liked your post", ctxUser.ScreenName),
+				fmt.Sprintf("%s liked your post", ctxUser.ScreenName),
 			),
 		}
 	// in case down vote
 	case types.NewPostComment:
 		// make alert
 		alert = impart.Alert{
-			Title: aws.String("New Comment"),
+			Title: aws.String("New Activity on Your Post"),
 			Body: aws.String(
-				fmt.Sprintf("%s has left a comment on your post", ctxUser.ScreenName),
+				fmt.Sprintf("%s commented on your post", ctxUser.ScreenName),
 			),
 		}
 	default:

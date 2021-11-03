@@ -1,7 +1,9 @@
 package models
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -45,11 +47,17 @@ type PostComment struct {
 	Files               []File           `json:"file,omitempty"`
 	Url                 string           `json:"url,omitempty"`
 	UrlData             PostUrl          `json:"urlData,omitempty"`
+	FirstName           string           `json:"firstName,omitempty"`
+	LastName            string           `json:"lastName,omitempty"`
+	FullName            string           `json:"fullName,omitempty"`
+	AvatarBackground    string           `json:"avatarBackground,omitempty"`
+	AvatarLetter        string           `json:"avatarLetter,omitempty"`
+	Admin               bool             `json:"admin,omitempty"`
 }
 
 func PostCommentsLimit(dbPosts dbmodels.PostSlice, dbcomments dbmodels.CommentSlice, limit int) PostComments {
-	postout := make(PostComments, len(dbPosts), len(dbPosts))
-	cmntout := make(PostComments, len(dbcomments), len(dbcomments))
+	postout := make(PostComments, len(dbPosts))
+	cmntout := make(PostComments, len(dbcomments))
 	for i, p := range dbPosts {
 		postout[i] = PostCommentPostFromDB(p, nil)
 	}
@@ -83,6 +91,12 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment) PostComment {
 		}
 		if p.R.ImpartWealth != nil {
 			out.ScreenName = p.R.ImpartWealth.ScreenName
+			out.FirstName = strings.Title(p.R.ImpartWealth.FirstName)
+			out.LastName = strings.Title(p.R.ImpartWealth.LastName)
+			out.FullName = strings.Title(fmt.Sprintf("%s %s", p.R.ImpartWealth.FirstName, p.R.ImpartWealth.LastName))
+			out.AvatarBackground = p.R.ImpartWealth.AvatarBackground
+			out.AvatarLetter = p.R.ImpartWealth.AvatarLetter
+			out.Admin = p.R.ImpartWealth.Admin
 		}
 		if p.ReviewedAt.Valid {
 			out.ReviewedDatetime = p.ReviewedAt.Time
@@ -162,6 +176,12 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment) PostComment {
 		}
 		if c.R.ImpartWealth != nil {
 			out.ScreenName = c.R.ImpartWealth.ScreenName
+			out.FirstName = strings.Title(c.R.ImpartWealth.FirstName)
+			out.LastName = strings.Title(c.R.ImpartWealth.LastName)
+			out.FullName = strings.Title(fmt.Sprintf("%s %s", c.R.ImpartWealth.FirstName, c.R.ImpartWealth.LastName))
+			out.AvatarBackground = c.R.ImpartWealth.AvatarBackground
+			out.AvatarLetter = c.R.ImpartWealth.AvatarLetter
+			out.Admin = c.R.ImpartWealth.Admin
 		}
 		if len(c.R.CommentReactions) > 0 {
 			out.PostCommentTrack = PostCommentTrackFromDB(nil, c.R.CommentReactions[0])

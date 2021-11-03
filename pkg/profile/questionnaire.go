@@ -266,7 +266,8 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		// 	&dbmodels.Hive{HiveID: *id},
 		// }
 	}
-	if hiveId := ps.isAssignHiveRule(ctx, questionnaire, answer); hiveId != nil {
+	var hiveId *uint64
+	if hiveId = ps.isAssignHiveRule(ctx, questionnaire, answer); hiveId != nil {
 		hives = dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: *hiveId},
 		}
@@ -277,9 +278,14 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		ps.Logger().Error("error setting member hives", zap.Error(err))
 		return isnewhive, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
 	}
+	err = ps.AssignHiveDemograpics(ctx, answer, hiveId)
+	if err != nil {
+		ps.Logger().Error("error in update user demogrpahics", zap.Error(err))
+	}
 	if isnewhive {
 		status = impart.Hive
 	}
+
 	profile, err := dbmodels.Profiles(dbmodels.ProfileWhere.ImpartWealthID.EQ(ctxUser.ImpartWealthID)).One(ctx, ps.db)
 
 	if err != nil {
@@ -320,6 +326,7 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		MergeFields: mergeFlds,
 	}
 
+	// cfg, _ := config.GetImpart()
 	_, err = members.Update(impart.MailChimpAudienceID, ctxUser.Email, mailChimpParams)
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  added to the mailchimp %v", err))
@@ -363,12 +370,8 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 
 		createNewhive := false
 		if existHiveRule != nil {
-			fmt.Println(existHiveRule.MaxLimit)
-			fmt.Println(existHiveRule.NoOfUsers)
-			fmt.Println(existHiveRule.Status)
 			if existHiveRule.MaxLimit > existHiveRule.NoOfUsers && existHiveRule.Status {
 				if existHiveRule.R.Hives != nil {
-					fmt.Println("--------")
 					// // we can add users into the existng hive
 					hive := existHiveRule.R.Hives[0]
 					existHiveRule.NoOfUsers = existHiveRule.NoOfUsers + 1
@@ -482,4 +485,21 @@ func SearchString(input []string, searchItem string) bool {
 		}
 	}
 	return false
+}
+
+func (ps *profileService) AssignHiveDemograpics(ctx context.Context, answer dbmodels.UserAnswerSlice, hiveId *uint64) error {
+
+	inParamValues := ""
+
+	for _, id := range answer {
+		inParamValues = fmt.Sprintf("%s %d ,", inParamValues, id.AnswerID)
+	}
+	inParamValues = strings.Trim(inParamValues, ",")
+	updateHiveDemograph := fmt.Sprintf("update user_demographic set user_count=user_count+1 where answer_id in (%s); update hive_user_demographic set user_count=user_count+1 where answer_id in (%s) and hive_id = %d;", inParamValues, inParamValues, 42)
+	_, err := queries.Raw(updateHiveDemograph).ExecContext(ctx, ps.db)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

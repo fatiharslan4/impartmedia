@@ -54,11 +54,18 @@ type Impart struct {
 	DBUsername string `split_words:"true"`
 	DBPassword string `split_words:"true"`
 
-	DBMigrationUsername string            `split_words:"true"`
-	DBMigrationPassword string            `split_words:"true"`
-	SentryDSN           string            `split_words:"true"`
-	Media               map[string]string `split_words:"true"`
-	AllowOrigin         string            `split_words:"true"`
+	DBMigrationUsername         string            `split_words:"true"`
+	DBMigrationPassword         string            `split_words:"true"`
+	SentryDSN                   string            `split_words:"true"`
+	Media                       map[string]string `split_words:"true"`
+	AllowOrigin                 string            `split_words:"true"`
+	MailchimpApikey             string            `split_words:"true"`
+	MailchimpAudienceId         string            `split_words:"true"`
+	PlaidClientId               string            `split_words:"true"`
+	PlaidSecret                 string            `split_words:"true"`
+	AuthDomain                  string            `split_words:"true"`
+	Auth0ManagementClient       string            `split_words:"true"`
+	Auth0ManagementClientSecret string            `split_words:"true"`
 }
 
 func GetImpart() (*Impart, error) {

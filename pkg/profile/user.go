@@ -179,6 +179,10 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 			if hiveData.NotificationTopicArn.String != "" {
 				ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
 			}
+		} else {
+			if hiveData.NotificationTopicArn.String != "" {
+				ps.notificationService.UnsubscribeTopicForDevice(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
+			}
 		}
 	} else {
 		if hiveData.NotificationTopicArn.String != "" {
@@ -315,6 +319,7 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 	err = ps.profileStore.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
 
 	// // delete user from mailchimp
+	// cfg, _ := config.GetImpart()
 	err = members.Delete(impart.MailChimpAudienceID, dbUser.Email)
 	if err != nil {
 		ps.Logger().Error("Delete user requset failed in MailChimp", zap.String("blockUser", ctxUser.ImpartWealthID),

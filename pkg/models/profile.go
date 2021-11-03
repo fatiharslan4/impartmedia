@@ -53,6 +53,8 @@ type Profile struct {
 	FirstName             string          `json:"firstName,omitempty" conform:"trim,ucfirst"`
 	LastName              string          `json:"lastName,omitempty" conform:"trim,ucfirst"`
 	FullName              string          `json:"fullName,omitempty" conform:"trim,ucfirst"`
+	AvatarBackground      string          `json:"avatarBackground,omitempty" conform:"trim"`
+	AvatarLetter          string          `json:"avatarLetter,omitempty" conform:"trim"`
 }
 
 // Attributes for Impart Wealth
@@ -181,6 +183,8 @@ func (p Profile) DBUser() (*dbmodels.User, error) {
 		out.LastName = strings.Trim(out.LastName, " ")
 	}
 	p.FullName = strings.Title(fmt.Sprintf("%s %s", p.FirstName, p.LastName))
+	out.AvatarBackground = p.AvatarBackground
+	out.AvatarLetter = p.AvatarLetter
 	return out, nil
 }
 
@@ -217,6 +221,8 @@ func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error)
 		FirstName:             strings.Title(u.FirstName),
 		LastName:              strings.Title(u.LastName),
 		FullName:              strings.Title(fmt.Sprintf("%s %s", u.FirstName, u.LastName)),
+		AvatarBackground:      u.AvatarBackground,
+		AvatarLetter:          u.AvatarLetter,
 	}
 
 	for i, hive := range u.R.MemberHiveHives {

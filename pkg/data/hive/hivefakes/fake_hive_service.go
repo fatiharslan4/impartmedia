@@ -7,6 +7,7 @@ import (
 	"time"
 
 	data "github.com/impartwealthapp/backend/pkg/data/hive"
+	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 )
@@ -123,6 +124,20 @@ type FakeHiveService struct {
 	editHiveReturnsOnCall map[int]struct {
 		result1 *dbmodels.Hive
 		result2 error
+	}
+	EditHiveRuleStub        func(context.Context, models.HiveRule) (*dbmodels.HiveRule, impart.Error)
+	editHiveRuleMutex       sync.RWMutex
+	editHiveRuleArgsForCall []struct {
+		arg1 context.Context
+		arg2 models.HiveRule
+	}
+	editHiveRuleReturns struct {
+		result1 *dbmodels.HiveRule
+		result2 impart.Error
+	}
+	editHiveRuleReturnsOnCall map[int]struct {
+		result1 *dbmodels.HiveRule
+		result2 impart.Error
 	}
 	EditPostStub        func(context.Context, *dbmodels.Post, dbmodels.TagSlice, bool, *dbmodels.PostVideo, *dbmodels.PostURL, []models.File, string) (*dbmodels.Post, error)
 	editPostMutex       sync.RWMutex
@@ -1164,6 +1179,71 @@ func (fake *FakeHiveService) EditHiveReturnsOnCall(i int, result1 *dbmodels.Hive
 	fake.editHiveReturnsOnCall[i] = struct {
 		result1 *dbmodels.Hive
 		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeHiveService) EditHiveRule(arg1 context.Context, arg2 models.HiveRule) (*dbmodels.HiveRule, impart.Error) {
+	fake.editHiveRuleMutex.Lock()
+	ret, specificReturn := fake.editHiveRuleReturnsOnCall[len(fake.editHiveRuleArgsForCall)]
+	fake.editHiveRuleArgsForCall = append(fake.editHiveRuleArgsForCall, struct {
+		arg1 context.Context
+		arg2 models.HiveRule
+	}{arg1, arg2})
+	stub := fake.EditHiveRuleStub
+	fakeReturns := fake.editHiveRuleReturns
+	fake.recordInvocation("EditHiveRule", []interface{}{arg1, arg2})
+	fake.editHiveRuleMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeHiveService) EditHiveRuleCallCount() int {
+	fake.editHiveRuleMutex.RLock()
+	defer fake.editHiveRuleMutex.RUnlock()
+	return len(fake.editHiveRuleArgsForCall)
+}
+
+func (fake *FakeHiveService) EditHiveRuleCalls(stub func(context.Context, models.HiveRule) (*dbmodels.HiveRule, impart.Error)) {
+	fake.editHiveRuleMutex.Lock()
+	defer fake.editHiveRuleMutex.Unlock()
+	fake.EditHiveRuleStub = stub
+}
+
+func (fake *FakeHiveService) EditHiveRuleArgsForCall(i int) (context.Context, models.HiveRule) {
+	fake.editHiveRuleMutex.RLock()
+	defer fake.editHiveRuleMutex.RUnlock()
+	argsForCall := fake.editHiveRuleArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeHiveService) EditHiveRuleReturns(result1 *dbmodels.HiveRule, result2 impart.Error) {
+	fake.editHiveRuleMutex.Lock()
+	defer fake.editHiveRuleMutex.Unlock()
+	fake.EditHiveRuleStub = nil
+	fake.editHiveRuleReturns = struct {
+		result1 *dbmodels.HiveRule
+		result2 impart.Error
+	}{result1, result2}
+}
+
+func (fake *FakeHiveService) EditHiveRuleReturnsOnCall(i int, result1 *dbmodels.HiveRule, result2 impart.Error) {
+	fake.editHiveRuleMutex.Lock()
+	defer fake.editHiveRuleMutex.Unlock()
+	fake.EditHiveRuleStub = nil
+	if fake.editHiveRuleReturnsOnCall == nil {
+		fake.editHiveRuleReturnsOnCall = make(map[int]struct {
+			result1 *dbmodels.HiveRule
+			result2 impart.Error
+		})
+	}
+	fake.editHiveRuleReturnsOnCall[i] = struct {
+		result1 *dbmodels.HiveRule
+		result2 impart.Error
 	}{result1, result2}
 }
 
@@ -3309,6 +3389,8 @@ func (fake *FakeHiveService) Invocations() map[string][][]interface{} {
 	defer fake.editCommentMutex.RUnlock()
 	fake.editHiveMutex.RLock()
 	defer fake.editHiveMutex.RUnlock()
+	fake.editHiveRuleMutex.RLock()
+	defer fake.editHiveRuleMutex.RUnlock()
 	fake.editPostMutex.RLock()
 	defer fake.editPostMutex.RUnlock()
 	fake.getCommentMutex.RLock()

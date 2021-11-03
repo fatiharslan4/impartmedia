@@ -3,11 +3,14 @@ package profile
 import (
 	"context"
 	"database/sql"
+	"math/rand"
 	"sort"
+	"time"
 
 	"fmt"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -343,6 +346,7 @@ func (m *mysqlStore) GetPostDetails(ctx context.Context, gpi models.GetAdminInpu
 func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error) {
 	msg := ""
 	var existingHiveId uint64
+	cfg, _ := config.GetImpart()
 	if gpi.Type == impart.AddToWaitlist {
 		hives := dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: DefaultHiveId},
@@ -372,7 +376,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		mailChimpParams := &members.UpdateParams{
 			MergeFields: map[string]interface{}{"STATUS": impart.WaitList},
 		}
-		_, err = members.Update(impart.MailChimpAudienceID, userToUpdate.Email, mailChimpParams)
+		_, err = members.Update(cfg.MailchimpAudienceId, userToUpdate.Email, mailChimpParams)
 		if err != nil {
 			m.logger.Error("MailChimp update failed", zap.String("Email", userToUpdate.Email),
 				zap.Error(err))
@@ -389,11 +393,28 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			return msg, impart.NewError(impart.ErrBadRequest, "User is already admin.")
 		}
 		userToUpdate.Admin = true
+
+		rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
+		admin := impart.GetAvatharLettersAdmin()
+		adminindex := rand.Intn(len(admin))
+		userToUpdate.AvatarBackground = admin[adminindex]
+
 		err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
 		if err != nil {
 			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as user")
 		}
 		msg = "User role changed to admin."
+
+		if userToUpdate.R.MemberHiveHives != nil {
+			if userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+				err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToUpdate.ImpartWealthID, userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String)
+				if err != nil {
+					m.logger.Error("SubscribeTopic", zap.String("DeviceToken", userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String),
+						zap.Error(err))
+				}
+			}
+		}
+
 	} else if gpi.Type == impart.AddToHive {
 		nwHive, err := dbmodels.FindHive(ctx, m.db, gpi.HiveID)
 		if err != nil {
@@ -566,7 +587,8 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	userOutput.HiveID = userUpdatesInput.HiveID
 	userOutput.Action = userUpdatesInput.Action
 	impartWealthIDs := make([]interface{}, len(userUpdatesInput.Users))
-
+	// cfg, _ := config.GetImpart()
+	ctxUser := impart.GetCtxUser(ctx)
 	for i, user := range userUpdatesInput.Users {
 		userData := &models.UserData{}
 		userData.ImpartWealthID = user.ImpartWealthID
@@ -574,7 +596,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		userData.Status = false
 		userData.Message = "No update activity."
 		userData.Value = 0
-		if user.ImpartWealthID != "" {
+		if user.ImpartWealthID != "" && ctxUser.ImpartWealthID != user.ImpartWealthID {
 			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
 		}
 		userDatas[i] = *userData
@@ -584,7 +606,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	userOutput.Users = userDatas
 	userOutputRslt := &userOutput
 
-	updateUsers, err := m.getUserAll(ctx, impartWealthIDs)
+	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, false)
 	if err != nil {
 		return userOutputRslt
 	}
@@ -632,13 +654,14 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 	userDatas := make([]models.UserData, len(userUpdatesInput.Users), len(userUpdatesInput.Users))
 	userOutput.Type = userUpdatesInput.Type
 	impartWealthIDs := make([]interface{}, 0, len(userUpdatesInput.Users))
+	ctxUser := impart.GetCtxUser(ctx)
 	for i, user := range userUpdatesInput.Users {
 		userData := &models.UserData{}
 		userData.ImpartWealthID = user.ImpartWealthID
 		userData.Status = false
 		userData.ScreenName = user.ScreenName
 		userData.Message = "No delete activity."
-		if user.ImpartWealthID != "" {
+		if user.ImpartWealthID != "" && ctxUser.ImpartWealthID != user.ImpartWealthID {
 			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
 		}
 		userDatas[i] = *userData
@@ -647,7 +670,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 
 	userOutputRslt := &userOutput
 
-	deleteUser, err := m.getUserAll(ctx, impartWealthIDs)
+	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, true)
 	if err != nil || len(deleteUser) == 0 {
 		return userOutputRslt
 	}
@@ -656,6 +679,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 		return userOutputRslt
 	}
 	lenUser := len(userOutputRslt.Users)
+	// cfg, _ := config.GetImpart()
 	for _, user := range deleteUser {
 		for cnt := 0; cnt < lenUser; cnt++ {
 			if userOutputRslt.Users[cnt].ImpartWealthID == user.ImpartWealthID {

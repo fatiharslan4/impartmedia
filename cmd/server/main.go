@@ -155,14 +155,15 @@ func main() {
 	}
 	err = mailchimp.SetKey(impart.MailChimpApiKey)
 	if err != nil {
-		logger.Info("Error connecting Mailchimp", zap.Error(err))
+		logger.Info("Error connecting Mailchimp", zap.Error(err),
+			zap.Any("MailchimpApikey", cfg.MailchimpApikey))
 	}
 
 	v1 := r.Group(v1Route)
-	setRouter(v1, services, logger, db)
+	setRouter(v1, services, logger, db, "v1")
 
 	v2 := r.Group(v2Route)
-	setRouter(v2, services, logger, db)
+	setRouter(v2, services, logger, db, "")
 
 	server := cfg.GetHttpServer()
 	server.Handler = r
@@ -173,7 +174,7 @@ func main() {
 	logger.Info("done serving")
 }
 
-func setRouter(router *gin.RouterGroup, services *Services, logger *zap.Logger, db *sql.DB) {
+func setRouter(router *gin.RouterGroup, services *Services, logger *zap.Logger, db *sql.DB, version string) {
 	router.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
 	router.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
 	router.Use(services.Auth.DeviceIdentificationHandler()) //context for device identification
@@ -182,6 +183,9 @@ func setRouter(router *gin.RouterGroup, services *Services, logger *zap.Logger, 
 
 	hive.SetupRoutes(router, db, services.HiveData, services.Hive, logger)
 	profile.SetupRoutes(router, services.ProfileData, services.Profile, logger, services.Notifications, services.Plaid)
+	if version == "v1" {
+		impart.NotifyWeeklyActivity(db, logger)
+	}
 }
 
 func noRouteFunc(ctx *gin.Context) {

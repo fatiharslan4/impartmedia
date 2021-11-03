@@ -589,3 +589,17 @@ func (m *service) GetHivebyField(ctx context.Context, hiveName string) (*dbmodel
 	}
 	return u, err
 }
+
+func (s *service) EditHiveRule(ctx context.Context, hiveRule models.HiveRule) (*models.HiveRule, impart.Error) {
+
+	ctxUser := impart.GetCtxUser(ctx)
+	if !ctxUser.SuperAdmin {
+		return &hiveRule, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
+	}
+	output, err := s.hiveData.EditHiveRule(ctx, hiveRule)
+	if err != nil {
+		return &hiveRule, err
+	}
+	out, _ := models.HiveRuleDBToModel(output)
+	return out, nil
+}

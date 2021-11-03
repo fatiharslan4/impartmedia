@@ -295,7 +295,8 @@ func (ph *profileHandler) SaveUserQuestionnaire() gin.HandlerFunc {
 		}
 
 		if hivedtype, err := ph.profileService.SaveQuestionnaire(ctx, q); err != nil {
-			ctx.JSON(err.HttpStatus(), impart.ErrorResponse(err))
+			ph.logger.Error("getting profile", zap.Any("err", err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
 			return
 		} else {
 			ctx.JSON(http.StatusCreated, gin.H{"newhive": hivedtype})

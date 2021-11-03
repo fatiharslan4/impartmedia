@@ -229,6 +229,10 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 		case "Gender":
 		case "Race":
 		case "FinancialGoals":
+		case "Industry":
+		case "Career":
+		case "Income":
+		case "EmploymentStatus":
 		default:
 			ps.Logger().Error("unknown onboarding question name", zap.String("questionName", q.Name))
 			return nil

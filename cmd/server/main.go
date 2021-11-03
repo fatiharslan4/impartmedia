@@ -176,9 +176,9 @@ func main() {
 
 func setRouter(router *gin.RouterGroup, services *Services, logger *zap.Logger, db *sql.DB, version string) {
 	router.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
+	router.Use(services.Auth.ClientIdentificationHandler()) //context for client identification
 	router.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
 	router.Use(services.Auth.DeviceIdentificationHandler()) //context for device identification
-	router.Use(services.Auth.ClientIdentificationHandler()) //context for client identification
 	router.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
 
 	hive.SetupRoutes(router, db, services.HiveData, services.Hive, logger)

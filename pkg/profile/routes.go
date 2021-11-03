@@ -294,8 +294,9 @@ func (ph *profileHandler) SaveUserQuestionnaire() gin.HandlerFunc {
 			return
 		}
 
+		ph.logger.Info("SaveQuestionnaire started")
 		if hivedtype, err := ph.profileService.SaveQuestionnaire(ctx, q); err != nil {
-			ph.logger.Error("getting profile", zap.Any("err", err))
+			ph.logger.Error("getting SaveQuestionnaire", zap.Any("err", err))
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
 			return
 		} else {

@@ -76,9 +76,9 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 		// if ctx.Request.URL.Path == "/v1/cookies/" {
 
 		// }
-
+		clientId := impart.GetCtxClientID(ctx)
 		var new_token string
-		if ctx.Request.URL.Path != "/v1/cookies/" {
+		if ctx.Request.URL.Path != "/v1/cookies/" && clientId == impart.ClientId {
 			new_token = token
 		} else {
 			parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")

@@ -183,9 +183,9 @@ func setRouter(router *gin.RouterGroup, services *Services, logger *zap.Logger, 
 
 	hive.SetupRoutes(router, db, services.HiveData, services.Hive, logger)
 	profile.SetupRoutes(router, services.ProfileData, services.Profile, logger, services.Notifications, services.Plaid)
-	if version == "v1" {
-		impart.NotifyWeeklyActivity(db, logger)
-	}
+	// if version == "v1" {
+	// 	impart.NotifyWeeklyActivity(db, logger)
+	// }
 }
 
 func noRouteFunc(ctx *gin.Context) {

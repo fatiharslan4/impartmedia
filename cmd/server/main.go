@@ -257,8 +257,11 @@ func CORS(c *gin.Context) {
 
 	c.Header("Access-Control-Allow-Origin", cfg.AllowOrigin)
 	c.Header("Access-Control-Allow-Methods", "POST,GET,PATCH,PUT,DELETE,OPTION")
-	c.Header("Access-Control-Allow-Headers", "*")
+	//access-control-allow-origin,authorization,content-type,x-api-key,x-client-identity
+	c.Header("Access-Control-Allow-Headers", "access-control-allow-origin,authorization,content-type,x-api-key,x-client-identity, set-cookie")
+	c.Header("Access-Control-Allow-Credentials", "true")
 	c.Header("Content-Type", "application/json")
+
 	// Second, we handle the OPTIONS problem
 	if c.Request.Method != "OPTIONS" {
 

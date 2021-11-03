@@ -1174,11 +1174,13 @@ func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 		// cookie.Path = "/"
 		// cookie.Domain = "Test Domain"
 		// cookie.HttpOnly = true
-		// // http.SetCookie(w, &cookie)
-		ctx.SetCookie("accessToken", p.AccessToken, 10, "/", "localhost", true, true)
-		ctx.SetCookie("refreshToken", p.RefreshToken, 10, "/", "localhost", true, true)
+		// http.SetCookie(w, &cookie)
+		// ctx.Header("access-control-expose-headers", "Set-Cookie")
+		//ctx.Header("set-cookie", "foo=bar")
+		http.SetCookie(ctx.Writer, &http.Cookie{Name: "token", Value: p.AccessToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: true, Domain: "localhost"})
+		// ctx.SetCookie("token", p.AccessToken, 1000, "/", "", true, true)
+		ctx.SetCookie("refreshToken", p.RefreshToken, 1000, "/", "", true, true)
 		// ctx.JSON(http.StatusOK, "Success")
-		// ctx.Header("set-cookie", "foo=bar")
 		ctx.JSON(http.StatusOK, "Success")
 		// ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
 		// 	impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),

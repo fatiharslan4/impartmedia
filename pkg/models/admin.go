@@ -44,7 +44,7 @@ type UserDetail struct {
 	SuperAdmin       bool        `json:"super_admin"`
 	AnswerIds        string      `json:"answer_ids"`
 	EmploymentStatus string      `json:"employment_status"`
-	List             null.Uint64 `json:"List"`
+	List             null.Uint64 `json:"list"`
 	Waitlist         bool        `json:"waitlist"`
 }
 

@@ -348,6 +348,7 @@ func (s *service) CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) 
 		if err != nil {
 			return &models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveNotFound))
 		}
+		hiveRule.Limit = 0
 	}
 	var answer_ids []uint
 	var answer_ids_str []string

@@ -1130,10 +1130,14 @@ func (ph *profileHandler) EditBulkUserDetails() gin.HandlerFunc {
 			return
 		}
 		output, impartErr := ph.profileService.EditBulkUserDetails(ctx, input)
+		ph.logger.Info("bulk action complted and returned to route, giving api resp")
 		if impartErr != nil {
+			ph.logger.Info("no error all success. Now we can  give response")
+			ph.logger.Error("EditBulkUserDetails error", zap.Any("impartErr", impartErr))
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
 			return
 		}
+		ph.logger.Info("no error all success. next is response")
 		ctx.JSON(http.StatusOK, models.PagedUserUpdateResponse{
 			Users: output,
 		})

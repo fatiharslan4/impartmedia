@@ -1130,7 +1130,7 @@ func (ph *profileHandler) EditBulkUserDetails() gin.HandlerFunc {
 			return
 		}
 		output, impartErr := ph.profileService.EditBulkUserDetails(ctx, input)
-		ph.logger.Info("bulk action complted and returned to route, giving api resp")
+		ph.logger.Info("bulk action complted and returned to route, giving api resp", zap.Any("output", output))
 		if impartErr != nil {
 			ph.logger.Info("no error all success. Now we can  give response")
 			ph.logger.Error("EditBulkUserDetails error", zap.Any("impartErr", impartErr))
@@ -1138,9 +1138,10 @@ func (ph *profileHandler) EditBulkUserDetails() gin.HandlerFunc {
 			return
 		}
 		ph.logger.Info("no error all success. next is response")
-		ctx.JSON(http.StatusOK, models.PagedUserUpdateResponse{
-			Users: output,
-		})
+		// ctx.JSON(http.StatusOK, models.PagedUserUpdateResponse{
+		// 	Users: output,
+		// })
+		ctx.JSON(http.StatusOK, "Success")
 	}
 }
 func (ph *profileHandler) CreateMailChimpForExistingUsers() gin.HandlerFunc {

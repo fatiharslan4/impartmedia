@@ -258,7 +258,7 @@ func CORS(c *gin.Context) {
 	// }
 	fmt.Println("the allow origin are", cfg.AllowOrigin)
 
-	c.Header("Access-Control-Allow-Origin", cfg.AllowOrigin)
+	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("Access-Control-Allow-Methods", "POST,GET,PATCH,PUT,DELETE,OPTION")
 	//access-control-allow-origin,authorization,content-type,x-api-key,x-client-identity
 	c.Header("Access-Control-Allow-Headers", "access-control-allow-origin,authorization,content-type,x-api-key,x-client-identity, set-cookie")

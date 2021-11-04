@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
-	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -230,6 +229,10 @@ func (ps *profileService) isAssignedMillenialWithChildren(questionnaire models.Q
 		case "Gender":
 		case "Race":
 		case "FinancialGoals":
+		case "Industry":
+		case "Career":
+		case "Income":
+		case "EmploymentStatus":
 		default:
 			ps.Logger().Error("unknown onboarding question name", zap.String("questionName", q.Name))
 			return nil
@@ -327,8 +330,8 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		MergeFields: mergeFlds,
 	}
 
-	cfg, _ := config.GetImpart()
-	_, err = members.Update(cfg.MailchimpAudienceId, ctxUser.Email, mailChimpParams)
+	// cfg, _ := config.GetImpart()
+	_, err = members.Update(impart.MailChimpAudienceID, ctxUser.Email, mailChimpParams)
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  added to the mailchimp %v", err))
 		ps.Logger().Error(impartErr.Error())

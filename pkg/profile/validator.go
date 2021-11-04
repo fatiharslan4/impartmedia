@@ -81,7 +81,7 @@ func (ps *profileService) validateNewProfile(ctx context.Context, p models.Profi
 		}
 	}
 	if user != nil {
-		return impart.NewError(impart.ErrExists, "Email already in use.", impart.Email)
+		return impart.NewError(impart.ErrBadRequest, "Email already in use.", impart.Email)
 	}
 
 	if screenNameRegexp.FindString(p.ScreenName) != p.ScreenName {

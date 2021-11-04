@@ -67,14 +67,30 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 			ctx.Next()
 			return
 		}
-		parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
-		if len(parts) != 2 || parts[0] != AuthorizationHeaderBearerType || len(parts[0]) == 0 || len(parts[1]) == 0 {
-			a.logger.Info("invalid authorization header", zap.Strings("split_authz_header", parts))
-			err := impart.NewError(impart.ErrUnauthorized, "invalid authorization header")
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, impart.ErrorResponse(err))
-			return
+		// parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
+		token, _ := ctx.Cookie("token")
+
+		// if token != nil {
+
+		// }
+		// if ctx.Request.URL.Path == "/v1/cookies/" {
+
+		// }
+		clientId := impart.GetCtxClientID(ctx)
+		var new_token string
+		if ctx.Request.URL.Path != "/v1/cookies/" && clientId == impart.ClientId {
+			new_token = token
+		} else {
+			parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
+			if len(parts) != 2 || parts[0] != AuthorizationHeaderBearerType || len(parts[0]) == 0 || len(parts[1]) == 0 {
+				a.logger.Info("invalid authorization header", zap.Strings("split_authz_header", parts))
+				err := impart.NewError(impart.ErrUnauthorized, "invalid authorization header")
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, impart.ErrorResponse(err))
+				return
+			}
+			new_token = parts[1]
 		}
-		claims, err := ValidateAuth0Token(parts[1], a.Auth0Certs, a.logger.Sugar())
+		claims, err := ValidateAuth0Token(new_token, a.Auth0Certs, a.logger.Sugar())
 		if err != nil {
 			a.logger.Error("couldn't validate token", zap.Error(err))
 			err := impart.NewError(impart.ErrUnauthorized, "couldn't validate token")
@@ -113,11 +129,7 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 
 func (a *authService) APIKeyHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if ctx.GetHeader(ImpartAPIKeyHeaderName) != a.APIKey {
-			iErr := impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("%v", impart.ErrInvalidAPIKey))
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, impart.ErrorResponse(iErr))
-			return
-		}
+
 		ctx.Next()
 	}
 }

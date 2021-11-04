@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
-	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -162,12 +161,14 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 	}
 
 	//subscribe unsubsribe to topic
-
-	ctxUser := impart.GetCtxUser(ctx)
 	var hiveId uint64
-	if ctxUser.R.MemberHiveHives != nil {
-		for _, h := range ctxUser.R.MemberHiveHives {
-			hiveId = h.HiveID
+	ctxUser, userErr := ps.profileStore.GetUser(ctx, ud.ImpartWealthID)
+	if userErr == nil {
+		// user  active
+		if ctxUser.R.MemberHiveHives != nil {
+			for _, h := range ctxUser.R.MemberHiveHives {
+				hiveId = h.HiveID
+			}
 		}
 	}
 	hiveData, err := ps.GetHive(ctx, hiveId)
@@ -177,16 +178,16 @@ func (ps *profileService) MapDeviceForNotification(ctx context.Context, ud model
 	}
 	if notifyStatus {
 		if !isAdmin {
-			if hiveData.NotificationTopicArn.String != "" {
+			if hiveData != nil && hiveData.NotificationTopicArn.String != "" {
 				ps.notificationService.SubscribeTopic(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
 			}
 		} else {
-			if hiveData.NotificationTopicArn.String != "" {
+			if hiveData != nil && hiveData.NotificationTopicArn.String != "" {
 				ps.notificationService.UnsubscribeTopicForDevice(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
 			}
 		}
 	} else {
-		if hiveData.NotificationTopicArn.String != "" {
+		if hiveData != nil && hiveData.NotificationTopicArn.String != "" {
 			ps.notificationService.UnsubscribeTopicForDevice(ctx, ud.ImpartWealthID, hiveData.NotificationTopicArn.String, arn)
 		}
 
@@ -320,8 +321,8 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 	err = ps.profileStore.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
 
 	// // delete user from mailchimp
-	cfg, _ := config.GetImpart()
-	err = members.Delete(cfg.MailchimpAudienceId, dbUser.Email)
+	// cfg, _ := config.GetImpart()
+	err = members.Delete(impart.MailChimpAudienceID, dbUser.Email)
 	if err != nil {
 		ps.Logger().Error("Delete user requset failed in MailChimp", zap.String("blockUser", ctxUser.ImpartWealthID),
 			zap.String("User", ctxUser.ImpartWealthID))

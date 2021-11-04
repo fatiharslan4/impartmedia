@@ -16,6 +16,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/impartwealthapp/backend/pkg/plaid"
+	"github.com/impartwealthapp/backend/pkg/secure"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	ginzap "github.com/gin-contrib/zap"
@@ -120,18 +121,18 @@ func main() {
 
 	r := gin.New()
 	r.Use(CORS)
-	// r.Use(secure.Secure(secure.Options{
-	// 	//AllowedHosts:          []string{"*"},
-	// 	// AllowedHosts: []string{"localhost:3000", "ssl.example.com"},
-	// 	//SSLRedirect: true,
-	// 	// SSLHost:               "*",
-	// 	SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
-	// 	STSIncludeSubdomains:  true,
-	// 	FrameDeny:             true,
-	// 	ContentTypeNosniff:    true,
-	// 	BrowserXssFilter:      true,
-	// 	ContentSecurityPolicy: "default-src 'self'",
-	// }))
+	r.Use(secure.Secure(secure.Options{
+		//AllowedHosts:          []string{"*"},
+		// AllowedHosts: []string{"localhost:3000", "ssl.example.com"},
+		//SSLRedirect: true,
+		// SSLHost:               "*",
+		SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
+		STSIncludeSubdomains:  true,
+		FrameDeny:             true,
+		ContentTypeNosniff:    true,
+		BrowserXssFilter:      true,
+		ContentSecurityPolicy: "default-src 'self'",
+	}))
 	r.RedirectTrailingSlash = true
 	r.Use(ginzap.RecoveryWithZap(logger, true))      // panics don't stop server
 	r.Use(ginzap.Ginzap(logger, time.RFC3339, true)) // logs all requests
@@ -153,16 +154,17 @@ func main() {
 		v1Route = fmt.Sprintf("%s/v1", cfg.Env)
 		v2Route = fmt.Sprintf("%s/v1.1", cfg.Env)
 	}
-	err = mailchimp.SetKey(cfg.MailchimpApikey)
+	err = mailchimp.SetKey(impart.MailChimpApiKey)
 	if err != nil {
-		logger.Info("Error connecting Mailchimp", zap.Error(err))
+		logger.Info("Error connecting Mailchimp", zap.Error(err),
+			zap.Any("MailchimpApikey", cfg.MailchimpApikey))
 	}
 
 	v1 := r.Group(v1Route)
-	setRouter(v1, services, logger, db)
+	setRouter(v1, services, logger, db, "v1")
 
 	v2 := r.Group(v2Route)
-	setRouter(v2, services, logger, db)
+	setRouter(v2, services, logger, db, "")
 
 	server := cfg.GetHttpServer()
 	server.Handler = r
@@ -173,15 +175,18 @@ func main() {
 	logger.Info("done serving")
 }
 
-func setRouter(router *gin.RouterGroup, services *Services, logger *zap.Logger, db *sql.DB) {
+func setRouter(router *gin.RouterGroup, services *Services, logger *zap.Logger, db *sql.DB, version string) {
 	router.Use(services.Auth.APIKeyHandler())               //x-api-key is present on all requests
+	router.Use(services.Auth.ClientIdentificationHandler()) //context for client identification
 	router.Use(services.Auth.RequestAuthorizationHandler()) //ensure request has valid JWT
 	router.Use(services.Auth.DeviceIdentificationHandler()) //context for device identification
-	router.Use(services.Auth.ClientIdentificationHandler()) //context for client identification
 	router.GET("/tags", func(ctx *gin.Context) { ctx.JSON(http.StatusOK, tags.AvailableTags()) })
 
 	hive.SetupRoutes(router, db, services.HiveData, services.Hive, logger)
 	profile.SetupRoutes(router, services.ProfileData, services.Profile, logger, services.Notifications, services.Plaid)
+	// if version == "v1" {
+	// 	impart.NotifyWeeklyActivity(db, logger)
+	// }
 }
 
 func noRouteFunc(ctx *gin.Context) {
@@ -257,8 +262,11 @@ func CORS(c *gin.Context) {
 
 	c.Header("Access-Control-Allow-Origin", cfg.AllowOrigin)
 	c.Header("Access-Control-Allow-Methods", "POST,GET,PATCH,PUT,DELETE,OPTION")
-	c.Header("Access-Control-Allow-Headers", "*")
+	//access-control-allow-origin,authorization,content-type,x-api-key,x-client-identity
+	c.Header("Access-Control-Allow-Headers", "access-control-allow-origin,authorization,content-type,x-api-key,x-client-identity, set-cookie")
+	c.Header("Access-Control-Allow-Credentials", "true")
 	c.Header("Content-Type", "application/json")
+
 	// Second, we handle the OPTIONS problem
 	if c.Request.Method != "OPTIONS" {
 

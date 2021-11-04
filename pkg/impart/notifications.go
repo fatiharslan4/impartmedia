@@ -653,6 +653,9 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 	c.Start()
 }
 
+const titleMostPopularPost = "This Week’s Trending Post"
+const bodyMostPopularPost = "Check out the most popular post in your Hive this week"
+
 func NotifyWeeklyMostPopularPost(db *sql.DB, logger *zap.Logger) {
 	logger.Info("NotifyWeeklyActivity- start")
 	c := cron.New()
@@ -660,20 +663,24 @@ func NotifyWeeklyMostPopularPost(db *sql.DB, logger *zap.Logger) {
 		lastweekTime := CurrentUTC().AddDate(0, 0, -7)
 
 		type PostCount struct {
-			HiveID               uint64      `json:"hive_id"`
-			Post                 uint64      `json:"post"`
+			PostID               uint64      `json:"post_id"`
+			TotalActivity        uint64      `json:"totalActivity"`
 			NotificationTopicArn null.String `json:"notification_topic_arn"`
 		}
 		var posts []PostCount
 		err := queries.Raw(`
-			select count(post_id) as post , post.hive_id as hive_id , hive.notification_topic_arn
+			select post_id, post.hive_id as hive_id , hive.notification_topic_arn,
+			post.up_vote_count,
+			post.comment_count,
+			post.up_vote_count+post.comment_count as totalActivity
 			from post
 			join hive on post.hive_id=hive.hive_id and hive.deleted_at is null
 			where post.deleted_at is null
 			and hive.deleted_at is null
+			and (post.up_vote_count+post.comment_count)>0
 			and post.created_at between ? and ?
-			group by hive_id
-			having count(post_id)>3 ;
+			group by hive_id,post_id
+            order by post_id desc, totalActivity desc ;
 	`, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &posts)
 
 		if err != nil {
@@ -685,15 +692,14 @@ func NotifyWeeklyMostPopularPost(db *sql.DB, logger *zap.Logger) {
 			notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
 			logger.Info("Notification- fetching complted")
 			for _, hive := range posts {
+				logger.Info("NotifyWeeklyActivity-Post Details", zap.Any("hive", hive))
 				pushNotification := Alert{
-					Title: aws.String(title),
-					Body: aws.String(
-						fmt.Sprintf("Check out %d new posts in your Hive this week", hive.Post),
-					),
+					Title: aws.String(titleMostPopularPost),
+					Body:  aws.String(bodyMostPopularPost),
 				}
 				additionalData := NotificationData{
 					EventDatetime: CurrentUTC(),
-					HiveID:        hive.HiveID,
+					PostID:        hive.PostID,
 				}
 				Logger.Info("Notification",
 					zap.Any("pushNotification", pushNotification),

@@ -442,6 +442,14 @@ func (d *mysqlHiveData) NewHiveRule(ctx context.Context, hiveRule *dbmodels.Hive
 	if err != nil {
 		d.logger.Error("HiveRule criteria creation failed", zap.Error(err))
 	}
+	if (hiveRule.HiveID != null.Uint64{}) && hiveRule.HiveID.Uint64 > 0 {
+		newHive := &dbmodels.Hive{HiveID: hiveRule.HiveID.Uint64}
+		errHive := hiveRule.AddHives(ctx, d.db, false, newHive)
+		if errHive != nil {
+			d.logger.Error("New hive rule map failed", zap.Any("hive", newHive),
+				zap.Error(errHive))
+		}
+	}
 	return hiveRule, hiveRule.Reload(ctx, d.db)
 }
 

@@ -18,7 +18,8 @@
 				"obfuscated",
 				"reviewed",
 				"reviewComment",
-				"parentCommentId"
+				"parentCommentId",
+				"admin"
 			],
 			"properties": {
 				"postId": {
@@ -87,6 +88,15 @@
 				},
 				"fullName": {
 					"type": "string"
+				},
+				"avatarBackground": {
+					"type": "string"
+				},
+				"avatarLetter": {
+					"type": "string"
+				},
+				"admin": {
+					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,
@@ -338,6 +348,12 @@
 					"type": "string"
 				},
 				"FullName": {
+					"type": "string"
+				},
+				"avatarBackground": {
+					"type": "string"
+				},
+				"avatarLetter": {
 					"type": "string"
 				}
 			},

@@ -8,7 +8,7 @@ var (
 	NameRequired           Message = "Name required."
 	SuperAdminOnly         Message = "Current user does not have the permission."
 	HiveRuleCreationFailed Message = "Hive rule creation failed."
-	HiveRuleExist          Message = "Could not find the HiveRule."
+	HiveRuleExist          Message = "Hive rule exist."
 	HiveRuleNotExist       Message = "No hive rule exist."
 	HiveRuleFetchingFailed Message = "Fetching hive rule failed."
 	HiveRuletoDbmodel      Message = "Unable to convert hiveRules to  dbmodel."
@@ -18,4 +18,5 @@ var (
 	HiveRuleSameStatus     Message = "Hive rule is already in same status."
 	HiveRuleEnabled        Message = "The Rule is Enabled."
 	HiveRuleDisabled       Message = "The Rule is Disabled."
+	HiveNotFound           Message = "Hive not found."
 )

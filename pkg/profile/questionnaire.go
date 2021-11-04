@@ -14,6 +14,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -370,10 +371,19 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 	}
 	if ruleId > 0 {
 		existHiveRule, _ := dbmodels.HiveRules(dbmodels.HiveRuleWhere.RuleID.EQ(ruleId),
-			Load(dbmodels.HiveRuleRels.Hives)).One(ctx, ps.db)
+			Load(dbmodels.HiveRuleRels.Hives),
+			Load(dbmodels.HiveRuleRels.Hive)).One(ctx, ps.db)
 
 		createNewhive := false
 		if existHiveRule != nil {
+			if (existHiveRule.HiveID != null.Uint64{}) && existHiveRule.HiveID.Uint64 > 0 {
+				hive := existHiveRule.R.Hive
+				if hive != nil {
+					return &hive.HiveID
+				}
+				defaulthive := &dbmodels.Hive{HiveID: impart.DefaultHiveID}
+				return &defaulthive.HiveID
+			}
 			if existHiveRule.MaxLimit > existHiveRule.NoOfUsers && existHiveRule.Status {
 				if existHiveRule.R.Hives != nil {
 					// // we can add users into the existng hive

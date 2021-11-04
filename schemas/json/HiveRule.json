@@ -134,6 +134,9 @@
 						"$ref": "#/definitions/Hive"
 					},
 					"type": "array"
+				},
+				"hiveId": {
+					"type": "integer"
 				}
 			},
 			"additionalProperties": false,

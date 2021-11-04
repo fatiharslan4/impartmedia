@@ -304,7 +304,7 @@ func (s *service) HiveBulkOperations(ctx context.Context, hiveUpdates models.Hiv
 		hives.Name = hive.Name
 		hives.Message = "No delete activity."
 		hives.Status = false
-		if hive.HiveID > 0 {
+		if hive.HiveID > 0 && hive.HiveID != impart.DefaultHiveID {
 			HiveIds = append(HiveIds, (hive.HiveID))
 		}
 		hiveDatas[i] = *hives
@@ -340,8 +340,15 @@ func (s *service) CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) 
 	if !ctxUser.SuperAdmin {
 		return &models.HiveRule{}, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
 	}
-	if hiveRule.Limit <= 0 {
+	if hiveRule.Limit <= 0 && (hiveRule.HiveID == null.Uint64{}) {
 		return &models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleLimit))
+	}
+	if (hiveRule.HiveID != null.Uint64{}) && hiveRule.HiveID.Uint64 > 0 {
+		_, err := dbmodels.FindHive(ctx, s.db, hiveRule.HiveID.Uint64)
+		if err != nil {
+			return &models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveNotFound))
+		}
+		hiveRule.Limit = 0
 	}
 	var answer_ids []uint
 	var answer_ids_str []string

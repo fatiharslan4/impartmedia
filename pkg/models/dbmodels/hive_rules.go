@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/friendsofgo/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -23,11 +24,12 @@ import (
 
 // HiveRule is an object representing the database table.
 type HiveRule struct {
-	RuleID    uint64 `boil:"rule_id" json:"rule_id" toml:"rule_id" yaml:"rule_id"`
-	Name      string `boil:"name" json:"name" toml:"name" yaml:"name"`
-	Status    bool   `boil:"status" json:"status" toml:"status" yaml:"status"`
-	MaxLimit  int64  `boil:"max_limit" json:"max_limit" toml:"max_limit" yaml:"max_limit"`
-	NoOfUsers int64  `boil:"no_of_users" json:"no_of_users" toml:"no_of_users" yaml:"no_of_users"`
+	RuleID    uint64      `boil:"rule_id" json:"rule_id" toml:"rule_id" yaml:"rule_id"`
+	Name      string      `boil:"name" json:"name" toml:"name" yaml:"name"`
+	Status    bool        `boil:"status" json:"status" toml:"status" yaml:"status"`
+	MaxLimit  int64       `boil:"max_limit" json:"max_limit" toml:"max_limit" yaml:"max_limit"`
+	NoOfUsers int64       `boil:"no_of_users" json:"no_of_users" toml:"no_of_users" yaml:"no_of_users"`
+	HiveID    null.Uint64 `boil:"hive_id" json:"hive_id,omitempty" toml:"hive_id" yaml:"hive_id,omitempty"`
 
 	R *hiveRuleR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L hiveRuleL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -39,12 +41,14 @@ var HiveRuleColumns = struct {
 	Status    string
 	MaxLimit  string
 	NoOfUsers string
+	HiveID    string
 }{
 	RuleID:    "rule_id",
 	Name:      "name",
 	Status:    "status",
 	MaxLimit:  "max_limit",
 	NoOfUsers: "no_of_users",
+	HiveID:    "hive_id",
 }
 
 var HiveRuleTableColumns = struct {
@@ -53,12 +57,14 @@ var HiveRuleTableColumns = struct {
 	Status    string
 	MaxLimit  string
 	NoOfUsers string
+	HiveID    string
 }{
 	RuleID:    "hive_rules.rule_id",
 	Name:      "hive_rules.name",
 	Status:    "hive_rules.status",
 	MaxLimit:  "hive_rules.max_limit",
 	NoOfUsers: "hive_rules.no_of_users",
+	HiveID:    "hive_rules.hive_id",
 }
 
 // Generated where
@@ -92,25 +98,30 @@ var HiveRuleWhere = struct {
 	Status    whereHelperbool
 	MaxLimit  whereHelperint64
 	NoOfUsers whereHelperint64
+	HiveID    whereHelpernull_Uint64
 }{
 	RuleID:    whereHelperuint64{field: "`hive_rules`.`rule_id`"},
 	Name:      whereHelperstring{field: "`hive_rules`.`name`"},
 	Status:    whereHelperbool{field: "`hive_rules`.`status`"},
 	MaxLimit:  whereHelperint64{field: "`hive_rules`.`max_limit`"},
 	NoOfUsers: whereHelperint64{field: "`hive_rules`.`no_of_users`"},
+	HiveID:    whereHelpernull_Uint64{field: "`hive_rules`.`hive_id`"},
 }
 
 // HiveRuleRels is where relationship names are stored.
 var HiveRuleRels = struct {
+	Hive                  string
 	Hives                 string
 	RuleHiveRulesCriteria string
 }{
+	Hive:                  "Hive",
 	Hives:                 "Hives",
 	RuleHiveRulesCriteria: "RuleHiveRulesCriteria",
 }
 
 // hiveRuleR is where relationships are stored.
 type hiveRuleR struct {
+	Hive                  *Hive                   `boil:"Hive" json:"Hive" toml:"Hive" yaml:"Hive"`
 	Hives                 HiveSlice               `boil:"Hives" json:"Hives" toml:"Hives" yaml:"Hives"`
 	RuleHiveRulesCriteria HiveRulesCriteriumSlice `boil:"RuleHiveRulesCriteria" json:"RuleHiveRulesCriteria" toml:"RuleHiveRulesCriteria" yaml:"RuleHiveRulesCriteria"`
 }
@@ -124,8 +135,8 @@ func (*hiveRuleR) NewStruct() *hiveRuleR {
 type hiveRuleL struct{}
 
 var (
-	hiveRuleAllColumns            = []string{"rule_id", "name", "status", "max_limit", "no_of_users"}
-	hiveRuleColumnsWithoutDefault = []string{"name", "status", "max_limit", "no_of_users"}
+	hiveRuleAllColumns            = []string{"rule_id", "name", "status", "max_limit", "no_of_users", "hive_id"}
+	hiveRuleColumnsWithoutDefault = []string{"name", "status", "max_limit", "no_of_users", "hive_id"}
 	hiveRuleColumnsWithDefault    = []string{"rule_id"}
 	hiveRulePrimaryKeyColumns     = []string{"rule_id"}
 )
@@ -405,6 +416,21 @@ func (q hiveRuleQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (b
 	return count > 0, nil
 }
 
+// Hive pointed to by the foreign key.
+func (o *HiveRule) Hive(mods ...qm.QueryMod) hiveQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("`hive_id` = ?", o.HiveID),
+		qmhelper.WhereIsNull("deleted_at"),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Hives(queryMods...)
+	queries.SetFrom(query.Query, "`hive`")
+
+	return query
+}
+
 // Hives retrieves all the hive's Hives with an executor.
 func (o *HiveRule) Hives(mods ...qm.QueryMod) hiveQuery {
 	var queryMods []qm.QueryMod
@@ -446,6 +472,115 @@ func (o *HiveRule) RuleHiveRulesCriteria(mods ...qm.QueryMod) hiveRulesCriterium
 	}
 
 	return query
+}
+
+// LoadHive allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (hiveRuleL) LoadHive(ctx context.Context, e boil.ContextExecutor, singular bool, maybeHiveRule interface{}, mods queries.Applicator) error {
+	var slice []*HiveRule
+	var object *HiveRule
+
+	if singular {
+		object = maybeHiveRule.(*HiveRule)
+	} else {
+		slice = *maybeHiveRule.(*[]*HiveRule)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &hiveRuleR{}
+		}
+		if !queries.IsNil(object.HiveID) {
+			args = append(args, object.HiveID)
+		}
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &hiveRuleR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.HiveID) {
+					continue Outer
+				}
+			}
+
+			if !queries.IsNil(obj.HiveID) {
+				args = append(args, obj.HiveID)
+			}
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`hive`),
+		qm.WhereIn(`hive.hive_id in ?`, args...),
+		qmhelper.WhereIsNull(`hive.deleted_at`),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Hive")
+	}
+
+	var resultSlice []*Hive
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Hive")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for hive")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for hive")
+	}
+
+	if len(hiveRuleAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.Hive = foreign
+		if foreign.R == nil {
+			foreign.R = &hiveR{}
+		}
+		foreign.R.HiveRules = append(foreign.R.HiveRules, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if queries.Equal(local.HiveID, foreign.HiveID) {
+				local.R.Hive = foreign
+				if foreign.R == nil {
+					foreign.R = &hiveR{}
+				}
+				foreign.R.HiveRules = append(foreign.R.HiveRules, local)
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadHives allows an eager lookup of values, cached into the
@@ -659,6 +794,86 @@ func (hiveRuleL) LoadRuleHiveRulesCriteria(ctx context.Context, e boil.ContextEx
 		}
 	}
 
+	return nil
+}
+
+// SetHive of the hiveRule to the related item.
+// Sets o.R.Hive to related.
+// Adds o to related.R.HiveRules.
+func (o *HiveRule) SetHive(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Hive) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE `hive_rules` SET %s WHERE %s",
+		strmangle.SetParamNames("`", "`", 0, []string{"hive_id"}),
+		strmangle.WhereClause("`", "`", 0, hiveRulePrimaryKeyColumns),
+	)
+	values := []interface{}{related.HiveID, o.RuleID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	queries.Assign(&o.HiveID, related.HiveID)
+	if o.R == nil {
+		o.R = &hiveRuleR{
+			Hive: related,
+		}
+	} else {
+		o.R.Hive = related
+	}
+
+	if related.R == nil {
+		related.R = &hiveR{
+			HiveRules: HiveRuleSlice{o},
+		}
+	} else {
+		related.R.HiveRules = append(related.R.HiveRules, o)
+	}
+
+	return nil
+}
+
+// RemoveHive relationship.
+// Sets o.R.Hive to nil.
+// Removes o from all passed in related items' relationships struct (Optional).
+func (o *HiveRule) RemoveHive(ctx context.Context, exec boil.ContextExecutor, related *Hive) error {
+	var err error
+
+	queries.SetScanner(&o.HiveID, nil)
+	if _, err = o.Update(ctx, exec, boil.Whitelist("hive_id")); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	if o.R != nil {
+		o.R.Hive = nil
+	}
+	if related == nil || related.R == nil {
+		return nil
+	}
+
+	for i, ri := range related.R.HiveRules {
+		if queries.Equal(o.HiveID, ri.HiveID) {
+			continue
+		}
+
+		ln := len(related.R.HiveRules)
+		if ln > 1 && i < ln-1 {
+			related.R.HiveRules[i] = related.R.HiveRules[ln-1]
+		}
+		related.R.HiveRules = related.R.HiveRules[:ln-1]
+		break
+	}
 	return nil
 }
 

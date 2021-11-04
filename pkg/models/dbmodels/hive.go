@@ -134,12 +134,14 @@ var HiveRels = struct {
 	AdminImpartWealthUsers  string
 	MemberImpartWealthUsers string
 	RuleHiveRules           string
+	HiveRules               string
 	HiveUserDemographics    string
 	Posts                   string
 }{
 	AdminImpartWealthUsers:  "AdminImpartWealthUsers",
 	MemberImpartWealthUsers: "MemberImpartWealthUsers",
 	RuleHiveRules:           "RuleHiveRules",
+	HiveRules:               "HiveRules",
 	HiveUserDemographics:    "HiveUserDemographics",
 	Posts:                   "Posts",
 }
@@ -149,6 +151,7 @@ type hiveR struct {
 	AdminImpartWealthUsers  UserSlice                `boil:"AdminImpartWealthUsers" json:"AdminImpartWealthUsers" toml:"AdminImpartWealthUsers" yaml:"AdminImpartWealthUsers"`
 	MemberImpartWealthUsers UserSlice                `boil:"MemberImpartWealthUsers" json:"MemberImpartWealthUsers" toml:"MemberImpartWealthUsers" yaml:"MemberImpartWealthUsers"`
 	RuleHiveRules           HiveRuleSlice            `boil:"RuleHiveRules" json:"RuleHiveRules" toml:"RuleHiveRules" yaml:"RuleHiveRules"`
+	HiveRules               HiveRuleSlice            `boil:"HiveRules" json:"HiveRules" toml:"HiveRules" yaml:"HiveRules"`
 	HiveUserDemographics    HiveUserDemographicSlice `boil:"HiveUserDemographics" json:"HiveUserDemographics" toml:"HiveUserDemographics" yaml:"HiveUserDemographics"`
 	Posts                   PostSlice                `boil:"Posts" json:"Posts" toml:"Posts" yaml:"Posts"`
 }
@@ -509,6 +512,27 @@ func (o *Hive) RuleHiveRules(mods ...qm.QueryMod) hiveRuleQuery {
 	return query
 }
 
+// HiveRules retrieves all the hive_rule's HiveRules with an executor.
+func (o *Hive) HiveRules(mods ...qm.QueryMod) hiveRuleQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("`hive_rules`.`hive_id`=?", o.HiveID),
+	)
+
+	query := HiveRules(queryMods...)
+	queries.SetFrom(query.Query, "`hive_rules`")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"`hive_rules`.*"})
+	}
+
+	return query
+}
+
 // HiveUserDemographics retrieves all the hive_user_demographic's HiveUserDemographics with an executor.
 func (o *Hive) HiveUserDemographics(mods ...qm.QueryMod) hiveUserDemographicQuery {
 	var queryMods []qm.QueryMod
@@ -824,7 +848,7 @@ func (hiveL) LoadRuleHiveRules(ctx context.Context, e boil.ContextExecutor, sing
 	}
 
 	query := NewQuery(
-		qm.Select("`hive_rules`.rule_id, `hive_rules`.name, `hive_rules`.status, `hive_rules`.max_limit, `hive_rules`.no_of_users, `a`.`hive_id`"),
+		qm.Select("`hive_rules`.rule_id, `hive_rules`.name, `hive_rules`.status, `hive_rules`.max_limit, `hive_rules`.no_of_users, `hive_rules`.hive_id, `a`.`hive_id`"),
 		qm.From("`hive_rules`"),
 		qm.InnerJoin("`hive_rule_map` as `a` on `hive_rules`.`rule_id` = `a`.`rule_id`"),
 		qm.WhereIn("`a`.`hive_id` in ?", args...),
@@ -845,7 +869,7 @@ func (hiveL) LoadRuleHiveRules(ctx context.Context, e boil.ContextExecutor, sing
 		one := new(HiveRule)
 		var localJoinCol uint64
 
-		err = results.Scan(&one.RuleID, &one.Name, &one.Status, &one.MaxLimit, &one.NoOfUsers, &localJoinCol)
+		err = results.Scan(&one.RuleID, &one.Name, &one.Status, &one.MaxLimit, &one.NoOfUsers, &one.HiveID, &localJoinCol)
 		if err != nil {
 			return errors.Wrap(err, "failed to scan eager loaded results for hive_rules")
 		}
@@ -891,6 +915,104 @@ func (hiveL) LoadRuleHiveRules(ctx context.Context, e boil.ContextExecutor, sing
 					foreign.R = &hiveRuleR{}
 				}
 				foreign.R.Hives = append(foreign.R.Hives, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadHiveRules allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (hiveL) LoadHiveRules(ctx context.Context, e boil.ContextExecutor, singular bool, maybeHive interface{}, mods queries.Applicator) error {
+	var slice []*Hive
+	var object *Hive
+
+	if singular {
+		object = maybeHive.(*Hive)
+	} else {
+		slice = *maybeHive.(*[]*Hive)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &hiveR{}
+		}
+		args = append(args, object.HiveID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &hiveR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.HiveID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.HiveID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`hive_rules`),
+		qm.WhereIn(`hive_rules.hive_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load hive_rules")
+	}
+
+	var resultSlice []*HiveRule
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice hive_rules")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on hive_rules")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for hive_rules")
+	}
+
+	if len(hiveRuleAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.HiveRules = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &hiveRuleR{}
+			}
+			foreign.R.Hive = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if queries.Equal(local.HiveID, foreign.HiveID) {
+				local.R.HiveRules = append(local.R.HiveRules, foreign)
+				if foreign.R == nil {
+					foreign.R = &hiveRuleR{}
+				}
+				foreign.R.Hive = local
 				break
 			}
 		}
@@ -1526,6 +1648,133 @@ func removeRuleHiveRulesFromHivesSlice(o *Hive, related []*HiveRule) {
 			break
 		}
 	}
+}
+
+// AddHiveRules adds the given related objects to the existing relationships
+// of the hive, optionally inserting them as new records.
+// Appends related to o.R.HiveRules.
+// Sets related.R.Hive appropriately.
+func (o *Hive) AddHiveRules(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*HiveRule) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			queries.Assign(&rel.HiveID, o.HiveID)
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE `hive_rules` SET %s WHERE %s",
+				strmangle.SetParamNames("`", "`", 0, []string{"hive_id"}),
+				strmangle.WhereClause("`", "`", 0, hiveRulePrimaryKeyColumns),
+			)
+			values := []interface{}{o.HiveID, rel.RuleID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			queries.Assign(&rel.HiveID, o.HiveID)
+		}
+	}
+
+	if o.R == nil {
+		o.R = &hiveR{
+			HiveRules: related,
+		}
+	} else {
+		o.R.HiveRules = append(o.R.HiveRules, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &hiveRuleR{
+				Hive: o,
+			}
+		} else {
+			rel.R.Hive = o
+		}
+	}
+	return nil
+}
+
+// SetHiveRules removes all previously related items of the
+// hive replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Hive's HiveRules accordingly.
+// Replaces o.R.HiveRules with related.
+// Sets related.R.Hive's HiveRules accordingly.
+func (o *Hive) SetHiveRules(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*HiveRule) error {
+	query := "update `hive_rules` set `hive_id` = null where `hive_id` = ?"
+	values := []interface{}{o.HiveID}
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, query)
+		fmt.Fprintln(writer, values)
+	}
+	_, err := exec.ExecContext(ctx, query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.HiveRules {
+			queries.SetScanner(&rel.HiveID, nil)
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.Hive = nil
+		}
+
+		o.R.HiveRules = nil
+	}
+	return o.AddHiveRules(ctx, exec, insert, related...)
+}
+
+// RemoveHiveRules relationships from objects passed in.
+// Removes related items from R.HiveRules (uses pointer comparison, removal does not keep order)
+// Sets related.R.Hive.
+func (o *Hive) RemoveHiveRules(ctx context.Context, exec boil.ContextExecutor, related ...*HiveRule) error {
+	if len(related) == 0 {
+		return nil
+	}
+
+	var err error
+	for _, rel := range related {
+		queries.SetScanner(&rel.HiveID, nil)
+		if rel.R != nil {
+			rel.R.Hive = nil
+		}
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("hive_id")); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.HiveRules {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.HiveRules)
+			if ln > 1 && i < ln-1 {
+				o.R.HiveRules[i] = o.R.HiveRules[ln-1]
+			}
+			o.R.HiveRules = o.R.HiveRules[:ln-1]
+			break
+		}
+	}
+
+	return nil
 }
 
 // AddHiveUserDemographics adds the given related objects to the existing relationships

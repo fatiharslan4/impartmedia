@@ -281,6 +281,7 @@ type HiveRule struct {
 	Question  []Question     `json:"questions,omitempty"`
 	Criteria  []CriteriaData `json:"criteria,omitempty"`
 	Hive      []Hive         `json:"hive,omitempty"`
+	HiveID    null.Uint64    `json:"hiveId,omitempty"`
 }
 
 type CriteriaData struct {
@@ -292,6 +293,7 @@ func (hiverule HiveRule) ToDBModel() (*dbmodels.HiveRule, error) {
 		Name:     hiverule.RuleName,
 		Status:   hiverule.Status,
 		MaxLimit: int64(hiverule.Limit),
+		HiveID:   hiverule.HiveID,
 	}
 	return rule, nil
 }
@@ -381,6 +383,7 @@ func HiveRuleDBToModel(hiverule *dbmodels.HiveRule) (*HiveRule, error) {
 		RuleName: hiverule.Name,
 		Status:   hiverule.Status,
 		Limit:    hiverule.MaxLimit,
+		HiveID:   hiverule.HiveID,
 	}
 	return rule, nil
 }

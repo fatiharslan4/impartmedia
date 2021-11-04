@@ -832,8 +832,12 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 		exitingUserAnswer := user.R.ImpartWealthUserAnswers
 		if !user.Blocked {
 			for _, answer := range exitingUserAnswer {
-				userDemo[uint64(answer.AnswerID)] = userDemo[uint64(answer.AnswerID)] - 1
-				userHiveDemo[hiveid][uint64(answer.AnswerID)] = userHiveDemo[hiveid][uint64(answer.AnswerID)] - 1
+				if userDemo[uint64(answer.AnswerID)] > 0 {
+					userDemo[uint64(answer.AnswerID)] = userDemo[uint64(answer.AnswerID)] - 1
+				}
+				if userHiveDemo[hiveid][uint64(answer.AnswerID)] > 0 {
+					userHiveDemo[hiveid][uint64(answer.AnswerID)] = userHiveDemo[hiveid][uint64(answer.AnswerID)] - 1
+				}
 			}
 		}
 	}
@@ -853,7 +857,7 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 		return err
 	}
 	for _, user := range userDetails {
-		email := fmt.Sprintf("%s-%s", user.Email, user.ImpartWealthID)
+		email := fmt.Sprintf("%s-%s", user.ImpartWealthID, user.Email)
 		userUp := management.User{
 			Email: &email,
 		}

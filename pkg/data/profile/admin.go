@@ -59,7 +59,6 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 						ELSE  user.lastlogin_at END as lastlogin_at ,
 					user.admin,
 					user.super_admin,
-					hivedata.hive as list,
 					COUNT(post.post_id) as post,
 					CASE WHEN hivedata.hives IS NULL THEN 'N.A' 
 								ELSE hivedata.hives END AS hive_id,
@@ -201,10 +200,11 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	} else if gpi.SortBy == "income" {
 		gpi.SortBy = "sortorder"
 		sortBy = "sortorder"
-	} else if gpi.SortBy == "waitlist" {
-		gpi.SortBy = "list"
-		sortBy = "list"
 	}
+	// else if gpi.SortBy == "waitlist" {
+	// 	gpi.SortBy = "list"
+	// 	sortBy = "list"
+	// }
 	orderby := ""
 	if isSort {
 		if gpi.SortBy == "screen_name" || gpi.SortBy == "email" {

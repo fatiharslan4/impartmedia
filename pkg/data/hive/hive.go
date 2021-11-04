@@ -90,9 +90,6 @@ func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmo
 		return nil, err
 	}
 	queryFirst := `SET @hive_id = (select max(hive_id) from hive );
-					INSERT INTO user_demographic (answer_id,user_count)
-					SELECT answer_id,0
-					FROM answer;
 					
 					INSERT INTO hive_user_demographic (hive_id,question_id,answer_id,user_count)
 					SELECT @hive_id,question_id,answer_id,0
@@ -208,6 +205,10 @@ func (d *mysqlHiveData) DeleteHive(ctx context.Context, hiveID uint64) error {
 	where user.deleted_at is null and member_hive_id=?
 	`, hiveID).Bind(ctx, d.db, &memberHives)
 
+	hives.Name = fmt.Sprintf("%s-%d-%s", hives.Name, hives.HiveID, "Deleted")
+	if _, err := hives.Update(ctx, d.db, boil.Infer()); err != nil {
+		return err
+	}
 	if _, err = hives.Delete(ctx, d.db, false); err != nil {
 		if err == sql.ErrNoRows {
 			return impart.ErrNotFound
@@ -312,7 +313,8 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 		if hive.HiveID == impart.DefaultHiveID {
 			continue
 		}
-		query := fmt.Sprintf("Update hive set deleted_at='%s' where hive_id='%d';", golangDateTime, hive.HiveID)
+		deleteName := fmt.Sprintf("%s-%d-%s", hive.Name, hive.HiveID, "Deleted")
+		query := fmt.Sprintf("Update hive set deleted_at='%s' , name='%s' where hive_id='%d';", golangDateTime, deleteName, hive.HiveID)
 		updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
 		exitingmembers := hive.R.MemberImpartWealthUsers
 		for _, member := range exitingmembers {
@@ -334,7 +336,6 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 		}
 	}
 	query := fmt.Sprintf("%s %s %s", updateQuery, updatememberHive, updateHiveDemographic)
-
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -437,6 +438,14 @@ func (d *mysqlHiveData) NewHiveRule(ctx context.Context, hiveRule *dbmodels.Hive
 	err := hiveRule.AddRuleHiveRulesCriteria(ctx, d.db, true, hiveCriteria...)
 	if err != nil {
 		d.logger.Error("HiveRule criteria creation failed", zap.Error(err))
+	}
+	if (hiveRule.HiveID != null.Uint64{}) && hiveRule.HiveID.Uint64 > 0 {
+		newHive := &dbmodels.Hive{HiveID: hiveRule.HiveID.Uint64}
+		errHive := hiveRule.AddHives(ctx, d.db, false, newHive)
+		if errHive != nil {
+			d.logger.Error("New hive rule map failed", zap.Any("hive", newHive),
+				zap.Error(errHive))
+		}
 	}
 	return hiveRule, hiveRule.Reload(ctx, d.db)
 }

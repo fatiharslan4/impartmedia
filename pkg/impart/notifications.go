@@ -537,10 +537,12 @@ func (ns *snsAppleNotificationService) UnsubscribeTopicForAllDevice(ctx context.
 	}
 	_, err = dbmodels.NotificationSubscriptions(
 		dbmodels.NotificationSubscriptionWhere.ImpartWealthID.EQ(impartWealthID)).DeleteAll(ctx, ns.db)
+	if err != nil {
+		ns.Logger.Error("error attempting to unsubscribe",
+			zap.Error(err),
+			zap.String("Impart wealth Id", impartWealthID))
 
-	ns.Logger.Error("error attempting to unsubscribe",
-		zap.Error(err),
-		zap.String("Impart wealth Id", impartWealthID))
+	}
 	return nil
 }
 

@@ -873,10 +873,10 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 	existinghiveid := DefaultHiveId
 	userHiveDemoexist := make(map[uint64]map[uint64]int)
 	var existingHive *dbmodels.Hive
-	// var newHive *dbmodels.Hive
+	var newHive *dbmodels.Hive
 	if userUpdate.Type == impart.AddToHive {
 		var err error
-		// newHive, err = dbmodels.FindHive(ctx, m.db, userUpdate.HiveID)
+		newHive, err = dbmodels.FindHive(ctx, m.db, userUpdate.HiveID)
 		if err != nil {
 			return userUpdate, err
 		}
@@ -979,36 +979,36 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				}
 				userUpdate.Users[userUpdateposition].Value = 1
 
-				// if existingHive != nil {
-				// 	if existingHive.NotificationTopicArn.String != "" {
-				// 		err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
-				// 		if err != nil {
-				// 			m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
-				// 				zap.Error(err))
-				// 		}
-				// 	}
-				// }
+				if existingHive != nil {
+					if existingHive.NotificationTopicArn.String != "" {
+						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+						if err != nil {
+							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
+								zap.Error(err))
+						}
+					}
+				}
 
-				// deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
-				// if devErr != nil {
-				// 	m.logger.Error("unable to find device", zap.Error(err))
-				// }
-				// if deviceDetails != nil {
-				// 	for _, device := range deviceDetails {
-				// 		endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
-				// 		if err != nil {
-				// 			m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
-				// 				zap.Error(err))
-				// 		}
-				// 		if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
-				// 			err := m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
-				// 			if err != nil {
-				// 				m.logger.Error("SubscribeTopic", zap.String("DeviceToken", device.DeviceToken),
-				// 					zap.Error(err))
-				// 			}
-				// 		}
-				// 	}
-				// }
+				deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
+				if devErr != nil {
+					m.logger.Error("unable to find device", zap.Error(err))
+				}
+				if deviceDetails != nil {
+					for _, device := range deviceDetails {
+						endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+						if err != nil {
+							m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+								zap.Error(err))
+						}
+						if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
+							err := m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
+							if err != nil {
+								m.logger.Error("SubscribeTopic", zap.String("DeviceToken", device.DeviceToken),
+									zap.Error(err))
+							}
+						}
+					}
+				}
 			}
 		}
 	}

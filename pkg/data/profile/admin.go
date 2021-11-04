@@ -617,12 +617,12 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	}
 	m.logger.Info("update get completed")
 	lenUser := len(userOutputRslt.Users)
-	// status := ""
-	// if userOutputRslt.Type == impart.AddToWaitlist {
-	// 	status = impart.WaitList
-	// } else if userOutputRslt.Type == impart.AddToHive {
-	// 	status = impart.Hive
-	// }
+	status := ""
+	if userOutputRslt.Type == impart.AddToWaitlist {
+		status = impart.WaitList
+	} else if userOutputRslt.Type == impart.AddToHive {
+		status = impart.Hive
+	}
 	m.logger.Info("status updated")
 	for _, user := range updateUsers {
 		for cnt := 0; cnt < lenUser; cnt++ {
@@ -633,17 +633,17 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 				break
 			}
 		}
-		// if userOutputRslt.Type == impart.AddToWaitlist || userOutputRslt.Type == impart.AddToHive {
-		// 	mailChimpParams := &members.UpdateParams{
-		// 		MergeFields: map[string]interface{}{"STATUS": status},
-		// 	}
-		// 	_, err = members.Update(impart.MailChimpAudienceID, user.Email, mailChimpParams)
-		// 	if err != nil {
-		// 		m.logger.Info("mailchimp failed")
-		// 		m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
-		// 			zap.Error(err))
-		// 	}
-		// }
+		if userOutputRslt.Type == impart.AddToWaitlist || userOutputRslt.Type == impart.AddToHive {
+			mailChimpParams := &members.UpdateParams{
+				MergeFields: map[string]interface{}{"STATUS": status},
+			}
+			_, err = members.Update(impart.MailChimpAudienceID, user.Email, mailChimpParams)
+			if err != nil {
+				m.logger.Info("mailchimp failed")
+				m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
+					zap.Error(err))
+			}
+		}
 	}
 	m.logger.Info("all process completed")
 	return userOutputs

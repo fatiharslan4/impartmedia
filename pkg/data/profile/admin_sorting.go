@@ -107,10 +107,13 @@ func UserDataToModel(user models.UserDetails) models.UserDetails {
 		if (p.Email == null.String{}) {
 			out[i].Email = null.StringFrom(types.AccountRemoved.ToString())
 		}
-		if p.List == impart.DefaultHiveID {
+		if (p.List != null.Uint64{}) && p.List.Uint64 == impart.DefaultHiveID {
 			out[i].Waitlist = true
 		} else {
 			out[i].Waitlist = false
+		}
+		if (p.List == null.Uint64{}) {
+			out[i].Waitlist = true
 		}
 
 	}

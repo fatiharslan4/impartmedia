@@ -1032,8 +1032,14 @@ func (hh *hiveHandler) DeleteHiveFunc() gin.HandlerFunc {
 			return
 		}
 
+		if hiveId == impart.DefaultHiveID {
+			iErr := impart.NewError(impart.ErrBadRequest, "Hive is default hive", impart.HiveID)
+			ctx.JSON(iErr.HttpStatus(), impart.ErrorResponse(iErr))
+			return
+		}
+
 		impartRrr := hh.hiveService.DeleteHive(ctx, hiveId)
-		if err != nil {
+		if impartRrr != nil {
 			ctx.JSON(impartRrr.HttpStatus(), impart.ErrorResponse(impartRrr))
 			return
 		}

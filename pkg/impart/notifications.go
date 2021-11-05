@@ -653,66 +653,66 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 	c.Start()
 }
 
-const titleMostPopularPost = "This Week’s Trending Post"
-const bodyMostPopularPost = "Check out the most popular post in your Hive this week"
+// const titleMostPopularPost = "This Week’s Trending Post"
+// const bodyMostPopularPost = "Check out the most popular post in your Hive this week"
 
-func NotifyWeeklyMostPopularPost(db *sql.DB, logger *zap.Logger) {
-	logger.Info("NotifyWeeklyActivity- start")
-	c := cron.New()
-	c.AddFunc("*/5 * * * *", func() {
-		lastweekTime := CurrentUTC().AddDate(0, 0, -7)
+// func NotifyWeeklyMostPopularPost(db *sql.DB, logger *zap.Logger) {
+// 	logger.Info("NotifyWeeklyActivity- start")
+// 	c := cron.New()
+// 	c.AddFunc("*/5 * * * *", func() {
+// 		lastweekTime := CurrentUTC().AddDate(0, 0, -7)
 
-		type PostCount struct {
-			PostID               uint64      `json:"post_id"`
-			TotalActivity        uint64      `json:"totalActivity"`
-			NotificationTopicArn null.String `json:"notification_topic_arn"`
-		}
-		var posts []PostCount
-		err := queries.Raw(`
-			select post_id, post.hive_id as hive_id , hive.notification_topic_arn,
-			post.up_vote_count,
-			post.comment_count,
-			post.up_vote_count+post.comment_count as totalActivity
-			from post
-			join hive on post.hive_id=hive.hive_id and hive.deleted_at is null
-			where post.deleted_at is null
-			and hive.deleted_at is null
-			and (post.up_vote_count+post.comment_count)>0
-			and post.created_at between ? and ?
-			group by hive_id,post_id
-            order by post_id desc, totalActivity desc ;
-	`, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &posts)
+// 		type PostCount struct {
+// 			PostID               uint64      `json:"post_id"`
+// 			TotalActivity        uint64      `json:"totalActivity"`
+// 			NotificationTopicArn null.String `json:"notification_topic_arn"`
+// 		}
+// 		var posts []PostCount
+// 		err := queries.Raw(`
+// 			select post_id, post.hive_id as hive_id , hive.notification_topic_arn,
+// 			post.up_vote_count,
+// 			post.comment_count,
+// 			post.up_vote_count+post.comment_count as totalActivity
+// 			from post
+// 			join hive on post.hive_id=hive.hive_id and hive.deleted_at is null
+// 			where post.deleted_at is null
+// 			and hive.deleted_at is null
+// 			and (post.up_vote_count+post.comment_count)>0
+// 			and post.created_at between ? and ?
+// 			group by hive_id,post_id
+//             order by post_id desc, totalActivity desc ;
+// 	`, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &posts)
 
-		if err != nil {
-			logger.Error("error while fetching data ", zap.Error(err))
-			// return err
-		}
-		cfg, _ := config.GetImpart()
-		if cfg.Env != config.Local {
-			notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
-			logger.Info("Notification- fetching complted")
-			for _, hive := range posts {
-				logger.Info("NotifyWeeklyActivity-Post Details", zap.Any("hive", hive))
-				pushNotification := Alert{
-					Title: aws.String(titleMostPopularPost),
-					Body:  aws.String(bodyMostPopularPost),
-				}
-				additionalData := NotificationData{
-					EventDatetime: CurrentUTC(),
-					PostID:        hive.PostID,
-				}
-				Logger.Info("Notification",
-					zap.Any("pushNotification", pushNotification),
-					zap.Any("additionalData", additionalData),
-					zap.Any("hive", hive),
-				)
-				err = notification.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
-				if err != nil {
-					logger.Error("error sending notification to topic", zap.Error(err))
-				}
+// 		if err != nil {
+// 			logger.Error("error while fetching data ", zap.Error(err))
+// 			// return err
+// 		}
+// 		cfg, _ := config.GetImpart()
+// 		if cfg.Env != config.Local {
+// 			notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
+// 			logger.Info("Notification- fetching complted")
+// 			for _, hive := range posts {
+// 				logger.Info("NotifyWeeklyActivity-Post Details", zap.Any("hive", hive))
+// 				pushNotification := Alert{
+// 					Title: aws.String(titleMostPopularPost),
+// 					Body:  aws.String(bodyMostPopularPost),
+// 				}
+// 				additionalData := NotificationData{
+// 					EventDatetime: CurrentUTC(),
+// 					PostID:        hive.PostID,
+// 				}
+// 				Logger.Info("Notification",
+// 					zap.Any("pushNotification", pushNotification),
+// 					zap.Any("additionalData", additionalData),
+// 					zap.Any("hive", hive),
+// 				)
+// 				err = notification.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
+// 				if err != nil {
+// 					logger.Error("error sending notification to topic", zap.Error(err))
+// 				}
 
-			}
-		}
-	})
-	c.Start()
-}
+// 			}
+// 		}
+// 	})
+// 	c.Start()
+// }

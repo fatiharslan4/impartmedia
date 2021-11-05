@@ -665,7 +665,7 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 				zap.Any("additionalData", additionalData),
 				zap.Any("hive", 2),
 			)
-			err = notification.NotifyTopic(context.TODO(), additionalData, pushNotification, "arn:aws:sns:us-east-1:518740895671:SNSHiveNotification")
+			err = notification.NotifyTopic(context.TODO(), additionalData, pushNotification, "arn:aws:sns:us-east-1:518740895671:SNSHiveNotification-iosdev")
 			if err != nil {
 				logger.Error("error sending notification to topic", zap.Error(err))
 			}

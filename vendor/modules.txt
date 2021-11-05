@@ -186,9 +186,6 @@ github.com/pkg/errors
 github.com/plaid/plaid-go/plaid
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/robfig/cron/v3 v3.0.0
-## explicit
-github.com/robfig/cron/v3
 # github.com/segmentio/ksuid v1.0.3
 ## explicit
 github.com/segmentio/ksuid

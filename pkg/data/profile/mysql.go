@@ -915,7 +915,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				adminindex := rand.Intn(len(admin))
 				adminColor := admin[adminindex]
 
-				query := fmt.Sprintf("Update user set admin=true and avatar_background='%s'   where impart_wealth_id='%s';", adminColor, user.ImpartWealthID)
+				query := fmt.Sprintf("Update user set admin=true , avatar_background='%s'   where impart_wealth_id='%s';", adminColor, user.ImpartWealthID)
 				updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
 
 				userUpdate.Users[userUpdateposition].Value = 1

@@ -414,10 +414,17 @@ func (ps *profileService) EditBulkUserDetails(ctx context.Context, userUpdates m
 		if userUpdates.Type == impart.AddToHive && userUpdates.HiveID == 0 {
 			return nil, impart.NewError(impart.ErrBadRequest, "Missing hive details.")
 		}
-		userOutput = ps.profileStore.EditBulkUserDetails(ctx, userUpdates)
+		userOutput, err := ps.profileStore.EditBulkUserDetails(ctx, userUpdates)
+		if err != nil {
+			ps.Logger().Error("Error in EditBulkUserDetails", zap.Any("userOutput", userOutput))
+			return userOutput, impart.NewError(impart.ErrBadRequest, "User update failed.")
+		}
 		ps.Logger().Info("bulk action proccess completed and return to route")
 		return userOutput, nil
 	} else if userUpdates.Action == "delete" {
+		if len(userUpdates.Users) == 0 {
+			return nil, impart.NewError(impart.ErrBadRequest, "User details not found")
+		}
 		userOutput = ps.profileStore.DeleteBulkUserDetails(ctx, userUpdates)
 		return userOutput, nil
 	}

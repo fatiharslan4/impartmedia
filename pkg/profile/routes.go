@@ -1138,7 +1138,9 @@ func (ph *profileHandler) EditBulkUserDetails() gin.HandlerFunc {
 			return
 		}
 		ph.logger.Info("no error all success. next is response")
-		ctx.JSON(http.StatusOK, "Success")
+		ctx.JSON(http.StatusOK, models.PagedUserUpdateResponse{
+			Users: output,
+		})
 	}
 }
 func (ph *profileHandler) CreateMailChimpForExistingUsers() gin.HandlerFunc {

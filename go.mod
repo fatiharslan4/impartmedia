@@ -26,7 +26,6 @@ require (
 	github.com/pcpratheesh/go-censorword v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/plaid/plaid-go v1.2.0
-	github.com/robfig/cron/v3 v3.0.1
 	github.com/segmentio/ksuid v1.0.3
 	github.com/shopspring/decimal v1.2.0
 	github.com/stretchr/testify v1.7.0

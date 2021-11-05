@@ -353,6 +353,8 @@ func (ps *profileService) GetProfile(ctx context.Context, gpi GetProfileInput) (
 		return models.Profile{}, impart.NewError(err, "")
 	}
 
+	impart.NotifyWeeklyActivity(ps.db, ps.Logger())
+
 	return *out, nil
 }
 

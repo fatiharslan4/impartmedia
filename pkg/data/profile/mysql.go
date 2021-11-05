@@ -937,7 +937,9 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 
 				if !user.Blocked {
 					for _, answer := range exitingUserAnswer {
-						userHiveDemoexist[existinghiveid][uint64(answer.AnswerID)] = userHiveDemoexist[existinghiveid][uint64(answer.AnswerID)] - 1
+						if userHiveDemoexist[existinghiveid][uint64(answer.AnswerID)] > 0 {
+							userHiveDemoexist[existinghiveid][uint64(answer.AnswerID)] = userHiveDemoexist[existinghiveid][uint64(answer.AnswerID)] - 1
+						}
 						userHiveDemoexist[DefaultHiveId][uint64(answer.AnswerID)] = userHiveDemoexist[DefaultHiveId][uint64(answer.AnswerID)] + 1
 					}
 				}
@@ -970,7 +972,9 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				updateHivequery = fmt.Sprintf("%s %s", updateHivequery, query)
 				exitingUserAnswer := user.R.ImpartWealthUserAnswers
 				for _, answer := range exitingUserAnswer {
-					userHiveDemoexist[existinghiveid][uint64(answer.AnswerID)] = userHiveDemoexist[existinghiveid][uint64(answer.AnswerID)] - 1
+					if userHiveDemoexist[existinghiveid][uint64(answer.AnswerID)] > 0 {
+						userHiveDemoexist[existinghiveid][uint64(answer.AnswerID)] = userHiveDemoexist[existinghiveid][uint64(answer.AnswerID)] - 1
+					}
 					userHiveDemoexist[userUpdate.HiveID][uint64(answer.AnswerID)] = userHiveDemoexist[userUpdate.HiveID][uint64(answer.AnswerID)] + 1
 				}
 				userUpdate.Users[userUpdateposition].Value = 1

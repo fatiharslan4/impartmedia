@@ -104,11 +104,12 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 		if u == nil {
 			//only one route is allowed to not have a user, and that's when one is being created.
 			//so if this is null on that route alone, that's okay - but otherwise, abort.
-			apiVersion := impart.GetApiVersion(ctx.Request.URL)
-			urlProfile := "/v1/profiles"
-			if apiVersion == "v1.1" {
-				urlProfile = "/v1.1/profiles"
-			}
+			// apiVersion := impart.GetApiVersion(ctx.Request.URL)
+			// urlProfile := "/v1/profiles"
+			urlProfile := "/v1.1/profiles"
+			// if apiVersion == "v1.1" {
+			// 	urlProfile = "/v1.1/profiles"
+			// }
 			if strings.HasSuffix(ctx.Request.RequestURI, urlProfile) && ctx.Request.Method == "POST" {
 				ctx.Next()
 				return

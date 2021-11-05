@@ -146,13 +146,13 @@ func main() {
 		}
 		ctx.String(http.StatusOK, "pong")
 	})
-	var v1Route string
+	// var v1Route string
 	var v2Route string
 	if cfg.Env == config.Production || cfg.Env == config.Local {
-		v1Route = "v1"
+		// v1Route = "v1"
 		v2Route = "v1.1"
 	} else {
-		v1Route = fmt.Sprintf("%s/v1", cfg.Env)
+		// v1Route = fmt.Sprintf("%s/v1", cfg.Env)
 		v2Route = fmt.Sprintf("%s/v1.1", cfg.Env)
 	}
 	err = mailchimp.SetKey(impart.MailChimpApiKey)
@@ -161,8 +161,8 @@ func main() {
 			zap.Any("MailchimpApikey", cfg.MailchimpApikey))
 	}
 
-	v1 := r.Group(v1Route)
-	setRouter(v1, services, logger, db)
+	// v1 := r.Group(v1Route)
+	// setRouter(v1, services, logger, db)
 
 	v2 := r.Group(v2Route)
 	setRouter(v2, services, logger, db)

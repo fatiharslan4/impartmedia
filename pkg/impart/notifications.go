@@ -647,6 +647,26 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 				logger.Error("error sending notification to topic", zap.Error(err))
 			}
 
+			pushNotification = Alert{
+				Title: aws.String(title),
+				Body: aws.String(
+					fmt.Sprintf("Check out %d new posts in your Hive this week", 3),
+				),
+			}
+			additionalData = NotificationData{
+				EventDatetime: CurrentUTC(),
+				HiveID:        123,
+			}
+			Logger.Info("Notification",
+				zap.Any("pushNotification", pushNotification),
+				zap.Any("additionalData", additionalData),
+				zap.Any("hive", 123),
+			)
+			err = notification.NotifyTopic(context.TODO(), additionalData, pushNotification, "arn:aws:sns:us-east-1:518740895671:SNSHiveNotification-iosdev-123")
+			if err != nil {
+				logger.Error("error sending notification to topic", zap.Error(err))
+			}
+
 			// }
 		}
 	})

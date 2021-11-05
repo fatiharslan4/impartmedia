@@ -26,7 +26,6 @@ require (
 	github.com/pcpratheesh/go-censorword v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/plaid/plaid-go v1.2.0
-	github.com/robfig/cron v1.2.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/segmentio/ksuid v1.0.3
 	github.com/shopspring/decimal v1.2.0
@@ -38,6 +37,5 @@ require (
 	go.uber.org/zap v1.16.0
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	gopkg.in/auth0.v5 v5.11.0
-	gopkg.in/robfig/cron.v2 v2.0.0-20150107220207-be2e0b0deed5 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 )

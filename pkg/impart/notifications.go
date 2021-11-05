@@ -626,48 +626,30 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 		if cfg.Env != config.Local {
 			notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
 			logger.Info("Notification- fetching complted")
-			// for _, hive := range posts {
-			pushNotification := Alert{
-				Title: aws.String(title),
-				Body: aws.String(
-					fmt.Sprintf("Check out %d new posts in your Hive this week", 2),
-				),
-			}
-			additionalData := NotificationData{
-				EventDatetime: CurrentUTC(),
-				HiveID:        2,
-			}
-			Logger.Info("Notification",
-				zap.Any("pushNotification", pushNotification),
-				zap.Any("additionalData", additionalData),
-				zap.Any("hive", 2),
-			)
-			err = notification.NotifyTopic(context.TODO(), additionalData, pushNotification, "arn:aws:sns:us-east-1:518740895671:SNSHiveNotification")
-			if err != nil {
-				logger.Error("error sending notification to topic", zap.Error(err))
-			}
+			for _, hive := range posts {
+				if hive.HiveID == 2 {
+					pushNotification := Alert{
+						Title: aws.String(title),
+						Body: aws.String(
+							fmt.Sprintf("Check out %d new posts in your Hive this week", hive.Post),
+						),
+					}
+					additionalData := NotificationData{
+						EventDatetime: CurrentUTC(),
+						HiveID:        hive.HiveID,
+					}
+					Logger.Info("Notification",
+						zap.Any("pushNotification", pushNotification),
+						zap.Any("additionalData", additionalData),
+						zap.Any("hive", hive),
+					)
+					err = notification.NotifyTopic(context.TODO(), additionalData, pushNotification, hive.NotificationTopicArn.String)
+					if err != nil {
+						logger.Error("error sending notification to topic", zap.Error(err))
+					}
+				}
 
-			pushNotification = Alert{
-				Title: aws.String(title),
-				Body: aws.String(
-					fmt.Sprintf("Check out %d new posts in your Hive this week", 3),
-				),
 			}
-			additionalData = NotificationData{
-				EventDatetime: CurrentUTC(),
-				HiveID:        123,
-			}
-			Logger.Info("Notification",
-				zap.Any("pushNotification", pushNotification),
-				zap.Any("additionalData", additionalData),
-				zap.Any("hive", 123),
-			)
-			err = notification.NotifyTopic(context.TODO(), additionalData, pushNotification, "arn:aws:sns:us-east-1:518740895671:SNSHiveNotification-iosdev-123")
-			if err != nil {
-				logger.Error("error sending notification to topic", zap.Error(err))
-			}
-
-			// }
 		}
 	})
 	c.Start()

@@ -841,16 +841,16 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 			}
 		}
 	}
-	for ansr, demo := range userDemo {
-		query := fmt.Sprintf("update user_demographic set user_count=%d where answer_id=%d;", demo, ansr)
-		updateDemographic = fmt.Sprintf("%s %s", updateDemographic, query)
-	}
-	for hive, demo := range userHiveDemo {
-		for answer, cnt := range demo {
-			query := fmt.Sprintf("update hive_user_demographic set user_count=%d where hive_id=%d and answer_id=%d;", cnt, hive, answer)
-			updateHiveDemographic = fmt.Sprintf("%s %s", updateHiveDemographic, query)
-		}
-	}
+	// for ansr, demo := range userDemo {
+	// 	query := fmt.Sprintf("update user_demographic set user_count=%d where answer_id=%d;", demo, ansr)
+	// 	updateDemographic = fmt.Sprintf("%s %s", updateDemographic, query)
+	// }
+	// for hive, demo := range userHiveDemo {
+	// 	for answer, cnt := range demo {
+	// 		query := fmt.Sprintf("update hive_user_demographic set user_count=%d where hive_id=%d and answer_id=%d;", cnt, hive, answer)
+	// 		updateHiveDemographic = fmt.Sprintf("%s %s", updateHiveDemographic, query)
+	// 	}
+	// }
 	query := fmt.Sprintf("%s %s %s", updateQuery, updateDemographic, updateHiveDemographic)
 	_, err = queries.Raw(query).ExecContext(ctx, m.db)
 	if err != nil {

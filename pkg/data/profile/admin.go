@@ -580,7 +580,7 @@ func (m *mysqlStore) GetFilterDetails(ctx context.Context) ([]byte, error) {
 	return result, nil
 }
 
-func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) *models.UserUpdate {
+func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) (*models.UserUpdate, error) {
 	userOutput := models.UserUpdate{}
 	userDatas := make([]models.UserData, len(userUpdatesInput.Users), len(userUpdatesInput.Users))
 	userOutput.Type = userUpdatesInput.Type
@@ -608,12 +608,12 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 
 	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, false)
 	if err != nil {
-		return userOutputRslt
+		return userOutputRslt, err
 	}
 	m.logger.Info("User get completed")
 	userOutputs, impartErr := m.UpdateBulkUserProfile(ctx, updateUsers, false, userOutputRslt)
 	if impartErr != nil {
-		return userOutputRslt
+		return userOutputRslt, impartErr
 	}
 	m.logger.Info("update get completed")
 	lenUser := len(userOutputRslt.Users)
@@ -646,7 +646,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		}
 	}
 	m.logger.Info("all process completed")
-	return userOutputs
+	return userOutputs, nil
 }
 
 func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) *models.UserUpdate {

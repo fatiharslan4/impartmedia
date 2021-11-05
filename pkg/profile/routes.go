@@ -1181,7 +1181,7 @@ func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 		// http.SetCookie(w, &cookie)
 		// ctx.Header("access-control-expose-headers", "Set-Cookie")
 		//ctx.Header("set-cookie", "foo=bar")
-		http.SetCookie(ctx.Writer, &http.Cookie{Name: "token", Value: p.AccessToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: false})
+		http.SetCookie(ctx.Writer, &http.Cookie{Name: "token", Value: p.AccessToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: true})
 		// ctx.SetCookie("token", p.AccessToken, 1000, "/", "", true, true)
 		ctx.SetCookie("refreshToken", p.RefreshToken, 1000, "/", "", true, true)
 		// ctx.JSON(http.StatusOK, "Success")

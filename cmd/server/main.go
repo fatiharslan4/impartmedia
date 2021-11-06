@@ -116,7 +116,9 @@ func main() {
 
 	// initiate global profanity detector
 	impart.InitProfanityDetector(db, logger)
+	logger.Info("Going to call NotifyWeeklyActivity")
 	impart.NotifyWeeklyActivity(db, logger)
+	logger.Info("Call Completed NotifyWeeklyActivity")
 
 	services := setupServices(cfg, db, logger)
 

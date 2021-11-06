@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
@@ -596,19 +595,10 @@ func (ns *snsAppleNotificationService) CreateNotificationTopic(ctx context.Conte
 
 const title = "This Week’s Activity"
 
-var (
-	isNotifyWeeklyActivityRunningMut sync.RWMutex
-	isNotifyWeeklyActivityRunning    bool
-)
-
 func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
+	logger.Info("NotifyWeeklyActivity- fuction started")
 	c := cron.New()
-	isNotifyWeeklyActivityRunningMut.Lock()
 	c.AddFunc("*/5 * * * *", func() {
-		if isNotifyWeeklyActivityRunning {
-			return
-		}
-		isNotifyWeeklyActivityRunning = true
 		logger.Info("NotifyWeeklyActivity- start")
 		lastweekTime := CurrentUTC().AddDate(0, 0, -7)
 
@@ -633,12 +623,15 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 			logger.Error("error while fetching data ", zap.Error(err))
 			// return err
 		}
+
+		logger.Info("Query Result", zap.Any("posts", posts))
+
 		cfg, _ := config.GetImpart()
 		if cfg.Env != config.Local {
 			notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
-			logger.Info("Notification- fetching complted")
+			logger.Info("Notification Service- fetching complted")
 			for _, hive := range posts {
-				fmt.Println("1")
+				logger.Info("Notification", zap.Any("hive", hive))
 				pushNotification := Alert{
 					Title: aws.String(title),
 					Body: aws.String(
@@ -649,7 +642,6 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 					EventDatetime: CurrentUTC(),
 					HiveID:        hive.HiveID,
 				}
-				logger.Info("Notification", zap.Any("hive", hive))
 				Logger.Info("Notification",
 					zap.Any("pushNotification", pushNotification),
 					zap.Any("additionalData", additionalData),
@@ -659,13 +651,13 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 				if err != nil {
 					logger.Error("error sending notification to topic", zap.Error(err))
 				}
+				logger.Info("For completed....")
 			}
+			logger.Info("For loop completed")
 		}
 
 	})
 	c.Start()
-	isNotifyWeeklyActivityRunning = false
-	isNotifyWeeklyActivityRunningMut.Unlock()
 }
 
 func NotifyWeeklyActivityTest(db *sql.DB, logger *zap.Logger) {

@@ -127,6 +127,9 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 
 		return impart.NewError(impart.ErrUnauthorized, "user is not authorized")
 	}
+	if userToDelete.Blocked {
+		return impart.NewError(impart.ErrBadRequest, "Cannot delete blocked user.")
+	}
 	err = ps.profileStore.DeleteUserProfile(ctx, deleteUser, hardDelete)
 	if err != nil {
 		return impart.NewError(impart.ErrBadRequest, "User delete failed.")
@@ -472,6 +475,11 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 	}
 	if userToDelete.SuperAdmin {
 		errorString := "You cannot delete the super admin."
+		ps.Logger().Error(errorString, zap.Any("error", errorString))
+		return impart.NewError(impart.ErrUnauthorized, errorString)
+	}
+	if userToDelete.Blocked {
+		errorString := "Cannot delete  blocked user."
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
 		return impart.NewError(impart.ErrUnauthorized, errorString)
 	}

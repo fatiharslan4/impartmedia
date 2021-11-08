@@ -378,10 +378,6 @@ func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitLi
 		ps.Logger().Error("Blocked user", zap.Error(err))
 		return "", impart.NewError(impart.ErrNotFound, "Blocked user")
 	}
-	if contextUser.ImpartWealthID == userToUpdate.ImpartWealthID {
-		ps.Logger().Error("It is logged in user", zap.Error(err))
-		return "", impart.NewError(impart.ErrNotFound, "It is logged in user")
-	}
 	msg, err0 := ps.profileStore.EditUserDetails(ctx, gpi)
 	if err0 != nil {
 		ps.Logger().Error("Error in adding waitlist", zap.Error(err))

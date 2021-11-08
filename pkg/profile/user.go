@@ -365,6 +365,10 @@ func (ps *profileService) GetPostDetails(ctx context.Context, gpi models.GetAdmi
 }
 
 func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error) {
+	contextUser := impart.GetCtxUser(ctx)
+	if contextUser == nil || contextUser.ImpartWealthID == "" {
+		return "", impart.NewError(impart.ErrBadRequest, "context user not found.")
+	}
 	userToUpdate, err := ps.profileStore.GetUser(ctx, gpi.ImpartWealthID)
 	if err != nil {
 		ps.Logger().Error("Cannot Find the user", zap.Error(err))
@@ -373,6 +377,10 @@ func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitLi
 	if userToUpdate.Blocked {
 		ps.Logger().Error("Blocked user", zap.Error(err))
 		return "", impart.NewError(impart.ErrNotFound, "Blocked user")
+	}
+	if contextUser.ImpartWealthID == userToUpdate.ImpartWealthID {
+		ps.Logger().Error("It is logged in user", zap.Error(err))
+		return "", impart.NewError(impart.ErrNotFound, "It is logged in user")
 	}
 	msg, err0 := ps.profileStore.EditUserDetails(ctx, gpi)
 	if err0 != nil {

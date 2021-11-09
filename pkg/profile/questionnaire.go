@@ -357,13 +357,13 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 	var ruleId uint64
 	existingRules := FindTheMatchingRules(ctx, answer_ids_str, ps.db, ps.Logger())
 	if existingRules != nil {
-		max := existingRules[0]
+		min := existingRules[0]
 		for _, v := range existingRules {
-			if v > max {
-				max = v
+			if v < min {
+				min = v
 			}
 		}
-		ruleId = uint64(max)
+		ruleId = uint64(min)
 	}
 	if ruleId == 0 {
 		// no rule exist for the selection
@@ -440,7 +440,7 @@ func FindTheMatchingRules(ctx context.Context, user_selection []string, db *sql.
 						FROM hive_rules_criteria
 						join hive_rules on hive_rules.rule_id=hive_rules_criteria.rule_id
 						where status=true
-						group by rule_id order by rule_id desc ;
+						group by rule_id order by rule_id asc ;
 	`).Bind(ctx, db, &existCriterias)
 
 	if err != nil {

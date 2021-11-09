@@ -109,8 +109,7 @@
 					"type": "boolean"
 				},
 				"limit": {
-					"$schema": "http://json-schema.org/draft-04/schema#",
-					"$ref": "#/definitions/Int"
+					"type": "integer"
 				},
 				"userCount": {
 					"type": "integer"
@@ -137,24 +136,7 @@
 					"type": "array"
 				},
 				"hiveId": {
-					"$schema": "http://json-schema.org/draft-04/schema#",
-					"$ref": "#/definitions/Uint64"
-				}
-			},
-			"additionalProperties": false,
-			"type": "object"
-		},
-		"Int": {
-			"required": [
-				"Int",
-				"Valid"
-			],
-			"properties": {
-				"Int": {
 					"type": "integer"
-				},
-				"Valid": {
-					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,
@@ -254,22 +236,6 @@
 						"$ref": "#/definitions/Percentile"
 					},
 					"type": "array"
-				}
-			},
-			"additionalProperties": false,
-			"type": "object"
-		},
-		"Uint64": {
-			"required": [
-				"Uint64",
-				"Valid"
-			],
-			"properties": {
-				"Uint64": {
-					"type": "integer"
-				},
-				"Valid": {
-					"type": "boolean"
 				}
 			},
 			"additionalProperties": false,

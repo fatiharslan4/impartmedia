@@ -276,7 +276,7 @@ type HiveRule struct {
 	RuleID    uint64         `json:"ruleId,omitempty"`
 	RuleName  string         `json:"ruleName" conform:"trim,omitempty,ucfirst" jsonschema:"minLength=3,maxLength=60"`
 	Status    bool           `json:"status,omitempty"`
-	Limit     int64          `json:"limit,omitempty"`
+	Limit     null.Int       `json:"limit,omitempty"`
 	UserCount int64          `json:"userCount,omitempty"`
 	Question  []Question     `json:"questions,omitempty"`
 	Criteria  []CriteriaData `json:"criteria,omitempty"`
@@ -292,7 +292,7 @@ func (hiverule HiveRule) ToDBModel() (*dbmodels.HiveRule, error) {
 	rule := &dbmodels.HiveRule{
 		Name:     hiverule.RuleName,
 		Status:   hiverule.Status,
-		MaxLimit: int64(hiverule.Limit),
+		MaxLimit: hiverule.Limit,
 		HiveID:   hiverule.HiveID,
 	}
 	return rule, nil
@@ -392,7 +392,7 @@ type HiveRuleLists []HiveRuleList
 type HiveRuleList struct {
 	RuleId           uint64 `json:"rule_id"`
 	Name             string `json:"name"`
-	MaxLimit         int    `json:"max_limit" `
+	MaxLimit         string `json:"max_limit" `
 	NoOfUsers        int    `json:"no_of_users" `
 	Status           bool   `json:"status" `
 	HiveId           string `json:"hive_id" `

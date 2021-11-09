@@ -384,7 +384,7 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 				defaulthive := &dbmodels.Hive{HiveID: impart.DefaultHiveID}
 				return &defaulthive.HiveID
 			}
-			if existHiveRule.MaxLimit > existHiveRule.NoOfUsers && existHiveRule.Status {
+			if (existHiveRule.MaxLimit != null.Int{}) && int64(existHiveRule.MaxLimit.Int) > existHiveRule.NoOfUsers && existHiveRule.Status {
 				if existHiveRule.R.Hives != nil {
 					// // we can add users into the existng hive
 					hive := existHiveRule.R.Hives[0]
@@ -394,11 +394,11 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 				} else {
 					createNewhive = true
 				}
-			} else if ((existHiveRule.MaxLimit == existHiveRule.NoOfUsers) || (existHiveRule.MaxLimit < existHiveRule.NoOfUsers)) && existHiveRule.Status {
+			} else if ((int64(existHiveRule.MaxLimit.Int) == existHiveRule.NoOfUsers) || (int64(existHiveRule.MaxLimit.Int) < existHiveRule.NoOfUsers)) && existHiveRule.Status {
 				createNewhive = true
 			}
 			if createNewhive {
-				incment_hive_ID := (existHiveRule.NoOfUsers / existHiveRule.MaxLimit) + 1
+				incment_hive_ID := (existHiveRule.NoOfUsers / int64(existHiveRule.MaxLimit.Int)) + 1
 				hiveName := fmt.Sprintf("Rule %s-Hive %s", existHiveRule.Name, strconv.Itoa(int(incment_hive_ID)))
 				hive, _ := ps.hiveData.GetHivebyField(ctx, hiveName)
 				var hive_id uint64

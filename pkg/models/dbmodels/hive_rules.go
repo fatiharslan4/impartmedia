@@ -27,7 +27,7 @@ type HiveRule struct {
 	RuleID    uint64      `boil:"rule_id" json:"rule_id" toml:"rule_id" yaml:"rule_id"`
 	Name      string      `boil:"name" json:"name" toml:"name" yaml:"name"`
 	Status    bool        `boil:"status" json:"status" toml:"status" yaml:"status"`
-	MaxLimit  int64       `boil:"max_limit" json:"max_limit" toml:"max_limit" yaml:"max_limit"`
+	MaxLimit  null.Int    `boil:"max_limit" json:"max_limit,omitempty" toml:"max_limit" yaml:"max_limit,omitempty"`
 	NoOfUsers int64       `boil:"no_of_users" json:"no_of_users" toml:"no_of_users" yaml:"no_of_users"`
 	HiveID    null.Uint64 `boil:"hive_id" json:"hive_id,omitempty" toml:"hive_id" yaml:"hive_id,omitempty"`
 
@@ -69,6 +69,29 @@ var HiveRuleTableColumns = struct {
 
 // Generated where
 
+type whereHelpernull_Int struct{ field string }
+
+func (w whereHelpernull_Int) EQ(x null.Int) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Int) NEQ(x null.Int) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Int) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Int) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelpernull_Int) LT(x null.Int) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Int) LTE(x null.Int) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Int) GT(x null.Int) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Int) GTE(x null.Int) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
 type whereHelperint64 struct{ field string }
 
 func (w whereHelperint64) EQ(x int64) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
@@ -96,14 +119,14 @@ var HiveRuleWhere = struct {
 	RuleID    whereHelperuint64
 	Name      whereHelperstring
 	Status    whereHelperbool
-	MaxLimit  whereHelperint64
+	MaxLimit  whereHelpernull_Int
 	NoOfUsers whereHelperint64
 	HiveID    whereHelpernull_Uint64
 }{
 	RuleID:    whereHelperuint64{field: "`hive_rules`.`rule_id`"},
 	Name:      whereHelperstring{field: "`hive_rules`.`name`"},
 	Status:    whereHelperbool{field: "`hive_rules`.`status`"},
-	MaxLimit:  whereHelperint64{field: "`hive_rules`.`max_limit`"},
+	MaxLimit:  whereHelpernull_Int{field: "`hive_rules`.`max_limit`"},
 	NoOfUsers: whereHelperint64{field: "`hive_rules`.`no_of_users`"},
 	HiveID:    whereHelpernull_Uint64{field: "`hive_rules`.`hive_id`"},
 }

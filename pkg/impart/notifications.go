@@ -658,23 +658,20 @@ func NotifyWeeklyMostPopularPost(db *sql.DB, logger *zap.Logger) {
 	}
 	var popularPosts []PostCount
 	err := queries.Raw(`
-		WITH most_popular_post AS (
-			select post_id, post.hive_id as hive_id , hive.notification_topic_arn,
-						post.up_vote_count,
-						post.comment_count,
-						post.up_vote_count+post.comment_count as totalActivity,
-						ROW_NUMBER() OVER (PARTITION BY post.hive_id 
-						ORDER BY (post.up_vote_count+post.comment_count) desc , post_id desc) AS rn
-						from post
-						join hive on post.hive_id=hive.hive_id and hive.deleted_at is null
-						where post.deleted_at is null
-						and hive.deleted_at is null
-						and (post.up_vote_count+post.comment_count)>0
-						and post.created_at between ? and ?
-						group by hive_id,post_id
-						order by  totalActivity desc ,post_id desc
-						)
-						SELECT * FROM most_popular_post WHERE rn = 1; ;
+	select * from ( select post_id, post.hive_id as hive_id , hive.notification_topic_arn,
+		post.up_vote_count,
+		post.comment_count,
+		post.up_vote_count+post.comment_count as totalActivity
+		from post
+		join hive on post.hive_id=hive.hive_id and hive.deleted_at is null
+		where post.deleted_at is null
+		and hive.deleted_at is null
+		and (post.up_vote_count+post.comment_count)>0
+		and post.created_at between ? and ?
+		group by hive_id,post_id
+		order by  totalActivity desc ,post_id desc) as postdata
+		group by hive_id
+		; 
 	`, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &popularPosts)
 
 	if err != nil {
@@ -701,7 +698,7 @@ func NotifyWeeklyMostPopularPost(db *sql.DB, logger *zap.Logger) {
 				zap.Any("additionalData", additionalData),
 				zap.Any("hive", hive),
 			)
-			err = notification.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
+			err = notification.NotifyTopic(context.TODO(), additionalData, pushNotification, hive.NotificationTopicArn.String)
 			if err != nil {
 				logger.Error("error sending notification to topic", zap.Error(err))
 			}

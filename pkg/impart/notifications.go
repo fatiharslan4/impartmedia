@@ -11,7 +11,6 @@ import (
 
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
-	"github.com/robfig/cron/v3"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
@@ -594,80 +593,17 @@ func (ns *snsAppleNotificationService) CreateNotificationTopic(ctx context.Conte
 }
 
 const title = "This Week’s Activity"
+const titleMostPopularPost = "This Week’s Trending Post"
+const bodyMostPopularPost = "Check out the most popular post in your Hive this week"
 
 func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
-	logger.Info("NotifyWeeklyActivity- fuction started")
-	c := cron.New()
-	c.AddFunc("*/5 * * * *", func() {
-		logger.Info("NotifyWeeklyActivity- start")
-		lastweekTime := CurrentUTC().AddDate(0, 0, -7)
-
-		type PostCount struct {
-			HiveID               uint64      `json:"hive_id"`
-			Post                 uint64      `json:"post"`
-			NotificationTopicArn null.String `json:"notification_topic_arn"`
-		}
-		var posts []PostCount
-		err := queries.Raw(`
-			select count(post_id) as post , post.hive_id as hive_id , hive.notification_topic_arn
-			from post
-			join hive on post.hive_id=hive.hive_id and hive.deleted_at is null
-			where post.deleted_at is null
-			and hive.deleted_at is null
-			and post.created_at between ? and ?
-			group by hive_id
-			having count(post_id)>3 ;
-	`, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &posts)
-
-		if err != nil {
-			logger.Error("error while fetching data ", zap.Error(err))
-			// return err
-		}
-
-		logger.Info("Query Result", zap.Any("posts", posts))
-
-		cfg, _ := config.GetImpart()
-		if cfg.Env != config.Local {
-			notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
-			logger.Info("Notification Service- fetching complted")
-			for _, hive := range posts {
-				logger.Info("Notification", zap.Any("hive", hive))
-				pushNotification := Alert{
-					Title: aws.String(title),
-					Body: aws.String(
-						fmt.Sprintf("Check out %d new posts in your Hive this week", hive.Post),
-					),
-				}
-				additionalData := NotificationData{
-					EventDatetime: CurrentUTC(),
-					HiveID:        hive.HiveID,
-				}
-				Logger.Info("Notification",
-					zap.Any("pushNotification", pushNotification),
-					zap.Any("additionalData", additionalData),
-					zap.Any("hive", hive),
-				)
-				err = notification.NotifyTopic(context.TODO(), additionalData, pushNotification, hive.NotificationTopicArn.String)
-				if err != nil {
-					logger.Error("error sending notification to topic", zap.Error(err))
-				}
-				logger.Info("For completed....")
-			}
-			logger.Info("For loop completed")
-		}
-
-	})
-	c.Start()
-}
-
-func NotifyWeeklyActivityTest(db *sql.DB, logger *zap.Logger) {
 	lastweekTime := CurrentUTC().AddDate(0, 0, -7)
 	type PostCount struct {
 		HiveID               uint64      `json:"hive_id"`
 		Post                 uint64      `json:"post"`
 		NotificationTopicArn null.String `json:"notification_topic_arn"`
 	}
-	var posttests []PostCount
+	var weeklyPosts []PostCount
 	err := queries.Raw(`
 		select count(post_id) as post , post.hive_id as hive_id , hive.notification_topic_arn
 		from post
@@ -677,18 +613,16 @@ func NotifyWeeklyActivityTest(db *sql.DB, logger *zap.Logger) {
 		and post.created_at between ? and ?
 		group by hive_id
 		having count(post_id)>3 ;
-	 `, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &posttests)
+	 `, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &weeklyPosts)
 
 	if err != nil {
-		fmt.Println(err)
 		logger.Error("error while fetching data ", zap.Error(err))
-		// return err
+		return
 	}
+	logger.Info("NotifyWeeklyActivity fetching completed", zap.Any("data", weeklyPosts))
 	cfg, _ := config.GetImpart()
 	notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
-	logger.Info("Notificationtest - fetching complted")
-	fmt.Println(posttests)
-	for _, hive := range posttests {
+	for _, hive := range weeklyPosts {
 		pushNotification := Alert{
 			Title: aws.String(title),
 			Body: aws.String(
@@ -711,4 +645,67 @@ func NotifyWeeklyActivityTest(db *sql.DB, logger *zap.Logger) {
 		}
 	}
 
+}
+
+func NotifyWeeklyMostPopularPost(db *sql.DB, logger *zap.Logger) {
+	logger.Info("NotifyWeeklyMostPopularPost- start")
+	lastweekTime := CurrentUTC().AddDate(0, 0, -7)
+
+	type PostCount struct {
+		PostID               uint64      `json:"post_id"`
+		TotalActivity        uint64      `json:"totalActivity"`
+		NotificationTopicArn null.String `json:"notification_topic_arn"`
+	}
+	var popularPosts []PostCount
+	err := queries.Raw(`
+		WITH most_popular_post AS (
+			select post_id, post.hive_id as hive_id , hive.notification_topic_arn,
+						post.up_vote_count,
+						post.comment_count,
+						post.up_vote_count+post.comment_count as totalActivity,
+						ROW_NUMBER() OVER (PARTITION BY post.hive_id 
+						ORDER BY (post.up_vote_count+post.comment_count) desc , post_id desc) AS rn
+						from post
+						join hive on post.hive_id=hive.hive_id and hive.deleted_at is null
+						where post.deleted_at is null
+						and hive.deleted_at is null
+						and (post.up_vote_count+post.comment_count)>0
+						and post.created_at between ? and ?
+						group by hive_id,post_id
+						order by  totalActivity desc ,post_id desc
+						)
+						SELECT * FROM most_popular_post WHERE rn = 1; ;
+	`, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &popularPosts)
+
+	if err != nil {
+		logger.Error("error while fetching data ", zap.Error(err))
+		return
+	}
+	logger.Info("Data fetching completed ", zap.Any("popularPosts", popularPosts))
+	cfg, _ := config.GetImpart()
+	if cfg.Env != config.Local {
+		notification := NewImpartNotificationService(db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, logger)
+		logger.Info("NotifyWeeklyMostPopularPost- fetching complted")
+		for _, hive := range popularPosts {
+			logger.Info("NotifyWeeklyMostPopularPost-Post Details", zap.Any("hive", hive))
+			pushNotification := Alert{
+				Title: aws.String(titleMostPopularPost),
+				Body:  aws.String(bodyMostPopularPost),
+			}
+			additionalData := NotificationData{
+				EventDatetime: CurrentUTC(),
+				PostID:        hive.PostID,
+			}
+			Logger.Info("NotifyWeeklyMostPopularPost",
+				zap.Any("pushNotification", pushNotification),
+				zap.Any("additionalData", additionalData),
+				zap.Any("hive", hive),
+			)
+			err = notification.NotifyTopic(context.Background(), additionalData, pushNotification, hive.NotificationTopicArn.String)
+			if err != nil {
+				logger.Error("error sending notification to topic", zap.Error(err))
+			}
+
+		}
+	}
 }

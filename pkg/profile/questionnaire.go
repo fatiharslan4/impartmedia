@@ -377,11 +377,10 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 		createNewhive := false
 		if existHiveRule != nil {
 			if (existHiveRule.HiveID != null.Uint64{}) && existHiveRule.HiveID.Uint64 > 0 {
-				existHiveRule.NoOfUsers = existHiveRule.NoOfUsers + 1
-				_, _ = existHiveRule.Update(ctx, ps.db, boil.Infer())
-
 				hive := existHiveRule.R.Hive
 				if hive != nil {
+					existHiveRule.NoOfUsers = existHiveRule.NoOfUsers + 1
+					_, _ = existHiveRule.Update(ctx, ps.db, boil.Infer())
 					return &hive.HiveID
 				}
 				defaulthive := &dbmodels.Hive{HiveID: impart.DefaultHiveID}

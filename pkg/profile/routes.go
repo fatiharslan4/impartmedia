@@ -1194,8 +1194,9 @@ func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 		token := "token" + string(cfg.Env)
 
 		http.SetCookie(ctx.Writer, &http.Cookie{Name: token, Value: p.AccessToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: true})
+		http.SetCookie(ctx.Writer, &http.Cookie{Name: token, Value: p.RefreshToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: true})
+
 		// ctx.SetCookie("token", p.AccessToken, 1000, "/", "", true, true)
-		ctx.SetCookie("refreshToken", p.RefreshToken, 1000, "/", "", true, true)
 		// ctx.JSON(http.StatusOK, "Success")
 		ctx.JSON(http.StatusOK, "Success")
 		// ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(

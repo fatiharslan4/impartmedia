@@ -918,6 +918,11 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 			})
 		}
 	}
+	if lenHive < gpi.Limit {
+		outOffset = nil
+	} else {
+		outOffset.Offset += lenHive
+	}
 	return hives, outOffset, nil
 
 }

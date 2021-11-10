@@ -438,11 +438,12 @@ func FindTheMatchingRules(ctx context.Context, user_selection []string, db *sql.
 		AnswerId string `json:"answer_id"  `
 	}
 	var existCriterias []existCriteria
-	err := queries.Raw(`SELECT hive_rules_criteria.rule_id,GROUP_CONCAT(answer_id)  as answer_id 
-						FROM hive_rules_criteria
-						join hive_rules on hive_rules.rule_id=hive_rules_criteria.rule_id
-						where status=true
-						group by rule_id order by rule_id asc ;
+	err := queries.Raw(`SELECT hive_rules_criteria.rule_id,GROUP_CONCAT(answer_id)  as answer_id ,hive_rules.hive_id
+					FROM hive_rules_criteria
+					join hive_rules on hive_rules.rule_id=hive_rules_criteria.rule_id
+					left join hive on  hive_rules.hive_id=hive.hive_id
+					where status=true and hive.deleted_at is null
+					group by rule_id order by rule_id asc ;
 	`).Bind(ctx, db, &existCriterias)
 
 	if err != nil {

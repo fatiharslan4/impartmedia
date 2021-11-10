@@ -387,6 +387,7 @@ func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitLi
 }
 
 func (ps *profileService) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, impart.Error) {
+	// result, nextPage, err := ps.profileStore.GetHiveDetailsOld(ctx, gpi)
 	result, nextPage, err := ps.profileStore.GetHiveDetails(ctx, gpi)
 	if err != nil {
 		ps.Logger().Error("Error in data fetching", zap.Error(err))

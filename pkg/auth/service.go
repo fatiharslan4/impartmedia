@@ -153,9 +153,11 @@ func (a *authService) ClientIdentificationHandler() gin.HandlerFunc {
 }
 
 var allowedRoutesBase = map[string]string{
-	"%s/profiles/new":                  http.MethodGet,
-	"%s/questionnaires":                http.MethodGet,
-	"%s/profiles/validate/screen-name": http.MethodGet,
+	"%s/profiles/new":                   http.MethodGet,
+	"%s/questionnaires":                 http.MethodGet,
+	"%s/profiles/validate/screen-name":  http.MethodGet,
+	"%s/cron/notification/post-count":   http.MethodGet,
+	"%s/cron/notification/popular-post": http.MethodGet,
 }
 
 func (a *authService) SetUnauthenticatedRoutes(cfg *config.Impart) {

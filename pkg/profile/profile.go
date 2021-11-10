@@ -62,7 +62,8 @@ type Service interface {
 
 	CreatePlaidProfile(ctx context.Context, plaid models.PlaidInput) (models.PlaidInput, impart.Error)
 
-	GetWeeklynotification(ctx context.Context)
+	GetWeeklyNotification(ctx context.Context)
+	GetWeeklyMostPopularNotification(ctx context.Context)
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string, hivedata hive_main.Service, hiveSotre hive_data.Hives) Service {
@@ -515,6 +516,10 @@ func (ps *profileService) CreatePlaidProfile(ctx context.Context, plaid models.P
 	return models.PlaidInput{}, nil
 }
 
-func (ps *profileService) GetWeeklynotification(ctx context.Context) {
-	impart.NotifyWeeklyActivityTest(ps.db, ps.Logger())
+func (ps *profileService) GetWeeklyNotification(ctx context.Context) {
+	impart.NotifyWeeklyActivity(ps.db, ps.Logger())
+}
+
+func (ps *profileService) GetWeeklyMostPopularNotification(ctx context.Context) {
+	impart.NotifyWeeklyMostPopularPost(ps.db, ps.Logger())
 }

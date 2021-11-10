@@ -89,17 +89,15 @@ func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmo
 		d.logger.Error("Hive creation failed", zap.Error(err))
 		return nil, err
 	}
-	queryFirst := `SET @hive_id = (select max(hive_id) from hive );
-					
+	queryFirst := `
 					INSERT INTO hive_user_demographic (hive_id,question_id,answer_id,user_count)
-					SELECT @hive_id,question_id,answer_id,0
+					SELECT ?,question_id,answer_id,0
 					FROM answer;`
-	_, err := queries.Raw(queryFirst).ExecContext(ctx, d.db)
+	_, err := queries.Raw(queryFirst, hive.HiveID).ExecContext(ctx, d.db)
 	if err != nil {
 		fmt.Println(err)
 		d.logger.Error("Updating Hive demographic data failed", zap.String("Hive name", hive.Name))
 	}
-
 	return hive, hive.Reload(ctx, d.db)
 }
 

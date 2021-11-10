@@ -365,6 +365,10 @@ func (ps *profileService) GetPostDetails(ctx context.Context, gpi models.GetAdmi
 }
 
 func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error) {
+	contextUser := impart.GetCtxUser(ctx)
+	if contextUser == nil || contextUser.ImpartWealthID == "" {
+		return "", impart.NewError(impart.ErrBadRequest, "context user not found.")
+	}
 	userToUpdate, err := ps.profileStore.GetUser(ctx, gpi.ImpartWealthID)
 	if err != nil {
 		ps.Logger().Error("Cannot Find the user", zap.Error(err))

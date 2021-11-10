@@ -588,7 +588,6 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	userOutput.Action = userUpdatesInput.Action
 	impartWealthIDs := make([]interface{}, len(userUpdatesInput.Users))
 	// cfg, _ := config.GetImpart()
-	ctxUser := impart.GetCtxUser(ctx)
 	for i, user := range userUpdatesInput.Users {
 		userData := &models.UserData{}
 		userData.ImpartWealthID = user.ImpartWealthID
@@ -596,7 +595,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		userData.Status = false
 		userData.Message = "No update activity."
 		userData.Value = 0
-		if user.ImpartWealthID != "" && ctxUser.ImpartWealthID != user.ImpartWealthID {
+		if user.ImpartWealthID != "" {
 			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
 		}
 		userDatas[i] = *userData

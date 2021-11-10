@@ -61,6 +61,8 @@ type Service interface {
 	GetFilterDetails(ctx context.Context) ([]byte, impart.Error)
 
 	CreatePlaidProfile(ctx context.Context, plaid models.PlaidInput) (models.PlaidInput, impart.Error)
+
+	GetWeeklynotification(ctx context.Context)
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string, hivedata hive_main.Service, hiveSotre hive_data.Hives) Service {
@@ -124,6 +126,9 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 			zap.String("contextUser", contextUser.ImpartWealthID))
 
 		return impart.NewError(impart.ErrUnauthorized, "user is not authorized")
+	}
+	if userToDelete.Blocked {
+		return impart.NewError(impart.ErrBadRequest, "Cannot delete blocked user.")
 	}
 	err = ps.profileStore.DeleteUserProfile(ctx, deleteUser, hardDelete)
 	if err != nil {
@@ -473,6 +478,16 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
 		return impart.NewError(impart.ErrUnauthorized, errorString)
 	}
+	if userToDelete.Blocked {
+		errorString := "Cannot delete  blocked user."
+		ps.Logger().Error(errorString, zap.Any("error", errorString))
+		return impart.NewError(impart.ErrUnauthorized, errorString)
+	}
+	if userToDelete.ImpartWealthID == contextUser.ImpartWealthID {
+		errorString := "It is logged in user."
+		ps.Logger().Error(errorString, zap.Any("error", errorString))
+		return impart.NewError(impart.ErrUnauthorized, errorString)
+	}
 	err = ps.profileStore.DeleteUserProfile(ctx, deleteUser, hardDelete)
 	if err != nil {
 		return impart.NewError(impart.ErrBadRequest, "User delete failed.")
@@ -498,4 +513,8 @@ func (ps *profileService) CreatePlaidProfile(ctx context.Context, plaid models.P
 	}
 
 	return models.PlaidInput{}, nil
+}
+
+func (ps *profileService) GetWeeklynotification(ctx context.Context) {
+	impart.NotifyWeeklyActivityTest(ps.db, ps.Logger())
 }

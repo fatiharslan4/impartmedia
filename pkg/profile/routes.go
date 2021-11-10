@@ -99,6 +99,9 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	cookiesRoutes := version.Group("/cookies")
 	cookiesRoutes.POST("/", handler.CreateCookies())
+
+	weeklyRoutes := version.Group("/weeklynotification")
+	weeklyRoutes.GET("/", handler.GetWeeklynotification())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -1326,5 +1329,13 @@ func (ph *profileHandler) GetPlaidUserInstitutionAccounts() gin.HandlerFunc {
 		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionAccountResponse{
 			Accounts: output,
 		})
+	}
+}
+
+func (ph *profileHandler) GetWeeklynotification() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		fmt.Println("12121")
+		ph.profileService.GetWeeklynotification(ctx)
+		ctx.JSON(http.StatusOK, "Success")
 	}
 }

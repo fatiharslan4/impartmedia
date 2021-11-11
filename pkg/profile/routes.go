@@ -13,7 +13,6 @@ import (
 	"gopkg.in/auth0.v5/management"
 
 	"github.com/gin-gonic/gin"
-	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	auth "github.com/impartwealthapp/backend/pkg/data/auth"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -1188,13 +1187,13 @@ func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 		// cookie.HttpOnly = true
 		// http.SetCookie(w, &cookie)
 		// ctx.Header("access-control-expose-headers", "Set-Cookie")
-		//ctx.Header("set-cookie", "foo=bar")
-		cfg, _ := config.GetImpart()
+		// //ctx.Header("set-cookie", "foo=bar")
+		// cfg, _ := config.GetImpart()
 
-		token := "token" + string(cfg.Env)
+		// token := "token" + string(cfg.Env)
 
-		http.SetCookie(ctx.Writer, &http.Cookie{Name: token, Value: p.AccessToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: true})
-		http.SetCookie(ctx.Writer, &http.Cookie{Name: token, Value: p.RefreshToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: true})
+		http.SetCookie(ctx.Writer, &http.Cookie{Name: "token", Value: p.AccessToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: true})
+		http.SetCookie(ctx.Writer, &http.Cookie{Name: "refresh_token", Value: p.RefreshToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: true})
 
 		// ctx.SetCookie("token", p.AccessToken, 1000, "/", "", true, true)
 		// ctx.JSON(http.StatusOK, "Success")

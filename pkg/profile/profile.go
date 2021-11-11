@@ -119,7 +119,7 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 
 	userToDelete, err := ps.profileStore.GetUser(ctx, impartWealthID)
 	if err != nil {
-		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", impartWealthID))
+		return impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("couldn't find profile for impartWealthID %s", impartWealthID))
 	}
 
 	// admin removed- APP-144
@@ -470,7 +470,7 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 	}
 	userToDelete, err := ps.profileStore.GetUser(ctx, deleteUser.ImpartWealthID)
 	if err != nil {
-		return impart.NewError(err, fmt.Sprintf("could not find profile for impartWealthID %s", deleteUser.ImpartWealthID))
+		return impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("could not find profile for impartWealthID %s", deleteUser.ImpartWealthID))
 	}
 	if userToDelete.Admin {
 		errorString := "You cannot delete the admin."

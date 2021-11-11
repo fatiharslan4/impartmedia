@@ -73,8 +73,13 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 
 		// newtoken := "token" + string(cfg.Env)
 
-		token, _ := ctx.Cookie("token")
+		// token, _ := ctx.Cookie("token")
 
+		cfg, _ := config.GetImpart()
+
+		newtoken := "token" + string(cfg.Env)
+
+		token, _ := ctx.Cookie(newtoken)
 		// if token != nil {
 
 		// }

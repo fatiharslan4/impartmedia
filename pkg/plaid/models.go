@@ -153,7 +153,7 @@ type NextPage struct {
 }
 
 type PagedUserInstitutionResponse struct {
-	Userinstitution UserInstitutionTokens `json:"usernstitution"`
+	Userinstitution UserInstitutionTokens `json:"userInstitution"`
 	NextPage        *NextPage             `json:"nextPage"`
 }
 

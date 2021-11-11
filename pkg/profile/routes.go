@@ -833,6 +833,13 @@ func (ph *profileHandler) BlockUser() gin.HandlerFunc {
 
 func (ph *profileHandler) DeleteUserProfileFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+
+		ctxUser := impart.GetCtxUser(ctx)
+		if ctxUser == nil && ctxUser.ImpartWealthID == "" {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
 		rawData, err := ctx.GetRawData()
 		if err != nil && err != io.EOF {
 			ph.logger.Error("error deserializing", zap.Error(err))

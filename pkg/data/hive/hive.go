@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/media"
 	"github.com/impartwealthapp/backend/pkg/models"
@@ -343,13 +344,13 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 	if err != nil {
 		return err
 	}
-	// // Update mailChimp
-	// cfg, _ := config.GetImpart()
+	// Update mailChimp
+	cfg, _ := config.GetImpart()
 	for hiveUser := range allUser {
 		mailChimpParams := &members.UpdateParams{
 			MergeFields: map[string]interface{}{"STATUS": impart.WaitList},
 		}
-		_, err = members.Update(impart.MailChimpAudienceID, allUser[hiveUser], mailChimpParams)
+		_, err = members.Update(cfg.MailchimpAudienceId, allUser[hiveUser], mailChimpParams)
 		if err != nil {
 			d.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", allUser[hiveUser]),
 				zap.String("contextUser", allUser[hiveUser]))

@@ -175,6 +175,10 @@ func (up *s3Uploader) NewSession() (*session.Session, error) {
 
 // construct uploded file path
 func (up *s3Uploader) ConstructS3FilePath(filename string) string {
+	cfg, _ := config.GetImpart()
+	if cfg.Env == config.Preproduction {
+		return fmt.Sprintf("https://%s.s3.%s.amazonaws.com%s", up.BucketName, up.BucketRegion, filename)
+	}
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", up.BucketName, up.BucketRegion, filename)
 }
 

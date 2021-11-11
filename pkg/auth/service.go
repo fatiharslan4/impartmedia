@@ -69,11 +69,11 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 		}
 		// parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
 
-		cfg, _ := config.GetImpart()
+		// cfg, _ := config.GetImpart()
 
-		newtoken := "token" + string(cfg.Env)
+		// newtoken := "token" + string(cfg.Env)
 
-		token, _ := ctx.Cookie(newtoken)
+		token, _ := ctx.Cookie("token")
 
 		// if token != nil {
 

@@ -767,7 +767,7 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 		gpi.Limit = maxLimit
 	}
 	isSorted := false
-	orderByMod := qm.OrderBy("hive_id asc")
+	orderByMod := qm.OrderBy("hive_id desc")
 	if gpi.SortBy == "" {
 		isSorted = true
 		// gpi.SortBy = "hive.hive_id asc"

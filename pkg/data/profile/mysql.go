@@ -643,10 +643,10 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 	if err != nil {
 		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", gpi.ImpartWealthID))
 	}
-	hiveid := DefaultHiveId
-	for _, h := range userToDelete.R.MemberHiveHives {
-		hiveid = h.HiveID
-	}
+	// hiveid := DefaultHiveId
+	// for _, h := range userToDelete.R.MemberHiveHives {
+	// 	hiveid = h.HiveID
+	// }
 	if hardDelete {
 		err = m.DeleteProfile(ctx, gpi.ImpartWealthID, hardDelete)
 		if err != nil {
@@ -664,6 +664,7 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 	orgEmail := userToDelete.Email
 	screenName := userToDelete.ScreenName
 	userToDelete = models.UpdateToUserDB(userToDelete, gpi, true, screenName, userEmail)
+
 	err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
 	if err != nil {
 		m.logger.Error("Delete user requset failed", zap.String("deleteUser", userToDelete.ImpartWealthID),
@@ -672,9 +673,20 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		return impart.NewError(err, "User Deletion failed")
 
 	}
+
+	if userToDelete.R.MemberHiveHives != nil {
+		if userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+			err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToDelete.ImpartWealthID, userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String)
+			if err != nil {
+				m.logger.Error("SubscribeTopic", zap.String("DeviceToken", userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String),
+					zap.Error(err))
+			}
+		}
+	}
+
 	if !userToDelete.Blocked {
-		err = m.UpdateUserDemographic(ctx, answerIds, false)
-		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
+		// err = m.UpdateUserDemographic(ctx, answerIds, false)
+		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
 	}
 
 	mngmnt, err := authdata.NewImpartManagementClient()
@@ -688,12 +700,12 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 				zap.String("contextUser", userToDelete.ImpartWealthID))
 		}
 		if !userToDelete.Blocked {
-			err = m.UpdateUserDemographic(ctx, answerIds, true)
-			if err != nil {
-				m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
-					zap.String("contextUser", userToDelete.ImpartWealthID))
-			}
-			err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
+			// err = m.UpdateUserDemographic(ctx, answerIds, true)
+			// if err != nil {
+			// 	m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+			// 		zap.String("contextUser", userToDelete.ImpartWealthID))
+			// }
+			// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
 		}
 		return impart.NewError(err, "User Deletion failed")
 
@@ -715,12 +727,12 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 				zap.String("contextUser", userToDelete.ImpartWealthID))
 		}
 		if !userToDelete.Blocked {
-			err = m.UpdateUserDemographic(ctx, answerIds, true)
-			if err != nil {
-				m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
-					zap.String("contextUser", userToDelete.ImpartWealthID))
-			}
-			err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
+			// err = m.UpdateUserDemographic(ctx, answerIds, true)
+			// if err != nil {
+			// 	m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+			// 		zap.String("contextUser", userToDelete.ImpartWealthID))
+			// }
+			// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
 		}
 		return impart.NewError(err, "User Deletion failed")
 	}
@@ -841,6 +853,15 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 		// 		}
 		// 	}
 		// }
+		if user.R.MemberHiveHives != nil {
+			if user.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+				err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, user.R.MemberHiveHives[0].NotificationTopicArn.String)
+				if err != nil {
+					m.logger.Error("SubscribeTopic", zap.String("DeviceToken", user.R.MemberHiveHives[0].NotificationTopicArn.String),
+						zap.Error(err))
+				}
+			}
+		}
 	}
 	// for ansr, demo := range userDemo {
 	// 	query := fmt.Sprintf("update user_demographic set user_count=%d where answer_id=%d;", demo, ansr)

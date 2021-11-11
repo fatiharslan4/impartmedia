@@ -29,8 +29,8 @@ function setup_local_env {
   export IMPART_DB_MIGRATION_PASSWORD=supersecretpassword
   export IMPART_DB_USERNAME=impart_crud
   export IMPART_DB_PASSWORD=supersecretpassword
-  export IMPART_MAILCHIMP_APIKEY="153b0a27bf4c930aa92b738974331333"
-  export IMPART_MAILCHIMP_AUDIENCE_ID="5fc34548d1"
+  export IMPART_MAILCHIMP_APIKEY="a09260bb88705e937e4972542ad756bf-us5"
+  export IMPART_MAILCHIMP_AUDIENCE_ID="705f6263fd"
   export IMPART_PLAID_CLIENT_ID="6136f385219f3b0010085168"
   export IMPART_PLAID_SECRET="6fae35ee0ce476ebb02f7dbee199e4"
   export IMPART_AUTH_DOMAIN="impartwealth.auth0.com"

@@ -452,20 +452,27 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if existingHive.NotificationTopicArn.String != "" {
 			m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToUpdate.ImpartWealthID, existingHive.NotificationTopicArn.String)
 		}
-
-		deviceDetails, devErr := m.GetUserDevices(ctx, "", userToUpdate.ImpartWealthID, "")
-		if devErr != nil {
-			m.logger.Error("unable to find device", zap.Error(err))
-		}
-		if len(deviceDetails) > 0 {
-			for _, device := range deviceDetails {
-				endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
-				if err != nil {
-					m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
-						zap.Error(err))
-				}
-				if endpointARN != "" && nwHive.NotificationTopicArn.String != "" {
-					m.notificationService.SubscribeTopic(ctx, userToUpdate.ImpartWealthID, nwHive.NotificationTopicArn.String, endpointARN)
+		if nwHive != nil && nwHive.NotificationTopicArn.String != "" {
+			if userToUpdate.R.ImpartWealthUserConfigurations != nil && !userToUpdate.Admin {
+				if userToUpdate.R.ImpartWealthUserConfigurations[0].NotificationStatus {
+					deviceDetails, devErr := m.GetUserDevices(ctx, "", userToUpdate.ImpartWealthID, "")
+					if devErr != nil {
+						m.logger.Error("unable to find device", zap.Error(err))
+					}
+					if len(deviceDetails) > 0 {
+						for _, device := range deviceDetails {
+							if (device.LastloginAt == null.Time{}) {
+								endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+								if err != nil {
+									m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+										zap.Error(err))
+								}
+								if endpointARN != "" && nwHive.NotificationTopicArn.String != "" {
+									m.notificationService.SubscribeTopic(ctx, userToUpdate.ImpartWealthID, nwHive.NotificationTopicArn.String, endpointARN)
+								}
+							}
+						}
+					}
 				}
 			}
 		}

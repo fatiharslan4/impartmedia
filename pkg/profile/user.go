@@ -54,6 +54,7 @@ func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.U
 	// if the entry for user is not exists
 	if exists == nil {
 		ud.ImpartWealthID = contextUser.ImpartWealthID
+		ud.LastloginAt = null.Time{}
 		response, err := ps.profileStore.CreateUserDevice(ctx, ud)
 		if err != nil && err != impart.ErrNotFound {
 			return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, fmt.Sprintf("error to create user device %v", err))
@@ -64,6 +65,7 @@ func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.U
 		exists.DeviceID = ud.DeviceID
 		exists.DeviceName = ud.DeviceName
 		exists.DeviceVersion = ud.DeviceVersion
+		exists.LastloginAt = null.Time{}
 		err = ps.profileStore.UpdateDevice(ctx, exists)
 		if err != nil && err != impart.ErrNotFound {
 			return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, fmt.Sprintf("error to create user device %v", err))
@@ -441,4 +443,17 @@ func (ps *profileService) EditBulkUserDetails(ctx context.Context, userUpdates m
 		return userOutput, nil
 	}
 	return userOutput, nil
+}
+
+func (ps *profileService) UpdateUserDevicesDetails(ctx context.Context, userDevice *dbmodels.UserDevice, login bool) (bool, error) {
+	if !login {
+		currTime := time.Now().In(boil.GetLocation())
+		userDevice.LastloginAt = null.TimeFrom(currTime)
+		if _, err := userDevice.Update(ctx, ps.db, boil.Infer()); err != nil {
+			ps.Logger().Error("Logout update failed", zap.Any("logout", err))
+			return false, err
+		}
+	}
+	return true, nil
+
 }

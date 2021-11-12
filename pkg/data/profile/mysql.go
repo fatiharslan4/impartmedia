@@ -16,6 +16,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -1017,23 +1018,26 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 						}
 					}
 				}
-
-				deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
-				if devErr != nil {
-					m.logger.Error("unable to find device", zap.Error(devErr))
-				}
-				if deviceDetails != nil {
-					for _, device := range deviceDetails {
-						endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
-						if err != nil {
-							m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
-								zap.Error(err))
-						}
-						if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
-							err := m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
-							if err != nil {
-								m.logger.Error("SubscribeTopic", zap.String("DeviceToken", device.DeviceToken),
-									zap.Error(err))
+				if newHive != nil && newHive.NotificationTopicArn.String != "" {
+					if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
+						if user.R.ImpartWealthUserConfigurations[0].NotificationStatus {
+							deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
+							if devErr != nil {
+								m.logger.Error("unable to find device", zap.Error(devErr))
+							}
+							if len(deviceDetails) > 0 {
+								for _, device := range deviceDetails {
+									if (device.LastloginAt == null.Time{}) {
+										endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+										if err != nil {
+											m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+												zap.Error(err))
+										}
+										if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
+											m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
+										}
+									}
+								}
 							}
 						}
 					}
@@ -1158,7 +1162,6 @@ func (m *mysqlStore) GetUserDevices(ctx context.Context, token string, impartID 
 			where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceToken), deviceToken))
 		}
 	}
-
 	where = append(where, Load(dbmodels.UserDeviceRels.ImpartWealth))
 	where = append(where, Load(dbmodels.UserDeviceRels.NotificationDeviceMappings))
 

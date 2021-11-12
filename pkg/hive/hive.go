@@ -340,7 +340,7 @@ func (s *service) CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) 
 	if !ctxUser.SuperAdmin {
 		return &models.HiveRule{}, impart.NewError(impart.ErrUnauthorized, string(impart.SuperAdminOnly))
 	}
-	if hiveRule.Limit <= 0 && (hiveRule.HiveID == null.Uint64{}) {
+	if ((hiveRule.Limit == null.Int{}) || hiveRule.Limit.Int <= 0) && (hiveRule.HiveID == null.Uint64{}) {
 		return &models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveRuleLimit))
 	}
 	if (hiveRule.HiveID != null.Uint64{}) && hiveRule.HiveID.Uint64 > 0 {
@@ -348,7 +348,7 @@ func (s *service) CreateHiveRule(ctx context.Context, hiveRule models.HiveRule) 
 		if err != nil {
 			return &models.HiveRule{}, impart.NewError(impart.ErrBadRequest, string(impart.HiveNotFound))
 		}
-		hiveRule.Limit = 0
+		hiveRule.Limit = null.Int{}
 	}
 	var answer_ids []uint
 	var answer_ids_str []string
@@ -417,9 +417,12 @@ func (s *service) GetHiveRules(ctx context.Context, gpi models.GetHiveInput) (mo
 	var ruleList models.HiveRuleLists
 	inputQuery := fmt.Sprintf(`SELECT hive_rules.rule_id,
 						name,
-						max_limit,
 						no_of_users,
 						status,
+						CASE
+							WHEN max_limit IS NULL THEN 'NA'
+							ELSE max_limit
+						END AS max_limit,
 						CASE
 							WHEN hivedata.hives IS NULL THEN 'NA'
 							ELSE hivedata.hives

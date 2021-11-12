@@ -13,6 +13,7 @@ import (
 	"gopkg.in/auth0.v5/management"
 
 	"github.com/gin-gonic/gin"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	auth "github.com/impartwealthapp/backend/pkg/data/auth"
 	profiledata "github.com/impartwealthapp/backend/pkg/data/profile"
 	"github.com/impartwealthapp/backend/pkg/data/types"
@@ -100,8 +101,11 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	cookiesRoutes := version.Group("/cookies")
 	cookiesRoutes.POST("/", handler.CreateCookies())
 
-	weeklyRoutes := version.Group("/weeklynotification")
-	weeklyRoutes.GET("/", handler.GetWeeklynotification())
+	weeklyRoutes := version.Group("cron/notification/post-count")
+	weeklyRoutes.GET("", handler.GetWeeklyNotification())
+
+	weeklyPopularRoutes := version.Group("cron/notification/popular-post")
+	weeklyPopularRoutes.GET("", handler.GetWeeklyMostPopularNotification())
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -471,7 +475,7 @@ func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 			))
 		}
 
-		// validate the inputs
+		//// validate the inputs
 		impartErrl := ph.profileService.ValidateInput(gojsonschema.NewStringLoader(string(b)), types.UserDeviceValidationModel)
 		if impartErrl != nil {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
@@ -741,6 +745,10 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 					ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, deviceArn)
 				}
 			}
+			_, logoutErr := ph.profileService.UpdateUserDevicesDetails(ctx, deviceDetails, false)
+			if logoutErr != nil {
+				ph.logger.Error("logout update failed", zap.Error(logoutErr))
+			}
 		}
 
 		// update the notificaton status for device this user
@@ -829,6 +837,13 @@ func (ph *profileHandler) BlockUser() gin.HandlerFunc {
 
 func (ph *profileHandler) DeleteUserProfileFunc() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+
+		ctxUser := impart.GetCtxUser(ctx)
+		if ctxUser == nil && ctxUser.ImpartWealthID == "" {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
 		rawData, err := ctx.GetRawData()
 		if err != nil && err != io.EOF {
 			ph.logger.Error("error deserializing", zap.Error(err))
@@ -1174,8 +1189,7 @@ func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-		fmt.Println(p.AccessToken)
-		fmt.Println(p.RefreshToken)
+
 		// w http.ResponseWriter:=
 		// cookie := http.Cookie{}
 		// cookie.Name = "PLAY_SESSION"
@@ -1185,10 +1199,14 @@ func (ph *profileHandler) CreateCookies() gin.HandlerFunc {
 		// cookie.HttpOnly = true
 		// http.SetCookie(w, &cookie)
 		// ctx.Header("access-control-expose-headers", "Set-Cookie")
-		//ctx.Header("set-cookie", "foo=bar")
-		http.SetCookie(ctx.Writer, &http.Cookie{Name: "token", Value: p.AccessToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: true})
-		// ctx.SetCookie("token", p.AccessToken, 1000, "/", "", true, true)
+		// //ctx.Header("set-cookie", "foo=bar")
+		cfg, _ := config.GetImpart()
+		token := "token" + string(cfg.Env)
+
+		http.SetCookie(ctx.Writer, &http.Cookie{Name: token, Value: p.AccessToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: true})
+		http.SetCookie(ctx.Writer, &http.Cookie{Name: "refresh_token", Value: p.RefreshToken, Path: "/", HttpOnly: true, SameSite: http.SameSiteNoneMode, Secure: true})
 		ctx.SetCookie("refreshToken", p.RefreshToken, 1000, "/", "", true, true)
+		// ctx.SetCookie("token", p.AccessToken, 1000, "/", "", true, true)
 		// ctx.JSON(http.StatusOK, "Success")
 		ctx.JSON(http.StatusOK, "Success")
 		// ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
@@ -1332,10 +1350,20 @@ func (ph *profileHandler) GetPlaidUserInstitutionAccounts() gin.HandlerFunc {
 	}
 }
 
-func (ph *profileHandler) GetWeeklynotification() gin.HandlerFunc {
+func (ph *profileHandler) GetWeeklyNotification() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		fmt.Println("12121")
-		ph.profileService.GetWeeklynotification(ctx)
-		ctx.JSON(http.StatusOK, "Success")
+		ph.profileService.GetWeeklyNotification(ctx)
+		ctx.JSON(http.StatusOK, gin.H{
+			"status": "success",
+		})
+	}
+}
+
+func (ph *profileHandler) GetWeeklyMostPopularNotification() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ph.profileService.GetWeeklyMostPopularNotification(ctx)
+		ctx.JSON(http.StatusOK, gin.H{
+			"status": "success",
+		})
 	}
 }

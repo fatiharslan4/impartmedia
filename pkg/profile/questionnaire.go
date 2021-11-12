@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -331,8 +332,8 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		MergeFields: mergeFlds,
 	}
 
-	// cfg, _ := config.GetImpart()
-	_, err = members.Update(impart.MailChimpAudienceID, ctxUser.Email, mailChimpParams)
+	cfg, _ := config.GetImpart()
+	_, err = members.Update(cfg.MailchimpAudienceId, ctxUser.Email, mailChimpParams)
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  added to the mailchimp %v", err))
 		ps.Logger().Error(impartErr.Error())
@@ -357,13 +358,13 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 	var ruleId uint64
 	existingRules := FindTheMatchingRules(ctx, answer_ids_str, ps.db, ps.Logger())
 	if existingRules != nil {
-		max := existingRules[0]
+		min := existingRules[0]
 		for _, v := range existingRules {
-			if v > max {
-				max = v
+			if v < min {
+				min = v
 			}
 		}
-		ruleId = uint64(max)
+		ruleId = uint64(min)
 	}
 	if ruleId == 0 {
 		// no rule exist for the selection
@@ -379,12 +380,14 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 			if (existHiveRule.HiveID != null.Uint64{}) && existHiveRule.HiveID.Uint64 > 0 {
 				hive := existHiveRule.R.Hive
 				if hive != nil {
+					existHiveRule.NoOfUsers = existHiveRule.NoOfUsers + 1
+					_, _ = existHiveRule.Update(ctx, ps.db, boil.Infer())
 					return &hive.HiveID
 				}
 				defaulthive := &dbmodels.Hive{HiveID: impart.DefaultHiveID}
 				return &defaulthive.HiveID
 			}
-			if existHiveRule.MaxLimit > existHiveRule.NoOfUsers && existHiveRule.Status {
+			if (existHiveRule.MaxLimit != null.Int{}) && int64(existHiveRule.MaxLimit.Int) > existHiveRule.NoOfUsers && existHiveRule.Status {
 				if existHiveRule.R.Hives != nil {
 					// // we can add users into the existng hive
 					hive := existHiveRule.R.Hives[0]
@@ -394,11 +397,11 @@ func (ps *profileService) isAssignHiveRule(ctx context.Context, questionnaire mo
 				} else {
 					createNewhive = true
 				}
-			} else if ((existHiveRule.MaxLimit == existHiveRule.NoOfUsers) || (existHiveRule.MaxLimit < existHiveRule.NoOfUsers)) && existHiveRule.Status {
+			} else if ((int64(existHiveRule.MaxLimit.Int) == existHiveRule.NoOfUsers) || (int64(existHiveRule.MaxLimit.Int) < existHiveRule.NoOfUsers)) && existHiveRule.Status {
 				createNewhive = true
 			}
 			if createNewhive {
-				incment_hive_ID := (existHiveRule.NoOfUsers / existHiveRule.MaxLimit) + 1
+				incment_hive_ID := (existHiveRule.NoOfUsers / int64(existHiveRule.MaxLimit.Int)) + 1
 				hiveName := fmt.Sprintf("Rule %s-Hive %s", existHiveRule.Name, strconv.Itoa(int(incment_hive_ID)))
 				hive, _ := ps.hiveData.GetHivebyField(ctx, hiveName)
 				var hive_id uint64
@@ -436,11 +439,12 @@ func FindTheMatchingRules(ctx context.Context, user_selection []string, db *sql.
 		AnswerId string `json:"answer_id"  `
 	}
 	var existCriterias []existCriteria
-	err := queries.Raw(`SELECT hive_rules_criteria.rule_id,GROUP_CONCAT(answer_id)  as answer_id 
-						FROM hive_rules_criteria
-						join hive_rules on hive_rules.rule_id=hive_rules_criteria.rule_id
-						where status=true
-						group by rule_id order by rule_id desc ;
+	err := queries.Raw(`SELECT hive_rules_criteria.rule_id,GROUP_CONCAT(answer_id)  as answer_id ,hive_rules.hive_id
+					FROM hive_rules_criteria
+					join hive_rules on hive_rules.rule_id=hive_rules_criteria.rule_id
+					left join hive on  hive_rules.hive_id=hive.hive_id
+					where status=true and hive.deleted_at is null
+					group by rule_id order by rule_id asc ;
 	`).Bind(ctx, db, &existCriterias)
 
 	if err != nil {

@@ -27,7 +27,12 @@ func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
 	}
-	configuration.UseEnvironment(plaid.Production)
+
+	if cfg.Env == config.Production {
+		configuration.UseEnvironment(plaid.Production)
+	} else {
+		configuration.UseEnvironment(plaid.Sandbox)
+	}
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
 	request := plaid.NewInstitutionsGetRequest(Count, OffSet, countrCode)
@@ -61,7 +66,11 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
 	}
-	configuration.UseEnvironment(plaid.Production)
+	if cfg.Env == config.Production {
+		configuration.UseEnvironment(plaid.Production)
+	} else {
+		configuration.UseEnvironment(plaid.Sandbox)
+	}
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
 	var includeOptionalMetadata bool = true
@@ -191,7 +200,11 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 	if cfg != nil {
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
-		configuration.UseEnvironment(plaid.Production)
+		if cfg.Env == config.Production {
+			configuration.UseEnvironment(plaid.Production)
+		} else {
+			configuration.UseEnvironment(plaid.Sandbox)
+		}
 	}
 	client := plaid.NewAPIClient(configuration)
 

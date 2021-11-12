@@ -11,10 +11,12 @@ import (
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/google/uuid"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	authdata "github.com/impartwealthapp/backend/pkg/data/auth"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -642,10 +644,10 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 	if err != nil {
 		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", gpi.ImpartWealthID))
 	}
-	hiveid := DefaultHiveId
-	for _, h := range userToDelete.R.MemberHiveHives {
-		hiveid = h.HiveID
-	}
+	// hiveid := DefaultHiveId
+	// for _, h := range userToDelete.R.MemberHiveHives {
+	// 	hiveid = h.HiveID
+	// }
 	if hardDelete {
 		err = m.DeleteProfile(ctx, gpi.ImpartWealthID, hardDelete)
 		if err != nil {
@@ -663,6 +665,7 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 	orgEmail := userToDelete.Email
 	screenName := userToDelete.ScreenName
 	userToDelete = models.UpdateToUserDB(userToDelete, gpi, true, screenName, userEmail)
+
 	err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
 	if err != nil {
 		m.logger.Error("Delete user requset failed", zap.String("deleteUser", userToDelete.ImpartWealthID),
@@ -671,9 +674,20 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		return impart.NewError(err, "User Deletion failed")
 
 	}
+
+	if userToDelete.R.MemberHiveHives != nil {
+		if userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+			err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToDelete.ImpartWealthID, userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String)
+			if err != nil {
+				m.logger.Error("SubscribeTopic", zap.String("DeviceToken", userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String),
+					zap.Error(err))
+			}
+		}
+	}
+
 	if !userToDelete.Blocked {
-		err = m.UpdateUserDemographic(ctx, answerIds, false)
-		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
+		// err = m.UpdateUserDemographic(ctx, answerIds, false)
+		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
 	}
 
 	mngmnt, err := authdata.NewImpartManagementClient()
@@ -687,12 +701,12 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 				zap.String("contextUser", userToDelete.ImpartWealthID))
 		}
 		if !userToDelete.Blocked {
-			err = m.UpdateUserDemographic(ctx, answerIds, true)
-			if err != nil {
-				m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
-					zap.String("contextUser", userToDelete.ImpartWealthID))
-			}
-			err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
+			// err = m.UpdateUserDemographic(ctx, answerIds, true)
+			// if err != nil {
+			// 	m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+			// 		zap.String("contextUser", userToDelete.ImpartWealthID))
+			// }
+			// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
 		}
 		return impart.NewError(err, "User Deletion failed")
 
@@ -714,18 +728,18 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 				zap.String("contextUser", userToDelete.ImpartWealthID))
 		}
 		if !userToDelete.Blocked {
-			err = m.UpdateUserDemographic(ctx, answerIds, true)
-			if err != nil {
-				m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
-					zap.String("contextUser", userToDelete.ImpartWealthID))
-			}
-			err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
+			// err = m.UpdateUserDemographic(ctx, answerIds, true)
+			// if err != nil {
+			// 	m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
+			// 		zap.String("contextUser", userToDelete.ImpartWealthID))
+			// }
+			// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
 		}
 		return impart.NewError(err, "User Deletion failed")
 	}
-	// // delete user from mailChimp
-	// cfg, _ := config.GetImpart()
-	err = members.Delete(impart.MailChimpAudienceID, orgEmail)
+	// delete user from mailChimp
+	cfg, _ := config.GetImpart()
+	err = members.Delete(cfg.MailchimpAudienceId, orgEmail)
 	if err != nil {
 		m.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", userToDelete.ImpartWealthID),
 			zap.String("contextUser", userToDelete.ImpartWealthID))
@@ -840,6 +854,15 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 		// 		}
 		// 	}
 		// }
+		if user.R.MemberHiveHives != nil {
+			if user.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+				err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, user.R.MemberHiveHives[0].NotificationTopicArn.String)
+				if err != nil {
+					m.logger.Error("SubscribeTopic", zap.String("DeviceToken", user.R.MemberHiveHives[0].NotificationTopicArn.String),
+						zap.Error(err))
+				}
+			}
+		}
 	}
 	// for ansr, demo := range userDemo {
 	// 	query := fmt.Sprintf("update user_demographic set user_count=%d where answer_id=%d;", demo, ansr)
@@ -995,23 +1018,26 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 						}
 					}
 				}
-
-				deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
-				if devErr != nil {
-					m.logger.Error("unable to find device", zap.Error(devErr))
-				}
-				if deviceDetails != nil {
-					for _, device := range deviceDetails {
-						endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
-						if err != nil {
-							m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
-								zap.Error(err))
-						}
-						if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
-							err := m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
-							if err != nil {
-								m.logger.Error("SubscribeTopic", zap.String("DeviceToken", device.DeviceToken),
-									zap.Error(err))
+				if newHive != nil && newHive.NotificationTopicArn.String != "" {
+					if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
+						if user.R.ImpartWealthUserConfigurations[0].NotificationStatus {
+							deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
+							if devErr != nil {
+								m.logger.Error("unable to find device", zap.Error(devErr))
+							}
+							if len(deviceDetails) > 0 {
+								for _, device := range deviceDetails {
+									if (device.LastloginAt == null.Time{}) {
+										endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+										if err != nil {
+											m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+												zap.Error(err))
+										}
+										if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
+											m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
+										}
+									}
+								}
 							}
 						}
 					}
@@ -1054,8 +1080,8 @@ func (m *mysqlStore) CreateMailChimpForExistingUsers(ctx context.Context) error 
 	params := &members.GetParams{
 		Status: members.StatusSubscribed,
 	}
-	// cfg, _ := config.GetImpart()
-	listMembers, err := members.Get(impart.MailChimpAudienceID, params)
+	cfg, _ := config.GetImpart()
+	listMembers, err := members.Get(cfg.MailchimpAudienceId, params)
 	if err != nil {
 		return err
 	}
@@ -1082,7 +1108,7 @@ func (m *mysqlStore) CreateMailChimpForExistingUsers(ctx context.Context) error 
 				Status:       members.StatusSubscribed,
 				MergeFields:  mergeFlds,
 			}
-			_, err := members.New(impart.MailChimpAudienceID, params)
+			_, err := members.New(cfg.MailchimpAudienceId, params)
 			if err != nil {
 				m.logger.Info("new user requset failed in MailChimp", zap.String("updateuser", user.Email),
 					zap.String("contextUser", user.ImpartWealthID))
@@ -1136,7 +1162,6 @@ func (m *mysqlStore) GetUserDevices(ctx context.Context, token string, impartID 
 			where = append(where, Where(fmt.Sprintf("%s = ?", dbmodels.UserDeviceColumns.DeviceToken), deviceToken))
 		}
 	}
-
 	where = append(where, Load(dbmodels.UserDeviceRels.ImpartWealth))
 	where = append(where, Load(dbmodels.UserDeviceRels.NotificationDeviceMappings))
 

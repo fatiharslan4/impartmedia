@@ -68,8 +68,18 @@ func (a *authService) RequestAuthorizationHandler() gin.HandlerFunc {
 			return
 		}
 		// parts := strings.Split(ctx.GetHeader(AuthorizationHeader), " ")
-		token, _ := ctx.Cookie("token")
 
+		// cfg, _ := config.GetImpart()
+
+		// newtoken := "token" + string(cfg.Env)
+
+		// token, _ := ctx.Cookie("token")
+
+		cfg, _ := config.GetImpart()
+
+		newtoken := "token" + string(cfg.Env)
+
+		token, _ := ctx.Cookie(newtoken)
 		// if token != nil {
 
 		// }
@@ -153,9 +163,11 @@ func (a *authService) ClientIdentificationHandler() gin.HandlerFunc {
 }
 
 var allowedRoutesBase = map[string]string{
-	"%s/profiles/new":                  http.MethodGet,
-	"%s/questionnaires":                http.MethodGet,
-	"%s/profiles/validate/screen-name": http.MethodGet,
+	"%s/profiles/new":                   http.MethodGet,
+	"%s/questionnaires":                 http.MethodGet,
+	"%s/profiles/validate/screen-name":  http.MethodGet,
+	"%s/cron/notification/post-count":   http.MethodGet,
+	"%s/cron/notification/popular-post": http.MethodGet,
 }
 
 func (a *authService) SetUnauthenticatedRoutes(cfg *config.Impart) {

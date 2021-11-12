@@ -116,7 +116,6 @@ func main() {
 
 	// initiate global profanity detector
 	impart.InitProfanityDetector(db, logger)
-	// impart.NotifyWeeklyActivity(db, logger)
 
 	services := setupServices(cfg, db, logger)
 
@@ -155,7 +154,9 @@ func main() {
 		v1Route = fmt.Sprintf("%s/v1", cfg.Env)
 		v2Route = fmt.Sprintf("%s/v1.1", cfg.Env)
 	}
-	err = mailchimp.SetKey(impart.MailChimpApiKey)
+	logger.Info("Mailcimp -", zap.Any("MailchimpApikey", cfg.MailchimpApikey),
+		zap.Any("MailchimpAudienceId", cfg.MailchimpAudienceId))
+	err = mailchimp.SetKey(cfg.MailchimpApikey)
 	if err != nil {
 		logger.Info("Error connecting Mailchimp", zap.Error(err),
 			zap.Any("MailchimpApikey", cfg.MailchimpApikey))

@@ -475,7 +475,7 @@ func (ph *profileHandler) CreateUserDevice() gin.HandlerFunc {
 			))
 		}
 
-		// validate the inputs
+		//// validate the inputs
 		impartErrl := ph.profileService.ValidateInput(gojsonschema.NewStringLoader(string(b)), types.UserDeviceValidationModel)
 		if impartErrl != nil {
 			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErrl))
@@ -744,6 +744,10 @@ func (ph *profileHandler) HandlerUserLogout() gin.HandlerFunc {
 				if hiveData.NotificationTopicArn.String != "" {
 					ph.noticationService.UnsubscribeTopicForDevice(ctx, context.ImpartWealthID, hiveData.NotificationTopicArn.String, deviceArn)
 				}
+			}
+			_, logoutErr := ph.profileService.UpdateUserDevicesDetails(ctx, deviceDetails, false)
+			if logoutErr != nil {
+				ph.logger.Error("logout update failed", zap.Error(logoutErr))
 			}
 		}
 

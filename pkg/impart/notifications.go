@@ -612,7 +612,7 @@ func NotifyWeeklyActivity(db *sql.DB, logger *zap.Logger) {
 		and hive.deleted_at is null
 		and post.created_at between ? and ?
 		group by hive_id
-		having count(post_id)>3 ;
+		having count(post_id)>=3 ;
 	 `, lastweekTime, CurrentUTC()).Bind(context.TODO(), db, &weeklyPosts)
 
 	if err != nil {

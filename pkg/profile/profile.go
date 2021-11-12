@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
 
@@ -62,7 +63,9 @@ type Service interface {
 
 	CreatePlaidProfile(ctx context.Context, plaid models.PlaidInput) (models.PlaidInput, impart.Error)
 
-	GetWeeklynotification(ctx context.Context)
+	GetWeeklyNotification(ctx context.Context)
+	GetWeeklyMostPopularNotification(ctx context.Context)
+	UpdateUserDevicesDetails(ctx context.Context, userDevice *dbmodels.UserDevice, login bool) (bool, error)
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string, hivedata hive_main.Service, hiveSotre hive_data.Hives) Service {
@@ -117,7 +120,7 @@ func (ps *profileService) DeleteProfile(ctx context.Context, impartWealthID stri
 
 	userToDelete, err := ps.profileStore.GetUser(ctx, impartWealthID)
 	if err != nil {
-		return impart.NewError(err, fmt.Sprintf("couldn't find profile for impartWealthID %s", impartWealthID))
+		return impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("couldn't find profile for impartWealthID %s", impartWealthID))
 	}
 
 	// admin removed- APP-144
@@ -298,8 +301,10 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile, apiV
 		EmailAddress: dbUser.Email,
 		Status:       members.StatusSubscribed,
 	}
-	// cfg, _ := config.GetImpart()
-	_, err = members.New(impart.MailChimpAudienceID, mailChimpParams)
+	cfg, _ := config.GetImpart()
+	ps.Logger().Info("Mailcimp -", zap.Any("MailchimpApikey", cfg.MailchimpApikey),
+		zap.Any("MailchimpAudienceId", cfg.MailchimpAudienceId))
+	_, err = members.New(cfg.MailchimpAudienceId, mailChimpParams)
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("User is not  added to the mailchimp %v", err))
 		ps.Logger().Error(impartErr.Error())
@@ -466,7 +471,7 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 	}
 	userToDelete, err := ps.profileStore.GetUser(ctx, deleteUser.ImpartWealthID)
 	if err != nil {
-		return impart.NewError(err, fmt.Sprintf("could not find profile for impartWealthID %s", deleteUser.ImpartWealthID))
+		return impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("could not find profile for impartWealthID %s", deleteUser.ImpartWealthID))
 	}
 	if userToDelete.Admin {
 		errorString := "You cannot delete the admin."
@@ -515,6 +520,10 @@ func (ps *profileService) CreatePlaidProfile(ctx context.Context, plaid models.P
 	return models.PlaidInput{}, nil
 }
 
-func (ps *profileService) GetWeeklynotification(ctx context.Context) {
-	impart.NotifyWeeklyActivityTest(ps.db, ps.Logger())
+func (ps *profileService) GetWeeklyNotification(ctx context.Context) {
+	impart.NotifyWeeklyActivity(ps.db, ps.Logger())
+}
+
+func (ps *profileService) GetWeeklyMostPopularNotification(ctx context.Context) {
+	impart.NotifyWeeklyMostPopularPost(ps.db, ps.Logger())
 }

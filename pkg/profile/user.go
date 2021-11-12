@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/beeker1121/mailchimp-go/lists/members"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -53,6 +54,7 @@ func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.U
 	// if the entry for user is not exists
 	if exists == nil {
 		ud.ImpartWealthID = contextUser.ImpartWealthID
+		ud.LastloginAt = null.Time{}
 		response, err := ps.profileStore.CreateUserDevice(ctx, ud)
 		if err != nil && err != impart.ErrNotFound {
 			return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, fmt.Sprintf("error to create user device %v", err))
@@ -63,6 +65,7 @@ func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.U
 		exists.DeviceID = ud.DeviceID
 		exists.DeviceName = ud.DeviceName
 		exists.DeviceVersion = ud.DeviceVersion
+		exists.LastloginAt = null.Time{}
 		err = ps.profileStore.UpdateDevice(ctx, exists)
 		if err != nil && err != impart.ErrNotFound {
 			return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, fmt.Sprintf("error to create user device %v", err))
@@ -308,21 +311,31 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 		errorString := fmt.Sprintf("%v", err)
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
-	exitingUserAnser := dbUser.R.ImpartWealthUserAnswers
-	answerIds := make([]uint, len(exitingUserAnser))
-	for i, a := range exitingUserAnser {
-		answerIds[i] = a.AnswerID
+	// exitingUserAnser := dbUser.R.ImpartWealthUserAnswers
+	// answerIds := make([]uint, len(exitingUserAnser))
+	// for i, a := range exitingUserAnser {
+	// 	answerIds[i] = a.AnswerID
+	// }
+	// hiveid := DefaultHiveId
+	// for _, h := range dbUser.R.MemberHiveHives {
+	// 	hiveid = h.HiveID
+	// }
+	//err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, false)
+	//err = ps.profileStore.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
+
+	if dbUser.R.MemberHiveHives != nil {
+		if dbUser.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+			err := ps.notificationService.UnsubscribeTopicForAllDevice(ctx, dbUser.ImpartWealthID, dbUser.R.MemberHiveHives[0].NotificationTopicArn.String)
+			if err != nil {
+				ps.Logger().Error("SubscribeTopic", zap.String("DeviceToken", dbUser.R.MemberHiveHives[0].NotificationTopicArn.String),
+					zap.Error(err))
+			}
+		}
 	}
-	hiveid := DefaultHiveId
-	for _, h := range dbUser.R.MemberHiveHives {
-		hiveid = h.HiveID
-	}
-	err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, false)
-	err = ps.profileStore.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
 
 	// // delete user from mailchimp
-	// cfg, _ := config.GetImpart()
-	err = members.Delete(impart.MailChimpAudienceID, dbUser.Email)
+	cfg, _ := config.GetImpart()
+	err = members.Delete(cfg.MailchimpAudienceId, dbUser.Email)
 	if err != nil {
 		ps.Logger().Error("Delete user requset failed in MailChimp", zap.String("blockUser", ctxUser.ImpartWealthID),
 			zap.String("User", ctxUser.ImpartWealthID))
@@ -387,6 +400,7 @@ func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitLi
 }
 
 func (ps *profileService) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, impart.Error) {
+	// result, nextPage, err := ps.profileStore.GetHiveDetailsOld(ctx, gpi)
 	result, nextPage, err := ps.profileStore.GetHiveDetails(ctx, gpi)
 	if err != nil {
 		ps.Logger().Error("Error in data fetching", zap.Error(err))
@@ -429,4 +443,17 @@ func (ps *profileService) EditBulkUserDetails(ctx context.Context, userUpdates m
 		return userOutput, nil
 	}
 	return userOutput, nil
+}
+
+func (ps *profileService) UpdateUserDevicesDetails(ctx context.Context, userDevice *dbmodels.UserDevice, login bool) (bool, error) {
+	if !login {
+		currTime := time.Now().In(boil.GetLocation())
+		userDevice.LastloginAt = null.TimeFrom(currTime)
+		if _, err := userDevice.Update(ctx, ps.db, boil.Infer()); err != nil {
+			ps.Logger().Error("Logout update failed", zap.Any("logout", err))
+			return false, err
+		}
+	}
+	return true, nil
+
 }

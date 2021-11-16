@@ -275,7 +275,7 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 	// send to comment owner
 	go func() {
 		defer wg.Done()
-		if strings.TrimSpace(dbComment.R.ImpartWealth.ImpartWealthID) != "" {
+		if dbComment.R.ImpartWealth != nil && strings.TrimSpace(dbComment.R.ImpartWealth.ImpartWealthID) != "" {
 			err = s.sendNotification(notificationData, out.Alert, dbComment.R.ImpartWealth.ImpartWealthID)
 			if err != nil {
 				s.logger.Error("push-notification : error attempting to send post comment notification ", zap.Any("postData", out), zap.Error(err))

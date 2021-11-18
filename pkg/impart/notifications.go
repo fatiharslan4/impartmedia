@@ -148,6 +148,7 @@ func NewImpartNotificationService(db *sql.DB, stage, region, platformApplication
 	if strings.EqualFold(region, "us-east-2") {
 		region = "us-east-1"
 	}
+	region = "us-east-2"
 	sess, err := session.NewSession(&aws.Config{
 		Region:     aws.String(region),
 		HTTPClient: NewHttpClient(10 * time.Second),

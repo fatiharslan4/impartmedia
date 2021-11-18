@@ -348,11 +348,17 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 	msg := ""
 	var existingHiveId uint64
 	cfg, _ := config.GetImpart()
+	userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
+	if err != nil {
+		return msg, impart.NewError(impart.ErrBadRequest, "Unable to find the user")
+	}
+	if userToUpdate.Blocked {
+		return msg, impart.NewError(impart.ErrBadRequest, "Blocked user")
+	}
 	if gpi.Type == impart.AddToWaitlist {
 		hives := dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: DefaultHiveId},
 		}
-		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		exitingUserAnswer := userToUpdate.R.ImpartWealthUserAnswers
 		answerIds := make([]uint, len(exitingUserAnswer))
 		for i, a := range exitingUserAnswer {
@@ -388,7 +394,6 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 
 	} else if gpi.Type == impart.AddToAdmin {
-		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		existingDBProfile := userToUpdate.R.ImpartWealthProfile
 		if userToUpdate.Admin {
 			return msg, impart.NewError(impart.ErrBadRequest, "User is already admin.")
@@ -402,7 +407,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 
 		err = m.UpdateProfile(ctx, userToUpdate, existingDBProfile)
 		if err != nil {
-			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as user")
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as admin")
 		}
 		msg = "User role changed to admin."
 
@@ -428,7 +433,6 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			&dbmodels.Hive{HiveID: gpi.HiveID},
 		}
 		var existingHive *dbmodels.Hive
-		userToUpdate, err := m.GetUser(ctx, gpi.ImpartWealthID)
 		for _, h := range userToUpdate.R.MemberHiveHives {
 			existingHiveId = h.HiveID
 			existingHive = h
@@ -486,6 +490,62 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 				zap.Error(err))
 		}
 
+	} else if gpi.Type == impart.RemoveAdmin {
+		if !userToUpdate.Admin {
+			return msg, impart.NewError(impart.ErrBadRequest, "User is not admin.")
+		}
+		userToUpdate.Admin = false
+
+		rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
+		background := impart.GetAvatharBackground()
+		backgroundindex := rand.Intn(len(background))
+		userToUpdate.AvatarBackground = background[backgroundindex]
+
+		letter := impart.GetAvatharLetters()
+		letterindex := rand.Intn(len(letter))
+		userToUpdate.AvatarLetter = letter[letterindex]
+
+		err = m.UpdateProfile(ctx, userToUpdate, nil)
+		if err != nil {
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as user")
+		}
+		msg = "User are removed from admin."
+
+		var existingHive *dbmodels.Hive
+
+		for _, h := range userToUpdate.R.MemberHiveHives {
+			existingHive = h
+		}
+		deviceDetails := userToUpdate.R.ImpartWealthUserDevices
+		isnotificationEnabled := false
+		if existingHive != nil && existingHive.NotificationTopicArn.String != "" {
+			if userToUpdate.R.ImpartWealthUserConfigurations != nil && !userToUpdate.Admin {
+				if userToUpdate.R.ImpartWealthUserConfigurations[0].NotificationStatus {
+					isnotificationEnabled = true
+				}
+			}
+		}
+
+		if isnotificationEnabled {
+			// var waitGrp sync.WaitGroup
+			// waitGrp.Add(1)
+			go func() {
+				// defer waitGrp.Done()
+				for _, device := range deviceDetails {
+					if (device.LastloginAt == null.Time{}) {
+						endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+						if err != nil {
+							m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+								zap.Error(err))
+						}
+						if endpointARN != "" {
+							m.notificationService.SubscribeTopic(ctx, userToUpdate.ImpartWealthID, existingHive.NotificationTopicArn.String, endpointARN)
+						}
+					}
+				}
+			}()
+			// waitGrp.Wait()
+		}
 	}
 	return msg, nil
 }
@@ -649,7 +709,7 @@ func (m *mysqlStore) GetFilterDetails(ctx context.Context) ([]byte, error) {
 
 func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) *models.UserUpdate {
 	userOutput := models.UserUpdate{}
-	userDatas := make([]models.UserData, len(userUpdatesInput.Users), len(userUpdatesInput.Users))
+	userDatas := make([]models.UserData, len(userUpdatesInput.Users))
 	userOutput.Type = userUpdatesInput.Type
 	userOutput.HiveID = userUpdatesInput.HiveID
 	userOutput.Action = userUpdatesInput.Action
@@ -668,20 +728,26 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		userDatas[i] = *userData
 	}
 	m.logger.Info("User list created")
-
 	userOutput.Users = userDatas
 	userOutputRslt := &userOutput
-
-	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, false)
+	includeUsers := 2
+	if userUpdatesInput.Type == impart.AddToAdmin {
+		includeUsers = impart.ExcludeAdmin
+	} else if userUpdatesInput.Type == impart.RemoveAdmin {
+		includeUsers = impart.IncludeAdmin
+	}
+	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, false, includeUsers)
 	if err != nil {
+		fmt.Println(err)
 		return userOutputRslt
 	}
-	m.logger.Info("User get completed")
+	if updateUsers == nil {
+		return userOutputRslt
+	}
 	userOutputs, impartErr := m.UpdateBulkUserProfile(ctx, updateUsers, false, userOutputRslt)
 	if impartErr != nil {
 		return userOutputRslt
 	}
-	m.logger.Info("update get completed")
 	lenUser := len(userOutputRslt.Users)
 	status := ""
 	if userOutputRslt.Type == impart.AddToWaitlist {
@@ -736,7 +802,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 
 	userOutputRslt := &userOutput
 
-	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, true)
+	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, true, impart.IncludeAdmin)
 	if err != nil || len(deleteUser) == 0 {
 		return userOutputRslt
 	}

@@ -279,6 +279,19 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		}
 	}
 
+	if *hiveId == impart.DefaultHiveID {
+		//// send waitlist mail
+		go func() {
+			cfg, _ := config.GetImpart()
+			emailSending := impart.NewImpartEmailService(ps.db, string(cfg.Env), cfg.Region, ps.Logger())
+			err := emailSending.EmailSending(ctx, ctxUser.Email, impart.Waitlist_mail)
+			if err != nil {
+				ps.Logger().Error("Hive eamil sending Falied", zap.Any("error", err),
+					zap.Any("Email", ctxUser.Email))
+			}
+		}()
+	}
+
 	err := ctxUser.SetMemberHiveHives(ctx, ps.db, false, hives...)
 	if err != nil {
 		ps.Logger().Error("error setting member hives", zap.Error(err))

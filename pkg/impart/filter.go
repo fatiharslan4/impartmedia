@@ -161,4 +161,11 @@ const (
 	AddToWaitlist = "addto_waitlist"
 	AddToHive     = "addto_hive"
 	AddToAdmin    = "addto_admin"
+	RemoveAdmin   = "remove_admin"
+)
+
+const (
+	IncludeAdmin = 1
+	ExcludeAdmin = 0
+	IncludeAll   = 2
 )

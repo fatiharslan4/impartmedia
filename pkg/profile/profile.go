@@ -474,11 +474,7 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 	if err != nil {
 		return impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("could not find profile for impartWealthID %s", deleteUser.ImpartWealthID))
 	}
-	if userToDelete.Admin {
-		errorString := "You cannot delete the admin."
-		ps.Logger().Error(errorString, zap.Any("error", errorString))
-		return impart.NewError(impart.ErrUnauthorized, errorString)
-	}
+
 	if userToDelete.SuperAdmin {
 		errorString := "You cannot delete the super admin."
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
@@ -494,8 +490,8 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
 		return impart.NewError(impart.ErrUnauthorized, errorString)
 	}
-	err = ps.profileStore.DeleteUserProfile(ctx, deleteUser, hardDelete)
-	if err != nil {
+	imperr := ps.profileStore.DeleteUserProfile(ctx, deleteUser, hardDelete)
+	if imperr != nil {
 		return impart.NewError(impart.ErrBadRequest, "User delete failed.")
 	}
 	return nil

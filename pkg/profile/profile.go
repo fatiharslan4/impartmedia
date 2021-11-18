@@ -66,6 +66,7 @@ type Service interface {
 	GetWeeklyNotification(ctx context.Context)
 	GetWeeklyMostPopularNotification(ctx context.Context)
 	UpdateUserDevicesDetails(ctx context.Context, userDevice *dbmodels.UserDevice, login bool) (bool, error)
+	SendEmail(ctx context.Context) error
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string, hivedata hive_main.Service, hiveSotre hive_data.Hives) Service {
@@ -526,4 +527,11 @@ func (ps *profileService) GetWeeklyNotification(ctx context.Context) {
 
 func (ps *profileService) GetWeeklyMostPopularNotification(ctx context.Context) {
 	impart.NotifyWeeklyMostPopularPost(ps.db, ps.Logger())
+}
+
+func (ps *profileService) SendEmail(ctx context.Context) error {
+	cfg, _ := config.GetImpart()
+	notifications := impart.NewImpartNotificationService(ps.db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, ps.Logger())
+	err := notifications.EmailSending(ctx, "")
+	return err
 }

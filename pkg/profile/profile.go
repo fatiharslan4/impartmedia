@@ -66,6 +66,7 @@ type Service interface {
 	GetWeeklyNotification(ctx context.Context)
 	GetWeeklyMostPopularNotification(ctx context.Context)
 	UpdateUserDevicesDetails(ctx context.Context, userDevice *dbmodels.UserDevice, login bool) (bool, error)
+	SendEmail(ctx context.Context) error
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string, hivedata hive_main.Service, hiveSotre hive_data.Hives) Service {
@@ -473,11 +474,7 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 	if err != nil {
 		return impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("could not find profile for impartWealthID %s", deleteUser.ImpartWealthID))
 	}
-	if userToDelete.Admin {
-		errorString := "You cannot delete the admin."
-		ps.Logger().Error(errorString, zap.Any("error", errorString))
-		return impart.NewError(impart.ErrUnauthorized, errorString)
-	}
+
 	if userToDelete.SuperAdmin {
 		errorString := "You cannot delete the super admin."
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
@@ -493,8 +490,8 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
 		return impart.NewError(impart.ErrUnauthorized, errorString)
 	}
-	err = ps.profileStore.DeleteUserProfile(ctx, deleteUser, hardDelete)
-	if err != nil {
+	imperr := ps.profileStore.DeleteUserProfile(ctx, deleteUser, hardDelete)
+	if imperr != nil {
 		return impart.NewError(impart.ErrBadRequest, "User delete failed.")
 	}
 	return nil
@@ -526,4 +523,11 @@ func (ps *profileService) GetWeeklyNotification(ctx context.Context) {
 
 func (ps *profileService) GetWeeklyMostPopularNotification(ctx context.Context) {
 	impart.NotifyWeeklyMostPopularPost(ps.db, ps.Logger())
+}
+
+func (ps *profileService) SendEmail(ctx context.Context) error {
+	cfg, _ := config.GetImpart()
+	notifications := impart.NewImpartNotificationService(ps.db, string(cfg.Env), cfg.Region, cfg.IOSNotificationARN, ps.Logger())
+	err := notifications.EmailSending(ctx, "")
+	return err
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -72,6 +73,11 @@ func (ns *sesAppleEmailService) EmailSending(ctx context.Context, recipient, tem
 	}
 
 	// The HTML body for the email.
+	path, err := os.Getwd()
+	Logger.Info("path", zap.Any("path", path))
+	Logger.Info("path", zap.Any("path", fmt.Sprintf("path//%s", "./schemas/html/"+template+".html")))
+	Logger.Info("path", zap.Any("path", fmt.Sprintf("path//%s", "/schemas/html/"+template+".html")))
+	Logger.Info("path", zap.Any("path", fmt.Sprintf("path//%s", "//schemas//html//"+template+".html")))
 
 	htmlBody, err := ioutil.ReadFile(fmt.Sprintf("file://%s", "./schemas/html/"+template+".html"))
 

@@ -33,7 +33,7 @@ type Profile struct {
 	AuthenticationID string     `json:"authenticationId" conform:"trim"`
 	Email            string     `json:"email" conform:"email,lowercase" jsonschema:"format=email"`
 	ScreenName       string     `json:"screenName,omitempty" conform:"trim,lowercase" jsonschema:"minLength=8,maxLength=15"`
-	Admin            bool       `json:"admin,omitempty"`
+	Admin            bool       `json:"admin"`
 	Attributes       Attributes `json:"attributes,omitempty"`
 	CreatedDate      time.Time  `json:"createdDate,omitempty"`
 	UpdatedDate      time.Time  `json:"updatedDate,omitempty"`

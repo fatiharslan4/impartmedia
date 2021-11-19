@@ -677,19 +677,24 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 	currTime := time.Now().In(boil.GetLocation())
 	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
 
-	postDeleteQuery := fmt.Sprintf(`Update  hive
-	join post on post.post_id=hive.pinned_post_id
-	set pinned_post_id=null
-	where post.deleted_at is not null and impart_wealth_id = '%s';
+	if userToDelete.Admin {
+		postDeleteQuery := fmt.Sprintf(`
+	Update  hive
+                join post on post.post_id=hive.pinned_post_id
+                set pinned_post_id=null
+                where   pinned_post_id in ( select post_id from post
+                where impart_wealth_id  = '%s');
 	update post
-	set deleted_at='%s'
+	set deleted_at='%s',pinned=false
 	where impart_wealth_id = '%s';`,
-		userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID)
+			userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID)
 
-	_, err = queries.Raw(postDeleteQuery).ExecContext(ctx, m.db)
-	m.logger.Info(postDeleteQuery)
-	if err != nil {
-		m.logger.Error("query failed", zap.Any("query", err), zap.Any("postDeleteQuery", postDeleteQuery))
+		_, err = queries.Raw(postDeleteQuery).ExecContext(ctx, m.db)
+
+		m.logger.Info(postDeleteQuery)
+		if err != nil {
+			m.logger.Error("query failed", zap.Any("query", err), zap.Any("postDeleteQuery", postDeleteQuery))
+		}
 	}
 
 	// var waitGrp sync.WaitGroup
@@ -859,12 +864,15 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 	}
 	if adminImpartWealthIds != "" {
 		adminImpartWealthIds = strings.Trim(adminImpartWealthIds, ",")
-		postDeleteQuery := fmt.Sprintf(`Update  hive
-		join post on post.post_id=hive.pinned_post_id
-		set pinned_post_id=null
-		where post.deleted_at is not null and impart_wealth_id in(%s);
+		postDeleteQuery := fmt.Sprintf(`
+		Update  hive
+                join post on post.post_id=hive.pinned_post_id
+                set pinned_post_id=null
+                where   pinned_post_id in ( select post_id from post
+                where impart_wealth_id in ( %s ));
+
 		update post
-		set deleted_at='%s'
+		set deleted_at='%s',pinned=false
 		where impart_wealth_id in (%s);`,
 			adminImpartWealthIds, golangDateTime, adminImpartWealthIds)
 

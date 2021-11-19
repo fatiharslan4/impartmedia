@@ -1,11 +1,13 @@
 package impart
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"time"
+
+	temp "html/template"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -71,10 +73,23 @@ func (ns *sesAppleEmailService) EmailSending(ctx context.Context, recipient, tem
 		subject = Waitlist_mail_subject
 		textBody = Waitlist_mail_previewtext
 	}
-
+	templateData := struct {
+		Year int
+	}{
+		Year: time.Now().Year(),
+	}
 	// The HTML body for the email.
+	newtemp, err := temp.ParseFiles(fmt.Sprintf("%s", "./schemas/html/"+template+".html"))
+	if err != nil {
+		Logger.Error("template failed", zap.Any("err", err))
+	}
+	buf := new(bytes.Buffer)
+	if err = newtemp.Execute(buf, templateData); err != nil {
+		Logger.Error("template failed", zap.Any("err", err))
+	}
+	htmlBody := buf.String()
 
-	htmlBody, err := ioutil.ReadFile(fmt.Sprintf("%s", "./schemas/html/"+template+".html"))
+	// htmlBody, err := ioutil.ReadFile(fmt.Sprintf("%s", "./schemas/html/"+template+".html"))
 
 	if err != nil {
 		Logger.Error("err", zap.Any("err", err))

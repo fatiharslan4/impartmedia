@@ -74,15 +74,18 @@ func (ns *sesAppleEmailService) EmailSending(ctx context.Context, recipient, tem
 
 	// The HTML body for the email.
 	path, err := os.Getwd()
-	Logger.Info("path", zap.Any("path", path))
-	Logger.Info("path", zap.Any("path", fmt.Sprintf("path//%s", "./schemas/html/"+template+".html")))
-	Logger.Info("path", zap.Any("path", fmt.Sprintf("path//%s", "/schemas/html/"+template+".html")))
-	Logger.Info("path", zap.Any("path", fmt.Sprintf("path//%s", "//schemas//html//"+template+".html")))
 
-	htmlBody, err := ioutil.ReadFile(fmt.Sprintf("file://%s", "./schemas/html/"+template+".html"))
-
+	// htmlBody, err := ioutil.ReadFile(fmt.Sprintf("file://%s", "./schemas/html/"+template+".html"))
+	htmlBody1, err := ioutil.ReadFile(fmt.Sprintf("file:%s/%s", path, "/schemas/html/"+template+".html"))
+	if err != nil {
+		Logger.Error("err", zap.Any("err", err))
+	}
+	Logger.Info("htmlBody1", zap.Any("htmlBody1", htmlBody1))
+	htmlBody, err := ioutil.ReadFile(fmt.Sprintf("%s", "./schemas/html/"+template+".html"))
+	if err != nil {
+		Logger.Error("err", zap.Any("err", err))
+	}
 	Logger.Info("htmlBody", zap.Any("htmlBody", htmlBody))
-	Logger.Info("htmlBody", zap.Any("htmlBody", fmt.Sprintf("file://%s", "./schemas/html/"+template+".html")))
 
 	// The character encoding for the email.
 	charSet := "UTF-8"

@@ -62,7 +62,7 @@ func (ns *noopEmailService) EmailSending(ctx context.Context, recipient, templat
 
 func (ns *sesAppleEmailService) EmailSending(ctx context.Context, recipient, template string) error {
 
-	sender := "support@impartwealth.com"
+	sender := "Yvette Butler <beta@impartwealth.com>"
 
 	subject := Hive_mail_subject
 	textBody := Hive_mail_previewtext
@@ -108,6 +108,7 @@ func (ns *sesAppleEmailService) EmailSending(ctx context.Context, recipient, tem
 			},
 		},
 		Source: aws.String(sender),
+
 		// Uncomment to use a configuration set
 		//ConfigurationSetName: aws.String(ConfigurationSet),
 	}

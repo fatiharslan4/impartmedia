@@ -11,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
+	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"go.uber.org/zap"
 )
 
@@ -143,4 +145,14 @@ func (ns *sesAppleEmailService) EmailSending(ctx context.Context, recipient, tem
 	fmt.Println("Email Sent to address: " + recipient)
 	fmt.Println(result)
 	return nil
+}
+
+func SendAWSEMails(ctx context.Context, db *sql.DB, user *dbmodels.User, mailType string) {
+	cfg, _ := config.GetImpart()
+	emailSending := NewImpartEmailService(db, string(cfg.Env), cfg.Region, Logger)
+	err := emailSending.EmailSending(ctx, user.Email, mailType)
+	if err != nil {
+		Logger.Error("Hive eamil sending Falied", zap.Any("error", err),
+			zap.Any("Email", user.Email))
+	}
 }

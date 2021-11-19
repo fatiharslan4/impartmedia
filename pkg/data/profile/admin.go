@@ -481,15 +481,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 			isMailSent = true
 		}
 		if isMailSent {
-			go func() {
-				cfg, _ := config.GetImpart()
-				emailSending := impart.NewImpartEmailService(m.db, string(cfg.Env), cfg.Region, impart.Logger)
-				err := emailSending.EmailSending(ctx, userToUpdate.Email, impart.Hive_mail)
-				if err != nil {
-					m.logger.Error("Hive eamil sending Falied", zap.Any("error", err),
-						zap.Any("Email", userToUpdate.Email))
-				}
-			}()
+			go impart.SendAWSEMails(ctx, m.db, userToUpdate, impart.Hive_mail)
 		}
 
 		mailChimpParams := &members.UpdateParams{

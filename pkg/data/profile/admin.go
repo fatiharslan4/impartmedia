@@ -480,6 +480,13 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 				}
 			}
 		}
+		isMailSent := false
+		if existingHiveId == impart.DefaultHiveID {
+			isMailSent = true
+		}
+		if isMailSent {
+			go impart.SendAWSEMails(ctx, m.db, userToUpdate, impart.Hive_mail)
+		}
 
 		mailChimpParams := &members.UpdateParams{
 			MergeFields: map[string]interface{}{"STATUS": impart.Hive},

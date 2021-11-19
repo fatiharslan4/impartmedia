@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
@@ -44,7 +43,6 @@ type NotificationService interface {
 	GetEndPointArn(ctx context.Context, deviceToken, platformEndpointARN string) (string, error)
 
 	CreateNotificationTopic(ctx context.Context, topicARN string) (*sns.CreateTopicOutput, error)
-	EmailSending(ctx context.Context, topicARN string) error
 }
 
 type NotificationData struct {
@@ -96,6 +94,7 @@ func (n noopNotificationService) GetEndPointArn(ctx context.Context, deviceToken
 func (n noopNotificationService) UnsubscribeTopicForAllDevice(ctx context.Context, impartWealthID, topicARN string) (err error) {
 	return nil
 }
+
 func (ns *noopNotificationService) EmailSending(ctx context.Context, topicARN string) error {
 	return nil
 }
@@ -160,7 +159,6 @@ func NewImpartNotificationService(db *sql.DB, stage, region, platformApplication
 		stage:                  stage,
 		Logger:                 logger,
 		SNS:                    sns.New(sess),
-		SES:                    ses.New(sess),
 		platformApplicationARN: platformApplicationARN,
 		db:                     db,
 	}
@@ -713,110 +711,4 @@ func NotifyWeeklyMostPopularPost(db *sql.DB, logger *zap.Logger) {
 
 		}
 	}
-}
-
-func (ns *snsAppleNotificationService) EmailSending(ctx context.Context, topicARN string) error {
-
-	fmt.Println("start")
-	// Replace sender@example.com with your "From" address.
-	// This address must be verified with Amazon SES.
-	// sender := "success@simulator.amazonses.com"
-	sender := "support@impartwealth.com"
-
-	// Replace recipient@example.com with a "To" address. If your account
-	// is still in the sandbox, this address must be verified.
-	recipient := "monika.prakash@naicoits.com"
-
-	// Specify a configuration set. To use a configuration
-	// set, comment the next line and line 92.
-	//ConfigurationSet = "ConfigSet"
-
-	// The subject line for the email.
-	subject := "Amazon SES Test (AWS SDK for Go)"
-
-	// The HTML body for the email.
-
-	// htmlBody, err := ioutil.ReadFile(fmt.Sprintf("file://%s", "./schemas/html/hive_email.html"))
-
-	htmlBody, err := ioutil.ReadFile(fmt.Sprintf("D:/ImpartWealthApp/back-End/schemas/html/hive_email.html"))
-
-	// htmlBody := "<h1>Amazon SES Test Email (AWS SDK for Go)</h1><p>This email was sent with " +
-	// 	"<a href='https://aws.amazon.com/ses/'>Amazon SES</a> using the " +
-	// 	"<a href='https://aws.amazon.com/sdk-for-go/'>AWS SDK for Go</a>.</p>"
-
-	//The email body for recipients with non-HTML email clients.
-	textBody := "This email was sent with Amazon SES using the AWS SDK for Go."
-
-	// The character encoding for the email.
-	charSet := "UTF-8"
-
-	// Assemble the email.
-
-	input := &ses.SendEmailInput{
-		Destination: &ses.Destination{
-			CcAddresses: []*string{},
-			ToAddresses: []*string{
-				aws.String(recipient),
-			},
-		},
-		Message: &ses.Message{
-			Body: &ses.Body{
-				Html: &ses.Content{
-					Charset: aws.String(charSet),
-					Data:    aws.String(string(htmlBody)),
-				},
-				Text: &ses.Content{
-					Charset: aws.String(charSet),
-					Data:    aws.String(textBody),
-				},
-			},
-			Subject: &ses.Content{
-				Charset: aws.String(charSet),
-				Data:    aws.String(subject),
-			},
-		},
-		Source: aws.String(sender),
-		// Uncomment to use a configuration set
-		//ConfigurationSetName: aws.String(ConfigurationSet),
-	}
-
-	// Attempt to send the email.
-	result, err := ns.SendEmail(input)
-
-	// Display error messages if they occur.
-	if err != nil {
-		fmt.Println("erororroror")
-		fmt.Println(err)
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case ses.ErrCodeMessageRejected:
-				Logger.Error("Error", zap.Any("aerr", err))
-				fmt.Println(ses.ErrCodeMessageRejected, aerr.Error())
-				return err
-			case ses.ErrCodeMailFromDomainNotVerifiedException:
-				Logger.Error("Error", zap.Any("aerr", err))
-				fmt.Println(ses.ErrCodeMailFromDomainNotVerifiedException, aerr.Error())
-				Logger.Error("Error", zap.Any("aerr", err))
-				return err
-			case ses.ErrCodeConfigurationSetDoesNotExistException:
-				Logger.Error("Error", zap.Any("aerr", err))
-				fmt.Println(ses.ErrCodeConfigurationSetDoesNotExistException, aerr.Error())
-				return err
-			default:
-				Logger.Error("Error", zap.Any("aerr", err))
-				fmt.Println(aerr.Error())
-				return err
-			}
-		} else {
-			// Print the error, cast err to awserr.Error to get the Code and
-			// Message from an error.
-			Logger.Error("Error", zap.Any("aerr", err))
-			fmt.Println(err.Error())
-			return err
-		}
-	}
-
-	fmt.Println("Email Sent to address: " + recipient)
-	fmt.Println(result)
-	return nil
 }

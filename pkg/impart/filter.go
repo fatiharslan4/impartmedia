@@ -167,4 +167,11 @@ const (
 	Waitlist_mail_previewtext = "Thank you for signing up – we’ll let you know when we’ve found your Hive"
 	Hive_mail_subject         = "Great news! We’ve found your Hive!"
 	Hive_mail_previewtext     = "What now? Let the journey to your financial empowerment begin!"
+
+)
+
+const (
+	IncludeAdmin = 1
+	ExcludeAdmin = 0
+	IncludeAll   = 2
 )

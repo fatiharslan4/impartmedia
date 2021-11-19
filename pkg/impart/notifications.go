@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
@@ -94,6 +95,10 @@ func (n noopNotificationService) UnsubscribeTopicForAllDevice(ctx context.Contex
 	return nil
 }
 
+func (ns *noopNotificationService) EmailSending(ctx context.Context, topicARN string) error {
+	return nil
+}
+
 func NewNoopNotificationService() NotificationService {
 	return &noopNotificationService{}
 }
@@ -101,6 +106,7 @@ func NewNoopNotificationService() NotificationService {
 type snsAppleNotificationService struct {
 	stage string
 	*sns.SNS
+	*ses.SES
 	*zap.Logger
 	platformApplicationARN string
 	db                     *sql.DB

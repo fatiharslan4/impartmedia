@@ -279,6 +279,11 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		}
 	}
 
+	if *hiveId == impart.DefaultHiveID {
+		//// send waitlist mail
+		go impart.SendAWSEMails(ctx, ps.db, ctxUser, impart.Waitlist_mail)
+	}
+
 	err := ctxUser.SetMemberHiveHives(ctx, ps.db, false, hives...)
 	if err != nil {
 		ps.Logger().Error("error setting member hives", zap.Error(err))

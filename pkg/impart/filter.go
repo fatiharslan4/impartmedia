@@ -161,13 +161,13 @@ const (
 	AddToWaitlist             = "addto_waitlist"
 	AddToHive                 = "addto_hive"
 	AddToAdmin                = "addto_admin"
+	RemoveAdmin               = "remove_admin"
 	Hive_mail                 = "hive_email"
 	Waitlist_mail             = "waitlist_email"
 	Waitlist_mail_subject     = "You’re on the Hive Wealth waitlist!"
 	Waitlist_mail_previewtext = "Thank you for signing up – we’ll let you know when we’ve found your Hive"
 	Hive_mail_subject         = "Great news! We’ve found your Hive!"
 	Hive_mail_previewtext     = "What now? Let the journey to your financial empowerment begin!"
-
 )
 
 const (

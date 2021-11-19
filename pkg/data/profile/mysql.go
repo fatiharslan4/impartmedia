@@ -1095,6 +1095,48 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 					// waitGrp.Wait()
 				}
 			}
+		} else if userUpdate.Type == impart.RemoveAdmin {
+			if !user.Admin {
+				userUpdate.Users[userUpdateposition].Message = "User is not an admin."
+			} else {
+				impartWealthIds = fmt.Sprintf("%s '%s' ,", impartWealthIds, user.ImpartWealthID)
+				userUpdate.Users[userUpdateposition].Value = 1
+
+				var existingHive *dbmodels.Hive
+
+				for _, h := range user.R.MemberHiveHives {
+					existingHive = h
+				}
+				deviceDetails := user.R.ImpartWealthUserDevices
+				isnotificationEnabled := false
+				if existingHive != nil && existingHive.NotificationTopicArn.String != "" {
+					if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
+						if user.R.ImpartWealthUserConfigurations[0].NotificationStatus {
+							isnotificationEnabled = true
+						}
+					}
+				}
+				if isnotificationEnabled {
+					// var waitGrp sync.WaitGroup
+					// waitGrp.Add(1)
+					go func() {
+						// defer waitGrp.Done()
+						for _, device := range deviceDetails {
+							if (device.LastloginAt == null.Time{}) {
+								endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+								if err != nil {
+									m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+										zap.Error(err))
+								}
+								if endpointARN != "" {
+									m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String, endpointARN)
+								}
+							}
+						}
+					}()
+					// waitGrp.Wait()
+				}
+			}
 		}
 	}
 	// for hive, demo := range userHiveDemoexist {updateHiveDemographic

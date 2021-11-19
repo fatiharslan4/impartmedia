@@ -62,7 +62,8 @@ func (ns *noopEmailService) EmailSending(ctx context.Context, recipient, templat
 
 func (ns *sesAppleEmailService) EmailSending(ctx context.Context, recipient, template string) error {
 
-	sender := "Yvette Butler <beta@impartwealth.com>"
+	// sender := "Yvette Butler <beta@impartwealth.com>"
+	sender := "support@impartwealth.com"
 
 	subject := Hive_mail_subject
 	textBody := Hive_mail_previewtext

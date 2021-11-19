@@ -75,6 +75,9 @@ func (ns *sesAppleEmailService) EmailSending(ctx context.Context, recipient, tem
 
 	htmlBody, err := ioutil.ReadFile(fmt.Sprintf("file://%s", "./schemas/html/"+template+".html"))
 
+	Logger.Info("htmlBody", zap.Any("htmlBody", htmlBody))
+	Logger.Info("htmlBody", zap.Any("htmlBody", fmt.Sprintf("file://%s", "./schemas/html/"+template+".html")))
+
 	// The character encoding for the email.
 	charSet := "UTF-8"
 

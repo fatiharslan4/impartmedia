@@ -209,7 +209,13 @@ func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data Not
 		TopicArn:         aws.String(topicARN),
 	}
 	// print()
-	_, err = ns.Publish(input)
+	notificationResult, err := ns.Publish(input)
+
+	ns.Logger.Info("notificationResult : After publish input",
+		zap.Any("topicARN", topicARN),
+		zap.Any("notificationResult", notificationResult),
+	)
+
 	if err != nil {
 		ns.Logger.Error("push-notification : After publish input",
 			zap.Any("topicARN", topicARN),

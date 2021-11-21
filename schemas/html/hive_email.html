@@ -720,11 +720,7 @@
          </table>
       </center>
       <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script><script type="text/javascript">
-         
          $(document).ready(function() {
-            const year = new Date().getFullYear();
-         const str = "Copyright © "+year+" Hive Wealth, All rights reserved."
-         $('#date-cr').html(str)
              document.getElementById("copyToClipboard").addEventListener("click", function () {
                  var input = document.getElementById("clipboardSource");
                  input.select();
@@ -735,7 +731,7 @@
                      throw new Error("Failed to copy text (verify caller was in the context of an event handler)");
                  }
              });
-             
+         
              $('li.more > a').click(function(){
                  var toToggle = $($(this).attr('data-to-toggle'));
                  if(toToggle.is(':visible')){

@@ -61,6 +61,7 @@ github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute
 github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface
 github.com/aws/aws-sdk-go/service/dynamodb/expression
 github.com/aws/aws-sdk-go/service/s3
+github.com/aws/aws-sdk-go/service/ses
 github.com/aws/aws-sdk-go/service/sns
 github.com/aws/aws-sdk-go/service/sso
 github.com/aws/aws-sdk-go/service/sso/ssoiface
@@ -188,7 +189,6 @@ github.com/plaid/plaid-go/plaid
 github.com/pmezard/go-difflib/difflib
 # github.com/robfig/cron/v3 v3.0.0
 ## explicit
-github.com/robfig/cron/v3
 # github.com/segmentio/ksuid v1.0.3
 ## explicit
 github.com/segmentio/ksuid

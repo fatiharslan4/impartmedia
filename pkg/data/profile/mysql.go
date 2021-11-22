@@ -1042,6 +1042,13 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 						}
 					}
 				}
+				isMailSent := false
+				if existinghiveid == impart.DefaultHiveID {
+					isMailSent = true
+				}
+				if isMailSent {
+					go impart.SendAWSEMails(ctx, m.db, user, impart.Hive_mail)
+				}
 			}
 		}
 	}

@@ -231,6 +231,8 @@ func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetReported
 	var postCnt int
 	var cmntCnt int
 
+	ctxUser := impart.GetCtxUser(ctx)
+
 	outOffset := &models.NextPage{
 		Offset:        gpi.Offset,
 		OffsetPost:    gpi.OffsetPost,
@@ -316,7 +318,7 @@ func (d *mysqlHiveData) GetReportedContents(ctx context.Context, gpi GetReported
 		return models.PostComments{}, outOffset, nil
 	}
 
-	resulData := models.PostCommentsLimit(posts, comment, limit)
+	resulData := models.PostCommentsLimit(posts, comment, limit, ctxUser.Admin)
 
 	resulData.SortDescending()
 

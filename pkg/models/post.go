@@ -74,6 +74,7 @@ type Post struct {
 	FullName            string           `json:"FullName,omitempty"`
 	AvatarBackground    string           `json:"avatarBackground,omitempty"`
 	AvatarLetter        string           `json:"avatarLetter,omitempty"`
+	IsLoggedUserAdmin   bool             `json:"isLoggedUserAdmin"`
 }
 
 type PostVideo struct {
@@ -176,7 +177,7 @@ func PostFilesFromDB(pfiles *dbmodels.File) []File {
 	return []File{}
 }
 
-func PostFromDB(p *dbmodels.Post) Post {
+func PostFromDB(p *dbmodels.Post, isLoggedUserAdmin bool) Post {
 	out := Post{
 		HiveID:              p.HiveID,
 		IsPinnedPost:        p.Pinned,
@@ -257,14 +258,15 @@ func PostFromDB(p *dbmodels.Post) Post {
 			}
 		}
 	}
+	out.IsLoggedUserAdmin = isLoggedUserAdmin
 
 	return out
 }
 
-func PostsFromDB(dbPosts dbmodels.PostSlice) Posts {
+func PostsFromDB(dbPosts dbmodels.PostSlice, isLoggedUserAdmin bool) Posts {
 	out := make(Posts, len(dbPosts), len(dbPosts))
 	for i, p := range dbPosts {
-		out[i] = PostFromDB(p)
+		out[i] = PostFromDB(p, isLoggedUserAdmin)
 	}
 	return out
 }
@@ -313,13 +315,13 @@ type PostNotificationBuildDataOutput struct {
 	PostOwnerWealthID string
 }
 
-func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int) Posts {
+func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int, isLoggedUserAdmin bool) Posts {
 	out := make(Posts, limit, limit)
 	for i, p := range dbPosts {
 		if i >= limit {
 			return out
 		}
-		out[i] = PostFromDB(p)
+		out[i] = PostFromDB(p, isLoggedUserAdmin)
 	}
 	return out
 }

@@ -53,22 +53,23 @@ type PostComment struct {
 	AvatarBackground    string           `json:"avatarBackground,omitempty"`
 	AvatarLetter        string           `json:"avatarLetter,omitempty"`
 	Admin               bool             `json:"admin,omitempty"`
+	IsLoggedUserAdmin   bool             `json:"isLoggedUserAdmin,omitempty"`
 }
 
-func PostCommentsLimit(dbPosts dbmodels.PostSlice, dbcomments dbmodels.CommentSlice, limit int) PostComments {
+func PostCommentsLimit(dbPosts dbmodels.PostSlice, dbcomments dbmodels.CommentSlice, limit int, isLoggedUserAdmin bool) PostComments {
 	postout := make(PostComments, len(dbPosts))
 	cmntout := make(PostComments, len(dbcomments))
 	for i, p := range dbPosts {
-		postout[i] = PostCommentPostFromDB(p, nil)
+		postout[i] = PostCommentPostFromDB(p, nil, isLoggedUserAdmin)
 	}
 	for i, cmnt := range dbcomments {
-		cmntout[i] = PostCommentPostFromDB(nil, cmnt)
+		cmntout[i] = PostCommentPostFromDB(nil, cmnt, isLoggedUserAdmin)
 	}
 	out := append(postout, cmntout...)
 	return out
 }
 
-func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment) PostComment {
+func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment, isLoggedUserAdmin bool) PostComment {
 	// var out PostComment
 	if p != nil {
 		out := PostComment{
@@ -148,7 +149,7 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment) PostComment {
 		if p.R.PostUrls != nil && len(p.R.PostUrls) > 0 {
 			out.UrlData = PostUrlFromDB(p.R.PostUrls[0])
 		}
-
+		out.IsLoggedUserAdmin = isLoggedUserAdmin
 		return out
 
 	}
@@ -199,7 +200,7 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment) PostComment {
 		if c.R.ImpartWealth == nil {
 			out.ScreenName = types.AccountDeleted.ToString()
 		}
-
+		out.IsLoggedUserAdmin = isLoggedUserAdmin
 		return out
 	}
 	return PostComment{}

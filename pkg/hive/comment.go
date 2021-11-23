@@ -27,7 +27,7 @@ func (s *service) GetComments(ctx context.Context, postID uint64, limit, offset 
 		}
 	}
 	ctxUser := impart.GetCtxUser(ctx)
-	return models.CommentsFromDBModelSlice(dbComments, ctxUser.Admin), nextPage, nil
+	return models.CommentsFromDBModelSlice(dbComments, ctxUser), nextPage, nil
 }
 
 func (s *service) GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error) {
@@ -40,7 +40,7 @@ func (s *service) GetComment(ctx context.Context, commentID uint64) (models.Comm
 		}
 	}
 	ctxUser := impart.GetCtxUser(ctx)
-	return models.CommentFromDBModel(dbComment, ctxUser.Admin), nil
+	return models.CommentFromDBModel(dbComment, ctxUser), nil
 }
 
 func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comment, impart.Error) {
@@ -70,7 +70,7 @@ func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comm
 		s.logger.Error("error creating comment", zap.Error(err), zap.Any("comment", comment))
 		return models.Comment{}, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error creating NewComment for user %s", c.ImpartWealthID))
 	}
-	out := models.CommentFromDBModel(comment, ctxUser.Admin)
+	out := models.CommentFromDBModel(comment, ctxUser)
 	dbPost, err := s.postData.GetPost(ctx, c.PostID)
 	if err != nil {
 		s.logger.Error("error getting post from newly created comment")
@@ -122,7 +122,7 @@ func (s *service) EditComment(ctx context.Context, editedComment models.Comment)
 	if err != nil {
 		return empty, impart.UnknownError
 	}
-	return models.CommentFromDBModel(c, ctxUser.Admin), nil
+	return models.CommentFromDBModel(c, ctxUser), nil
 }
 
 func (s *service) DeleteComment(ctx context.Context, commentID uint64) impart.Error {
@@ -215,7 +215,7 @@ func (s *service) ReviewComment(ctx context.Context, commentID uint64, reason st
 		}
 	}
 	ctxUser := impart.GetCtxUser(ctx)
-	return models.CommentFromDBModel(dbComment, ctxUser.Admin), nil
+	return models.CommentFromDBModel(dbComment, ctxUser), nil
 }
 
 // SendCommentNotification

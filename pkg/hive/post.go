@@ -78,7 +78,7 @@ func (s *service) NewPost(ctx context.Context, post models.Post) (models.Post, i
 		}
 
 	}
-	p := models.PostFromDB(dbPost, ctxUser.Admin)
+	p := models.PostFromDB(dbPost, ctxUser)
 	// add post files
 	if isAdminActivity {
 		post.Files = s.ValidatePostFilesName(ctx, ctxUser, post.Files)
@@ -140,7 +140,7 @@ func (s *service) EditPost(ctx context.Context, inPost models.Post) (models.Post
 	if err != nil {
 		return models.Post{}, impart.UnknownError
 	}
-	return models.PostFromDB(p, ctxUser.Admin), nil
+	return models.PostFromDB(p, ctxUser), nil
 }
 
 func (s *service) GetPost(ctx context.Context, postID uint64, includeComments bool) (models.Post, impart.Error) {
@@ -189,8 +189,8 @@ func (s *service) GetPost(ctx context.Context, postID uint64, includeComments bo
 		return out, impart.NewError(err, "error getting post", impart.PostID)
 	}
 	ctxUser := impart.GetCtxUser(ctx)
-	out = models.PostFromDB(dbPost, ctxUser.Admin)
-	out.Comments = models.CommentsFromDBModelSlice(comments, ctxUser.Admin)
+	out = models.PostFromDB(dbPost, ctxUser)
+	out.Comments = models.CommentsFromDBModelSlice(comments, ctxUser)
 	out.NextCommentPage = nextCommentPage
 
 	return out, nil
@@ -272,7 +272,7 @@ func (s *service) GetPosts(ctx context.Context, gpi data.GetPostsInput) (models.
 		return models.Posts{}, nextPage, nil
 	}
 	ctxUser := impart.GetCtxUser(ctx)
-	out := models.PostsFromDB(dbPosts, ctxUser.Admin)
+	out := models.PostsFromDB(dbPosts, ctxUser)
 	out, err = s.postData.GetReportedUser(ctx, out)
 	if err != nil {
 		s.logger.Error("error fetching data", zap.Error(err))
@@ -366,7 +366,7 @@ func (s *service) ReviewPost(ctx context.Context, postId uint64, comment string,
 		return empty, impart.UnknownError
 	}
 	ctxUser := impart.GetCtxUser(ctx)
-	return models.PostFromDB(dbPost, ctxUser.Admin), nil
+	return models.PostFromDB(dbPost, ctxUser), nil
 }
 
 //  SendPostNotification

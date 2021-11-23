@@ -53,23 +53,23 @@ type PostComment struct {
 	AvatarBackground    string           `json:"avatarBackground,omitempty"`
 	AvatarLetter        string           `json:"avatarLetter,omitempty"`
 	Admin               bool             `json:"admin,omitempty"`
-	IsLoggedUserAdmin   bool             `json:"isLoggedUserAdmin,omitempty"`
+	LoggedInUserDetails Profile          `json:"loggedInUserDetails"`
 }
 
-func PostCommentsLimit(dbPosts dbmodels.PostSlice, dbcomments dbmodels.CommentSlice, limit int, isLoggedUserAdmin bool) PostComments {
+func PostCommentsLimit(dbPosts dbmodels.PostSlice, dbcomments dbmodels.CommentSlice, limit int, loggedInUser *dbmodels.User) PostComments {
 	postout := make(PostComments, len(dbPosts))
 	cmntout := make(PostComments, len(dbcomments))
 	for i, p := range dbPosts {
-		postout[i] = PostCommentPostFromDB(p, nil, isLoggedUserAdmin)
+		postout[i] = PostCommentPostFromDB(p, nil, loggedInUser)
 	}
 	for i, cmnt := range dbcomments {
-		cmntout[i] = PostCommentPostFromDB(nil, cmnt, isLoggedUserAdmin)
+		cmntout[i] = PostCommentPostFromDB(nil, cmnt, loggedInUser)
 	}
 	out := append(postout, cmntout...)
 	return out
 }
 
-func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment, isLoggedUserAdmin bool) PostComment {
+func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment, loggedInUser *dbmodels.User) PostComment {
 	// var out PostComment
 	if p != nil {
 		out := PostComment{
@@ -149,7 +149,13 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment, isLoggedUserAd
 		if p.R.PostUrls != nil && len(p.R.PostUrls) > 0 {
 			out.UrlData = PostUrlFromDB(p.R.PostUrls[0])
 		}
-		out.IsLoggedUserAdmin = isLoggedUserAdmin
+		out.LoggedInUserDetails = Profile{Admin: loggedInUser.Admin,
+			FirstName:        loggedInUser.FirstName,
+			LastName:         loggedInUser.LastName,
+			AvatarBackground: strings.Title(loggedInUser.AvatarBackground),
+			AvatarLetter:     strings.Title(loggedInUser.AvatarLetter),
+			FullName:         strings.Title(fmt.Sprintf("%s %s", loggedInUser.FirstName, loggedInUser.LastName)),
+		}
 		return out
 
 	}
@@ -200,7 +206,13 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment, isLoggedUserAd
 		if c.R.ImpartWealth == nil {
 			out.ScreenName = types.AccountDeleted.ToString()
 		}
-		out.IsLoggedUserAdmin = isLoggedUserAdmin
+		out.LoggedInUserDetails = Profile{Admin: loggedInUser.Admin,
+			FirstName:        loggedInUser.FirstName,
+			LastName:         loggedInUser.LastName,
+			AvatarBackground: strings.Title(loggedInUser.AvatarBackground),
+			AvatarLetter:     strings.Title(loggedInUser.AvatarLetter),
+			FullName:         strings.Title(fmt.Sprintf("%s %s", loggedInUser.FirstName, loggedInUser.LastName)),
+		}
 		return out
 	}
 	return PostComment{}

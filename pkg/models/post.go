@@ -74,7 +74,7 @@ type Post struct {
 	FullName            string           `json:"FullName,omitempty"`
 	AvatarBackground    string           `json:"avatarBackground,omitempty"`
 	AvatarLetter        string           `json:"avatarLetter,omitempty"`
-	IsLoggedUserAdmin   bool             `json:"isLoggedUserAdmin"`
+	LoggedInUserDetails Profile          `json:"loggedInUserDetails"`
 }
 
 type PostVideo struct {
@@ -177,7 +177,7 @@ func PostFilesFromDB(pfiles *dbmodels.File) []File {
 	return []File{}
 }
 
-func PostFromDB(p *dbmodels.Post, isLoggedUserAdmin bool) Post {
+func PostFromDB(p *dbmodels.Post, loggedInUser *dbmodels.User) Post {
 	out := Post{
 		HiveID:              p.HiveID,
 		IsPinnedPost:        p.Pinned,
@@ -258,15 +258,21 @@ func PostFromDB(p *dbmodels.Post, isLoggedUserAdmin bool) Post {
 			}
 		}
 	}
-	out.IsLoggedUserAdmin = isLoggedUserAdmin
+	out.LoggedInUserDetails = Profile{Admin: loggedInUser.Admin,
+		FirstName:        loggedInUser.FirstName,
+		LastName:         loggedInUser.LastName,
+		AvatarBackground: strings.Title(loggedInUser.AvatarBackground),
+		AvatarLetter:     strings.Title(loggedInUser.AvatarLetter),
+		FullName:         strings.Title(fmt.Sprintf("%s %s", loggedInUser.FirstName, loggedInUser.LastName)),
+	}
 
 	return out
 }
 
-func PostsFromDB(dbPosts dbmodels.PostSlice, isLoggedUserAdmin bool) Posts {
+func PostsFromDB(dbPosts dbmodels.PostSlice, loggedInUser *dbmodels.User) Posts {
 	out := make(Posts, len(dbPosts), len(dbPosts))
 	for i, p := range dbPosts {
-		out[i] = PostFromDB(p, isLoggedUserAdmin)
+		out[i] = PostFromDB(p, loggedInUser)
 	}
 	return out
 }
@@ -315,13 +321,13 @@ type PostNotificationBuildDataOutput struct {
 	PostOwnerWealthID string
 }
 
-func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int, isLoggedUserAdmin bool) Posts {
+func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int, loggedInUser *dbmodels.User) Posts {
 	out := make(Posts, limit, limit)
 	for i, p := range dbPosts {
 		if i >= limit {
 			return out
 		}
-		out[i] = PostFromDB(p, isLoggedUserAdmin)
+		out[i] = PostFromDB(p, loggedInUser)
 	}
 	return out
 }

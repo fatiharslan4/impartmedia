@@ -27,30 +27,30 @@ type PagedCommentsResponse struct {
 type Comments []Comment
 
 type Comment struct {
-	PostID            uint64           `json:"postId" jsonschema:"minLength=27,maxLength=27"`
-	CommentID         uint64           `json:"commentId,omitempty"`
-	CommentDatetime   time.Time        `json:"commentDatetime,omitempty"`
-	ImpartWealthID    string           `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27" conform:"trim"`
-	ScreenName        string           `json:"screenName" conform:"trim"`
-	Content           Content          `json:"content"`
-	Edits             Edits            `json:"edits,omitempty"`
-	UpVotes           int              `json:"upVotes,"`
-	DownVotes         int              `json:"downVotes"`
-	PostCommentTrack  PostCommentTrack `json:"postCommentTrack,omitempty"`
-	ReportedCount     int              `json:"reportedCount"`
-	Obfuscated        bool             `json:"obfuscated"`
-	Reviewed          bool             `json:"reviewed"`
-	ReviewComment     string           `json:"reviewComment"`
-	ReviewedDatetime  time.Time        `json:"reviewedDatetime,omitempty"`
-	ParentCommentID   uint64           `json:"parentCommentId"`
-	Deleted           bool             `json:"deleted,omitempty"`
-	FirstName         string           `json:"firstName,omitempty"`
-	LastName          string           `json:"lastName,omitempty"`
-	FullName          string           `json:"fullName,omitempty"`
-	AvatarBackground  string           `json:"avatarBackground,omitempty"`
-	AvatarLetter      string           `json:"avatarLetter,omitempty"`
-	Admin             bool             `json:"admin"`
-	IsLoggedUserAdmin bool             `json:"isLoggedUserAdmin"`
+	PostID              uint64           `json:"postId" jsonschema:"minLength=27,maxLength=27"`
+	CommentID           uint64           `json:"commentId,omitempty"`
+	CommentDatetime     time.Time        `json:"commentDatetime,omitempty"`
+	ImpartWealthID      string           `json:"impartWealthId" jsonschema:"minLength=27,maxLength=27" conform:"trim"`
+	ScreenName          string           `json:"screenName" conform:"trim"`
+	Content             Content          `json:"content"`
+	Edits               Edits            `json:"edits,omitempty"`
+	UpVotes             int              `json:"upVotes,"`
+	DownVotes           int              `json:"downVotes"`
+	PostCommentTrack    PostCommentTrack `json:"postCommentTrack,omitempty"`
+	ReportedCount       int              `json:"reportedCount"`
+	Obfuscated          bool             `json:"obfuscated"`
+	Reviewed            bool             `json:"reviewed"`
+	ReviewComment       string           `json:"reviewComment"`
+	ReviewedDatetime    time.Time        `json:"reviewedDatetime,omitempty"`
+	ParentCommentID     uint64           `json:"parentCommentId"`
+	Deleted             bool             `json:"deleted,omitempty"`
+	FirstName           string           `json:"firstName,omitempty"`
+	LastName            string           `json:"lastName,omitempty"`
+	FullName            string           `json:"fullName,omitempty"`
+	AvatarBackground    string           `json:"avatarBackground,omitempty"`
+	AvatarLetter        string           `json:"avatarLetter,omitempty"`
+	Admin               bool             `json:"admin"`
+	LoggedInUserDetails Profile          `json:"loggedInUserDetails"`
 }
 
 func (comments Comments) Latest() time.Time {
@@ -119,15 +119,15 @@ func (c *Comment) Random() {
 //	}
 //}
 
-func CommentsFromDBModelSlice(comments dbmodels.CommentSlice, isLoggedUserAdmin bool) Comments {
-	out := make(Comments, len(comments), len(comments))
+func CommentsFromDBModelSlice(comments dbmodels.CommentSlice, loggedInUser *dbmodels.User) Comments {
+	out := make(Comments, len(comments))
 	for i, c := range comments {
-		out[i] = CommentFromDBModel(c, isLoggedUserAdmin)
+		out[i] = CommentFromDBModel(c, loggedInUser)
 	}
 	return out
 }
 
-func CommentFromDBModel(c *dbmodels.Comment, isLoggedUserAdmin bool) Comment {
+func CommentFromDBModel(c *dbmodels.Comment, loggedInUser *dbmodels.User) Comment {
 	out := Comment{
 		PostID:          c.PostID,
 		CommentID:       c.CommentID,
@@ -171,7 +171,13 @@ func CommentFromDBModel(c *dbmodels.Comment, isLoggedUserAdmin bool) Comment {
 	if c.R.ImpartWealth == nil {
 		out.ScreenName = types.AccountDeleted.ToString()
 	}
-	out.IsLoggedUserAdmin = isLoggedUserAdmin
+	out.LoggedInUserDetails = Profile{Admin: loggedInUser.Admin,
+		FirstName:        loggedInUser.FirstName,
+		LastName:         loggedInUser.LastName,
+		AvatarBackground: strings.Title(loggedInUser.AvatarBackground),
+		AvatarLetter:     strings.Title(loggedInUser.AvatarLetter),
+		FullName:         strings.Title(fmt.Sprintf("%s %s", loggedInUser.FirstName, loggedInUser.LastName)),
+	}
 	return out
 }
 
@@ -190,13 +196,13 @@ type CommentNotificationBuildDataOutput struct {
 	PostOwnerWealthID string
 }
 
-func CommentsWithLimit(comments dbmodels.CommentSlice, limit int, isLoggedUserAdmin bool) Comments {
-	out := make(Comments, limit, limit)
+func CommentsWithLimit(comments dbmodels.CommentSlice, limit int, loggedInUser *dbmodels.User) Comments {
+	out := make(Comments, limit)
 	for i, c := range comments {
 		if i >= limit {
 			return out
 		}
-		out[i] = CommentFromDBModel(c, isLoggedUserAdmin)
+		out[i] = CommentFromDBModel(c, loggedInUser)
 	}
 	return out
 }

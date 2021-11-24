@@ -53,7 +53,7 @@ type PostComment struct {
 	AvatarBackground    string           `json:"avatarBackground,omitempty"`
 	AvatarLetter        string           `json:"avatarLetter,omitempty"`
 	Admin               bool             `json:"admin,omitempty"`
-	LoggedInUserDetails Profile          `json:"loggedInUserDetails"`
+	LoggedInUserDetails LoggedInUser     `json:"loggedInUserDetails"`
 }
 
 func PostCommentsLimit(dbPosts dbmodels.PostSlice, dbcomments dbmodels.CommentSlice, limit int, loggedInUser *dbmodels.User) PostComments {
@@ -149,7 +149,7 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment, loggedInUser *
 		if p.R.PostUrls != nil && len(p.R.PostUrls) > 0 {
 			out.UrlData = PostUrlFromDB(p.R.PostUrls[0])
 		}
-		out.LoggedInUserDetails = Profile{Admin: loggedInUser.Admin,
+		out.LoggedInUserDetails = LoggedInUser{Admin: loggedInUser.Admin,
 			FirstName:        loggedInUser.FirstName,
 			LastName:         loggedInUser.LastName,
 			AvatarBackground: strings.Title(loggedInUser.AvatarBackground),
@@ -206,7 +206,7 @@ func PostCommentPostFromDB(p *dbmodels.Post, c *dbmodels.Comment, loggedInUser *
 		if c.R.ImpartWealth == nil {
 			out.ScreenName = types.AccountDeleted.ToString()
 		}
-		out.LoggedInUserDetails = Profile{Admin: loggedInUser.Admin,
+		out.LoggedInUserDetails = LoggedInUser{Admin: loggedInUser.Admin,
 			FirstName:        loggedInUser.FirstName,
 			LastName:         loggedInUser.LastName,
 			AvatarBackground: strings.Title(loggedInUser.AvatarBackground),

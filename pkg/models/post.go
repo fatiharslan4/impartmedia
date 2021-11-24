@@ -74,7 +74,7 @@ type Post struct {
 	FullName            string           `json:"FullName,omitempty"`
 	AvatarBackground    string           `json:"avatarBackground,omitempty"`
 	AvatarLetter        string           `json:"avatarLetter,omitempty"`
-	LoggedInUserDetails Profile          `json:"loggedInUserDetails"`
+	LoggedInUserDetails LoggedInUser     `json:"loggedInUserDetails"`
 }
 
 type PostVideo struct {
@@ -258,7 +258,7 @@ func PostFromDB(p *dbmodels.Post, loggedInUser *dbmodels.User) Post {
 			}
 		}
 	}
-	out.LoggedInUserDetails = Profile{Admin: loggedInUser.Admin,
+	out.LoggedInUserDetails = LoggedInUser{Admin: loggedInUser.Admin,
 		FirstName:        loggedInUser.FirstName,
 		LastName:         loggedInUser.LastName,
 		AvatarBackground: strings.Title(loggedInUser.AvatarBackground),

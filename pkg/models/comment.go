@@ -50,7 +50,7 @@ type Comment struct {
 	AvatarBackground    string           `json:"avatarBackground,omitempty"`
 	AvatarLetter        string           `json:"avatarLetter,omitempty"`
 	Admin               bool             `json:"admin"`
-	LoggedInUserDetails Profile          `json:"loggedInUserDetails"`
+	LoggedInUserDetails LoggedInUser     `json:"loggedInUserDetails"`
 }
 
 func (comments Comments) Latest() time.Time {
@@ -171,7 +171,7 @@ func CommentFromDBModel(c *dbmodels.Comment, loggedInUser *dbmodels.User) Commen
 	if c.R.ImpartWealth == nil {
 		out.ScreenName = types.AccountDeleted.ToString()
 	}
-	out.LoggedInUserDetails = Profile{Admin: loggedInUser.Admin,
+	out.LoggedInUserDetails = LoggedInUser{Admin: loggedInUser.Admin,
 		FirstName:        loggedInUser.FirstName,
 		LastName:         loggedInUser.LastName,
 		AvatarBackground: strings.Title(loggedInUser.AvatarBackground),

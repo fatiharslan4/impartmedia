@@ -274,3 +274,12 @@ func ProfileFromDBModel(u *dbmodels.User, p *dbmodels.Profile) (*Profile, error)
 
 	return out, nil
 }
+
+type LoggedInUser struct {
+	Admin            bool   `json:"admin"`
+	FirstName        string `json:"firstName,omitempty" conform:"trim,ucfirst"`
+	LastName         string `json:"lastName,omitempty" conform:"trim,ucfirst"`
+	FullName         string `json:"fullName,omitempty" conform:"trim,ucfirst"`
+	AvatarBackground string `json:"avatarBackground,omitempty" conform:"trim"`
+	AvatarLetter     string `json:"avatarLetter,omitempty" conform:"trim"`
+}

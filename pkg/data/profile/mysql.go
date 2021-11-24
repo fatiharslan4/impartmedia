@@ -1286,3 +1286,7 @@ func (m *mysqlStore) GetUserDevices(ctx context.Context, token string, impartID 
 	}
 	return device, err
 }
+
+func (m *mysqlStore) GetHiveNotification(ctx context.Context) {
+
+}

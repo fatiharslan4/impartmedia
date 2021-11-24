@@ -679,15 +679,22 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 
 	if userToDelete.Admin {
 		postDeleteQuery := fmt.Sprintf(`
+		update comment 
+		set deleted_at ='%s'
+		where impart_wealth_id = '%s'
+		and deleted_at is null;
+
 	Update  hive
                 join post on post.post_id=hive.pinned_post_id
                 set pinned_post_id=null
                 where   pinned_post_id in ( select post_id from post
                 where impart_wealth_id  = '%s');
+
 	update post
 	set deleted_at='%s',pinned=false
-	where impart_wealth_id = '%s';`,
-			userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID)
+	where impart_wealth_id = '%s'
+	and deleted_at is null;`,
+			golangDateTime, userToDelete.ImpartWealthID, userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID)
 
 		_, err = queries.Raw(postDeleteQuery).ExecContext(ctx, m.db)
 
@@ -865,6 +872,12 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 	if adminImpartWealthIds != "" {
 		adminImpartWealthIds = strings.Trim(adminImpartWealthIds, ",")
 		postDeleteQuery := fmt.Sprintf(`
+
+		update comment 
+		set deleted_at ='%s'
+		where impart_wealth_id in (%s) 
+		and deleted_at is null;
+
 		Update  hive
                 join post on post.post_id=hive.pinned_post_id
                 set pinned_post_id=null
@@ -873,8 +886,9 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 
 		update post
 		set deleted_at='%s',pinned=false
-		where impart_wealth_id in (%s);`,
-			adminImpartWealthIds, golangDateTime, adminImpartWealthIds)
+		where impart_wealth_id in (%s)
+		and deleted_at is null;`,
+			golangDateTime, adminImpartWealthIds, adminImpartWealthIds, golangDateTime, adminImpartWealthIds)
 
 		query = fmt.Sprintf("%s %s", query, postDeleteQuery)
 	}

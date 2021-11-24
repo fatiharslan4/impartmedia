@@ -679,6 +679,19 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 
 	if userToDelete.Admin {
 		postDeleteQuery := fmt.Sprintf(`
+		update post
+		join ( select comment.post_id,count(comment_id) as count, comment.impart_wealth_id
+			from comment
+			join post on post.post_id=comment.post_id
+			where post.deleted_at is null
+			and comment.deleted_at is null
+			and comment.impart_wealth_id = '%s'
+			group by comment.post_id,comment.impart_wealth_id)
+		post_comment
+		on post_comment.post_id=post.post_id
+		set comment_count= comment_count-post_comment.count
+		where comment_count>=post_comment.count;
+
 		update comment 
 		set deleted_at ='%s'
 		where impart_wealth_id = '%s'
@@ -694,7 +707,7 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 	set deleted_at='%s',pinned=false
 	where impart_wealth_id = '%s'
 	and deleted_at is null;`,
-			golangDateTime, userToDelete.ImpartWealthID, userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID)
+			userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID, userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID)
 
 		_, err = queries.Raw(postDeleteQuery).ExecContext(ctx, m.db)
 
@@ -872,6 +885,18 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 	if adminImpartWealthIds != "" {
 		adminImpartWealthIds = strings.Trim(adminImpartWealthIds, ",")
 		postDeleteQuery := fmt.Sprintf(`
+		update post
+			join ( select comment.post_id,count(comment_id) as count, comment.impart_wealth_id
+				from comment
+				join post on post.post_id=comment.post_id
+				where post.deleted_at is null
+				and comment.deleted_at is null
+				and comment.impart_wealth_id in (%s) 
+				group by comment.post_id,comment.impart_wealth_id)
+			post_comment
+			on post_comment.post_id=post.post_id
+			set comment_count= comment_count-post_comment.count
+			where comment_count>=post_comment.count;
 
 		update comment 
 		set deleted_at ='%s'
@@ -888,7 +913,7 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 		set deleted_at='%s',pinned=false
 		where impart_wealth_id in (%s)
 		and deleted_at is null;`,
-			golangDateTime, adminImpartWealthIds, adminImpartWealthIds, golangDateTime, adminImpartWealthIds)
+			adminImpartWealthIds, golangDateTime, adminImpartWealthIds, adminImpartWealthIds, golangDateTime, adminImpartWealthIds)
 
 		query = fmt.Sprintf("%s %s", query, postDeleteQuery)
 	}

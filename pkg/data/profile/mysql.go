@@ -1322,6 +1322,15 @@ func (m *mysqlStore) GetHiveNotification(ctx context.Context) error {
 			Path:          hive.Redirection,
 		}
 		for _, user := range userList {
+			isNotificationEnabled := false
+			if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
+				if user.R.ImpartWealthUserConfigurations[0].NotificationStatus {
+					isNotificationEnabled = true
+				}
+			}
+			if !isNotificationEnabled {
+				break
+			}
 			body := hive.Body
 			if hive.IncludeFirstName {
 				body = fmt.Sprintf(hive.Body, user.FirstName)
@@ -1330,8 +1339,6 @@ func (m *mysqlStore) GetHiveNotification(ctx context.Context) error {
 				Title: aws.String(hive.Title),
 				Body:  aws.String(body),
 			}
-			fmt.Println(alert)
-			fmt.Println(alert)
 			m.logger.Info("User Details",
 				zap.Any("User", user),
 				zap.Any("notificationData", notificationData),

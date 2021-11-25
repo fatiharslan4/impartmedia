@@ -479,6 +479,14 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		msg = "User added to hive."
 
+		isMailSent := false
+		if existingHiveId == impart.DefaultHiveID {
+			isMailSent = true
+		}
+		if isMailSent {
+			go impart.SendAWSEMails(ctx, m.db, userToUpdate, impart.Hive_mail)
+		}
+
 		isNotificationEnabled := false
 		if nwHive != nil && nwHive.NotificationTopicArn.String != "" {
 			if userToUpdate.R.ImpartWealthUserConfigurations != nil && !userToUpdate.Admin {
@@ -510,35 +518,25 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 						}
 					}
 				}
+				if isMailSent && isNotificationEnabled {
+					notificationData := impart.NotificationData{
+						EventDatetime: impart.CurrentUTC(),
+						HiveID:        nwHive.HiveID,
+					}
+					alert := impart.Alert{
+						Title: aws.String(impart.AssignHiveTitle),
+						Body:  aws.String(impart.AssignHiveBody),
+					}
+					err = m.notificationService.Notify(ctx, notificationData, alert, userToUpdate.ImpartWealthID)
+					if err != nil {
+						m.logger.Error("push-notification : error attempting to send hive notification ",
+							zap.Any("postData", notificationData),
+							zap.Any("postData", alert),
+							zap.Error(err))
+					}
+				}
 			}
 		}()
-		isMailSent := false
-		if existingHiveId == impart.DefaultHiveID {
-			isMailSent = true
-		}
-		if isMailSent {
-			go impart.SendAWSEMails(ctx, m.db, userToUpdate, impart.Hive_mail)
-		}
-		if isMailSent && isNotificationEnabled {
-			go func() {
-				notificationData := impart.NotificationData{
-					EventDatetime: impart.CurrentUTC(),
-					HiveID:        nwHive.HiveID,
-				}
-				alert := impart.Alert{
-					Title: aws.String(impart.AssignHiveTitle),
-					Body:  aws.String(impart.AssignHiveBody),
-				}
-				err = m.notificationService.Notify(ctx, notificationData, alert, userToUpdate.ImpartWealthID)
-				if err != nil {
-					m.logger.Error("push-notification : error attempting to send hive notification ",
-						zap.Any("postData", notificationData),
-						zap.Any("postData", alert),
-						zap.Error(err))
-				}
-			}()
-		}
-
 		mailChimpParams := &members.UpdateParams{
 			MergeFields: map[string]interface{}{"STATUS": impart.Hive},
 		}

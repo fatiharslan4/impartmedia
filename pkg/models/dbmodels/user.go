@@ -45,6 +45,7 @@ type User struct {
 	LastName         string      `boil:"last_name" json:"last_name" toml:"last_name" yaml:"last_name"`
 	AvatarBackground string      `boil:"avatar_background" json:"avatar_background" toml:"avatar_background" yaml:"avatar_background"`
 	AvatarLetter     string      `boil:"avatar_letter" json:"avatar_letter" toml:"avatar_letter" yaml:"avatar_letter"`
+	HiveUpdatedAt    time.Time   `boil:"hive_updated_at" json:"hive_updated_at" toml:"hive_updated_at" yaml:"hive_updated_at"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -72,6 +73,7 @@ var UserColumns = struct {
 	LastName         string
 	AvatarBackground string
 	AvatarLetter     string
+	HiveUpdatedAt    string
 }{
 	ImpartWealthID:   "impart_wealth_id",
 	AuthenticationID: "authentication_id",
@@ -94,6 +96,7 @@ var UserColumns = struct {
 	LastName:         "last_name",
 	AvatarBackground: "avatar_background",
 	AvatarLetter:     "avatar_letter",
+	HiveUpdatedAt:    "hive_updated_at",
 }
 
 var UserTableColumns = struct {
@@ -118,6 +121,7 @@ var UserTableColumns = struct {
 	LastName         string
 	AvatarBackground string
 	AvatarLetter     string
+	HiveUpdatedAt    string
 }{
 	ImpartWealthID:   "user.impart_wealth_id",
 	AuthenticationID: "user.authentication_id",
@@ -140,6 +144,7 @@ var UserTableColumns = struct {
 	LastName:         "user.last_name",
 	AvatarBackground: "user.avatar_background",
 	AvatarLetter:     "user.avatar_letter",
+	HiveUpdatedAt:    "user.hive_updated_at",
 }
 
 // Generated where
@@ -166,6 +171,7 @@ var UserWhere = struct {
 	LastName         whereHelperstring
 	AvatarBackground whereHelperstring
 	AvatarLetter     whereHelperstring
+	HiveUpdatedAt    whereHelpertime_Time
 }{
 	ImpartWealthID:   whereHelperstring{field: "`user`.`impart_wealth_id`"},
 	AuthenticationID: whereHelperstring{field: "`user`.`authentication_id`"},
@@ -188,6 +194,7 @@ var UserWhere = struct {
 	LastName:         whereHelperstring{field: "`user`.`last_name`"},
 	AvatarBackground: whereHelperstring{field: "`user`.`avatar_background`"},
 	AvatarLetter:     whereHelperstring{field: "`user`.`avatar_letter`"},
+	HiveUpdatedAt:    whereHelpertime_Time{field: "`user`.`hive_updated_at`"},
 }
 
 // UserRels is where relationship names are stored.
@@ -250,8 +257,8 @@ func (*userR) NewStruct() *userR {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked", "feedback", "lastlogin_at", "super_admin", "deleted_by_admin", "plaid_access_token", "first_name", "last_name", "avatar_background", "avatar_letter"}
-	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "feedback", "lastlogin_at", "plaid_access_token", "first_name", "last_name", "avatar_background", "avatar_letter"}
+	userAllColumns            = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "blocked", "feedback", "lastlogin_at", "super_admin", "deleted_by_admin", "plaid_access_token", "first_name", "last_name", "avatar_background", "avatar_letter", "hive_updated_at"}
+	userColumnsWithoutDefault = []string{"impart_wealth_id", "authentication_id", "email", "screen_name", "created_at", "updated_at", "deleted_at", "device_token", "aws_sns_app_arn", "admin", "email_verified", "feedback", "lastlogin_at", "plaid_access_token", "first_name", "last_name", "avatar_background", "avatar_letter", "hive_updated_at"}
 	userColumnsWithDefault    = []string{"blocked", "super_admin", "deleted_by_admin"}
 	userPrimaryKeyColumns     = []string{"impart_wealth_id"}
 )

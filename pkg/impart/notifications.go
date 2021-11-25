@@ -50,6 +50,7 @@ type NotificationData struct {
 	PostID        uint64    `json:"postId,omitempty"`
 	CommentID     uint64    `json:"commentId,omitempty"`
 	HiveID        uint64    `json:"hiveId,omitempty"`
+	CreatePost    string    `json:"createPost,omitempty"`
 }
 
 type noopNotificationService struct {
@@ -717,4 +718,13 @@ func NotifyWeeklyMostPopularPost(db *sql.DB, logger *zap.Logger) {
 
 		}
 	}
+}
+
+type HiveNotificationDatas []HiveNotificationData
+type HiveNotificationData struct {
+	Day              int    `json:"day"`
+	Title            string `json:"title"`
+	Body             string `json:"body"`
+	Redirection      string `json:"redirection"`
+	IncludeFirstName bool   `json:"includeFirstName"`
 }

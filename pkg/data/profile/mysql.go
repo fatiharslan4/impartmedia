@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/google/uuid"
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
@@ -787,18 +788,23 @@ func (m *mysqlStore) UpdateHiveUserDemographic(ctx context.Context, answerIds []
 	}
 	return tx.Commit()
 }
-func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}, isUserDelete bool, includeUsers int) (dbmodels.UserSlice, error) {
-	var clause QueryMod
-	clause = WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...)
+func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}, isUserDelete bool, includeUsers int, excludeHive uint64, dates []time.Time) (dbmodels.UserSlice, error) {
+	// var clause QueryMod
+	// if impartWealthids != nil {
+	// 	// clause = WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...)
+	// }
 	newcluse := Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Blocked), false)
 	usersWhere := []QueryMod{
-		clause,
+		// clause,
 		newcluse,
 		Load(dbmodels.UserRels.ImpartWealthProfile),
 		Load(dbmodels.UserRels.MemberHiveHives),
 		Load(dbmodels.UserRels.ImpartWealthUserDevices),
 		Load(dbmodels.UserRels.ImpartWealthUserConfigurations),
 		Load(dbmodels.UserRels.ImpartWealthUserAnswers),
+	}
+	if impartWealthids != nil {
+		usersWhere = append(usersWhere, WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...))
 	}
 	if isUserDelete {
 		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.SuperAdmin), false))
@@ -807,6 +813,14 @@ func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface
 		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Admin), false))
 	} else if includeUsers == impart.IncludeAdmin {
 		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Admin), true))
+	}
+	if excludeHive > 0 {
+		usersWhere = append(usersWhere, InnerJoin("`hive_members` on `user`.`impart_wealth_id` = `hive_members`.`member_impart_wealth_id`"),
+			Where("`hive_members`.`member_hive_id`!=?", excludeHive))
+	}
+
+	if dates != nil {
+		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s Between ? and ?", dbmodels.UserColumns.HiveUpdatedAt), dates[1], dates[0]))
 	}
 
 	u, err := dbmodels.Users(usersWhere...).All(ctx, m.db)
@@ -1171,6 +1185,11 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 			zap.Error(err))
 		return userUpdate, err
 	}
+	if userUpdate.Type == impart.AddToHive || userUpdate.Type == impart.AddToWaitlist {
+		_, err = userDetails.UpdateAll(ctx, m.db, dbmodels.M{"hive_updated_at": impart.CurrentUTC()})
+		m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
+			zap.Error(err))
+	}
 	return userUpdate, nil
 }
 
@@ -1287,6 +1306,39 @@ func (m *mysqlStore) GetUserDevices(ctx context.Context, token string, impartID 
 	return device, err
 }
 
-func (m *mysqlStore) GetHiveNotification(ctx context.Context) {
+func (m *mysqlStore) GetHiveNotification(ctx context.Context) error {
+	HiveNotificaton := impart.GetHiveNotificationDetails()
+	for _, hive := range HiveNotificaton {
+		startdate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day + 1))
+		enddate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day + 2))
+		dates := []time.Time{startdate, enddate}
+		userList, err := m.getUserAll(ctx, nil, false, 2, impart.DefaultHiveID, dates)
+		if err != nil {
+			m.logger.Error("User fetching for notification error-", zap.Any("error", err))
+			return err
+		}
+		notificationData := impart.NotificationData{
+			EventDatetime: impart.CurrentUTC(),
+			CreatePost:    hive.Redirection,
+		}
+		for _, user := range userList {
+			body := hive.Body
+			if hive.IncludeFirstName {
+				body = fmt.Sprintf(hive.Body, user.FirstName)
+			}
+			alert := impart.Alert{
+				Title: aws.String(hive.Title),
+				Body:  aws.String(body),
+			}
+			fmt.Println(alert)
+			fmt.Println(alert)
+			m.logger.Info("User Details",
+				zap.Any("User", user),
+				zap.Any("notificationData", notificationData),
+				zap.Any("alert", alert))
 
+			m.notificationService.Notify(context.TODO(), notificationData, alert, user.ImpartWealthID)
+		}
+	}
+	return nil
 }

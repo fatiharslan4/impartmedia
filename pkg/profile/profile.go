@@ -66,7 +66,7 @@ type Service interface {
 	GetWeeklyNotification(ctx context.Context)
 	GetWeeklyMostPopularNotification(ctx context.Context)
 	UpdateUserDevicesDetails(ctx context.Context, userDevice *dbmodels.UserDevice, login bool) (bool, error)
-	GetHiveNotification(ctx context.Context)
+	GetHiveNotification(ctx context.Context) error
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string, hivedata hive_main.Service, hiveSotre hive_data.Hives) Service {
@@ -215,6 +215,7 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile, apiV
 	dbUser.CreatedAt = impart.CurrentUTC()
 	dbUser.UpdatedAt = impart.CurrentUTC()
 	dbProfile.UpdatedAt = impart.CurrentUTC()
+	dbUser.HiveUpdatedAt = impart.CurrentUTC()
 
 	// if err != nil {
 	// 	ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
@@ -525,6 +526,10 @@ func (ps *profileService) GetWeeklyMostPopularNotification(ctx context.Context) 
 	impart.NotifyWeeklyMostPopularPost(ps.db, ps.Logger())
 }
 
-func (ps *profileService) GetHiveNotification(ctx context.Context) {
-	ps.profileStore.GetHiveNotification(ctx)
+func (ps *profileService) GetHiveNotification(ctx context.Context) error {
+	err := ps.profileStore.GetHiveNotification(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
 }

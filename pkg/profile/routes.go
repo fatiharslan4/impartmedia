@@ -1373,7 +1373,13 @@ func (ph *profileHandler) GetWeeklyMostPopularNotification() gin.HandlerFunc {
 
 func (ph *profileHandler) GetHiveNotification() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ph.profileService.GetHiveNotification(ctx)
+		err := ph.profileService.GetHiveNotification(ctx)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"status": "failed",
+			})
+			return
+		}
 		ctx.JSON(http.StatusOK, gin.H{
 			"status": "success",
 		})

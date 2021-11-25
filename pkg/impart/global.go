@@ -115,3 +115,48 @@ func GetAvatharLetters() []string {
 func GetAvatharLettersAdmin() []string {
 	return []string{"#4D4D4F"}
 }
+
+func GetHiveNotificationDetails() HiveNotificationDatas {
+	var output []HiveNotificationData
+	hives := HiveNotificationData{
+		Day:              1,
+		Title:            "Time to post!",
+		Body:             "Give your peers a Hive Five and let them know a little more about you — they’re excited to meet you!",
+		Redirection:      "create-post",
+		IncludeFirstName: false,
+	}
+	output = append(output, hives)
+	hives = HiveNotificationData{
+		Day:              3,
+		Title:            "Time to post!",
+		Body:             " Hi %s, we can’t wait to hear from you. Posts are encouraged! Ask questions and share experiences from your own life with your peers.",
+		Redirection:      "create-post",
+		IncludeFirstName: true,
+	}
+	output = append(output, hives)
+	hives = HiveNotificationData{
+		Day:              7,
+		Title:            "Time to post!",
+		Body:             "Have you checked out our posting guidelines? They’re easy to follow, and when in doubt, remember our motto: More honey, less sting.",
+		Redirection:      "create-post",
+		IncludeFirstName: false,
+	}
+	output = append(output, hives)
+	hives = HiveNotificationData{
+		Day:              12,
+		Title:            "Time to post!",
+		Body:             "%s, we love hearing from you — and so does your Hive! Share your thoughts and see what your peers have to say about their big financial goals.",
+		Redirection:      "create-post",
+		IncludeFirstName: true,
+	}
+	output = append(output, hives)
+	hives = HiveNotificationData{
+		Day:              20,
+		Title:            "Time to post!",
+		Body:             "%s, you’re an invaluable member of the Hive — thank you for showing up! Share your thoughts and see what your peers have to say about their biggest financial lessons.",
+		Redirection:      "create-post",
+		IncludeFirstName: true,
+	}
+	output = append(output, hives)
+	return output
+}

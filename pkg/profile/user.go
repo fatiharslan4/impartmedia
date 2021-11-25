@@ -27,7 +27,7 @@ func (ps *profileService) GetUserDevice(ctx context.Context, token string, impar
 	return models.UserDeviceFromDBModel(device), nil
 }
 
-func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.User, ud *dbmodels.UserDevice, isSignin bool) (models.UserDevice, impart.Error) {
+func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.User, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error) {
 	var contextUser *dbmodels.User
 	if user == nil {
 		contextUser = impart.GetCtxUser(ctx)
@@ -54,12 +54,7 @@ func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.U
 	// if the entry for user is not exists
 	if exists == nil {
 		ud.ImpartWealthID = contextUser.ImpartWealthID
-		if isSignin {
-			ud.LastloginAt = null.Time{}
-		} else {
-			currTime := time.Now().In(boil.GetLocation())
-			ud.LastloginAt = null.TimeFrom(currTime)
-		}
+		ud.LastloginAt = null.Time{}
 		response, err := ps.profileStore.CreateUserDevice(ctx, ud)
 		if err != nil && err != impart.ErrNotFound {
 			return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, fmt.Sprintf("error to create user device %v", err))
@@ -70,12 +65,7 @@ func (ps *profileService) CreateUserDevice(ctx context.Context, user *dbmodels.U
 		exists.DeviceID = ud.DeviceID
 		exists.DeviceName = ud.DeviceName
 		exists.DeviceVersion = ud.DeviceVersion
-		if isSignin {
-			exists.LastloginAt = null.Time{}
-		} else {
-			currTime := time.Now().In(boil.GetLocation())
-			exists.LastloginAt = null.TimeFrom(currTime)
-		}
+		exists.LastloginAt = null.Time{}
 		err = ps.profileStore.UpdateDevice(ctx, exists)
 		if err != nil && err != impart.ErrNotFound {
 			return models.UserDevice{}, impart.NewError(impart.ErrBadRequest, fmt.Sprintf("error to create user device %v", err))

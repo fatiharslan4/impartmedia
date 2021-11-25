@@ -74,6 +74,7 @@ type Post struct {
 	FullName            string           `json:"FullName,omitempty"`
 	AvatarBackground    string           `json:"avatarBackground,omitempty"`
 	AvatarLetter        string           `json:"avatarLetter,omitempty"`
+	LoggedInUserDetails LoggedInUser     `json:"loggedInUserDetails"`
 }
 
 type PostVideo struct {
@@ -176,7 +177,7 @@ func PostFilesFromDB(pfiles *dbmodels.File) []File {
 	return []File{}
 }
 
-func PostFromDB(p *dbmodels.Post) Post {
+func PostFromDB(p *dbmodels.Post, loggedInUser *dbmodels.User) Post {
 	out := Post{
 		HiveID:              p.HiveID,
 		IsPinnedPost:        p.Pinned,
@@ -257,14 +258,21 @@ func PostFromDB(p *dbmodels.Post) Post {
 			}
 		}
 	}
+	out.LoggedInUserDetails = LoggedInUser{Admin: loggedInUser.Admin,
+		FirstName:        loggedInUser.FirstName,
+		LastName:         loggedInUser.LastName,
+		AvatarBackground: strings.Title(loggedInUser.AvatarBackground),
+		AvatarLetter:     strings.Title(loggedInUser.AvatarLetter),
+		FullName:         strings.Title(fmt.Sprintf("%s %s", loggedInUser.FirstName, loggedInUser.LastName)),
+	}
 
 	return out
 }
 
-func PostsFromDB(dbPosts dbmodels.PostSlice) Posts {
+func PostsFromDB(dbPosts dbmodels.PostSlice, loggedInUser *dbmodels.User) Posts {
 	out := make(Posts, len(dbPosts), len(dbPosts))
 	for i, p := range dbPosts {
-		out[i] = PostFromDB(p)
+		out[i] = PostFromDB(p, loggedInUser)
 	}
 	return out
 }
@@ -313,13 +321,13 @@ type PostNotificationBuildDataOutput struct {
 	PostOwnerWealthID string
 }
 
-func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int) Posts {
+func PostsWithlimit(dbPosts dbmodels.PostSlice, limit int, loggedInUser *dbmodels.User) Posts {
 	out := make(Posts, limit, limit)
 	for i, p := range dbPosts {
 		if i >= limit {
 			return out
 		}
-		out[i] = PostFromDB(p)
+		out[i] = PostFromDB(p, loggedInUser)
 	}
 	return out
 }

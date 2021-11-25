@@ -190,11 +190,24 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 					where user.deleted_at is null
 					`)
 	if len(gpi.SearchIDs) > 0 {
+		onlyWaitlist := ""
+		onlyHive := ""
 		for _, filter := range gpi.SearchIDs {
-			if filter != "" {
+			if filter != "" && filter != "0" && filter != "-1" {
 				extraQery = fmt.Sprintf(` and FIND_IN_SET( %s ,makeup.answer_ids) `, filter)
 				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+			} else if filter == "0" {
+				onlyWaitlist = "0"
+			} else if filter == "-1" {
+				onlyHive = "-1"
 			}
+		}
+		if onlyWaitlist != "" && onlyHive == "" {
+			extraQery = fmt.Sprintf(` and hivedata.hive = 1 `)
+			inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+		} else if onlyWaitlist == "" && onlyHive != "" {
+			extraQery = fmt.Sprintf(` and hivedata.hive != 1 `)
+			inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 		}
 	}
 	if gpi.SortBy == "created_at" {

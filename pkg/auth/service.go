@@ -168,6 +168,7 @@ var allowedRoutesBase = map[string]string{
 	"%s/profiles/validate/screen-name":  http.MethodGet,
 	"%s/cron/notification/post-count":   http.MethodGet,
 	"%s/cron/notification/popular-post": http.MethodGet,
+	"%s/cron/notification/hive":         http.MethodGet,
 }
 
 func (a *authService) SetUnauthenticatedRoutes(cfg *config.Impart) {

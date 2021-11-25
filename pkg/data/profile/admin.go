@@ -15,6 +15,7 @@ import (
 	"github.com/impartwealthapp/backend/pkg/models"
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
 	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -376,8 +377,14 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if err != nil {
 			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member hive")
 		}
-		err = m.UpdateHiveUserDemographic(ctx, answerIds, true, DefaultHiveId)
-		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
+
+		userToUpdate.HiveUpdatedAt = impart.CurrentUTC()
+		_, err = userToUpdate.Update(ctx, m.db, boil.Infer())
+		if err != nil {
+			m.logger.Error("Update HiveUpdatedAt failed", zap.Any("user", userToUpdate))
+		}
+		// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, DefaultHiveId)
+		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		msg = "User added to waitlist."
 
 		mailChimpParams := &members.UpdateParams{
@@ -449,8 +456,13 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if err != nil {
 			return msg, impart.NewError(impart.ErrBadRequest, "unable to set the member hive")
 		}
-		err = m.UpdateHiveUserDemographic(ctx, answerIds, true, gpi.HiveID)
-		err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
+		userToUpdate.HiveUpdatedAt = impart.CurrentUTC()
+		_, err = userToUpdate.Update(ctx, m.db, boil.Infer())
+		if err != nil {
+			m.logger.Error("Update HiveUpdatedAt failed", zap.Any("user", userToUpdate))
+		}
+		// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, gpi.HiveID)
+		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
 		msg = "User added to hive."
 
 		if existingHive.NotificationTopicArn.String != "" {
@@ -743,7 +755,13 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	} else if userUpdatesInput.Type == impart.RemoveAdmin {
 		includeUsers = impart.IncludeAdmin
 	}
-	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, false, includeUsers)
+	var excludeHive uint64 = 0
+	if userUpdatesInput.Type == impart.AddToWaitlist {
+		excludeHive = impart.DefaultHiveID
+	} else if userUpdatesInput.Type == impart.AddToHive {
+		excludeHive = userUpdatesInput.HiveID
+	}
+	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, false, includeUsers, excludeHive, nil)
 	if err != nil {
 		fmt.Println(err)
 		return userOutputRslt
@@ -809,7 +827,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 
 	userOutputRslt := &userOutput
 
-	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, true, impart.IncludeAll)
+	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, true, impart.IncludeAll, 0, nil)
 	if err != nil || len(deleteUser) == 0 {
 		return userOutputRslt
 	}

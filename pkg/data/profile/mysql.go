@@ -680,15 +680,35 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 
 	if userToDelete.Admin {
 		postDeleteQuery := fmt.Sprintf(`
+		update post
+		join ( select comment.post_id,count(comment_id) as count, comment.impart_wealth_id
+			from comment
+			join post on post.post_id=comment.post_id
+			where post.deleted_at is null
+			and comment.deleted_at is null
+			and comment.impart_wealth_id = '%s'
+			group by comment.post_id,comment.impart_wealth_id)
+		post_comment
+		on post_comment.post_id=post.post_id
+		set comment_count= comment_count-post_comment.count
+		where comment_count>=post_comment.count;
+
+		update comment 
+		set deleted_at ='%s'
+		where impart_wealth_id = '%s'
+		and deleted_at is null;
+
 	Update  hive
                 join post on post.post_id=hive.pinned_post_id
                 set pinned_post_id=null
                 where   pinned_post_id in ( select post_id from post
                 where impart_wealth_id  = '%s');
+
 	update post
 	set deleted_at='%s',pinned=false
-	where impart_wealth_id = '%s';`,
-			userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID)
+	where impart_wealth_id = '%s'
+	and deleted_at is null;`,
+			userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID, userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID)
 
 		_, err = queries.Raw(postDeleteQuery).ExecContext(ctx, m.db)
 
@@ -788,18 +808,23 @@ func (m *mysqlStore) UpdateHiveUserDemographic(ctx context.Context, answerIds []
 	}
 	return tx.Commit()
 }
-func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}, isUserDelete bool, includeUsers int) (dbmodels.UserSlice, error) {
-	var clause QueryMod
-	clause = WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...)
+func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}, isUserDelete bool, includeUsers int, excludeHive uint64, dates []time.Time) (dbmodels.UserSlice, error) {
+	// var clause QueryMod
+	// if impartWealthids != nil {
+	// 	// clause = WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...)
+	// }
 	newcluse := Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Blocked), false)
 	usersWhere := []QueryMod{
-		clause,
+		// clause,
 		newcluse,
 		Load(dbmodels.UserRels.ImpartWealthProfile),
 		Load(dbmodels.UserRels.MemberHiveHives),
 		Load(dbmodels.UserRels.ImpartWealthUserDevices),
 		Load(dbmodels.UserRels.ImpartWealthUserConfigurations),
 		Load(dbmodels.UserRels.ImpartWealthUserAnswers),
+	}
+	if impartWealthids != nil {
+		usersWhere = append(usersWhere, WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...))
 	}
 	if isUserDelete {
 		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.SuperAdmin), false))
@@ -808,6 +833,14 @@ func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface
 		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Admin), false))
 	} else if includeUsers == impart.IncludeAdmin {
 		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Admin), true))
+	}
+	if excludeHive > 0 {
+		usersWhere = append(usersWhere, InnerJoin("`hive_members` on `user`.`impart_wealth_id` = `hive_members`.`member_impart_wealth_id`"),
+			Where("`hive_members`.`member_hive_id`!=?", excludeHive))
+	}
+
+	if dates != nil {
+		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s Between ? and ?", dbmodels.UserColumns.HiveUpdatedAt), dates[1], dates[0]))
 	}
 
 	u, err := dbmodels.Users(usersWhere...).All(ctx, m.db)
@@ -866,6 +899,24 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 	if adminImpartWealthIds != "" {
 		adminImpartWealthIds = strings.Trim(adminImpartWealthIds, ",")
 		postDeleteQuery := fmt.Sprintf(`
+		update post
+			join ( select comment.post_id,count(comment_id) as count, comment.impart_wealth_id
+				from comment
+				join post on post.post_id=comment.post_id
+				where post.deleted_at is null
+				and comment.deleted_at is null
+				and comment.impart_wealth_id in (%s) 
+				group by comment.post_id,comment.impart_wealth_id)
+			post_comment
+			on post_comment.post_id=post.post_id
+			set comment_count= comment_count-post_comment.count
+			where comment_count>=post_comment.count;
+
+		update comment 
+		set deleted_at ='%s'
+		where impart_wealth_id in (%s) 
+		and deleted_at is null;
+
 		Update  hive
                 join post on post.post_id=hive.pinned_post_id
                 set pinned_post_id=null
@@ -874,8 +925,9 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 
 		update post
 		set deleted_at='%s',pinned=false
-		where impart_wealth_id in (%s);`,
-			adminImpartWealthIds, golangDateTime, adminImpartWealthIds)
+		where impart_wealth_id in (%s)
+		and deleted_at is null;`,
+			adminImpartWealthIds, golangDateTime, adminImpartWealthIds, adminImpartWealthIds, golangDateTime, adminImpartWealthIds)
 
 		query = fmt.Sprintf("%s %s", query, postDeleteQuery)
 	}
@@ -1157,6 +1209,11 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 			zap.Error(err))
 		return userUpdate, err
 	}
+	if userUpdate.Type == impart.AddToHive || userUpdate.Type == impart.AddToWaitlist {
+		_, err = userDetails.UpdateAll(ctx, m.db, dbmodels.M{"hive_updated_at": impart.CurrentUTC()})
+		m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
+			zap.Error(err))
+	}
 	return userUpdate, nil
 }
 
@@ -1271,4 +1328,48 @@ func (m *mysqlStore) GetUserDevices(ctx context.Context, token string, impartID 
 		return nil, err
 	}
 	return device, err
+}
+
+func (m *mysqlStore) GetHiveNotification(ctx context.Context) error {
+	HiveNotificaton := impart.GetHiveNotificationDetails()
+	for _, hive := range HiveNotificaton {
+		startdate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day + 1))
+		enddate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day + 2))
+		dates := []time.Time{startdate, enddate}
+		userList, err := m.getUserAll(ctx, nil, false, 2, impart.DefaultHiveID, dates)
+		if err != nil {
+			m.logger.Error("User fetching for notification error-", zap.Any("error", err))
+			return err
+		}
+		notificationData := impart.NotificationData{
+			EventDatetime: impart.CurrentUTC(),
+			Path:          hive.Redirection,
+		}
+		for _, user := range userList {
+			isNotificationEnabled := false
+			if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
+				if user.R.ImpartWealthUserConfigurations[0].NotificationStatus {
+					isNotificationEnabled = true
+				}
+			}
+			if !isNotificationEnabled {
+				break
+			}
+			body := hive.Body
+			if hive.IncludeFirstName {
+				body = fmt.Sprintf(hive.Body, user.FirstName)
+			}
+			alert := impart.Alert{
+				Title: aws.String(hive.Title),
+				Body:  aws.String(body),
+			}
+			m.logger.Info("User Details",
+				zap.Any("User", user),
+				zap.Any("notificationData", notificationData),
+				zap.Any("alert", alert))
+
+			m.notificationService.Notify(context.TODO(), notificationData, alert, user.ImpartWealthID)
+		}
+	}
+	return nil
 }

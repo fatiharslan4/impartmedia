@@ -50,7 +50,7 @@ type NotificationData struct {
 	PostID        uint64    `json:"postId,omitempty"`
 	CommentID     uint64    `json:"commentId,omitempty"`
 	HiveID        uint64    `json:"hiveId,omitempty"`
-	CreatePost    string    `json:"createPost,omitempty"`
+	Path          string    `json:"path,omitempty"`
 }
 
 type noopNotificationService struct {

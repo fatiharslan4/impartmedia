@@ -1319,7 +1319,7 @@ func (m *mysqlStore) GetHiveNotification(ctx context.Context) error {
 		}
 		notificationData := impart.NotificationData{
 			EventDatetime: impart.CurrentUTC(),
-			CreatePost:    hive.Redirection,
+			Path:          hive.Redirection,
 		}
 		for _, user := range userList {
 			body := hive.Body

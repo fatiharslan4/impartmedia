@@ -1072,6 +1072,15 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				// 	userHiveDemoexist[userUpdate.HiveID][uint64(answer.AnswerID)] = userHiveDemoexist[userUpdate.HiveID][uint64(answer.AnswerID)] + 1
 				// }
 				userUpdate.Users[userUpdateposition].Value = 1
+
+				isMailSent := false
+				if existinghiveid == impart.DefaultHiveID {
+					isMailSent = true
+				}
+				if isMailSent {
+					go impart.SendAWSEMails(ctx, m.db, user, impart.Hive_mail)
+				}
+
 				isNotificationEnabled := false
 				if newHive != nil && newHive.NotificationTopicArn.String != "" {
 					if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
@@ -1093,12 +1102,12 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 					}
 				}
 				if isNotificationEnabled {
-					deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
-					if devErr != nil {
-						m.logger.Error("unable to find device", zap.Error(devErr))
-					}
-					if len(deviceDetails) > 0 {
-						go func() {
+					go func() {
+						deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
+						if devErr != nil {
+							m.logger.Error("unable to find device", zap.Error(devErr))
+						}
+						if len(deviceDetails) > 0 {
 							for _, device := range deviceDetails {
 								if (device.LastloginAt == null.Time{}) {
 									endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
@@ -1111,32 +1120,23 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 									}
 								}
 							}
-						}()
-					}
-				}
-				isMailSent := false
-				if existinghiveid == impart.DefaultHiveID {
-					isMailSent = true
-				}
-				if isMailSent {
-					go impart.SendAWSEMails(ctx, m.db, user, impart.Hive_mail)
-				}
-				if isMailSent && isNotificationEnabled {
-					go func() {
-						notificationData := impart.NotificationData{
-							EventDatetime: impart.CurrentUTC(),
-							HiveID:        newHive.HiveID,
 						}
-						alert := impart.Alert{
-							Title: aws.String(impart.AssignHiveTitle),
-							Body:  aws.String(impart.AssignHiveBody),
-						}
-						err := m.notificationService.Notify(ctx, notificationData, alert, user.ImpartWealthID)
-						if err != nil {
-							m.logger.Error("push-notification : error attempting to send hive notification ",
-								zap.Any("postData", notificationData),
-								zap.Any("postData", alert),
-								zap.Error(err))
+						if isMailSent && isNotificationEnabled {
+							notificationData := impart.NotificationData{
+								EventDatetime: impart.CurrentUTC(),
+								HiveID:        newHive.HiveID,
+							}
+							alert := impart.Alert{
+								Title: aws.String(impart.AssignHiveTitle),
+								Body:  aws.String(impart.AssignHiveBody),
+							}
+							err := m.notificationService.Notify(ctx, notificationData, alert, user.ImpartWealthID)
+							if err != nil {
+								m.logger.Error("push-notification : error attempting to send hive notification ",
+									zap.Any("postData", notificationData),
+									zap.Any("postData", alert),
+									zap.Error(err))
+							}
 						}
 					}()
 				}

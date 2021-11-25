@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/google/uuid"
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
@@ -1019,38 +1020,46 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				// 	userHiveDemoexist[userUpdate.HiveID][uint64(answer.AnswerID)] = userHiveDemoexist[userUpdate.HiveID][uint64(answer.AnswerID)] + 1
 				// }
 				userUpdate.Users[userUpdateposition].Value = 1
-
-				if existingHive != nil {
-					if existingHive.NotificationTopicArn.String != "" {
-						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
-						if err != nil {
-							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
-								zap.Error(err))
-						}
-					}
-				}
+				isNotificationEnabled := false
 				if newHive != nil && newHive.NotificationTopicArn.String != "" {
 					if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
 						if user.R.ImpartWealthUserConfigurations[0].NotificationStatus {
-							deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
-							if devErr != nil {
-								m.logger.Error("unable to find device", zap.Error(devErr))
+							isNotificationEnabled = true
+						}
+					}
+				}
+
+				if existingHive != nil {
+					if existingHive.NotificationTopicArn.String != "" {
+						go func() {
+							err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+							if err != nil {
+								m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
+									zap.Error(err))
 							}
-							if len(deviceDetails) > 0 {
-								for _, device := range deviceDetails {
-									if (device.LastloginAt == null.Time{}) {
-										endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
-										if err != nil {
-											m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
-												zap.Error(err))
-										}
-										if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
-											m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
-										}
+						}()
+					}
+				}
+				if isNotificationEnabled {
+					deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
+					if devErr != nil {
+						m.logger.Error("unable to find device", zap.Error(devErr))
+					}
+					if len(deviceDetails) > 0 {
+						go func() {
+							for _, device := range deviceDetails {
+								if (device.LastloginAt == null.Time{}) {
+									endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+									if err != nil {
+										m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+											zap.Error(err))
+									}
+									if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
+										m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
 									}
 								}
 							}
-						}
+						}()
 					}
 				}
 				isMailSent := false
@@ -1060,47 +1069,24 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				if isMailSent {
 					go impart.SendAWSEMails(ctx, m.db, user, impart.Hive_mail)
 				}
-			}
-		} else if userUpdate.Type == impart.RemoveAdmin {
-			if !user.Admin {
-				userUpdate.Users[userUpdateposition].Message = "User is not an admin."
-			} else {
-				impartWealthIds = fmt.Sprintf("%s '%s' ,", impartWealthIds, user.ImpartWealthID)
-				userUpdate.Users[userUpdateposition].Value = 1
-
-				var existingHive *dbmodels.Hive
-
-				for _, h := range user.R.MemberHiveHives {
-					existingHive = h
-				}
-				deviceDetails := user.R.ImpartWealthUserDevices
-				isnotificationEnabled := false
-				if existingHive != nil && existingHive.NotificationTopicArn.String != "" {
-					if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
-						if user.R.ImpartWealthUserConfigurations[0].NotificationStatus {
-							isnotificationEnabled = true
-						}
-					}
-				}
-				if isnotificationEnabled {
-					// var waitGrp sync.WaitGroup
-					// waitGrp.Add(1)
+				if isMailSent && isNotificationEnabled {
 					go func() {
-						// defer waitGrp.Done()
-						for _, device := range deviceDetails {
-							if (device.LastloginAt == null.Time{}) {
-								endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
-								if err != nil {
-									m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
-										zap.Error(err))
-								}
-								if endpointARN != "" {
-									m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String, endpointARN)
-								}
-							}
+						notificationData := impart.NotificationData{
+							EventDatetime: impart.CurrentUTC(),
+							HiveID:        newHive.HiveID,
+						}
+						alert := impart.Alert{
+							Title: aws.String(impart.AssignHiveTitle),
+							Body:  aws.String(impart.AssignHiveBody),
+						}
+						err := m.notificationService.Notify(ctx, notificationData, alert, user.ImpartWealthID)
+						if err != nil {
+							m.logger.Error("push-notification : error attempting to send hive notification ",
+								zap.Any("postData", notificationData),
+								zap.Any("postData", alert),
+								zap.Error(err))
 						}
 					}()
-					// waitGrp.Wait()
 				}
 			}
 		} else if userUpdate.Type == impart.RemoveAdmin {

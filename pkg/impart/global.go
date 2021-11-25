@@ -115,3 +115,8 @@ func GetAvatharLetters() []string {
 func GetAvatharLettersAdmin() []string {
 	return []string{"#4D4D4F"}
 }
+
+const (
+	AssignHiveTitle = "Account Status"
+	AssignHiveBody  = "Give your peers a Hive Five and let them know a little more about you — they’re excited to meet you!"
+)

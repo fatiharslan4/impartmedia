@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
@@ -49,6 +50,7 @@ type NotificationData struct {
 	PostID        uint64    `json:"postId,omitempty"`
 	CommentID     uint64    `json:"commentId,omitempty"`
 	HiveID        uint64    `json:"hiveId,omitempty"`
+	Path          string    `json:"path,omitempty"`
 }
 
 type noopNotificationService struct {
@@ -94,6 +96,10 @@ func (n noopNotificationService) UnsubscribeTopicForAllDevice(ctx context.Contex
 	return nil
 }
 
+func (ns *noopNotificationService) EmailSending(ctx context.Context, topicARN string) error {
+	return nil
+}
+
 func NewNoopNotificationService() NotificationService {
 	return &noopNotificationService{}
 }
@@ -101,6 +107,7 @@ func NewNoopNotificationService() NotificationService {
 type snsAppleNotificationService struct {
 	stage string
 	*sns.SNS
+	*ses.SES
 	*zap.Logger
 	platformApplicationARN string
 	db                     *sql.DB
@@ -203,7 +210,13 @@ func (ns *snsAppleNotificationService) NotifyTopic(ctx context.Context, data Not
 		TopicArn:         aws.String(topicARN),
 	}
 	// print()
-	_, err = ns.Publish(input)
+	notificationResult, err := ns.Publish(input)
+
+	ns.Logger.Info("notificationResult : After publish input",
+		zap.Any("topicARN", topicARN),
+		zap.Any("notificationResult", notificationResult),
+	)
+
 	if err != nil {
 		ns.Logger.Error("push-notification : After publish input",
 			zap.Any("topicARN", topicARN),
@@ -705,4 +718,13 @@ func NotifyWeeklyMostPopularPost(db *sql.DB, logger *zap.Logger) {
 
 		}
 	}
+}
+
+type HiveNotificationDatas []HiveNotificationData
+type HiveNotificationData struct {
+	Day              int    `json:"day"`
+	Title            string `json:"title"`
+	Body             string `json:"body"`
+	Redirection      string `json:"redirection"`
+	IncludeFirstName bool   `json:"includeFirstName"`
 }

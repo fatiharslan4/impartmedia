@@ -66,6 +66,7 @@ type Service interface {
 	GetWeeklyNotification(ctx context.Context)
 	GetWeeklyMostPopularNotification(ctx context.Context)
 	UpdateUserDevicesDetails(ctx context.Context, userDevice *dbmodels.UserDevice, login bool) (bool, error)
+	GetHiveNotification(ctx context.Context) error
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string, hivedata hive_main.Service, hiveSotre hive_data.Hives) Service {
@@ -214,6 +215,7 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile, apiV
 	dbUser.CreatedAt = impart.CurrentUTC()
 	dbUser.UpdatedAt = impart.CurrentUTC()
 	dbProfile.UpdatedAt = impart.CurrentUTC()
+	dbUser.HiveUpdatedAt = impart.CurrentUTC()
 
 	// if err != nil {
 	// 	ps.Logger().Error("Token Sync Endpoint error", zap.Any("Error", err), zap.Any("contextUser", ctxUser), zap.Any("inputProfile", p))
@@ -473,11 +475,7 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 	if err != nil {
 		return impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("could not find profile for impartWealthID %s", deleteUser.ImpartWealthID))
 	}
-	if userToDelete.Admin {
-		errorString := "You cannot delete the admin."
-		ps.Logger().Error(errorString, zap.Any("error", errorString))
-		return impart.NewError(impart.ErrUnauthorized, errorString)
-	}
+
 	if userToDelete.SuperAdmin {
 		errorString := "You cannot delete the super admin."
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
@@ -493,8 +491,8 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
 		return impart.NewError(impart.ErrUnauthorized, errorString)
 	}
-	err = ps.profileStore.DeleteUserProfile(ctx, deleteUser, hardDelete)
-	if err != nil {
+	imperr := ps.profileStore.DeleteUserProfile(ctx, deleteUser, hardDelete)
+	if imperr != nil {
 		return impart.NewError(impart.ErrBadRequest, "User delete failed.")
 	}
 	return nil
@@ -526,4 +524,12 @@ func (ps *profileService) GetWeeklyNotification(ctx context.Context) {
 
 func (ps *profileService) GetWeeklyMostPopularNotification(ctx context.Context) {
 	impart.NotifyWeeklyMostPopularPost(ps.db, ps.Logger())
+}
+
+func (ps *profileService) GetHiveNotification(ctx context.Context) error {
+	err := ps.profileStore.GetHiveNotification(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
 }

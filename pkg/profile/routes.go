@@ -106,6 +106,10 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	weeklyPopularRoutes := version.Group("cron/notification/popular-post")
 	weeklyPopularRoutes.GET("", handler.GetWeeklyMostPopularNotification())
+
+	hiveRoutes := version.Group("cron/notification/hive")
+	hiveRoutes.GET("", handler.GetHiveNotification())
+
 }
 
 func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
@@ -121,7 +125,6 @@ func (ph *profileHandler) GetProfileFunc() gin.HandlerFunc {
 			ctx.JSON(200, p)
 			return
 		}
-
 		ctxUser := impart.GetCtxUser(ctx)
 		if strings.TrimSpace(impartWealthId) == "" {
 			dbp, err := ph.profileData.GetProfile(ctx, ctxUser.ImpartWealthID)
@@ -1362,6 +1365,21 @@ func (ph *profileHandler) GetWeeklyNotification() gin.HandlerFunc {
 func (ph *profileHandler) GetWeeklyMostPopularNotification() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ph.profileService.GetWeeklyMostPopularNotification(ctx)
+		ctx.JSON(http.StatusOK, gin.H{
+			"status": "success",
+		})
+	}
+}
+
+func (ph *profileHandler) GetHiveNotification() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		err := ph.profileService.GetHiveNotification(ctx)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"status": "failed",
+			})
+			return
+		}
 		ctx.JSON(http.StatusOK, gin.H{
 			"status": "success",
 		})

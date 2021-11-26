@@ -26,7 +26,8 @@ func (s *service) GetComments(ctx context.Context, postID uint64, limit, offset 
 			return models.Comments{}, nil, impart.NewError(impart.ErrUnknown, "couldn't fetch comments")
 		}
 	}
-	return models.CommentsFromDBModelSlice(dbComments), nextPage, nil
+	ctxUser := impart.GetCtxUser(ctx)
+	return models.CommentsFromDBModelSlice(dbComments, ctxUser), nextPage, nil
 }
 
 func (s *service) GetComment(ctx context.Context, commentID uint64) (models.Comment, impart.Error) {
@@ -38,7 +39,8 @@ func (s *service) GetComment(ctx context.Context, commentID uint64) (models.Comm
 			return models.Comment{}, impart.NewError(impart.ErrUnknown, "couldn't fetch comments")
 		}
 	}
-	return models.CommentFromDBModel(dbComment), nil
+	ctxUser := impart.GetCtxUser(ctx)
+	return models.CommentFromDBModel(dbComment, ctxUser), nil
 }
 
 func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comment, impart.Error) {
@@ -68,7 +70,7 @@ func (s *service) NewComment(ctx context.Context, c models.Comment) (models.Comm
 		s.logger.Error("error creating comment", zap.Error(err), zap.Any("comment", comment))
 		return models.Comment{}, impart.NewError(impart.ErrUnknown, fmt.Sprintf("error creating NewComment for user %s", c.ImpartWealthID))
 	}
-	out := models.CommentFromDBModel(comment)
+	out := models.CommentFromDBModel(comment, ctxUser)
 	dbPost, err := s.postData.GetPost(ctx, c.PostID)
 	if err != nil {
 		s.logger.Error("error getting post from newly created comment")
@@ -120,7 +122,7 @@ func (s *service) EditComment(ctx context.Context, editedComment models.Comment)
 	if err != nil {
 		return empty, impart.UnknownError
 	}
-	return models.CommentFromDBModel(c), nil
+	return models.CommentFromDBModel(c, ctxUser), nil
 }
 
 func (s *service) DeleteComment(ctx context.Context, commentID uint64) impart.Error {
@@ -212,8 +214,8 @@ func (s *service) ReviewComment(ctx context.Context, commentID uint64, reason st
 			return models.Comment{}, impart.NewError(impart.ErrUnknown, "couldn't fetch comments")
 		}
 	}
-
-	return models.CommentFromDBModel(dbComment), nil
+	ctxUser := impart.GetCtxUser(ctx)
+	return models.CommentFromDBModel(dbComment, ctxUser), nil
 }
 
 // SendCommentNotification
@@ -275,7 +277,7 @@ func (s *service) SendCommentNotification(input models.CommentNotificationInput)
 	// send to comment owner
 	go func() {
 		defer wg.Done()
-		if strings.TrimSpace(dbComment.R.ImpartWealth.ImpartWealthID) != "" {
+		if dbComment.R.ImpartWealth != nil && strings.TrimSpace(dbComment.R.ImpartWealth.ImpartWealthID) != "" {
 			err = s.sendNotification(notificationData, out.Alert, dbComment.R.ImpartWealth.ImpartWealthID)
 			if err != nil {
 				s.logger.Error("push-notification : error attempting to send post comment notification ", zap.Any("postData", out), zap.Error(err))

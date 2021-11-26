@@ -1121,23 +1121,23 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 								}
 							}
 						}
-						if isMailSent && isNotificationEnabled {
-							notificationData := impart.NotificationData{
-								EventDatetime: impart.CurrentUTC(),
-								HiveID:        newHive.HiveID,
-							}
-							alert := impart.Alert{
-								Title: aws.String(impart.AssignHiveTitle),
-								Body:  aws.String(impart.AssignHiveBody),
-							}
-							err := m.notificationService.Notify(ctx, notificationData, alert, user.ImpartWealthID)
-							if err != nil {
-								m.logger.Error("push-notification : error attempting to send hive notification ",
-									zap.Any("postData", notificationData),
-									zap.Any("postData", alert),
-									zap.Error(err))
-							}
-						}
+						// if isMailSent && isNotificationEnabled {
+						// 	notificationData := impart.NotificationData{
+						// 		EventDatetime: impart.CurrentUTC(),
+						// 		HiveID:        newHive.HiveID,
+						// 	}
+						// 	alert := impart.Alert{
+						// 		Title: aws.String(impart.AssignHiveTitle),
+						// 		Body:  aws.String(impart.AssignHiveBody),
+						// 	}
+						// 	err := m.notificationService.Notify(ctx, notificationData, alert, user.ImpartWealthID)
+						// 	if err != nil {
+						// 		m.logger.Error("push-notification : error attempting to send hive notification ",
+						// 			zap.Any("postData", notificationData),
+						// 			zap.Any("postData", alert),
+						// 			zap.Error(err))
+						// 	}
+						// }
 					}()
 				}
 			}

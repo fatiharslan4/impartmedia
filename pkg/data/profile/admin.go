@@ -62,7 +62,10 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 						ELSE  user.lastlogin_at END as lastlogin_at ,
 					user.admin,
 					user.super_admin,
-					COUNT(post.post_id) as post,
+					CASE WHEN post_data.post_count IS NULL THEN 0
+						ELSE post_data.post_count END AS post, 
+					-- COUNT(post.post_id) as post,
+					hivedata.hive,
 					CASE WHEN hivedata.hives IS NULL THEN 'N.A' 
 								ELSE hivedata.hives END AS hive_id,
 					CASE WHEN makeup.Household IS NULL THEN 'NA' 
@@ -87,7 +90,16 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 								ELSE makeup.EmploymentStatus END AS employment_status,					
 					makeup.sortorder as sortorder
 					FROM user
-					left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
+
+					left join
+					(select count(post_id) as post_count,post.impart_wealth_id
+					 from post
+					 where post.deleted_at is null
+					 group by impart_wealth_id)
+					 post_data
+						on user.impart_wealth_id=post_data.impart_wealth_id 
+
+					-- left join post on user.impart_wealth_id=post.impart_wealth_id and post.deleted_at is null 
 					
 
 					
@@ -216,6 +228,9 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	} else if gpi.SortBy == "income" {
 		gpi.SortBy = "sortorder"
 		sortBy = "sortorder"
+	} else if gpi.SortBy == "hive_id" {
+		gpi.SortBy = "hive"
+		sortBy = "hive"
 	}
 	// else if gpi.SortBy == "waitlist" {
 	// 	gpi.SortBy = "list"

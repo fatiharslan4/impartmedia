@@ -42,7 +42,7 @@ type Service interface {
 	GetUserConfigurations(ctx context.Context, impartWealthID string) (models.UserConfigurations, impart.Error)
 
 	GetUserDevice(ctx context.Context, token string, impartWealthID string, deviceToken string) (models.UserDevice, error)
-	CreateUserDevice(ctx context.Context, user *dbmodels.User, ud *dbmodels.UserDevice, isSignin bool) (models.UserDevice, impart.Error)
+	CreateUserDevice(ctx context.Context, user *dbmodels.User, ud *dbmodels.UserDevice) (models.UserDevice, impart.Error)
 	UpdateDeviceToken(ctx context.Context, token string, deviceToken string) impart.Error
 	DeleteExceptUserDevice(ctx context.Context, impartID string, deviceToken string, refToken string) error
 
@@ -275,7 +275,7 @@ func (ps *profileService) NewProfile(ctx context.Context, p models.Profile, apiV
 		}
 
 		//create user device
-		userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevices[0].UserDeviceToDBModel(), false)
+		userDevice, err := ps.CreateUserDevice(ctx, dbUser, p.UserDevices[0].UserDeviceToDBModel())
 		if err != nil {
 			impartErr := impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to add/update the device information %v", err))
 			ps.Logger().Error(impartErr.Error())

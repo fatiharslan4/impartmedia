@@ -1333,7 +1333,7 @@ func (m *mysqlStore) GetHiveNotification(ctx context.Context) error {
 			}
 			body := hive.Body
 			if hive.IncludeFirstName {
-				body = fmt.Sprintf(hive.Body, user.FirstName)
+				body = fmt.Sprintf(hive.Body, strings.Title(user.FirstName))
 			}
 			alert := impart.Alert{
 				Title: aws.String(hive.Title),

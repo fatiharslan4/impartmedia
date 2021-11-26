@@ -1333,8 +1333,8 @@ func (m *mysqlStore) GetUserDevices(ctx context.Context, token string, impartID 
 func (m *mysqlStore) GetHiveNotification(ctx context.Context) error {
 	HiveNotificaton := impart.GetHiveNotificationDetails()
 	for _, hive := range HiveNotificaton {
-		startdate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day + 1))
-		enddate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day + 2))
+		startdate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day))
+		enddate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day + 1))
 		dates := []time.Time{startdate, enddate}
 		userList, err := m.getUserAll(ctx, nil, false, 2, impart.DefaultHiveID, dates)
 		if err != nil {

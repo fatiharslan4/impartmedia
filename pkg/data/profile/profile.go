@@ -55,6 +55,7 @@ type Store interface {
 	CreateMailChimpForExistingUsers(ctx context.Context) error
 	GetUserAnswer(ctx context.Context, impartWealthId string) (dbmodels.UserAnswerSlice, error)
 	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, error)
+	GetHiveNotification(ctx context.Context) error
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger, notificationService impart.NotificationService) Store {

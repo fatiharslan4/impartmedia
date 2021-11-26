@@ -75,6 +75,8 @@ const (
 	EmploymentStatus_HomeMaker                       = 63
 	EmploymentStatus_Student                         = 64
 	EmploymentStatus_Retired                         = 65
+	Waitlist_Yes                                     = 0
+	Waitlist_No                                      = -1
 )
 
 func FilterData() ([]byte, error) {
@@ -147,6 +149,8 @@ func FilterData() ([]byte, error) {
 		"EmploymentStatus-Home-maker":                   EmploymentStatus_HomeMaker,
 		"EmploymentStatus-Student":                      EmploymentStatus_Student,
 		"EmploymentStatus-Retired":                      EmploymentStatus_Retired,
+		"Waitlist-Yes":                                  Waitlist_Yes,
+		"Waitlist-No":                                   Waitlist_No,
 	})
 	if err != nil {
 		return nil, err
@@ -161,10 +165,17 @@ const (
 	AddToWaitlist             = "addto_waitlist"
 	AddToHive                 = "addto_hive"
 	AddToAdmin                = "addto_admin"
+	RemoveAdmin               = "remove_admin"
 	Hive_mail                 = "hive_email"
 	Waitlist_mail             = "waitlist_email"
 	Waitlist_mail_subject     = "You’re on the Hive Wealth waitlist!"
 	Waitlist_mail_previewtext = "Thank you for signing up – we’ll let you know when we’ve found your Hive"
 	Hive_mail_subject         = "Great news! We’ve found your Hive!"
 	Hive_mail_previewtext     = "What now? Let the journey to your financial empowerment begin!"
+)
+
+const (
+	IncludeAdmin = 1
+	ExcludeAdmin = 0
+	IncludeAll   = 2
 )

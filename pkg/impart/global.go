@@ -135,7 +135,7 @@ func GetHiveNotificationDetails() HiveNotificationDatas {
 	hives = HiveNotificationData{
 		Day:              3,
 		Title:            "Time to post!",
-		Body:             " Hi %s, we can’t wait to hear from you. Posts are encouraged! Ask questions and share experiences from your own life with your peers.",
+		Body:             "Hi %s, we can’t wait to hear from you. Posts are encouraged! Ask questions and share experiences from your own life with your peers.",
 		Redirection:      "create-post",
 		IncludeFirstName: true,
 	}

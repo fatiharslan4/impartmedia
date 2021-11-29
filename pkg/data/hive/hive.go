@@ -401,7 +401,7 @@ func (d *mysqlHiveData) PinPostForBulkPostAction(ctx context.Context, postHiveDe
 	}
 	defer impart.CommitRollbackLogger(tx, err, d.logger)
 
-	query := "UPDATE post JOIN hive ON post.post_id = hive. pinned_post_id SET post.pinned=false WHERE hive.hive_id in("
+	query := "UPDATE post JOIN hive ON post.post_id = hive.pinned_post_id SET post.pinned=false WHERE hive.hive_id in("
 	for i := range postHiveDetails {
 		qry := fmt.Sprintf("%d,", i)
 		query = fmt.Sprintf("%s %s", query, qry)

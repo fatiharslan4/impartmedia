@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/google/uuid"
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
@@ -674,39 +675,72 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 		return impart.NewError(err, "User Deletion failed")
 
 	}
+	currTime := time.Now().In(boil.GetLocation())
+	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
 
-	if userToDelete.R.MemberHiveHives != nil {
-		if userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
-			err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToDelete.ImpartWealthID, userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String)
-			if err != nil {
-				m.logger.Error("SubscribeTopic", zap.String("DeviceToken", userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String),
-					zap.Error(err))
-			}
+	if userToDelete.Admin {
+		postDeleteQuery := fmt.Sprintf(`
+		update post
+		join ( select comment.post_id,count(comment_id) as count, comment.impart_wealth_id
+			from comment
+			join post on post.post_id=comment.post_id
+			where post.deleted_at is null
+			and comment.deleted_at is null
+			and comment.impart_wealth_id = '%s'
+			group by comment.post_id,comment.impart_wealth_id)
+		post_comment
+		on post_comment.post_id=post.post_id
+		set comment_count= comment_count-post_comment.count
+		where comment_count>=post_comment.count;
+
+		update comment 
+		set deleted_at ='%s'
+		where impart_wealth_id = '%s'
+		and deleted_at is null;
+
+	Update  hive
+                join post on post.post_id=hive.pinned_post_id
+                set pinned_post_id=null
+                where   pinned_post_id in ( select post_id from post
+                where impart_wealth_id  = '%s');
+
+	update post
+	set deleted_at='%s',pinned=false
+	where impart_wealth_id = '%s'
+	and deleted_at is null;`,
+			userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID, userToDelete.ImpartWealthID, golangDateTime, userToDelete.ImpartWealthID)
+
+		_, err = queries.Raw(postDeleteQuery).ExecContext(ctx, m.db)
+
+		m.logger.Info(postDeleteQuery)
+		if err != nil {
+			m.logger.Error("query failed", zap.Any("query", err), zap.Any("postDeleteQuery", postDeleteQuery))
 		}
 	}
 
-	if !userToDelete.Blocked {
-		// err = m.UpdateUserDemographic(ctx, answerIds, false)
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
+	// var waitGrp sync.WaitGroup
+	if userToDelete.R.MemberHiveHives != nil {
+		if userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+			// waitGrp.Add(1)
+			go func() {
+				// defer waitGrp.Done()
+				err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToDelete.ImpartWealthID, userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String)
+				if err != nil {
+					m.logger.Error("SubscribeTopic", zap.String("DeviceToken", userToDelete.R.MemberHiveHives[0].NotificationTopicArn.String),
+						zap.Error(err))
+				}
+			}()
+			// waitGrp.Wait()
+		}
 	}
-
 	mngmnt, err := authdata.NewImpartManagementClient()
 	if err != nil {
 		////revert the server update
 		userToDelete = models.UpdateToUserDB(userToDelete, gpi, false, screenName, userEmail)
-
 		err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
 		if err != nil {
 			m.logger.Error("Delete user requset failed in auth 0 then revert the server", zap.String("deleteUser", userToDelete.ImpartWealthID),
 				zap.String("contextUser", userToDelete.ImpartWealthID))
-		}
-		if !userToDelete.Blocked {
-			// err = m.UpdateUserDemographic(ctx, answerIds, true)
-			// if err != nil {
-			// 	m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
-			// 		zap.String("contextUser", userToDelete.ImpartWealthID))
-			// }
-			// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
 		}
 		return impart.NewError(err, "User Deletion failed")
 
@@ -718,32 +752,29 @@ func (m *mysqlStore) DeleteUserProfile(ctx context.Context, gpi models.DeleteUse
 
 	errDel := mngmnt.User.Update(*&userToDelete.AuthenticationID, &userUp)
 	if errDel != nil {
-
 		//revert the server update
 		userToDelete = models.UpdateToUserDB(userToDelete, gpi, true, screenName, userEmail)
-
 		err = m.UpdateProfile(ctx, userToDelete, existingDBProfile)
 		if err != nil {
 			m.logger.Error("Delete user requset failed in auth 0 then revert the server- user failed.", zap.String("deleteUser", userToDelete.ImpartWealthID),
 				zap.String("contextUser", userToDelete.ImpartWealthID))
 		}
-		if !userToDelete.Blocked {
-			// err = m.UpdateUserDemographic(ctx, answerIds, true)
-			// if err != nil {
-			// 	m.logger.Error("Delete user requset failed in auth 0 then revert the server- user demographic falied.", zap.String("deleteUser", userToDelete.ImpartWealthID),
-			// 		zap.String("contextUser", userToDelete.ImpartWealthID))
-			// }
-			// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, hiveid)
-		}
 		return impart.NewError(err, "User Deletion failed")
 	}
 	// delete user from mailChimp
 	cfg, _ := config.GetImpart()
-	err = members.Delete(cfg.MailchimpAudienceId, orgEmail)
-	if err != nil {
-		m.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", userToDelete.ImpartWealthID),
-			zap.String("contextUser", userToDelete.ImpartWealthID))
-	}
+	// waitGrp.Add(2)
+	go func() {
+		// defer waitGrp.Done()
+		err = members.Delete(cfg.MailchimpAudienceId, orgEmail)
+		if err != nil {
+			m.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", userToDelete.ImpartWealthID),
+				zap.String("contextUser", userToDelete.ImpartWealthID))
+		}
+	}()
+	// go impart.UserDemographicsUpdate(&waitGrp, ctx, m.db, true, true)
+	go impart.UserDemographicsUpdate(ctx, m.db, true, true)
+	// waitGrp.Wait()
 	return nil
 }
 
@@ -777,12 +808,14 @@ func (m *mysqlStore) UpdateHiveUserDemographic(ctx context.Context, answerIds []
 	}
 	return tx.Commit()
 }
-func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}, isUserDelete bool) (dbmodels.UserSlice, error) {
-	var clause QueryMod
-	clause = WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...)
+func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}, isUserDelete bool, includeUsers int, excludeHive uint64, dates []time.Time) (dbmodels.UserSlice, error) {
+	// var clause QueryMod
+	// if impartWealthids != nil {
+	// 	// clause = WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...)
+	// }
 	newcluse := Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Blocked), false)
 	usersWhere := []QueryMod{
-		clause,
+		// clause,
 		newcluse,
 		Load(dbmodels.UserRels.ImpartWealthProfile),
 		Load(dbmodels.UserRels.MemberHiveHives),
@@ -790,9 +823,24 @@ func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface
 		Load(dbmodels.UserRels.ImpartWealthUserConfigurations),
 		Load(dbmodels.UserRels.ImpartWealthUserAnswers),
 	}
+	if impartWealthids != nil {
+		usersWhere = append(usersWhere, WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...))
+	}
 	if isUserDelete {
-		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Admin), false))
 		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.SuperAdmin), false))
+	}
+	if includeUsers == impart.ExcludeAdmin {
+		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Admin), false))
+	} else if includeUsers == impart.IncludeAdmin {
+		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Admin), true))
+	}
+	if excludeHive > 0 {
+		usersWhere = append(usersWhere, InnerJoin("`hive_members` on `user`.`impart_wealth_id` = `hive_members`.`member_impart_wealth_id`"),
+			Where("`hive_members`.`member_hive_id`!=?", excludeHive))
+	}
+
+	if dates != nil {
+		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s Between ? and ?", dbmodels.UserColumns.HiveUpdatedAt), dates[1], dates[0]))
 	}
 
 	u, err := dbmodels.Users(usersWhere...).All(ctx, m.db)
@@ -806,98 +854,114 @@ func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface
 }
 
 func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmodels.UserSlice, hardDelete bool) error {
-	updateQuery := ""
-	// updateDemographic := ""
-	// updateHiveDemographic := ""
+	adminImpartWealthIds := ""
+	impartWealthIds := ""
 	currTime := time.Now().In(boil.GetLocation())
 	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
-	// hiveid := DefaultHiveId
-	// userDemo := make(map[uint64]int)
-	// userHiveDemo := make(map[uint64]map[uint64]int)
 	mngmnt, err := authdata.NewImpartManagementClient()
 	if err != nil {
 		return err
 	}
-	// dbUserDemographic, err := dbmodels.UserDemographics().All(ctx, m.db)
-	// if err != nil {
-	// }
-	// for _, p := range dbUserDemographic {
-	// 	userDemo[uint64(p.AnswerID)] = p.UserCount
-	// }
-	// dbhiveUserDemographic, err := dbmodels.HiveUserDemographics().All(ctx, m.db)
-	// for _, p := range dbhiveUserDemographic {
-	// 	data := userHiveDemo[uint64(p.HiveID)]
-	// 	if data == nil {
-	// 		count := make(map[uint64]int)
-	// 		count[uint64(p.AnswerID)] = int(p.UserCount)
-	// 		userHiveDemo[uint64(p.HiveID)] = count
-	// 	} else {
-	// 		data[uint64(p.AnswerID)] = int(p.UserCount)
-	// 	}
-	// }
 	for _, user := range userDetails {
-		// for _, h := range user.R.MemberHiveHives {
-		// 	 hiveid = h.HiveID
-		// }
-		screenName := fmt.Sprintf("%s-%s", user.ScreenName, user.ImpartWealthID)
-		email := fmt.Sprintf("%s-%s", user.Email, user.ImpartWealthID)
-		query := fmt.Sprintf("Update user set deleted_at='%s' , email='%s',screen_name='%s',deleted_by_admin=true where impart_wealth_id='%s';", golangDateTime, email, screenName, user.ImpartWealthID)
-		updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
-		// exitingUserAnswer := user.R.ImpartWealthUserAnswers
-		// if !user.Blocked {
-		// 	for _, answer := range exitingUserAnswer {
-		// 		if userDemo[uint64(answer.AnswerID)] > 0 {
-		// 			userDemo[uint64(answer.AnswerID)] = userDemo[uint64(answer.AnswerID)] - 1
-		// 		}
-		// 		if userHiveDemo[hiveid][uint64(answer.AnswerID)] > 0 {
-		// 			userHiveDemo[hiveid][uint64(answer.AnswerID)] = userHiveDemo[hiveid][uint64(answer.AnswerID)] - 1
-		// 		}
-		// 	}
-		// }
+		impartWealthIds = fmt.Sprintf("%s '%s' ,", impartWealthIds, user.ImpartWealthID)
+		if user.Admin {
+			adminImpartWealthIds = fmt.Sprintf("%s '%s' ,", adminImpartWealthIds, user.ImpartWealthID)
+		}
+		// var waitGrp sync.WaitGroup
 		if user.R.MemberHiveHives != nil {
 			if user.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
-				err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, user.R.MemberHiveHives[0].NotificationTopicArn.String)
-				if err != nil {
-					m.logger.Error("SubscribeTopic", zap.String("DeviceToken", user.R.MemberHiveHives[0].NotificationTopicArn.String),
-						zap.Error(err))
-				}
+				// waitGrp.Add(1)
+				go func() {
+					// defer waitGrp.Done()
+					err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, user.R.MemberHiveHives[0].NotificationTopicArn.String)
+					if err != nil {
+						m.logger.Error("SubscribeTopic", zap.String("DeviceToken", user.R.MemberHiveHives[0].NotificationTopicArn.String),
+							zap.Error(err))
+					}
+				}()
+				// waitGrp.Wait()
 			}
 		}
 	}
-	// for ansr, demo := range userDemo {
-	// 	query := fmt.Sprintf("update user_demographic set user_count=%d where answer_id=%d;", demo, ansr)
-	// 	updateDemographic = fmt.Sprintf("%s %s", updateDemographic, query)
-	// }
-	// for hive, demo := range userHiveDemo {
-	// 	for answer, cnt := range demo {
-	// 		query := fmt.Sprintf("update hive_user_demographic set user_count=%d where hive_id=%d and answer_id=%d;", cnt, hive, answer)
-	// 		updateHiveDemographic = fmt.Sprintf("%s %s", updateHiveDemographic, query)
-	// 	}
-	// }
-	// query := fmt.Sprintf("%s %s %s", updateQuery, updateDemographic, updateHiveDemographic)
-	query := updateQuery
+	query := ""
+	if impartWealthIds != "" {
+		impartWealthIds = strings.Trim(impartWealthIds, ",")
+		updateUser := fmt.Sprintf(`Update user 
+		set deleted_at='%s' ,
+		 email=CONCAT(email, "-", impart_wealth_id),
+		 screen_name=CONCAT(screen_name, "-", impart_wealth_id),
+		 deleted_by_admin=true 
+		 where impart_wealth_id in(%s);
+		`, golangDateTime, impartWealthIds)
+
+		query = updateUser
+	}
+	if adminImpartWealthIds != "" {
+		adminImpartWealthIds = strings.Trim(adminImpartWealthIds, ",")
+		postDeleteQuery := fmt.Sprintf(`
+		update post
+			join ( select comment.post_id,count(comment_id) as count, comment.impart_wealth_id
+				from comment
+				join post on post.post_id=comment.post_id
+				where post.deleted_at is null
+				and comment.deleted_at is null
+				and comment.impart_wealth_id in (%s) 
+				group by comment.post_id,comment.impart_wealth_id)
+			post_comment
+			on post_comment.post_id=post.post_id
+			set comment_count= comment_count-post_comment.count
+			where comment_count>=post_comment.count;
+
+		update comment 
+		set deleted_at ='%s'
+		where impart_wealth_id in (%s) 
+		and deleted_at is null;
+
+		Update  hive
+                join post on post.post_id=hive.pinned_post_id
+                set pinned_post_id=null
+                where   pinned_post_id in ( select post_id from post
+                where impart_wealth_id in ( %s ));
+
+		update post
+		set deleted_at='%s',pinned=false
+		where impart_wealth_id in (%s)
+		and deleted_at is null;`,
+			adminImpartWealthIds, golangDateTime, adminImpartWealthIds, adminImpartWealthIds, golangDateTime, adminImpartWealthIds)
+
+		query = fmt.Sprintf("%s %s", query, postDeleteQuery)
+	}
 	_, err = queries.Raw(query).ExecContext(ctx, m.db)
 	m.logger.Info(query)
 	if err != nil {
 		m.logger.Error("query failed", zap.Any("query", err))
 		return err
 	}
-	for _, user := range userDetails {
-		email := fmt.Sprintf("%s-%s", user.ImpartWealthID, user.Email)
-		userUp := management.User{
-			Email: &email,
+	// var waitGrpMailChimp sync.WaitGroup
+	// waitGrpMailChimp.Add(len(userDetails))
+	go func() {
+		for _, user := range userDetails {
+			// defer waitGrpMailChimp.Done()
+			email := fmt.Sprintf("%s-%s", user.ImpartWealthID, user.Email)
+			userUp := management.User{
+				Email: &email,
+			}
+			err = mngmnt.User.Update(*&user.AuthenticationID, &userUp)
+			if err != nil {
+				m.logger.Error("Auth update failed", zap.Any("user.Email", user.Email), zap.Any("query", err))
+			}
 		}
-		err = mngmnt.User.Update(*&user.AuthenticationID, &userUp)
-		if err != nil {
-			m.logger.Error("Auth update failed", zap.Any("user.Email", user.Email), zap.Any("query", err))
-		}
-	}
+	}()
+	// waitGrpMailChimp.Add(1)
+	go impart.UserDemographicsUpdate(ctx, m.db, true, true)
+	// waitGrpMailChimp.Wait()
 	return nil
 }
 
 func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmodels.UserSlice, hardDelete bool, userUpdate *models.UserUpdate) (*models.UserUpdate, error) {
 	updateQuery := ""
 	// updateHiveDemographic := ""
+	impartWealthIds := ""
 	updateHivequery := ""
 	existinghiveid := DefaultHiveId
 	// userHiveDemoexist := make(map[uint64]map[uint64]int)
@@ -1009,38 +1073,114 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				// }
 				userUpdate.Users[userUpdateposition].Value = 1
 
-				if existingHive != nil {
-					if existingHive.NotificationTopicArn.String != "" {
-						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
-						if err != nil {
-							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
-								zap.Error(err))
-						}
-					}
+				isMailSent := false
+				if existinghiveid == impart.DefaultHiveID {
+					isMailSent = true
 				}
+				if isMailSent {
+					go impart.SendAWSEMails(ctx, m.db, user, impart.Hive_mail)
+				}
+
+				isNotificationEnabled := false
 				if newHive != nil && newHive.NotificationTopicArn.String != "" {
 					if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
 						if user.R.ImpartWealthUserConfigurations[0].NotificationStatus {
-							deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
-							if devErr != nil {
-								m.logger.Error("unable to find device", zap.Error(devErr))
+							isNotificationEnabled = true
+						}
+					}
+				}
+
+				if existingHive != nil {
+					if existingHive.NotificationTopicArn.String != "" {
+						go func() {
+							err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+							if err != nil {
+								m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
+									zap.Error(err))
 							}
-							if len(deviceDetails) > 0 {
-								for _, device := range deviceDetails {
-									if (device.LastloginAt == null.Time{}) {
-										endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
-										if err != nil {
-											m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
-												zap.Error(err))
-										}
-										if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
-											m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
-										}
+						}()
+					}
+				}
+				if isNotificationEnabled {
+					go func() {
+						deviceDetails, devErr := m.GetUserDevices(ctx, "", user.ImpartWealthID, "")
+						if devErr != nil {
+							m.logger.Error("unable to find device", zap.Error(devErr))
+						}
+						if len(deviceDetails) > 0 {
+							for _, device := range deviceDetails {
+								if (device.LastloginAt == null.Time{}) {
+									endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+									if err != nil {
+										m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+											zap.Error(err))
+									}
+									if endpointARN != "" && newHive.NotificationTopicArn.String != "" {
+										m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, newHive.NotificationTopicArn.String, endpointARN)
 									}
 								}
 							}
 						}
+						// if isMailSent && isNotificationEnabled {
+						// 	notificationData := impart.NotificationData{
+						// 		EventDatetime: impart.CurrentUTC(),
+						// 		HiveID:        newHive.HiveID,
+						// 	}
+						// 	alert := impart.Alert{
+						// 		Title: aws.String(impart.AssignHiveTitle),
+						// 		Body:  aws.String(impart.AssignHiveBody),
+						// 	}
+						// 	err := m.notificationService.Notify(ctx, notificationData, alert, user.ImpartWealthID)
+						// 	if err != nil {
+						// 		m.logger.Error("push-notification : error attempting to send hive notification ",
+						// 			zap.Any("postData", notificationData),
+						// 			zap.Any("postData", alert),
+						// 			zap.Error(err))
+						// 	}
+						// }
+					}()
+				}
+			}
+		} else if userUpdate.Type == impart.RemoveAdmin {
+			if !user.Admin {
+				userUpdate.Users[userUpdateposition].Message = "User is not an admin."
+			} else {
+				impartWealthIds = fmt.Sprintf("%s '%s' ,", impartWealthIds, user.ImpartWealthID)
+				userUpdate.Users[userUpdateposition].Value = 1
+
+				var existingHive *dbmodels.Hive
+
+				for _, h := range user.R.MemberHiveHives {
+					existingHive = h
+				}
+				deviceDetails := user.R.ImpartWealthUserDevices
+				isnotificationEnabled := false
+				if existingHive != nil && existingHive.NotificationTopicArn.String != "" {
+					if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
+						if user.R.ImpartWealthUserConfigurations[0].NotificationStatus {
+							isnotificationEnabled = true
+						}
 					}
+				}
+				if isnotificationEnabled {
+					// var waitGrp sync.WaitGroup
+					// waitGrp.Add(1)
+					go func() {
+						// defer waitGrp.Done()
+						for _, device := range deviceDetails {
+							if (device.LastloginAt == null.Time{}) {
+								endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+								if err != nil {
+									m.logger.Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+										zap.Error(err))
+								}
+								if endpointARN != "" {
+									m.notificationService.SubscribeTopic(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String, endpointARN)
+								}
+							}
+						}
+					}()
+					// waitGrp.Wait()
 				}
 			}
 		}
@@ -1051,6 +1191,16 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 	// 		updateHiveDemographic = fmt.Sprintf("%s %s", updateHiveDemographic, query)
 	// 	}
 	// }
+	if userUpdate.Type == impart.RemoveAdmin {
+		impartWealthIds = strings.Trim(impartWealthIds, ",")
+		updateQuery = fmt.Sprintf(`UPDATE  user 
+		SET avatar_background=(CASE CEIL(RAND()*3) 
+		WHEN 1 THEN '#30A096'
+		WHEN 2 THEN '#DE750D' 
+		WHEN 3 THEN '#F4D304' END),
+		admin=false where impart_wealth_id in(%s);`,
+			impartWealthIds)
+	}
 	query := fmt.Sprintf("%s %s ", updateQuery, updateHivequery)
 	m.logger.Info("update query", zap.String("query", query))
 	_, err := queries.Raw(query).ExecContext(ctx, m.db)
@@ -1058,6 +1208,11 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 		m.logger.Error("unable to excute query", zap.String("query", query),
 			zap.Error(err))
 		return userUpdate, err
+	}
+	if userUpdate.Type == impart.AddToHive || userUpdate.Type == impart.AddToWaitlist {
+		_, err = userDetails.UpdateAll(ctx, m.db, dbmodels.M{"hive_updated_at": impart.CurrentUTC()})
+		m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
+			zap.Error(err))
 	}
 	return userUpdate, nil
 }
@@ -1173,4 +1328,48 @@ func (m *mysqlStore) GetUserDevices(ctx context.Context, token string, impartID 
 		return nil, err
 	}
 	return device, err
+}
+
+func (m *mysqlStore) GetHiveNotification(ctx context.Context) error {
+	HiveNotificaton := impart.GetHiveNotificationDetails()
+	for _, hive := range HiveNotificaton {
+		startdate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day))
+		enddate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day + 1))
+		dates := []time.Time{startdate, enddate}
+		userList, err := m.getUserAll(ctx, nil, false, 2, impart.DefaultHiveID, dates)
+		if err != nil {
+			m.logger.Error("User fetching for notification error-", zap.Any("error", err))
+			return err
+		}
+		notificationData := impart.NotificationData{
+			EventDatetime: impart.CurrentUTC(),
+			Path:          hive.Redirection,
+		}
+		for _, user := range userList {
+			isNotificationEnabled := false
+			if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
+				if user.R.ImpartWealthUserConfigurations[0].NotificationStatus {
+					isNotificationEnabled = true
+				}
+			}
+			if !isNotificationEnabled {
+				break
+			}
+			body := hive.Body
+			if hive.IncludeFirstName {
+				body = fmt.Sprintf(hive.Body, strings.Title(user.FirstName))
+			}
+			alert := impart.Alert{
+				Title: aws.String(hive.Title),
+				Body:  aws.String(body),
+			}
+			m.logger.Info("User Details",
+				zap.Any("User", user),
+				zap.Any("notificationData", notificationData),
+				zap.Any("alert", alert))
+
+			m.notificationService.Notify(context.TODO(), notificationData, alert, user.ImpartWealthID)
+		}
+	}
+	return nil
 }

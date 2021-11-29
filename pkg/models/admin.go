@@ -20,6 +20,7 @@ type GetAdminInputs struct {
 	SearchIDs []string
 	SortBy    string
 	SortOrder string
+	Hive      int
 }
 
 type UserDetails []UserDetail

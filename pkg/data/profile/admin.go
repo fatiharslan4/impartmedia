@@ -223,6 +223,10 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 			inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 		}
 	}
+	if gpi.Hive > 0 {
+		extraQery = fmt.Sprintf(` and hivedata.hive = %d `, gpi.Hive)
+		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+	}
 	if gpi.SortBy == "created_at" {
 		gpi.SortBy = "user.created_at"
 	} else if gpi.SortBy == "income" {

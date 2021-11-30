@@ -77,6 +77,10 @@ const (
 	EmploymentStatus_Retired                         = 65
 	Waitlist_Yes                                     = 0
 	Waitlist_No                                      = -1
+	Admin_Yes                                        = 00
+	Admin_No                                         = 01
+	Super_Admin_Yes                                  = 02
+	Super_Admin_No                                   = 03
 )
 
 func FilterData() ([]byte, error) {
@@ -151,6 +155,10 @@ func FilterData() ([]byte, error) {
 		"EmploymentStatus-Retired":                      EmploymentStatus_Retired,
 		"Waitlist-Yes":                                  Waitlist_Yes,
 		"Waitlist-No":                                   Waitlist_No,
+		"Admin-Yes":                                     Admin_Yes,
+		"Admin-No":                                      Admin_No,
+		"Super Admin-Yes":                               Super_Admin_Yes,
+		"Super Admin-No":                                Super_Admin_No,
 	})
 	if err != nil {
 		return nil, err

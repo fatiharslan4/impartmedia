@@ -47,14 +47,13 @@ type Store interface {
 	GetUsersDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.UserDetail, *models.NextPage, error)
 	GetPostDetails(ctx context.Context, gpi models.GetAdminInputs) ([]models.PostDetail, *models.NextPage, error)
 	EditUserDetails(ctx context.Context, gpi models.WaitListUserInput) (string, impart.Error)
-	// GetHiveDetailsOld(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, error)
 	GetFilterDetails(ctx context.Context) ([]byte, error)
 	EditBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate
 	DeleteBulkUserDetails(ctx context.Context, gpi models.UserUpdate) *models.UserUpdate
 
 	CreateMailChimpForExistingUsers(ctx context.Context) error
 	GetUserAnswer(ctx context.Context, impartWealthId string) (dbmodels.UserAnswerSlice, error)
-	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, error)
+	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) (models.HiveDetails, *models.NextPage, error)
 	GetHiveNotification(ctx context.Context) error
 }
 

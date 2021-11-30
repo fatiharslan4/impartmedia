@@ -54,7 +54,7 @@ const (
 	Industry_SafetySecurity                          = 45
 	Industry_Transportation                          = 46
 	Career_Entrylevel                                = 47
-	Career_Midlevel                                  = 47
+	Career_Midlevel                                  = 48
 	Career_Management                                = 49
 	Career_UpperManagement                           = 50
 	Career_BusinessOwner                             = 51
@@ -128,7 +128,7 @@ func FilterData() ([]byte, error) {
 		"Industry-Natural Resources/Environmental":      Industry_NaturalResources,
 		"Industry-Personal & Professional Services":     Industry_PersonalProfessionalServices,
 		"Industry-Real Estate & Housing":                Industry_RealEstateHousing,
-		"Industry-Retail & eCommerce":                   Industry_RealEstateHousing,
+		"Industry-Retail & eCommerce":                   Industry_RetaileCommerce,
 		"Industry-Safety & Security":                    Industry_SafetySecurity,
 		"Industry-Transportation":                       Industry_Transportation,
 		"Career-Entry-level":                            Career_Entrylevel,

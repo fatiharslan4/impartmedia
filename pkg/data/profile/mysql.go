@@ -1123,8 +1123,10 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 						}
 						if isMailSent && isNotificationEnabled {
 							notificationData := impart.NotificationData{
-								EventDatetime: impart.CurrentUTC(),
-								HiveID:        newHive.HiveID,
+								EventDatetime:  impart.CurrentUTC(),
+								HiveID:         newHive.HiveID,
+								ImpartWealthID: user.ImpartWealthID,
+								Email:          user.Email,
 							}
 							alert := impart.Alert{
 								Title: aws.String(impart.AssignHiveTitle),

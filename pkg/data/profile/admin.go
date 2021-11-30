@@ -210,20 +210,17 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		superAdminYes := false
 		superAdminNo := false
 		for _, filter := range gpi.SearchIDs {
-			fmt.Println(filter)
-			fmt.Println("----")
 			if filter == "0" {
 				onlyWaitlist = "0"
 			} else if filter == "-1" {
 				onlyHive = "-1"
-			} else if filter == "00" {
+			} else if filter == "-2" {
 				adminYes = true
-			} else if filter == "01" {
-				fmt.Println("--1-")
+			} else if filter == "-3" {
 				adminNo = true
-			} else if filter == "02" {
+			} else if filter == "-4" {
 				superAdminYes = true
-			} else if filter == "03" {
+			} else if filter == "-5" {
 				superAdminNo = true
 			} else if filter != "" {
 				extraQery = fmt.Sprintf(` and FIND_IN_SET( %s ,makeup.answer_ids) `, filter)

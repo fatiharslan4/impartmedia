@@ -77,10 +77,10 @@ const (
 	EmploymentStatus_Retired                         = 65
 	Waitlist_Yes                                     = 0
 	Waitlist_No                                      = -1
-	Admin_Yes                                        = 00
-	Admin_No                                         = 01
-	Super_Admin_Yes                                  = 02
-	Super_Admin_No                                   = 03
+	Admin_Yes                                        = -2
+	Admin_No                                         = -3
+	Super_Admin_Yes                                  = -4
+	Super_Admin_No                                   = -5
 )
 
 func FilterData() ([]byte, error) {

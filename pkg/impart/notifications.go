@@ -46,11 +46,13 @@ type NotificationService interface {
 }
 
 type NotificationData struct {
-	EventDatetime time.Time `json:"eventDatetime"`
-	PostID        uint64    `json:"postId,omitempty"`
-	CommentID     uint64    `json:"commentId,omitempty"`
-	HiveID        uint64    `json:"hiveId,omitempty"`
-	Path          string    `json:"path,omitempty"`
+	EventDatetime  time.Time `json:"eventDatetime"`
+	PostID         uint64    `json:"postId,omitempty"`
+	CommentID      uint64    `json:"commentId,omitempty"`
+	HiveID         uint64    `json:"hiveId,omitempty"`
+	Path           string    `json:"path,omitempty"`
+	Email          string    `json:"email,omitempty"`
+	ImpartWealthID string    `json:"impartWealthId,omitempty"`
 }
 
 type noopNotificationService struct {

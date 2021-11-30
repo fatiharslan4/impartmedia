@@ -205,14 +205,29 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	if len(gpi.SearchIDs) > 0 {
 		onlyWaitlist := ""
 		onlyHive := ""
+		adminYes := false
+		adminNo := false
+		superAdminYes := false
+		superAdminNo := false
 		for _, filter := range gpi.SearchIDs {
-			if filter != "" && filter != "0" && filter != "-1" {
-				extraQery = fmt.Sprintf(` and FIND_IN_SET( %s ,makeup.answer_ids) `, filter)
-				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
-			} else if filter == "0" {
+			fmt.Println(filter)
+			fmt.Println("----")
+			if filter == "0" {
 				onlyWaitlist = "0"
 			} else if filter == "-1" {
 				onlyHive = "-1"
+			} else if filter == "00" {
+				adminYes = true
+			} else if filter == "01" {
+				fmt.Println("--1-")
+				adminNo = true
+			} else if filter == "02" {
+				superAdminYes = true
+			} else if filter == "03" {
+				superAdminNo = true
+			} else if filter != "" {
+				extraQery = fmt.Sprintf(` and FIND_IN_SET( %s ,makeup.answer_ids) `, filter)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 			}
 		}
 		if onlyWaitlist != "" && onlyHive == "" {
@@ -221,6 +236,24 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 		} else if onlyWaitlist == "" && onlyHive != "" {
 			extraQery = fmt.Sprintf(` and hivedata.hive != 1 `)
 			inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+		}
+		if adminYes != adminNo {
+			if adminYes {
+				extraQery = fmt.Sprintf(` and admin = true `)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+			} else if adminNo {
+				extraQery = fmt.Sprintf(` and admin = false `)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+			}
+		}
+		if superAdminNo != superAdminYes {
+			if superAdminYes {
+				extraQery = fmt.Sprintf(` and super_admin = true `)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+			} else if superAdminNo {
+				extraQery = fmt.Sprintf(` and super_admin = false `)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+			}
 		}
 	}
 	if gpi.Hive > 0 {
@@ -274,6 +307,7 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	} else {
 		err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 	}
+	fmt.Println(inputQuery)
 	if err != nil {
 		out := make(models.UserDetails, 0, 0)
 		return out, outOffset, err

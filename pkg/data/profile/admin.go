@@ -570,8 +570,10 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 				}
 				if isMailSent && isNotificationEnabled {
 					notificationData := impart.NotificationData{
-						EventDatetime: impart.CurrentUTC(),
-						HiveID:        nwHive.HiveID,
+						EventDatetime:  impart.CurrentUTC(),
+						HiveID:         nwHive.HiveID,
+						ImpartWealthID: userToUpdate.ImpartWealthID,
+						Email:          userToUpdate.Email,
 					}
 					alert := impart.Alert{
 						Title: aws.String(impart.AssignHiveTitle),

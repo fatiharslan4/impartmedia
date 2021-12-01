@@ -1213,9 +1213,30 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 	}
 	if userUpdate.Type == impart.AddToHive || userUpdate.Type == impart.AddToWaitlist {
 		_, err = userDetails.UpdateAll(ctx, m.db, dbmodels.M{"hive_updated_at": impart.CurrentUTC()})
-		m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
-			zap.Error(err))
+		if err != nil {
+			m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
+				zap.Error(err))
+		}
 	}
+	if userUpdate.Type == impart.AddToSuperAdmin {
+		_, err = userDetails.UpdateAll(ctx, m.db,
+			dbmodels.M{"super_admin": true,
+				"admin":             true,
+				"avatar_background": "#4D4D4F"})
+		if err != nil {
+			m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
+				zap.Error(err))
+		}
+	}
+	if userUpdate.Type == impart.RemoveSuperAdmin {
+		_, err = userDetails.UpdateAll(ctx, m.db,
+			dbmodels.M{"super_admin": false})
+		if err != nil {
+			m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
+				zap.Error(err))
+		}
+	}
+
 	return userUpdate, nil
 }
 

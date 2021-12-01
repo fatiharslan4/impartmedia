@@ -816,29 +816,25 @@ func (m *mysqlStore) GetFilterDetails(ctx context.Context) ([]byte, error) {
 }
 
 func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) *models.UserUpdate {
-	userOutput := models.UserUpdate{}
-	userDatas := make([]models.UserData, len(userUpdatesInput.Users))
+	userOutput := &models.UserUpdate{}
+	// userDatas := make([]models.UserData, len(userUpdatesInput.Users))
 	userOutput.Type = userUpdatesInput.Type
 	userOutput.HiveID = userUpdatesInput.HiveID
 	userOutput.Action = userUpdatesInput.Action
+	userOutput.Users = userUpdatesInput.Users
 	impartWealthIDs := make([]interface{}, len(userUpdatesInput.Users))
 	cfg, _ := config.GetImpart()
 	for i, user := range userUpdatesInput.Users {
-		userData := &models.UserData{}
-		userData.ImpartWealthID = user.ImpartWealthID
-		userData.ScreenName = user.ScreenName
-		userData.Status = false
-		userData.Message = "No update activity."
-		userData.Value = 0
+		userOutput.Users[i].Message = "No delete activity."
+		userOutput.Users[i].Status = false
 		if user.ImpartWealthID != "" {
 			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
 		}
-		userDatas[i] = *userData
 	}
 	m.logger.Info("User list created")
-	userOutput.Users = userDatas
-	userOutputRslt := &userOutput
+	userOutputRslt := userOutput
 	includeUsers := 2
+	includeSuperadmin := false
 	if userUpdatesInput.Type == impart.AddToAdmin {
 		includeUsers = impart.ExcludeAdmin
 	} else if userUpdatesInput.Type == impart.RemoveAdmin {
@@ -850,12 +846,8 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	} else if userUpdatesInput.Type == impart.AddToHive {
 		excludeHive = userUpdatesInput.HiveID
 	}
-	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, false, includeUsers, excludeHive, nil)
-	if err != nil {
-		fmt.Println(err)
-		return userOutputRslt
-	}
-	if updateUsers == nil {
+	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, includeSuperadmin, includeUsers, excludeHive, nil)
+	if err != nil || updateUsers == nil {
 		return userOutputRslt
 	}
 	userOutputs, impartErr := m.UpdateBulkUserProfile(ctx, updateUsers, false, userOutputRslt)
@@ -872,24 +864,26 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	m.logger.Info("status updated")
 	for _, user := range updateUsers {
 		for cnt := 0; cnt < lenUser; cnt++ {
-			if userOutputs.Users[cnt].ImpartWealthID == user.ImpartWealthID && userOutputs.Users[cnt].Value == 1 {
+			if userOutputs.Users[cnt].ImpartWealthID == user.ImpartWealthID {
 				userOutputs.Users[cnt].Message = "User updated."
 				userOutputs.Users[cnt].Status = true
 				m.logger.Info("User status updating", zap.String("impartWealthID", user.ImpartWealthID))
 				break
 			}
 		}
-		if userOutputRslt.Type == impart.AddToWaitlist || userOutputRslt.Type == impart.AddToHive {
-			mailChimpParams := &members.UpdateParams{
-				MergeFields: map[string]interface{}{"STATUS": status},
+		go func(user *dbmodels.User) {
+			if userOutputRslt.Type == impart.AddToWaitlist || userOutputRslt.Type == impart.AddToHive {
+				mailChimpParams := &members.UpdateParams{
+					MergeFields: map[string]interface{}{"STATUS": status},
+				}
+				_, err = members.Update(cfg.MailchimpAudienceId, user.Email, mailChimpParams)
+				if err != nil {
+					m.logger.Info("mailchimp failed")
+					m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
+						zap.Error(err))
+				}
 			}
-			_, err = members.Update(cfg.MailchimpAudienceId, user.Email, mailChimpParams)
-			if err != nil {
-				m.logger.Info("mailchimp failed")
-				m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
-					zap.Error(err))
-			}
-		}
+		}(user)
 	}
 	m.logger.Info("all process completed")
 	return userOutputs

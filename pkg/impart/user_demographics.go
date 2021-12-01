@@ -15,7 +15,9 @@ func UserDemographicsUpdate(ctx context.Context, db *sql.DB, ishivedemographics 
 	demographics := ""
 	fmt.Println("UserDemographicsUpdate-started")
 	if ishivedemographics {
-		hivedemographics = fmt.Sprintf(`UPDATE hive_user_demographic
+		hivedemographics = fmt.Sprintf(`
+		update hive_user_demographic set user_count=0;
+		UPDATE hive_user_demographic
 		INNER JOIN
 		(
 		   SELECT 
@@ -47,7 +49,9 @@ func UserDemographicsUpdate(ctx context.Context, db *sql.DB, ishivedemographics 
 		user_count = cte_user_demographic.answercount;`)
 	}
 	if isdemographics {
-		demographics = fmt.Sprintf(`UPDATE user_demographic
+		demographics = fmt.Sprintf(`
+		update user_demographic set user_count=0;
+		UPDATE user_demographic
 		INNER JOIN
 		(
 		SELECT answer_id,count(answer_id) as usercount
@@ -62,6 +66,8 @@ func UserDemographicsUpdate(ctx context.Context, db *sql.DB, ishivedemographics 
 		user_count = cte_user_demographic.usercount;`)
 	}
 	query := fmt.Sprintf("%s %s", hivedemographics, demographics)
+	fmt.Println(query)
+	fmt.Println("909090")
 	_, err := queries.Raw(query).ExecContext(ctx, db)
 	if err != nil {
 		Logger.Error("query failed", zap.Any("query", err), zap.Any("query", query))

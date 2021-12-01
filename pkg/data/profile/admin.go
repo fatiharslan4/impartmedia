@@ -815,7 +815,7 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 	}
 	var hiveDetails models.HiveDetails
 	query := fmt.Sprintf(`select hive.hive_id,name,created_at,
-	total_user.count as users,
+	case when total_user.count is null then 0 else total_user.count end as  users,
 	GROUP_CONCAT(CASE WHEN demo.answer_id =1 THEN user_count  END) AS 'household_single',
 	GROUP_CONCAT(CASE WHEN demo.answer_id =2 THEN user_count  END)AS 'household_singleroommates',
 	GROUP_CONCAT(CASE WHEN demo.answer_id =3 THEN user_count  END)AS 'household_partner',

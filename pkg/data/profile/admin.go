@@ -447,8 +447,13 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if err != nil {
 			m.logger.Error("Update HiveUpdatedAt failed", zap.Any("user", userToUpdate))
 		}
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, DefaultHiveId)
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
+		go func() {
+			err = m.UpdateHiveUserDemographic(ctx, answerIds, existingHiveId, DefaultHiveId, false, true, false)
+			if err != nil {
+				m.logger.Error("UpdateHiveUserDemographic update failed", zap.String("Email", userToUpdate.Email),
+					zap.Error(err))
+			}
+		}()
 		msg = "User added to waitlist."
 
 		mailChimpParams := &members.UpdateParams{
@@ -525,8 +530,13 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if err != nil {
 			m.logger.Error("Update HiveUpdatedAt failed", zap.Any("user", userToUpdate))
 		}
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, gpi.HiveID)
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
+		go func() {
+			err = m.UpdateHiveUserDemographic(ctx, answerIds, existingHiveId, gpi.HiveID, false, true, false)
+			if err != nil {
+				m.logger.Error("UpdateHiveUserDemographic update failed", zap.String("Email", userToUpdate.Email),
+					zap.Error(err))
+			}
+		}()
 		msg = "User added to hive."
 
 		isMailSent := false
@@ -635,10 +645,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 
 		if isnotificationEnabled {
-			// var waitGrp sync.WaitGroup
-			// waitGrp.Add(1)
 			go func() {
-				// defer waitGrp.Done()
 				for _, device := range deviceDetails {
 					if (device.LastloginAt == null.Time{}) {
 						endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
@@ -652,7 +659,6 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 					}
 				}
 			}()
-			// waitGrp.Wait()
 		}
 	}
 	return msg, nil

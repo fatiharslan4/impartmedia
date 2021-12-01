@@ -24,8 +24,8 @@ type Store interface {
 	GetAllCurrentQuestionnaires(ctx context.Context) (dbmodels.QuestionnaireSlice, error)
 	GetUserQuestionnaires(ctx context.Context, impartWealthId string, questionnaireName *string) (dbmodels.QuestionnaireSlice, error)
 	SaveUserQuestionnaire(ctx context.Context, answer dbmodels.UserAnswerSlice) error
-	UpdateUserDemographic(ctx context.Context, answerIds []uint, status bool) error
-	UpdateHiveUserDemographic(ctx context.Context, answerIds []uint, status bool, hiveid uint64) error
+	// UpdateUserDemographic(ctx context.Context, answerIds []uint, status bool) error
+	UpdateHiveUserDemographic(ctx context.Context, answerIds []uint, hiveid uint64, newhiveid uint64, ishive bool, ishivedemo bool, status bool) error
 
 	GetUserConfigurations(ctx context.Context, impartWealthID string) (*dbmodels.UserConfiguration, error)
 	CreateUserConfigurations(ctx context.Context, conf *dbmodels.UserConfiguration) (*dbmodels.UserConfiguration, error)

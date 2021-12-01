@@ -311,17 +311,24 @@ func (ps *profileService) BlockUser(ctx context.Context, impartID string, screen
 		errorString := fmt.Sprintf("%v", err)
 		return impart.NewError(impart.ErrBadRequest, errorString)
 	}
-	// exitingUserAnser := dbUser.R.ImpartWealthUserAnswers
-	// answerIds := make([]uint, len(exitingUserAnser))
-	// for i, a := range exitingUserAnser {
-	// 	answerIds[i] = a.AnswerID
-	// }
-	// hiveid := DefaultHiveId
-	// for _, h := range dbUser.R.MemberHiveHives {
-	// 	hiveid = h.HiveID
-	// }
-	//err = ps.profileStore.UpdateUserDemographic(ctx, answerIds, false)
-	//err = ps.profileStore.UpdateHiveUserDemographic(ctx, answerIds, false, hiveid)
+
+	exitingUserAnser := dbUser.R.ImpartWealthUserAnswers
+	answerIds := make([]uint, len(exitingUserAnser))
+	for i, a := range exitingUserAnser {
+		answerIds[i] = a.AnswerID
+	}
+	hiveid := DefaultHiveId
+	for _, h := range dbUser.R.MemberHiveHives {
+		hiveid = h.HiveID
+	}
+
+	go func() {
+		err = ps.profileStore.UpdateHiveUserDemographic(ctx, answerIds, hiveid, 0, true, true, false)
+		if err != nil {
+			ps.Logger().Error("UpdateHiveUserDemographic falied.", zap.Any("err", err),
+				zap.String("contextUser", dbUser.ImpartWealthID))
+		}
+	}()
 
 	if dbUser.R.MemberHiveHives != nil {
 		if dbUser.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
@@ -399,8 +406,7 @@ func (ps *profileService) EditUserDetails(ctx context.Context, gpi models.WaitLi
 	return msg, nil
 }
 
-func (ps *profileService) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, impart.Error) {
-	// result, nextPage, err := ps.profileStore.GetHiveDetailsOld(ctx, gpi)
+func (ps *profileService) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) (models.HiveDetails, *models.NextPage, impart.Error) {
 	result, nextPage, err := ps.profileStore.GetHiveDetails(ctx, gpi)
 	if err != nil {
 		ps.Logger().Error("Error in data fetching", zap.Error(err))

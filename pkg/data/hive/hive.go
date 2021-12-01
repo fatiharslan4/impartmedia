@@ -257,56 +257,12 @@ func (d *mysqlHiveData) DeleteHive(ctx context.Context, hiveID uint64) error {
 	return nil
 }
 
-func (m *mysqlHiveData) UpdateHiveUserDemographic(ctx context.Context, answerIds []uint, status bool, hiveId uint64) error {
-	tx, err := m.db.BeginTx(ctx, nil)
-	if err != nil {
-		return rollbackIfError(tx, err, m.logger)
-	}
-	for _, a := range answerIds {
-		var userDemo dbmodels.HiveUserDemographic
-		err = dbmodels.NewQuery(
-			qm.Select("*"),
-			qm.Where("answer_id = ?", a),
-			qm.Where("hive_id = ?", int(hiveId)),
-			qm.From("hive_user_demographic"),
-		).Bind(ctx, m.db, &userDemo)
-		if err != nil {
-		}
-		if err == nil {
-			existData := &userDemo
-			if status {
-				existData.UserCount = existData.UserCount + 1
-			} else {
-				existData.UserCount = existData.UserCount - 1
-			}
-			_, err = existData.Update(ctx, m.db, boil.Infer())
-			if err != nil {
-				return rollbackIfError(tx, err, m.logger)
-			}
-		}
-	}
-	return tx.Commit()
-}
-
 func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.HiveSlice) error {
 	updateQuery := ""
 	updatememberHive := ""
-	updateHiveDemographic := ""
 	var allUser []string
 	currTime := time.Now().In(boil.GetLocation())
 	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
-	userHiveDemo := make(map[uint64]map[uint64]int)
-	dbhiveUserDemographic, _ := dbmodels.HiveUserDemographics().All(ctx, d.db)
-	for _, demohive := range dbhiveUserDemographic {
-		data := userHiveDemo[uint64(demohive.HiveID)]
-		if data == nil {
-			count := make(map[uint64]int)
-			count[uint64(demohive.AnswerID)] = int(demohive.UserCount)
-			userHiveDemo[uint64(demohive.HiveID)] = count
-		} else {
-			data[uint64(demohive.AnswerID)] = int(demohive.UserCount)
-		}
-	}
 
 	for _, hive := range hiveInput {
 		if hive.HiveID == impart.DefaultHiveID {
@@ -321,20 +277,8 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 			updatememberHive = fmt.Sprintf("%s %s", updatememberHive, query)
 			allUser = append(allUser, member.Email)
 		}
-		for _, hiveDemo := range dbhiveUserDemographic {
-			if hiveDemo.HiveID == hive.HiveID {
-				userHiveDemo[impart.DefaultHiveID][uint64(hiveDemo.AnswerID)] = userHiveDemo[impart.DefaultHiveID][uint64(hiveDemo.AnswerID)] + userHiveDemo[hive.HiveID][uint64(hiveDemo.AnswerID)]
-				userHiveDemo[hive.HiveID][uint64(hiveDemo.AnswerID)] = 0
-			}
-		}
 	}
-	for hive, demo := range userHiveDemo {
-		for answer, cnt := range demo {
-			query := fmt.Sprintf("update hive_user_demographic set user_count=%d where hive_id=%d and answer_id=%d;", cnt, hive, answer)
-			updateHiveDemographic = fmt.Sprintf("%s %s", updateHiveDemographic, query)
-		}
-	}
-	query := fmt.Sprintf("%s %s %s", updateQuery, updatememberHive, updateHiveDemographic)
+	query := fmt.Sprintf("%s %s ", updateQuery, updatememberHive)
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -345,17 +289,20 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 		return err
 	}
 	// Update mailChimp
-	cfg, _ := config.GetImpart()
-	for hiveUser := range allUser {
-		mailChimpParams := &members.UpdateParams{
-			MergeFields: map[string]interface{}{"STATUS": impart.WaitList},
+	go func() {
+		cfg, _ := config.GetImpart()
+		for hiveUser := range allUser {
+			mailChimpParams := &members.UpdateParams{
+				MergeFields: map[string]interface{}{"STATUS": impart.WaitList},
+			}
+			_, err = members.Update(cfg.MailchimpAudienceId, allUser[hiveUser], mailChimpParams)
+			if err != nil {
+				d.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", allUser[hiveUser]),
+					zap.String("contextUser", allUser[hiveUser]))
+			}
 		}
-		_, err = members.Update(cfg.MailchimpAudienceId, allUser[hiveUser], mailChimpParams)
-		if err != nil {
-			d.logger.Error("Delete user requset failed in MailChimp", zap.String("deleteUser", allUser[hiveUser]),
-				zap.String("contextUser", allUser[hiveUser]))
-		}
-	}
+	}()
+	go impart.UserDemographicsUpdate(ctx, d.db, true, true)
 	return nil
 }
 

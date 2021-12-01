@@ -302,7 +302,6 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	} else {
 		err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 	}
-	fmt.Println(inputQuery)
 	if err != nil {
 		out := make(models.UserDetails, 0, 0)
 		return out, outOffset, err
@@ -658,6 +657,43 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 				}
 			}()
 		}
+	} else if gpi.Type == impart.AddToSuperAdmin {
+		if userToUpdate.SuperAdmin {
+			return msg, impart.NewError(impart.ErrBadRequest, "User is already super admin.")
+		}
+		userToUpdate.Admin = true
+		userToUpdate.SuperAdmin = true
+
+		rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
+		admin := impart.GetAvatharLettersAdmin()
+		adminindex := rand.Intn(len(admin))
+		userToUpdate.AvatarBackground = admin[adminindex]
+
+		err = m.UpdateProfile(ctx, userToUpdate, nil)
+		if err != nil {
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as admin")
+		}
+		msg = "User role changed to super admin."
+
+		if userToUpdate.R.MemberHiveHives != nil {
+			if userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+				err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToUpdate.ImpartWealthID, userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String)
+				if err != nil {
+					m.logger.Error("SubscribeTopic", zap.String("DeviceToken", userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String),
+						zap.Error(err))
+				}
+			}
+		}
+	} else if gpi.Type == impart.RemoveSuperAdmin {
+		if !userToUpdate.SuperAdmin {
+			return msg, impart.NewError(impart.ErrBadRequest, "User is not super admin.")
+		}
+		userToUpdate.SuperAdmin = false
+		err = m.UpdateProfile(ctx, userToUpdate, nil)
+		if err != nil {
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as admin")
+		}
+		msg = "User role changed to admin."
 	}
 	return msg, nil
 }
@@ -680,7 +716,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	impartWealthIDs := make([]interface{}, len(userUpdatesInput.Users))
 	cfg, _ := config.GetImpart()
 	for i, user := range userUpdatesInput.Users {
-		userOutput.Users[i].Message = "No delete activity."
+		userOutput.Users[i].Message = "No update activity."
 		userOutput.Users[i].Status = false
 		if user.ImpartWealthID != "" {
 			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
@@ -689,7 +725,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	m.logger.Info("User list created")
 	userOutputRslt := userOutput
 	includeUsers := 2
-	includeSuperadmin := false
+	includeSuperadmin := impart.IncludeAll
 	if userUpdatesInput.Type == impart.AddToAdmin {
 		includeUsers = impart.ExcludeAdmin
 	} else if userUpdatesInput.Type == impart.RemoveAdmin {
@@ -700,6 +736,10 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		excludeHive = impart.DefaultHiveID
 	} else if userUpdatesInput.Type == impart.AddToHive {
 		excludeHive = userUpdatesInput.HiveID
+	} else if userUpdatesInput.Type == impart.AddToSuperAdmin {
+		includeSuperadmin = impart.ExcludeSuperAdmin
+	} else if userUpdatesInput.Type == impart.RemoveSuperAdmin {
+		includeSuperadmin = impart.IncludeSuperAdmin
 	}
 	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, includeSuperadmin, includeUsers, excludeHive, nil)
 	if err != nil || updateUsers == nil {
@@ -726,8 +766,8 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 				break
 			}
 		}
-		go func(user *dbmodels.User) {
-			if userOutputRslt.Type == impart.AddToWaitlist || userOutputRslt.Type == impart.AddToHive {
+		if userOutputRslt.Type == impart.AddToWaitlist || userOutputRslt.Type == impart.AddToHive {
+			go func() {
 				mailChimpParams := &members.UpdateParams{
 					MergeFields: map[string]interface{}{"STATUS": status},
 				}
@@ -737,8 +777,8 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 					m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
 						zap.Error(err))
 				}
-			}
-		}(user)
+			}()
+		}
 	}
 	m.logger.Info("all process completed")
 	return userOutputs
@@ -765,7 +805,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 
 	userOutputRslt := &userOutput
 
-	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, true, impart.IncludeAll, 0, nil)
+	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, impart.ExcludeSuperAdmin, impart.IncludeAll, 0, nil)
 	if err != nil || len(deleteUser) == 0 {
 		return userOutputRslt
 	}

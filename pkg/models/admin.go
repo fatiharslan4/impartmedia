@@ -30,6 +30,7 @@ type UserDetail struct {
 	Email            null.String `json:"email" `
 	CreatedAt        time.Time   `json:"created_at" `
 	Admin            bool        `json:"admin" `
+	SuperAdmin       bool        `json:"super_admin"`
 	Post             uint64      `json:"post" `
 	HiveId           string      `json:"hive_id" `
 	Household        string      `json:"household" `
@@ -42,7 +43,6 @@ type UserDetail struct {
 	Career           string      `json:"career"`
 	Income           string      `json:"income"`
 	LastloginAt      string      `json:"lastlogin_at"`
-	SuperAdmin       bool        `json:"super_admin"`
 	AnswerIds        string      `json:"answer_ids"`
 	EmploymentStatus string      `json:"employment_status"`
 	// List             null.Uint64 `json:"list"`

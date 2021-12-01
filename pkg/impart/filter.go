@@ -185,7 +185,9 @@ const (
 )
 
 const (
-	IncludeAdmin = 1
-	ExcludeAdmin = 0
-	IncludeAll   = 2
+	IncludeAdmin      = 1
+	ExcludeAdmin      = 0
+	IncludeAll        = 2
+	IncludeSuperAdmin = 1
+	ExcludeSuperAdmin = 0
 )

@@ -290,7 +290,11 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		ps.Logger().Error("error setting member hives", zap.Error(err))
 		return isnewhive, impart.NewError(impart.ErrUnknown, "unable to set the member hive")
 	}
-	err = ps.AssignHiveDemograpics(ctx, answer, hiveId)
+	memberhive := impart.DefaultHiveID
+	if hiveId != nil {
+		memberhive = *hiveId
+	}
+	err = ps.AssignHiveDemograpics(ctx, answer, memberhive)
 	if err != nil {
 		ps.Logger().Error("error in update user demogrpahics", zap.Error(err))
 	}
@@ -511,7 +515,7 @@ func SearchString(input []string, searchItem string) bool {
 	return false
 }
 
-func (ps *profileService) AssignHiveDemograpics(ctx context.Context, answer dbmodels.UserAnswerSlice, hiveId *uint64) error {
+func (ps *profileService) AssignHiveDemograpics(ctx context.Context, answer dbmodels.UserAnswerSlice, hiveId uint64) error {
 
 	inParamValues := ""
 
@@ -519,8 +523,15 @@ func (ps *profileService) AssignHiveDemograpics(ctx context.Context, answer dbmo
 		inParamValues = fmt.Sprintf("%s %d ,", inParamValues, id.AnswerID)
 	}
 	inParamValues = strings.Trim(inParamValues, ",")
-	updateHiveDemograph := fmt.Sprintf("update user_demographic set user_count=user_count+1 where answer_id in (%s); update hive_user_demographic set user_count=user_count+1 where answer_id in (%s) and hive_id = %d;", inParamValues, inParamValues, 42)
+	updateHiveDemograph := fmt.Sprintf(`update user_demographic 
+		set user_count=user_count+1 
+		where answer_id in (%s);
+	 	update hive_user_demographic 
+	 	set user_count=user_count+1 
+	 	where answer_id in (%s) and hive_id = %d;`, inParamValues, inParamValues, hiveId)
 	_, err := queries.Raw(updateHiveDemograph).ExecContext(ctx, ps.db)
+	fmt.Println("-----------------------")
+	fmt.Println(updateHiveDemograph)
 	if err != nil {
 		return err
 	}

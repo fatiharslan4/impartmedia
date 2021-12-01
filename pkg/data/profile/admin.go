@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"math/rand"
-	"sort"
 	"time"
 
 	"fmt"
@@ -19,7 +18,6 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
-	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
 
@@ -447,8 +445,13 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if err != nil {
 			m.logger.Error("Update HiveUpdatedAt failed", zap.Any("user", userToUpdate))
 		}
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, DefaultHiveId)
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
+		go func() {
+			err = m.UpdateHiveUserDemographic(ctx, answerIds, existingHiveId, DefaultHiveId, false, true, false)
+			if err != nil {
+				m.logger.Error("UpdateHiveUserDemographic update failed", zap.String("Email", userToUpdate.Email),
+					zap.Error(err))
+			}
+		}()
 		msg = "User added to waitlist."
 
 		mailChimpParams := &members.UpdateParams{
@@ -525,8 +528,13 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if err != nil {
 			m.logger.Error("Update HiveUpdatedAt failed", zap.Any("user", userToUpdate))
 		}
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, gpi.HiveID)
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
+		go func() {
+			err = m.UpdateHiveUserDemographic(ctx, answerIds, existingHiveId, gpi.HiveID, false, true, false)
+			if err != nil {
+				m.logger.Error("UpdateHiveUserDemographic update failed", zap.String("Email", userToUpdate.Email),
+					zap.Error(err))
+			}
+		}()
 		msg = "User added to hive."
 
 		isMailSent := false
@@ -635,10 +643,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 
 		if isnotificationEnabled {
-			// var waitGrp sync.WaitGroup
-			// waitGrp.Add(1)
 			go func() {
-				// defer waitGrp.Done()
 				for _, device := range deviceDetails {
 					if (device.LastloginAt == null.Time{}) {
 						endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
@@ -652,161 +657,11 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 					}
 				}
 			}()
-			// waitGrp.Wait()
 		}
 	}
 	return msg, nil
 }
 
-func (m *mysqlStore) GetHiveDetailsOld(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, error) {
-	outOffset := &models.NextPage{
-		Offset: gpi.Offset,
-	}
-
-	if gpi.Limit <= 0 {
-		gpi.Limit = defaultLimit
-	} else if gpi.Limit > maxLimit {
-		gpi.Limit = maxLimit
-	}
-	isSorted := false
-	if gpi.SortBy == "" {
-		isSorted = true
-		gpi.SortBy = "hive.hive_id asc"
-	} else if gpi.SortBy == "name" || gpi.SortBy == "created_at" {
-		gpi.SortBy = fmt.Sprintf("%s.%s %s", "hive", gpi.SortBy, gpi.SortOrder)
-		isSorted = true
-	}
-	queryMods := []qm.QueryMod{
-		qm.Load(dbmodels.HiveUserDemographicRels.Answer),
-		qm.Load(dbmodels.HiveUserDemographicRels.Question),
-		qm.Load(dbmodels.HiveUserDemographicRels.Hive),
-	}
-	where := fmt.Sprintf(`hive on hive_user_demographic.hive_id=hive.hive_id and hive.deleted_at is null `)
-	queryMods = append(queryMods, qm.InnerJoin(where))
-	if isSorted {
-		queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
-	}
-	demographic, err := dbmodels.HiveUserDemographics(queryMods...).All(ctx, m.db)
-	if err != nil {
-		return nil, outOffset, err
-	}
-	hiveId := 0
-	preHiveId := 0
-	i := 0
-	totalCnt := 0
-	lenHive := 0
-	indexes := make(map[uint]int)
-	var memberHives []models.DemographicHivesCount
-	err = queries.Raw(`
-	select member_hive_id , count(member_hive_id) count
-	from hive_members
-	join user on hive_members.member_impart_wealth_id=user.impart_wealth_id
-	join hive on hive.hive_id=hive_members.member_hive_id
-	where hive.deleted_at is null and user.deleted_at is null and user.blocked=0
-	group by hive_members.member_hive_id
-	`).Bind(ctx, m.db, &memberHives)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, i := range memberHives {
-		indexes[uint(i.MemberHiveId)] = i.Count
-	}
-
-	for _, p := range demographic {
-		if int(p.HiveID) != preHiveId {
-			lenHive = lenHive + 1
-		}
-		preHiveId = int(p.HiveID)
-	}
-	preHiveId = 0
-	hives := make([]map[string]interface{}, lenHive, lenHive)
-	hive := make(map[string]interface{})
-	for _, p := range demographic {
-		hiveId = int(p.HiveID)
-		if hiveId != preHiveId && preHiveId != 0 {
-			hives[i] = hive
-			hive = make(map[string]interface{})
-			i = i + 1
-			totalCnt = 0
-		}
-		hive["hive_id"] = hiveId
-		hive["name"] = p.R.Hive.Name
-		if (p.R.Hive.CreatedAt == null.Time{}) {
-			hive["date created"] = "NA"
-		} else {
-			hive["date created"] = p.R.Hive.CreatedAt
-		}
-		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.Text)] = int(p.UserCount)
-		totalCnt = totalCnt + int(p.UserCount)
-		hive["users"] = int(indexes[uint(p.HiveID)])
-		preHiveId = int(p.HiveID)
-	}
-	hives[i] = hive
-	if gpi.SortBy != "" && !isSorted {
-		if gpi.SortOrder == "desc" {
-			sort.Slice(hives, func(i, j int) bool {
-				compareItem := hives[i][gpi.SortBy]
-				compareItemNext := hives[j][gpi.SortBy]
-				switch compareItem.(type) {
-				case int:
-					if _, ok := compareItemNext.(int); ok {
-						return compareItem.(int) > compareItemNext.(int)
-					}
-					return compareItem == compareItemNext
-				case string:
-					if _, ok := compareItemNext.(string); ok {
-						return compareItem.(string) > compareItemNext.(string)
-					}
-					return compareItem == compareItemNext
-				case uint64:
-					if _, ok := compareItemNext.(uint64); ok {
-						return compareItem.(uint64) > compareItemNext.(uint64)
-					}
-					return compareItem == compareItemNext
-				case time.Time:
-					if _, ok := compareItemNext.(time.Time); ok {
-						return compareItem.(time.Time).After(compareItemNext.(time.Time))
-					}
-					return compareItem == compareItemNext
-				default:
-					return compareItem == compareItemNext
-				}
-			})
-		} else {
-			sort.Slice(hives, func(i, j int) bool {
-				compareItem := hives[i][gpi.SortBy]
-				compareItemNext := hives[j][gpi.SortBy]
-				switch compareItem.(type) {
-				case int:
-					if _, ok := compareItemNext.(int); ok {
-						return compareItem.(int) < compareItemNext.(int)
-					}
-					return compareItem == compareItemNext
-				case string:
-					if _, ok := compareItemNext.(string); ok {
-						return compareItem.(string) < compareItemNext.(string)
-					}
-					return compareItem == compareItemNext
-				case uint64:
-					if _, ok := compareItemNext.(uint64); ok {
-						return compareItem.(uint64) < compareItemNext.(uint64)
-					}
-					return compareItem == compareItemNext
-				case time.Time:
-					if _, ok := compareItemNext.(time.Time); ok {
-						return compareItem.(time.Time).Before(compareItemNext.(time.Time))
-					}
-					return compareItem != compareItemNext
-				default:
-					return compareItem != compareItemNext
-				}
-
-			})
-		}
-	}
-	return hives, outOffset, nil
-
-}
 func (m *mysqlStore) GetFilterDetails(ctx context.Context) ([]byte, error) {
 	result, err := impart.FilterData()
 	if err != nil {
@@ -943,7 +798,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 	return userOutputRslt
 }
 
-func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, error) {
+func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) (models.HiveDetails, *models.NextPage, error) {
 	outOffset := &models.NextPage{
 		Offset: gpi.Offset,
 	}
@@ -953,163 +808,110 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 	} else if gpi.Limit > maxLimit {
 		gpi.Limit = maxLimit
 	}
-	isSorted := false
-	orderByMod := qm.OrderBy("hive_id desc")
 	if gpi.SortBy == "" {
-		isSorted = true
-		// gpi.SortBy = "hive.hive_id asc"
-	} else if gpi.SortBy == "name" || gpi.SortBy == "date created" {
-		if gpi.SortBy == "date created" {
-			gpi.SortBy = "created_at"
-		}
-		// gpi.SortBy = fmt.Sprintf("%s.%s %s", "hive", gpi.SortBy, gpi.SortOrder)
-		orderByMod = qm.OrderBy(fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder))
-		isSorted = true
-	}
-	var demographic dbmodels.HiveSlice
-	var err error
-	if !isSorted {
-		demographic, err = dbmodels.Hives(
-			qm.Offset(gpi.Offset),
-			qm.Limit(gpi.Limit),
-			Load(Rels(dbmodels.HiveRels.HiveUserDemographics, dbmodels.HiveUserDemographicRels.Question)),
-			Load(Rels(dbmodels.HiveRels.HiveUserDemographics, dbmodels.HiveUserDemographicRels.Answer)),
-		).All(ctx, m.db)
+		gpi.SortBy = "hive_id asc"
 	} else {
-		demographic, err = dbmodels.Hives(
-			qm.Offset(gpi.Offset),
-			qm.Limit(gpi.Limit),
-			orderByMod,
-			Load(Rels(dbmodels.HiveRels.HiveUserDemographics, dbmodels.HiveUserDemographicRels.Question)),
-			Load(Rels(dbmodels.HiveRels.HiveUserDemographics, dbmodels.HiveUserDemographicRels.Answer)),
-		).All(ctx, m.db)
+		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
 	}
+	var hiveDetails models.HiveDetails
+	query := fmt.Sprintf(`select hive.hive_id,name,created_at,
+	case when total_user.count is null then 0 else total_user.count end as  users,
+	GROUP_CONCAT(CASE WHEN demo.answer_id =1 THEN user_count  END) AS 'household_single',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =2 THEN user_count  END)AS 'household_singleroommates',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =3 THEN user_count  END)AS 'household_partner',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =4 THEN user_count  END)AS 'household_married',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =5 THEN user_count  END)AS 'household_sharedcustody',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =6 THEN user_count  END)AS 'dependents_none',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =7 THEN user_count  END)AS 'dependents_preschool',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =8 THEN user_count  END)AS 'dependents_schoolage',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =9 THEN user_count  END)AS 'dependents_postschool',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =10 THEN user_count  END)AS 'dependents_parents',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =11 THEN user_count  END)AS 'dependents_other',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =12 THEN user_count  END)AS 'generation_genz',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =13 THEN user_count  END)AS 'generation_millennial',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =14 THEN user_count  END)AS 'generation_genx',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =15 THEN user_count  END)AS 'generation_boomer',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =16 THEN user_count  END)AS 'gender_woman',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =17 THEN user_count  END)AS 'gender_man',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =18 THEN user_count  END)AS 'gender_nonbinary',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =19 THEN user_count  END)AS 'gender_notlisted',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =20 THEN user_count  END)AS 'race_amindianalnative',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =21 THEN user_count  END)AS 'race_asianpacislander',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =22 THEN user_count  END)AS 'race_black',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =23 THEN user_count  END)AS 'race_hispanic',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =24 THEN user_count  END)AS 'race_swasiannafrican',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =25 THEN user_count  END)AS 'race_white',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =26 THEN user_count  END)AS 'financialgoals_retirement',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =27 THEN user_count  END)AS 'financialgoals_savecollege',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =28 THEN user_count  END)AS 'financialgoals_house',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =29 THEN user_count  END)AS 'financialgoals_philanthropy',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =30 THEN user_count  END)AS 'financialgoals_generationalwealth',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =31 THEN user_count  END)AS 'industry_agriculture',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =32 THEN user_count  END)AS 'industry_business',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =33 THEN user_count  END)AS 'industry_construction',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =34 THEN user_count  END)AS 'industry_education',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =35 THEN user_count  END)AS 'industry_entertainmentgaming',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =36 THEN user_count  END)AS 'industry_financensurance',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =37 THEN user_count  END)AS 'industry_foodhospitality',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =38 THEN user_count  END)AS 'industry_governmentpublicservices',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =39 THEN user_count  END)AS 'industry_healthservices',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =40 THEN user_count  END)AS 'industry_legal',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =41 THEN user_count  END)AS 'industry_naturalresources',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =42 THEN user_count  END)AS 'industry_personalprofessionalservices',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =43 THEN user_count  END)AS 'industry_realestatehousing',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =44 THEN user_count  END)AS 'industry_retailecommerce',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =45 THEN user_count  END)AS 'industry_safetysecurity',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =46 THEN user_count  END)AS 'industry_transportation',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =47 THEN user_count  END)AS 'career_entrylevel',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =48 THEN user_count  END)AS 'career_midlevel',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =49 THEN user_count  END)AS 'career_management',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =50 THEN user_count  END)AS 'career_uppermanagement',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =51 THEN user_count  END)AS 'career_businessowner',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =52 THEN user_count  END)AS 'career_other',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =53 THEN user_count  END)AS 'income_income0',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =54 THEN user_count  END)AS 'income_income1',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =55 THEN user_count  END)AS 'income_income2',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =56 THEN user_count  END)AS 'income_income3',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =57 THEN user_count  END)AS 'income_income4',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =58 THEN user_count  END)AS 'income_income5',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =59 THEN user_count  END)AS 'employmentstatus_fulltime',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =60 THEN user_count  END)AS 'employmentstatus_parttime',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =61 THEN user_count  END)AS 'employmentstatus_unemployed',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =62 THEN user_count  END)AS 'employmentstatus_self',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =63 THEN user_count  END)AS 'employmentstatus_homemaker',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =64 THEN user_count  END)AS 'employmentstatus_student',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =65 THEN user_count  END)AS 'employmentstatus_retired',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =66 THEN user_count  END)AS 'income_income6',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =67 THEN user_count  END)AS 'income_income7',
+	GROUP_CONCAT(CASE WHEN demo.answer_id =68 THEN user_count  END)AS 'income_income8'
 
+	from hive
+	left join hive_user_demographic demo
+	on demo.hive_id=hive.hive_id
+	left join
+	(select member_hive_id , count(member_hive_id) count
+		from hive_members
+		join user on hive_members.member_impart_wealth_id=user.impart_wealth_id
+		join hive on hive.hive_id=hive_members.member_hive_id
+		where hive.deleted_at is null and user.deleted_at is null and user.blocked=0
+		group by hive_members.member_hive_id
+		) total_user
+	on total_user.member_hive_id=hive.hive_id
+	where deleted_at is null
+	group by hive.hive_id
+	order by %s 
+	limit %d
+	offset %d `, gpi.SortBy, gpi.Limit, gpi.Offset)
+	err := queries.Raw(query).Bind(ctx, m.db, &hiveDetails)
 	if err != nil {
-		return nil, outOffset, err
-	}
-	hiveId := 0
-	preHiveId := 0
-	i := 0
-	totalCnt := 0
-	lenHive := 0
-	indexes := make(map[uint]int)
-	var memberHives []models.DemographicHivesCount
-	err = queries.Raw(`
-	select member_hive_id , count(member_hive_id) count
-	from hive_members
-	join user on hive_members.member_impart_wealth_id=user.impart_wealth_id
-	join hive on hive.hive_id=hive_members.member_hive_id
-	where hive.deleted_at is null and user.deleted_at is null and user.blocked=0
-	group by hive_members.member_hive_id
-	`).Bind(ctx, m.db, &memberHives)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, i := range memberHives {
-		indexes[uint(i.MemberHiveId)] = i.Count
+		m.logger.Error("error in data fetching", zap.Any("err", err))
 	}
 
-	for _, p := range demographic {
-		if int(p.HiveID) != preHiveId {
-			lenHive = lenHive + 1
-		}
-		preHiveId = int(p.HiveID)
-	}
-	preHiveId = 0
-	hives := make([]map[string]interface{}, lenHive)
-	hive := make(map[string]interface{})
-	for _, p := range demographic {
-		hiveId = int(p.HiveID)
-		if hiveId != preHiveId && preHiveId != 0 {
-			hives[i] = hive
-			hive = make(map[string]interface{})
-			i = i + 1
-			totalCnt = 0
-		}
-		hive["hive_id"] = hiveId
-		hive["name"] = p.Name
-		if (p.CreatedAt == null.Time{}) {
-			hive["date created"] = "NA"
-		} else {
-			hive["date created"] = p.CreatedAt
-		}
-		for _, demo := range p.R.HiveUserDemographics {
-			hive[fmt.Sprintf("%s-%s", demo.R.Question.QuestionName, demo.R.Answer.Text)] = int(demo.UserCount)
-			totalCnt = totalCnt + int(demo.UserCount)
-		}
-
-		hive["users"] = int(indexes[uint(p.HiveID)])
-		preHiveId = int(p.HiveID)
-	}
-	hives[i] = hive
-	if gpi.SortBy != "" && !isSorted {
-		if gpi.SortOrder == "desc" {
-			sort.Slice(hives, func(i, j int) bool {
-				compareItem := hives[i][gpi.SortBy]
-				compareItemNext := hives[j][gpi.SortBy]
-				switch compareItem.(type) {
-				case int:
-					if _, ok := compareItemNext.(int); ok {
-						return compareItem.(int) > compareItemNext.(int)
-					}
-					return compareItem == compareItemNext
-				case string:
-					if _, ok := compareItemNext.(string); ok {
-						return compareItem.(string) > compareItemNext.(string)
-					}
-					return compareItem == compareItemNext
-				case uint64:
-					if _, ok := compareItemNext.(uint64); ok {
-						return compareItem.(uint64) > compareItemNext.(uint64)
-					}
-					return compareItem == compareItemNext
-				case time.Time:
-					if _, ok := compareItemNext.(time.Time); ok {
-						return compareItem.(time.Time).After(compareItemNext.(time.Time))
-					}
-					return compareItem == compareItemNext
-				default:
-					return compareItem == compareItemNext
-				}
-			})
-		} else {
-			sort.Slice(hives, func(i, j int) bool {
-				compareItem := hives[i][gpi.SortBy]
-				compareItemNext := hives[j][gpi.SortBy]
-				switch compareItem.(type) {
-				case int:
-					if _, ok := compareItemNext.(int); ok {
-						return compareItem.(int) < compareItemNext.(int)
-					}
-					return compareItem == compareItemNext
-				case string:
-					if _, ok := compareItemNext.(string); ok {
-						return compareItem.(string) < compareItemNext.(string)
-					}
-					return compareItem == compareItemNext
-				case uint64:
-					if _, ok := compareItemNext.(uint64); ok {
-						return compareItem.(uint64) < compareItemNext.(uint64)
-					}
-					return compareItem == compareItemNext
-				case time.Time:
-					if _, ok := compareItemNext.(time.Time); ok {
-						return compareItem.(time.Time).Before(compareItemNext.(time.Time))
-					}
-					return compareItem != compareItemNext
-				default:
-					return compareItem != compareItemNext
-				}
-
-			})
-		}
-	}
-	if lenHive < gpi.Limit {
+	if len(hiveDetails) < gpi.Limit {
 		outOffset = nil
 	} else {
-		outOffset.Offset += lenHive
+		outOffset.Offset += len(hiveDetails)
 	}
-	return hives, outOffset, nil
+	return hiveDetails, outOffset, nil
 
 }

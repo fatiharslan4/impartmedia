@@ -247,50 +247,50 @@ type HiveDetail struct {
 	HouseholdSharedcustody               null.Uint64 `json:"household_sharedcustody" `
 	DependentsNone                       null.Uint64 `json:"dependents_none" `
 	DependentsPreschool                  null.Uint64 `json:"dependents_preschool" `
-	DependentsSchoolAge                  null.Uint64 `json:"dependents_schoolage" `
-	DependentsPostSchool                 null.Uint64 `json:"dependents_postschool" `
+	DependentsSchoolage                  null.Uint64 `json:"dependents_schoolage" `
+	DependentsPostschool                 null.Uint64 `json:"dependents_postschool" `
 	DependentsParents                    null.Uint64 `json:"dependents_parents" `
 	DependentsOther                      null.Uint64 `json:"dependents_other" `
-	GenerationGenZ                       null.Uint64 `json:"generation_genz" `
+	GenerationGenz                       null.Uint64 `json:"generation_genz" `
 	GenerationMillennial                 null.Uint64 `json:"generation_millennial" `
-	GenerationGenX                       null.Uint64 `json:"generation_genx" `
+	GenerationGenx                       null.Uint64 `json:"generation_genx" `
 	GenerationBoomer                     null.Uint64 `json:"generation_boomer" `
 	GenderWoman                          null.Uint64 `json:"gender_woman" `
 	GenderMan                            null.Uint64 `json:"gender_man" `
-	GenderNonBinary                      null.Uint64 `json:"gender_nonbinary" `
-	GenderNotListed                      null.Uint64 `json:"gender_notlisted" `
-	RaceAmIndianAlNative                 null.Uint64 `json:"race_amindianalnative" `
-	RaceAsianPacIslander                 null.Uint64 `json:"race_asianpacislander" `
+	GenderNonbinary                      null.Uint64 `json:"gender_nonbinary" `
+	GenderNotlisted                      null.Uint64 `json:"gender_notlisted" `
+	RaceAmindianalnative                 null.Uint64 `json:"race_amindianalnative" `
+	RaceAsianpacislander                 null.Uint64 `json:"race_asianpacislander" `
 	RaceBlack                            null.Uint64 `json:"race_black" `
 	RaceHispanic                         null.Uint64 `json:"race_hispanic" `
-	RaceSWAsianNAfrican                  null.Uint64 `json:"race_swasiannafrican" `
+	RaceSwasiannafrican                  null.Uint64 `json:"race_swasiannafrican" `
 	RaceWhite                            null.Uint64 `json:"race_white" `
 	FinancialgoalsRetirement             null.Uint64 `json:"financialgoals_retirement" `
-	FinancialGoalsSaveCollege            null.Uint64 `json:"financialgoals_savecollege" `
-	FinancialGoalsHouse                  null.Uint64 `json:"financialgoals_house" `
-	FinancialGoalsPhilanthropy           null.Uint64 `json:"financialgoals_philanthropy" `
-	FinancialGoalsGenerationalWealth     null.Uint64 `json:"financialgoals_generationalwealth" `
+	FinancialgoalsSavecollege            null.Uint64 `json:"financialgoals_savecollege" `
+	FinancialgoalsHouse                  null.Uint64 `json:"financialgoals_house" `
+	FinancialgoalsPhilanthropy           null.Uint64 `json:"financialgoals_philanthropy" `
+	FinancialgoalsGenerationalwealth     null.Uint64 `json:"financialgoals_generationalwealth" `
 	IndustryAgriculture                  null.Uint64 `json:"fndustry_agriculture" `
 	IndustryBusiness                     null.Uint64 `json:"industry_business" `
 	IndustryConstruction                 null.Uint64 `json:"industry_construction" `
 	IndustryEducation                    null.Uint64 `json:"industry_education" `
-	IndustryEntertainmentGaming          null.Uint64 `json:"industry_entertainmentgaming" `
+	IndustryEntertainmentgaming          null.Uint64 `json:"industry_entertainmentgaming" `
 	IndustryFinancensurance              null.Uint64 `json:"industry_financensurance" `
-	IndustryFoodHospitality              null.Uint64 `json:"industry_foodhospitality" `
-	IndustryGovernmentPublicServices     null.Uint64 `json:"industry_governmentpublicservices" `
-	IndustryHealthServices               null.Uint64 `json:"industry_healthservices" `
+	IndustryFoodhospitality              null.Uint64 `json:"industry_foodhospitality" `
+	IndustryGovernmentpublicservices     null.Uint64 `json:"industry_governmentpublicservices" `
+	IndustryHealthservices               null.Uint64 `json:"industry_healthservices" `
 	IndustryLegal                        null.Uint64 `json:"industry_legal" `
-	IndustryNaturalResources             null.Uint64 `json:"industry_naturalresources" `
-	IndustryPersonalProfessionalServices null.Uint64 `json:"industry_personalprofessionalservices" `
-	IndustryRealEstateHousing            null.Uint64 `json:"industry_realestatehousing" `
-	IndustryRetaileCommerce              null.Uint64 `json:"industry_retailecommerce" `
-	IndustrySafetySecurity               null.Uint64 `json:"industry_safetysecurity" `
+	IndustryNaturalresources             null.Uint64 `json:"industry_naturalresources" `
+	IndustryPersonalprofessionalservices null.Uint64 `json:"industry_personalprofessionalservices" `
+	IndustryRealestatehousing            null.Uint64 `json:"industry_realestatehousing" `
+	IndustryRetailecommerce              null.Uint64 `json:"industry_retailecommerce" `
+	IndustrySafetysecurity               null.Uint64 `json:"industry_safetysecurity" `
 	IndustryTransportation               null.Uint64 `json:"industry_transportation" `
 	CareerEntrylevel                     null.Uint64 `json:"career_entrylevel" `
 	CareerMidlevel                       null.Uint64 `json:"career_midlevel" `
 	CareerManagement                     null.Uint64 `json:"career_management" `
-	CareerUpperManagement                null.Uint64 `json:"career_uppermanagement" `
-	CareerBusinessOwner                  null.Uint64 `json:"career_businessOwner" `
+	CareerUppermanagement                null.Uint64 `json:"career_uppermanagement" `
+	CareerBusinessowner                  null.Uint64 `json:"career_businessowner" `
 	CareerOther                          null.Uint64 `json:"career_other" `
 	IncomeIncome0                        null.Uint64 `json:"income_income0" `
 	IncomeIncome1                        null.Uint64 `json:"income_income1" `
@@ -298,9 +298,9 @@ type HiveDetail struct {
 	IncomeIncome3                        null.Uint64 `json:"income_income3" `
 	IncomeIncome4                        null.Uint64 `json:"income_income4" `
 	IncomeIncome5                        null.Uint64 `json:"income_income5" `
-	EmploymentStatusFullTime             null.Uint64 `json:"employmentstatus_fulltime" `
-	EmploymentStatusPartTime             null.Uint64 `json:"employmentstatus_parttime" `
-	EmploymentStatusUnemployed           null.Uint64 `json:"employmentstatus_Unemployed" `
+	EmploymentstatusFulltime             null.Uint64 `json:"employmentstatus_fulltime" `
+	EmploymentstatusParttime             null.Uint64 `json:"employmentstatus_parttime" `
+	EmploymentstatusUnemployed           null.Uint64 `json:"employmentstatus_Unemployed" `
 	EmploymentstatusSelf                 null.Uint64 `json:"employmentstatus_self" `
 	EmploymentstatusHomemaker            null.Uint64 `json:"employmentstatus_homemaker" `
 	EmploymentstatusStudent              null.Uint64 `json:"employmentstatus_student" `

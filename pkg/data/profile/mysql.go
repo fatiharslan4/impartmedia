@@ -796,8 +796,6 @@ func (m *mysqlStore) UpdateHiveUserDemographic(ctx context.Context, answerIds []
 			query = fmt.Sprintf("%s update user_demographic set user_count=user_count-1 where user_count >0 and answer_id in (%s) ;", query, inParamValues)
 		}
 	}
-	fmt.Println("12121212121")
-	fmt.Println(query)
 	_, err = queries.Raw(query).ExecContext(ctx, m.db)
 	if err != nil {
 		m.logger.Error("hive_user_demographic update failed", zap.String("query", query),
@@ -807,7 +805,7 @@ func (m *mysqlStore) UpdateHiveUserDemographic(ctx context.Context, answerIds []
 	return tx.Commit()
 }
 
-func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}, isUserDelete bool, includeUsers int, excludeHive uint64, dates []time.Time) (dbmodels.UserSlice, error) {
+func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface{}, includeSuperAdmin int, includeUsers int, excludeHive uint64, dates []time.Time) (dbmodels.UserSlice, error) {
 	// var clause QueryMod
 	// if impartWealthids != nil {
 	// 	// clause = WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...)
@@ -825,8 +823,10 @@ func (m *mysqlStore) getUserAll(ctx context.Context, impartWealthids []interface
 	if impartWealthids != nil {
 		usersWhere = append(usersWhere, WhereIn(fmt.Sprintf("%s in ?", dbmodels.UserColumns.ImpartWealthID), impartWealthids...))
 	}
-	if isUserDelete {
+	if includeSuperAdmin == impart.ExcludeSuperAdmin {
 		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.SuperAdmin), false))
+	} else if includeSuperAdmin == impart.IncludeSuperAdmin {
+		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.SuperAdmin), true))
 	}
 	if includeUsers == impart.ExcludeAdmin {
 		usersWhere = append(usersWhere, Where(fmt.Sprintf("%s = ?", dbmodels.UserColumns.Admin), false))
@@ -951,7 +951,6 @@ func (m *mysqlStore) DeleteBulkUserProfile(ctx context.Context, userDetails dbmo
 func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmodels.UserSlice, hardDelete bool, userUpdate *models.UserUpdate) (*models.UserUpdate, error) {
 	updateQuery := ""
 	impartWealthIds := ""
-	updateHivequery := ""
 	existinghiveid := DefaultHiveId
 	var existingHive *dbmodels.Hive
 	var newHive *dbmodels.Hive
@@ -963,35 +962,16 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 		}
 	}
 	for _, user := range userDetails {
-		userUpdateposition := 0
-		for i := range userUpdate.Users {
-			if userUpdate.Users[i].ImpartWealthID == user.ImpartWealthID {
-				userUpdateposition = i
-				break
-			}
-		}
-		if userUpdate.Type == impart.AddToAdmin {
-			if user.Admin {
-				userUpdate.Users[userUpdateposition].Message = "User is already admin."
-			} else {
-				rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
-				admin := impart.GetAvatharLettersAdmin()
-				adminindex := rand.Intn(len(admin))
-				adminColor := admin[adminindex]
-
-				query := fmt.Sprintf("Update user set admin=true , avatar_background='%s'   where impart_wealth_id='%s';", adminColor, user.ImpartWealthID)
-				updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
-
-				userUpdate.Users[userUpdateposition].Value = 1
-
-				if user.R.MemberHiveHives != nil {
-					if user.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+		if userUpdate.Type == impart.AddToAdmin || userUpdate.Type == impart.AddToSuperAdmin {
+			if user.R.MemberHiveHives != nil {
+				if user.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+					go func() {
 						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, user.R.MemberHiveHives[0].NotificationTopicArn.String)
 						if err != nil {
 							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", user.R.MemberHiveHives[0].NotificationTopicArn.String),
 								zap.Error(err))
 						}
-					}
+					}()
 				}
 			}
 		} else if userUpdate.Type == impart.AddToWaitlist {
@@ -999,21 +979,18 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				existinghiveid = h.HiveID
 			}
 			existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
-			if existinghiveid == DefaultHiveId {
-				userUpdate.Users[userUpdateposition].Message = "User is already on waitlist."
-			} else {
-				query := fmt.Sprintf("delete from `hive_members` where `member_impart_wealth_id` ='%s'; insert into `hive_members` (`member_impart_wealth_id`, `member_hive_id`) values ('%s', %d);", user.ImpartWealthID, user.ImpartWealthID, DefaultHiveId)
-				updateHivequery = fmt.Sprintf("%s %s", updateHivequery, query)
-				userUpdate.Users[userUpdateposition].Value = 1
-
+			if existinghiveid != DefaultHiveId {
+				impartWealthIds = fmt.Sprintf("%s '%s' ,", impartWealthIds, user.ImpartWealthID)
 				if existingHive != nil {
-					if existingHive.NotificationTopicArn.String != "" {
-						err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
-						if err != nil {
-							m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
-								zap.Error(err))
+					go func() {
+						if existingHive.NotificationTopicArn.String != "" {
+							err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, user.ImpartWealthID, existingHive.NotificationTopicArn.String)
+							if err != nil {
+								m.logger.Error("SubscribeTopic", zap.String("DeviceToken", existingHive.NotificationTopicArn.String),
+									zap.Error(err))
+							}
 						}
-					}
+					}()
 				}
 			}
 		} else if userUpdate.Type == impart.AddToHive {
@@ -1025,13 +1002,8 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 			existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
 			m.logger.Info("addtohive started- existing hive", zap.Any("existingHive", existingHive))
 			m.logger.Info("user-hive", zap.String("query", fmt.Sprintf("%d", existinghiveid)))
-			if existinghiveid == userUpdate.HiveID {
-				userUpdate.Users[userUpdateposition].Message = "User is already on hive."
-			} else {
-				query := fmt.Sprintf("delete from hive_members where member_impart_wealth_id = '%s'; insert into hive_members (member_impart_wealth_id, member_hive_id) values ('%s', %d);", user.ImpartWealthID, user.ImpartWealthID, userUpdate.HiveID)
-				updateHivequery = fmt.Sprintf("%s %s", updateHivequery, query)
-				userUpdate.Users[userUpdateposition].Value = 1
-
+			if existinghiveid != userUpdate.HiveID {
+				impartWealthIds = fmt.Sprintf("%s '%s' ,", impartWealthIds, user.ImpartWealthID)
 				isMailSent := false
 				if existinghiveid == impart.DefaultHiveID {
 					isMailSent = true
@@ -1103,14 +1075,9 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				}
 			}
 		} else if userUpdate.Type == impart.RemoveAdmin {
-			if !user.Admin {
-				userUpdate.Users[userUpdateposition].Message = "User is not an admin."
-			} else {
+			if user.Admin {
 				impartWealthIds = fmt.Sprintf("%s '%s' ,", impartWealthIds, user.ImpartWealthID)
-				userUpdate.Users[userUpdateposition].Value = 1
-
 				var existingHive *dbmodels.Hive
-
 				for _, h := range user.R.MemberHiveHives {
 					existingHive = h
 				}
@@ -1142,7 +1109,70 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 			}
 		}
 	}
-	if userUpdate.Type == impart.RemoveAdmin {
+	if userUpdate.Type == impart.AddToHive || userUpdate.Type == impart.AddToWaitlist {
+		if userUpdate.Type == impart.AddToWaitlist {
+			impartWealthIds = strings.Trim(impartWealthIds, ",")
+			updateQuery = fmt.Sprintf(`
+			UPDATE hive_members
+			set member_hive_id=%d where member_impart_wealth_id in(%s);`,
+				impart.DefaultHiveID, impartWealthIds)
+		} else if userUpdate.Type == impart.AddToHive {
+			impartWealthIds = strings.Trim(impartWealthIds, ",")
+			updateQuery = fmt.Sprintf(`
+			UPDATE hive_members
+			set member_hive_id=%d where member_impart_wealth_id in(%s);`,
+				userUpdate.HiveID, impartWealthIds)
+		}
+		m.logger.Info("update query", zap.String("query", updateQuery))
+		_, err := queries.Raw(updateQuery).ExecContext(ctx, m.db)
+		if err != nil {
+			m.logger.Error("unable to excute query ", zap.String("query", updateQuery),
+				zap.Error(err))
+			return userUpdate, err
+		}
+		_, err = userDetails.UpdateAll(ctx, m.db, dbmodels.M{"hive_updated_at": impart.CurrentUTC()})
+		if err != nil {
+			m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
+				zap.Error(err))
+		}
+		go impart.UserDemographicsUpdate(ctx, m.db, true, false)
+	} else if userUpdate.Type == impart.AddToAdmin {
+		rand.Seed(time.Now().Unix())
+		admin := impart.GetAvatharLettersAdmin()
+		adminindex := rand.Intn(len(admin))
+		adminColor := admin[adminindex]
+		_, err := userDetails.UpdateAll(ctx, m.db,
+			dbmodels.M{"admin": true,
+				"avatar_background": adminColor})
+		if err != nil {
+			m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
+				zap.Error(err))
+			return userUpdate, err
+		}
+	} else if userUpdate.Type == impart.AddToSuperAdmin {
+		rand.Seed(time.Now().Unix())
+		admin := impart.GetAvatharLettersAdmin()
+		adminindex := rand.Intn(len(admin))
+		adminColor := admin[adminindex]
+
+		_, err := userDetails.UpdateAll(ctx, m.db,
+			dbmodels.M{"super_admin": true,
+				"admin":             true,
+				"avatar_background": adminColor})
+		if err != nil {
+			m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
+				zap.Error(err))
+			return userUpdate, err
+		}
+	} else if userUpdate.Type == impart.RemoveSuperAdmin {
+		_, err := userDetails.UpdateAll(ctx, m.db,
+			dbmodels.M{"super_admin": false})
+		if err != nil {
+			m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
+				zap.Error(err))
+		}
+		return userUpdate, err
+	} else if userUpdate.Type == impart.RemoveAdmin {
 		impartWealthIds = strings.Trim(impartWealthIds, ",")
 		updateQuery = fmt.Sprintf(`UPDATE  user 
 		SET avatar_background=(CASE CEIL(RAND()*3) 
@@ -1151,22 +1181,14 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 		WHEN 3 THEN '#F4D304' END),
 		admin=false where impart_wealth_id in(%s);`,
 			impartWealthIds)
-	}
-	query := fmt.Sprintf("%s %s ", updateQuery, updateHivequery)
-	m.logger.Info("update query", zap.String("query", query))
-	_, err := queries.Raw(query).ExecContext(ctx, m.db)
-	if err != nil {
-		m.logger.Error("unable to excute query", zap.String("query", query),
-			zap.Error(err))
-		return userUpdate, err
-	}
-	if userUpdate.Type == impart.AddToHive || userUpdate.Type == impart.AddToWaitlist {
-		_, err = userDetails.UpdateAll(ctx, m.db, dbmodels.M{"hive_updated_at": impart.CurrentUTC()})
+
+		m.logger.Info("update query", zap.String("query", updateQuery))
+		_, err := queries.Raw(updateQuery).ExecContext(ctx, m.db)
 		if err != nil {
-			m.logger.Error("hive Update Failed", zap.Any("query", userDetails),
+			m.logger.Error("unable to excute query", zap.String("query", updateQuery),
 				zap.Error(err))
+			return userUpdate, err
 		}
-		go impart.UserDemographicsUpdate(ctx, m.db, true, false)
 	}
 	return userUpdate, nil
 }
@@ -1290,7 +1312,7 @@ func (m *mysqlStore) GetHiveNotification(ctx context.Context) error {
 		startdate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day + 1))
 		enddate := impart.CurrentUTC().AddDate(0, 0, -(hive.Day + 2))
 		dates := []time.Time{startdate, enddate}
-		userList, err := m.getUserAll(ctx, nil, false, 2, impart.DefaultHiveID, dates)
+		userList, err := m.getUserAll(ctx, nil, impart.IncludeAll, 2, impart.DefaultHiveID, dates)
 		if err != nil {
 			m.logger.Error("User fetching for notification error-", zap.Any("error", err))
 			return err

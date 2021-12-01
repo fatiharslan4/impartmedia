@@ -302,7 +302,6 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	} else {
 		err = queries.Raw(inputQuery, gpi.Limit, gpi.Offset).Bind(ctx, m.db, &userDetails)
 	}
-	fmt.Println(inputQuery)
 	if err != nil {
 		out := make(models.UserDetails, 0, 0)
 		return out, outOffset, err
@@ -658,6 +657,43 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 				}
 			}()
 		}
+	} else if gpi.Type == impart.AddToSuperAdmin {
+		if userToUpdate.SuperAdmin {
+			return msg, impart.NewError(impart.ErrBadRequest, "User is already super admin.")
+		}
+		userToUpdate.Admin = true
+		userToUpdate.SuperAdmin = true
+
+		rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
+		admin := impart.GetAvatharLettersAdmin()
+		adminindex := rand.Intn(len(admin))
+		userToUpdate.AvatarBackground = admin[adminindex]
+
+		err = m.UpdateProfile(ctx, userToUpdate, nil)
+		if err != nil {
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as admin")
+		}
+		msg = "User role changed to super admin."
+
+		if userToUpdate.R.MemberHiveHives != nil {
+			if userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+				err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToUpdate.ImpartWealthID, userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String)
+				if err != nil {
+					m.logger.Error("SubscribeTopic", zap.String("DeviceToken", userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String),
+						zap.Error(err))
+				}
+			}
+		}
+	} else if gpi.Type == impart.RemoveSuperAdmin {
+		if !userToUpdate.SuperAdmin {
+			return msg, impart.NewError(impart.ErrBadRequest, "User is not super admin.")
+		}
+		userToUpdate.SuperAdmin = false
+		err = m.UpdateProfile(ctx, userToUpdate, nil)
+		if err != nil {
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as admin")
+		}
+		msg = "User role changed to admin."
 	}
 	return msg, nil
 }
@@ -671,29 +707,25 @@ func (m *mysqlStore) GetFilterDetails(ctx context.Context) ([]byte, error) {
 }
 
 func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) *models.UserUpdate {
-	userOutput := models.UserUpdate{}
-	userDatas := make([]models.UserData, len(userUpdatesInput.Users))
+	userOutput := &models.UserUpdate{}
+	// userDatas := make([]models.UserData, len(userUpdatesInput.Users))
 	userOutput.Type = userUpdatesInput.Type
 	userOutput.HiveID = userUpdatesInput.HiveID
 	userOutput.Action = userUpdatesInput.Action
+	userOutput.Users = userUpdatesInput.Users
 	impartWealthIDs := make([]interface{}, len(userUpdatesInput.Users))
 	cfg, _ := config.GetImpart()
 	for i, user := range userUpdatesInput.Users {
-		userData := &models.UserData{}
-		userData.ImpartWealthID = user.ImpartWealthID
-		userData.ScreenName = user.ScreenName
-		userData.Status = false
-		userData.Message = "No update activity."
-		userData.Value = 0
+		userOutput.Users[i].Message = "No update activity."
+		userOutput.Users[i].Status = false
 		if user.ImpartWealthID != "" {
 			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
 		}
-		userDatas[i] = *userData
 	}
 	m.logger.Info("User list created")
-	userOutput.Users = userDatas
-	userOutputRslt := &userOutput
+	userOutputRslt := userOutput
 	includeUsers := 2
+	includeSuperadmin := impart.IncludeAll
 	if userUpdatesInput.Type == impart.AddToAdmin {
 		includeUsers = impart.ExcludeAdmin
 	} else if userUpdatesInput.Type == impart.RemoveAdmin {
@@ -704,13 +736,13 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		excludeHive = impart.DefaultHiveID
 	} else if userUpdatesInput.Type == impart.AddToHive {
 		excludeHive = userUpdatesInput.HiveID
+	} else if userUpdatesInput.Type == impart.AddToSuperAdmin {
+		includeSuperadmin = impart.ExcludeSuperAdmin
+	} else if userUpdatesInput.Type == impart.RemoveSuperAdmin {
+		includeSuperadmin = impart.IncludeSuperAdmin
 	}
-	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, false, includeUsers, excludeHive, nil)
-	if err != nil {
-		fmt.Println(err)
-		return userOutputRslt
-	}
-	if updateUsers == nil {
+	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, includeSuperadmin, includeUsers, excludeHive, nil)
+	if err != nil || updateUsers == nil {
 		return userOutputRslt
 	}
 	userOutputs, impartErr := m.UpdateBulkUserProfile(ctx, updateUsers, false, userOutputRslt)
@@ -727,7 +759,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	m.logger.Info("status updated")
 	for _, user := range updateUsers {
 		for cnt := 0; cnt < lenUser; cnt++ {
-			if userOutputs.Users[cnt].ImpartWealthID == user.ImpartWealthID && userOutputs.Users[cnt].Value == 1 {
+			if userOutputs.Users[cnt].ImpartWealthID == user.ImpartWealthID {
 				userOutputs.Users[cnt].Message = "User updated."
 				userOutputs.Users[cnt].Status = true
 				m.logger.Info("User status updating", zap.String("impartWealthID", user.ImpartWealthID))
@@ -735,15 +767,17 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 			}
 		}
 		if userOutputRslt.Type == impart.AddToWaitlist || userOutputRslt.Type == impart.AddToHive {
-			mailChimpParams := &members.UpdateParams{
-				MergeFields: map[string]interface{}{"STATUS": status},
-			}
-			_, err = members.Update(cfg.MailchimpAudienceId, user.Email, mailChimpParams)
-			if err != nil {
-				m.logger.Info("mailchimp failed")
-				m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
-					zap.Error(err))
-			}
+			go func() {
+				mailChimpParams := &members.UpdateParams{
+					MergeFields: map[string]interface{}{"STATUS": status},
+				}
+				_, err = members.Update(cfg.MailchimpAudienceId, user.Email, mailChimpParams)
+				if err != nil {
+					m.logger.Info("mailchimp failed")
+					m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
+						zap.Error(err))
+				}
+			}()
 		}
 	}
 	m.logger.Info("all process completed")
@@ -771,7 +805,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 
 	userOutputRslt := &userOutput
 
-	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, true, impart.IncludeAll, 0, nil)
+	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, impart.ExcludeSuperAdmin, impart.IncludeAll, 0, nil)
 	if err != nil || len(deleteUser) == 0 {
 		return userOutputRslt
 	}

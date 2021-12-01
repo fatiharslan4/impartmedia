@@ -300,7 +300,7 @@ type HiveDetail struct {
 	IncomeIncome5                        null.Uint64 `json:"income_income5" `
 	EmploymentstatusFulltime             null.Uint64 `json:"employmentstatus_fulltime" `
 	EmploymentstatusParttime             null.Uint64 `json:"employmentstatus_parttime" `
-	EmploymentstatusUnemployed           null.Uint64 `json:"employmentstatus_Unemployed" `
+	EmploymentstatusUnemployed           null.Uint64 `json:"employmentstatus_unemployed" `
 	EmploymentstatusSelf                 null.Uint64 `json:"employmentstatus_self" `
 	EmploymentstatusHomemaker            null.Uint64 `json:"employmentstatus_homemaker" `
 	EmploymentstatusStudent              null.Uint64 `json:"employmentstatus_student" `

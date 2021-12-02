@@ -659,7 +659,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 	} else if gpi.Type == impart.AddToSuperAdmin {
 		if userToUpdate.SuperAdmin {
-			return msg, impart.NewError(impart.ErrBadRequest, "User is already super admin.")
+			return msg, impart.NewError(impart.ErrBadRequest, "User is already Super Admin.")
 		}
 		userToUpdate.Admin = true
 		userToUpdate.SuperAdmin = true
@@ -686,7 +686,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 	} else if gpi.Type == impart.RemoveSuperAdmin {
 		if !userToUpdate.SuperAdmin {
-			return msg, impart.NewError(impart.ErrBadRequest, "User is not super admin.")
+			return msg, impart.NewError(impart.ErrBadRequest, "User is not Super Admin.")
 		}
 		userToUpdate.SuperAdmin = false
 		err = m.UpdateProfile(ctx, userToUpdate, nil)

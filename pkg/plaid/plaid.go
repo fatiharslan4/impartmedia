@@ -3,7 +3,9 @@ package plaid
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"regexp"
 	"strings"
@@ -29,6 +31,8 @@ func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 	}
 	if cfg.Env == config.Production {
 		configuration.UseEnvironment(plaid.Production)
+	} else if cfg.Env == config.Preproduction {
+		configuration.UseEnvironment(plaid.Development)
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
@@ -67,6 +71,8 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 	}
 	if cfg.Env == config.Production {
 		configuration.UseEnvironment(plaid.Production)
+	} else if cfg.Env == config.Preproduction {
+		configuration.UseEnvironment(plaid.Development)
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
@@ -201,6 +207,8 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
 		if cfg.Env == config.Production {
 			configuration.UseEnvironment(plaid.Production)
+		} else if cfg.Env == config.Preproduction {
+			configuration.UseEnvironment(plaid.Development)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
@@ -308,4 +316,165 @@ func ValidatePostFilesName(ctx context.Context, postFiles []models.File, institu
 		postFiles[index].FileName = filename
 	}
 	return postFiles
+}
+
+func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, impartWealthId string, gpi models.GetPlaidInput) (UserTransaction, []PlaidError) {
+
+	var newPlaidErr []PlaidError
+	plaidErr := PlaidError{Error: "unable to complete the request",
+		Msg:                 "",
+		AuthenticationError: false}
+
+	_, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthId)).One(ctx, ser.db)
+	if err != nil {
+		plaidErr.Msg = "Could not find the user."
+		newPlaidErr = append(newPlaidErr, plaidErr)
+
+		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
+			zap.String("user", impartWealthId))
+		return UserTransaction{}, newPlaidErr
+	}
+
+	userInstitutions, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(impartWealthId),
+		qm.Load(dbmodels.UserInstitutionRels.ImpartWealth),
+		qm.Load(dbmodels.UserInstitutionRels.Institution),
+	).One(ctx, ser.db)
+
+	if userInstitutions == nil {
+		plaidErr.Msg = "No records found."
+		newPlaidErr = append(newPlaidErr, plaidErr)
+		return UserTransaction{}, newPlaidErr
+	}
+	if err != nil {
+		plaidErr.Msg = "Could not find the user institution details."
+		newPlaidErr = append(newPlaidErr, plaidErr)
+
+		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
+			zap.String("user", impartWealthId))
+		return UserTransaction{}, newPlaidErr
+	}
+
+	configuration := plaid.NewConfiguration()
+	cfg, _ := config.GetImpart()
+	if cfg != nil {
+		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
+		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
+		if cfg.Env == config.Production {
+			configuration.UseEnvironment(plaid.Production)
+		} else if cfg.Env == config.Preproduction {
+			configuration.UseEnvironment(plaid.Development)
+		} else {
+			configuration.UseEnvironment(plaid.Sandbox)
+		}
+	}
+	client := plaid.NewAPIClient(configuration)
+
+	transGetRequest := plaid.NewTransactionsGetRequest(userInstitutions.AccessToken, impart.CurrentUTC().AddDate(0, 0, -30).Format("2006-01-02"), impart.CurrentUTC().Format("2006-01-02"))
+
+	// var count int32 = 10
+	// var offset int32 = 0
+	data := plaid.NewTransactionsGetRequestOptions()
+	transGetRequest.Options = data
+	transGetRequest.Options.Count = &gpi.Limit
+	transGetRequest.Options.Offset = &gpi.Offset
+
+	transGetResp, resp, err := client.PlaidApi.TransactionsGet(ctx).TransactionsGetRequest(
+		*transGetRequest,
+	).Execute()
+
+	if err != nil || resp.StatusCode == 400 {
+		ser.logger.Error("Could not find the user plaid account details.", zap.String("User", impartWealthId),
+			zap.String("token", userInstitutions.AccessToken))
+		plaidErr.Msg = "Could not find the  transaction details."
+		if resp.StatusCode == 400 {
+			bodyBytes, _ := ioutil.ReadAll(resp.Body)
+			type errorResponse struct {
+				ErrorCode string `json:"error_code" `
+			}
+			newRes := errorResponse{}
+			err := json.Unmarshal(bodyBytes, &newRes)
+			if err != nil {
+				ser.logger.Error("Could not unmarshal bodyBytes.", zap.Any("bodyBytes", bodyBytes),
+					zap.String("token", userInstitutions.AccessToken))
+			}
+			if newRes.ErrorCode == "ITEM_LOGIN_REQUIRED" {
+				plaidErr.AuthenticationError = true
+				plaidErr.Msg = "ITEM_LOGIN_REQUIRED"
+			}
+		}
+		newPlaidErr = append(newPlaidErr, plaidErr)
+
+		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the  transaction details.")
+		return UserTransaction{}, newPlaidErr
+	}
+	transactions := transGetResp.GetTransactions()
+	if len(transactions) == 0 {
+		plaidErr.Msg = "Could not find the  transaction details."
+
+		newPlaidErr = append(newPlaidErr, plaidErr)
+
+		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user transaction details.")
+		return UserTransaction{}, newPlaidErr
+	}
+	userData := UserTransaction{}
+	userData.ImpartWealthID = impartWealthId
+	userinstitution := make(UserInstitutions, 1)
+	var transDatawithdateFinalData []Transaction
+	var transDataFinalData []TransactionWithDate
+	institution := InstitutionToModel(userInstitutions)
+
+	var allDates []string
+	fmt.Println("len(transactions)")
+	fmt.Println(len(transactions))
+	for _, act := range transactions {
+		currentDate := act.Date
+
+		ser.logger.Info(currentDate)
+		ser.logger.Info("allDates", zap.Any("allDates", allDates))
+		if !checkDateExist(currentDate, allDates) {
+			ser.logger.Info("alredy date added", zap.Any("allDates", allDates),
+				zap.Any("currentDate", currentDate))
+
+			for _, acnts := range transactions {
+				if currentDate == acnts.Date {
+					ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
+					if !checkDateExist(currentDate, allDates) {
+						allDates = append(allDates, currentDate)
+					}
+					ser.logger.Info("aallDates", zap.Any("allDates", allDates))
+					transDatawithdate := TransactionToModel(acnts, userInstitutions.UserInstitutionID)
+					transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
+				}
+			}
+			transWIthdate := TransactionWithDate{}
+			transWIthdate.Date = currentDate
+			transWIthdate.Data = transDatawithdateFinalData
+			transDataFinalData = append(transDataFinalData, transWIthdate)
+			transDatawithdateFinalData = nil
+		}
+	}
+
+	userinstitution[0] = institution
+	userData.Transactions = transDataFinalData
+	userData.TotalTransaction = transGetResp.GetTotalTransactions()
+	return userData, nil
+}
+
+func TransactionToModel(act plaid.Transaction, userInstId uint64) Transaction {
+	trans := Transaction{}
+	trans.AccountID = act.AccountId
+	trans.Amount = act.GetAmount()
+	trans.Category = act.Category
+	trans.Name = act.Name
+	trans.Date = act.GetDate()
+	return trans
+}
+
+func checkDateExist(datenew string, alldate []string) bool {
+	for _, date := range alldate {
+		if date == datenew {
+			return true
+		}
+	}
+	return false
 }

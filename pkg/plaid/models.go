@@ -166,3 +166,42 @@ type PagedUserInstitutionAccountResponse struct {
 	Accounts UserAccount `json:"userInstitution"`
 	NextPage *NextPage   `json:"nextPage"`
 }
+
+type PagedUserInstitutionTransactionResponse struct {
+	Transactions UserTransaction `json:"userInstitution"`
+	NextPage     *NextPage       `json:"nextPage"`
+}
+
+type PagedUserInstitutionTransactionErrorResponse struct {
+	Error PlaidErrors `json:"errors"`
+}
+
+type UserTransactions []UserTransaction
+type UserTransaction struct {
+	ImpartWealthID   string                `json:"impartWealthId,omitempty" `
+	TotalTransaction int32                 `json:"total_transaction,omitempty"`
+	Transactions     []TransactionWithDate `json:"transactions,omitempty"`
+}
+
+type TransactionWithDates []TransactionWithDate
+type TransactionWithDate struct {
+	Date string        `json:"date"`
+	Data []Transaction `json:"data"`
+}
+
+type Transactions []Transaction
+type Transaction struct {
+	AccountID string   `json:"accountId"`
+	Category  []string `json:"category" `
+	Name      string   `json:"name"`
+	Amount    float32  `json:"amount" `
+	Date      string   `json:"date"`
+}
+
+type PlaidErrors []PlaidError
+type PlaidError struct {
+	Error               string `json:"error"`
+	Msg                 string `json:"msg" `
+	Key                 string `json:"key"`
+	AuthenticationError bool   `json:"authentication_error" `
+}

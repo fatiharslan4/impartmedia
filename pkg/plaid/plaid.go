@@ -385,6 +385,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	if err != nil || resp.StatusCode == 400 {
 		ser.logger.Error("Could not find the user plaid account details.", zap.String("User", impartWealthId),
 			zap.String("token", userInstitutions.AccessToken))
+		plaidErr.Msg = "Could not find the  transaction details."
 		if resp.StatusCode == 400 {
 			bodyBytes, _ := ioutil.ReadAll(resp.Body)
 			type errorResponse struct {
@@ -398,9 +399,9 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 			}
 			if newRes.ErrorCode == "ITEM_LOGIN_REQUIRED" {
 				plaidErr.AuthenticationError = true
+				plaidErr.Msg = "ITEM_LOGIN_REQUIRED"
 			}
 		}
-		plaidErr.Msg = "Could not find the  transaction details."
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the  transaction details.")
@@ -427,8 +428,6 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	fmt.Println(len(transactions))
 	for _, act := range transactions {
 		currentDate := act.Date
-		fmt.Println("currentDate")
-		fmt.Println(currentDate)
 
 		ser.logger.Info(currentDate)
 		ser.logger.Info("allDates", zap.Any("allDates", allDates))

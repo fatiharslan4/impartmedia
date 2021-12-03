@@ -58,17 +58,18 @@ type UserAccount struct {
 
 type UserInstitutions []UserInstitution
 type UserInstitution struct {
-	UserInstitutionsId uint64    `json:"user_institutions_id" `
-	Id                 uint64    `json:"id"`
-	ImpartWealthID     string    `json:"impartWealthId" `
-	AccessToken        string    `json:"access_token"`
-	CreatedAt          time.Time `json:"created_at"`
-	PlaidInstitutionId string    `json:"plaid_institution_id"`
-	Logo               string    `json:"logo"`
-	Weburl             string    `json:"weburl"`
-	RequestId          string    `json:"request_id"`
-	InstitutionName    string    `json:"institution_name"`
-	Accounts           []Account `json:"accounts"`
+	UserInstitutionsId uint64                `json:"user_institutions_id" `
+	Id                 uint64                `json:"id"`
+	ImpartWealthID     string                `json:"impartWealthId" `
+	AccessToken        string                `json:"access_token"`
+	CreatedAt          time.Time             `json:"created_at"`
+	PlaidInstitutionId string                `json:"plaid_institution_id"`
+	Logo               string                `json:"logo"`
+	Weburl             string                `json:"weburl"`
+	RequestId          string                `json:"request_id"`
+	InstitutionName    string                `json:"institution_name"`
+	Accounts           []Account             `json:"accounts,omitempty"`
+	Transactions       []TransactionWithDate `json:"transactions,omitempty"`
 }
 
 type Accounts []Account
@@ -165,4 +166,31 @@ type PagedInstitutionResponse struct {
 type PagedUserInstitutionAccountResponse struct {
 	Accounts UserAccount `json:"userInstitution"`
 	NextPage *NextPage   `json:"nextPage"`
+}
+
+type PagedUserInstitutionTransactionResponse struct {
+	Transactions UserTransaction `json:"userInstitution"`
+	NextPage     *NextPage       `json:"nextPage"`
+}
+
+type UserTransactions []UserTransaction
+type UserTransaction struct {
+	ImpartWealthID   string                `json:"impartWealthId,omitempty" `
+	TotalTransaction int32                 `json:"total_transaction,omitempty"`
+	Transactions     []TransactionWithDate `json:"transactions,omitempty"`
+}
+
+type TransactionWithDates []TransactionWithDate
+type TransactionWithDate struct {
+	Date string        `json:"date"`
+	Data []Transaction `json:"data"`
+}
+
+type Transactions []Transaction
+type Transaction struct {
+	AccountID string   `json:"accountId"`
+	Category  []string `json:"category" `
+	Name      string   `json:"name"`
+	Amount    float32  `json:"amount" `
+	Date      string   `json:"date"`
 }

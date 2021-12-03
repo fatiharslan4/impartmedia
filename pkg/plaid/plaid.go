@@ -425,14 +425,20 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	var allDates []string
 	for _, act := range transactions {
 		currentDate := act.Date
+		ser.logger.Info(currentDate)
+		ser.logger.Info("allDates", zap.Any("allDates", allDates))
 		if checkDateExist(currentDate, allDates) {
+			ser.logger.Info("alredy date added", zap.Any("allDates", allDates),
+				zap.Any("currentDate", currentDate))
 			break
 		}
 		for _, acnts := range transactions {
 			if currentDate == acnts.Date {
+				ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
 				if !checkDateExist(currentDate, allDates) {
 					allDates = append(allDates, currentDate)
 				}
+				ser.logger.Info("aallDates", zap.Any("allDates", allDates))
 				transDatawithdate := TransactionToModel(acnts, userInstitutions.UserInstitutionID)
 				transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 			}

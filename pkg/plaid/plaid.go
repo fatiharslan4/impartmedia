@@ -3,7 +3,9 @@ package plaid
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"regexp"
 	"strings"
@@ -316,14 +318,21 @@ func ValidatePostFilesName(ctx context.Context, postFiles []models.File, institu
 	return postFiles
 }
 
-func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, impartWealthId string, gpi models.GetPlaidInput) (UserTransaction, impart.Error) {
+func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, impartWealthId string, gpi models.GetPlaidInput) (UserTransaction, []PlaidError) {
+
+	var newPlaidErr []PlaidError
+	plaidErr := PlaidError{Error: "unable to complete the request",
+		Msg:                 "",
+		AuthenticationError: false}
 
 	_, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthId)).One(ctx, ser.db)
 	if err != nil {
-		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user.")
+		plaidErr.Msg = "Could not find the user."
+		newPlaidErr = append(newPlaidErr, plaidErr)
+
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
 			zap.String("user", impartWealthId))
-		return UserTransaction{}, impartErr
+		return UserTransaction{}, newPlaidErr
 	}
 
 	userInstitutions, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(impartWealthId),
@@ -332,13 +341,17 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	).One(ctx, ser.db)
 
 	if userInstitutions == nil {
-		return UserTransaction{}, impart.NewError(impart.ErrBadRequest, "No records found.")
+		plaidErr.Msg = "No records found."
+		newPlaidErr = append(newPlaidErr, plaidErr)
+		return UserTransaction{}, newPlaidErr
 	}
 	if err != nil {
-		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user institution details.")
+		plaidErr.Msg = "Could not find the user institution details."
+		newPlaidErr = append(newPlaidErr, plaidErr)
+
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
 			zap.String("user", impartWealthId))
-		return UserTransaction{}, impartErr
+		return UserTransaction{}, newPlaidErr
 	}
 
 	configuration := plaid.NewConfiguration()
@@ -368,17 +381,39 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	transGetResp, resp, err := client.PlaidApi.TransactionsGet(ctx).TransactionsGetRequest(
 		*transGetRequest,
 	).Execute()
+
 	if err != nil || resp.StatusCode == 400 {
 		ser.logger.Error("Could not find the user plaid account details.", zap.String("User", impartWealthId),
 			zap.String("token", userInstitutions.AccessToken))
+		if resp.StatusCode == 400 {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			type errorResponse struct {
+				ErrorCode string `json:"error_code" `
+			}
+			newRes := errorResponse{}
+			err := json.Unmarshal(bodyBytes, &newRes)
+			if err != nil {
+				ser.logger.Error("Could not unmarshal bodyBytes.", zap.Any("bodyBytes", bodyBytes),
+					zap.String("token", userInstitutions.AccessToken))
+			}
+			if newRes.ErrorCode == "ITEM_LOGIN_REQUIRED" {
+				plaidErr.AuthenticationError = true
+			}
+		}
+		plaidErr.Msg = "Could not find the  transaction details."
+		newPlaidErr = append(newPlaidErr, plaidErr)
 
-		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the  transaction details.")
-		return UserTransaction{}, impartErr
+		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the  transaction details.")
+		return UserTransaction{}, newPlaidErr
 	}
 	transactions := transGetResp.GetTransactions()
 	if len(transactions) == 0 {
-		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user transaction details.")
-		return UserTransaction{}, impartErr
+		plaidErr.Msg = "Could not find the  transaction details."
+
+		newPlaidErr = append(newPlaidErr, plaidErr)
+
+		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user transaction details.")
+		return UserTransaction{}, newPlaidErr
 	}
 	userData := UserTransaction{}
 	userData.ImpartWealthID = impartWealthId

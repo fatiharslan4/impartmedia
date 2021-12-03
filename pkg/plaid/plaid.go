@@ -423,31 +423,36 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	institution := InstitutionToModel(userInstitutions)
 
 	var allDates []string
+	fmt.Println("len(transactions)")
+	fmt.Println(len(transactions))
 	for _, act := range transactions {
 		currentDate := act.Date
+		fmt.Println("currentDate")
+		fmt.Println(currentDate)
+
 		ser.logger.Info(currentDate)
 		ser.logger.Info("allDates", zap.Any("allDates", allDates))
-		if checkDateExist(currentDate, allDates) {
+		if !checkDateExist(currentDate, allDates) {
 			ser.logger.Info("alredy date added", zap.Any("allDates", allDates),
 				zap.Any("currentDate", currentDate))
-			break
-		}
-		for _, acnts := range transactions {
-			if currentDate == acnts.Date {
-				ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
-				if !checkDateExist(currentDate, allDates) {
-					allDates = append(allDates, currentDate)
+
+			for _, acnts := range transactions {
+				if currentDate == acnts.Date {
+					ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
+					if !checkDateExist(currentDate, allDates) {
+						allDates = append(allDates, currentDate)
+					}
+					ser.logger.Info("aallDates", zap.Any("allDates", allDates))
+					transDatawithdate := TransactionToModel(acnts, userInstitutions.UserInstitutionID)
+					transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 				}
-				ser.logger.Info("aallDates", zap.Any("allDates", allDates))
-				transDatawithdate := TransactionToModel(acnts, userInstitutions.UserInstitutionID)
-				transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 			}
+			transWIthdate := TransactionWithDate{}
+			transWIthdate.Date = currentDate
+			transWIthdate.Data = transDatawithdateFinalData
+			transDataFinalData = append(transDataFinalData, transWIthdate)
+			transDatawithdateFinalData = nil
 		}
-		transWIthdate := TransactionWithDate{}
-		transWIthdate.Date = currentDate
-		transWIthdate.Data = transDatawithdateFinalData
-		transDataFinalData = append(transDataFinalData, transWIthdate)
-		transDatawithdateFinalData = nil
 	}
 
 	userinstitution[0] = institution

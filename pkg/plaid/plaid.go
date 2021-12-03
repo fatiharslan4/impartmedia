@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/url"
 	"regexp"
 	"strings"
@@ -386,7 +386,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		ser.logger.Error("Could not find the user plaid account details.", zap.String("User", impartWealthId),
 			zap.String("token", userInstitutions.AccessToken))
 		if resp.StatusCode == 400 {
-			bodyBytes, _ := io.ReadAll(resp.Body)
+			bodyBytes, _ := ioutil.ReadAll(resp.Body)
 			type errorResponse struct {
 				ErrorCode string `json:"error_code" `
 			}

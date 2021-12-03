@@ -1420,7 +1420,9 @@ func (ph *profileHandler) GetPlaidUserInstitutionTransactions() gin.HandlerFunc 
 		gpi.Offset = int32(offset)
 		output, impartErr := ph.plaidData.GetPlaidUserInstitutionTransactions(ctx, impartWealthId, gpi)
 		if impartErr != nil {
-			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			ctx.JSON(http.StatusBadRequest, plaid.PagedUserInstitutionTransactionErrorResponse{
+				Error: impartErr,
+			})
 			return
 		}
 		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionTransactionResponse{

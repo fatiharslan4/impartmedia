@@ -58,18 +58,17 @@ type UserAccount struct {
 
 type UserInstitutions []UserInstitution
 type UserInstitution struct {
-	UserInstitutionsId uint64                `json:"user_institutions_id" `
-	Id                 uint64                `json:"id"`
-	ImpartWealthID     string                `json:"impartWealthId" `
-	AccessToken        string                `json:"access_token"`
-	CreatedAt          time.Time             `json:"created_at"`
-	PlaidInstitutionId string                `json:"plaid_institution_id"`
-	Logo               string                `json:"logo"`
-	Weburl             string                `json:"weburl"`
-	RequestId          string                `json:"request_id"`
-	InstitutionName    string                `json:"institution_name"`
-	Accounts           []Account             `json:"accounts,omitempty"`
-	Transactions       []TransactionWithDate `json:"transactions,omitempty"`
+	UserInstitutionsId uint64    `json:"user_institutions_id" `
+	Id                 uint64    `json:"id"`
+	ImpartWealthID     string    `json:"impartWealthId" `
+	AccessToken        string    `json:"access_token"`
+	CreatedAt          time.Time `json:"created_at"`
+	PlaidInstitutionId string    `json:"plaid_institution_id"`
+	Logo               string    `json:"logo"`
+	Weburl             string    `json:"weburl"`
+	RequestId          string    `json:"request_id"`
+	InstitutionName    string    `json:"institution_name"`
+	Accounts           []Account `json:"accounts"`
 }
 
 type Accounts []Account
@@ -173,6 +172,10 @@ type PagedUserInstitutionTransactionResponse struct {
 	NextPage     *NextPage       `json:"nextPage"`
 }
 
+type PagedUserInstitutionTransactionErrorResponse struct {
+	Error PlaidErrors `json:"errors"`
+}
+
 type UserTransactions []UserTransaction
 type UserTransaction struct {
 	ImpartWealthID   string                `json:"impartWealthId,omitempty" `
@@ -193,4 +196,12 @@ type Transaction struct {
 	Name      string   `json:"name"`
 	Amount    float32  `json:"amount" `
 	Date      string   `json:"date"`
+}
+
+type PlaidErrors []PlaidError
+type PlaidError struct {
+	Error               string `json:"error"`
+	Msg                 string `json:"msg" `
+	Key                 string `json:"key"`
+	AuthenticationError bool   `json:"authentication_error" `
 }

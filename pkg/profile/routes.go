@@ -98,6 +98,9 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	plaidInstitutionAccountRoutes := version.Group("/plaid/accounts")
 	plaidInstitutionAccountRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionAccounts())
 
+	plaidInstitutionTransactionRoutes := version.Group("/plaid/transactions")
+	plaidInstitutionTransactionRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionTransactions())
+
 	cookiesRoutes := version.Group("/cookies")
 	cookiesRoutes.POST("/", handler.CreateCookies())
 
@@ -1388,6 +1391,42 @@ func (ph *profileHandler) GetHiveNotification() gin.HandlerFunc {
 		}
 		ctx.JSON(http.StatusOK, gin.H{
 			"status": "success",
+		})
+	}
+}
+
+func (ph *profileHandler) GetPlaidUserInstitutionTransactions() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
+		if ctxUser == nil {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Could not find the user.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		impartWealthId := ctx.Param("impartWealthId")
+		if impartWealthId == "" || ctxUser.ImpartWealthID != impartWealthId {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Invalid impartWealthId.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		gpi := models.GetPlaidInput{}
+		limit, offset, err := parseLimitOffset(ctx)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Invalid parameter.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		gpi.Limit = int32(limit)
+		gpi.Offset = int32(offset)
+		output, impartErr := ph.plaidData.GetPlaidUserInstitutionTransactions(ctx, impartWealthId, gpi)
+		if impartErr != nil {
+			ctx.JSON(http.StatusBadRequest, plaid.PagedUserInstitutionTransactionErrorResponse{
+				Error: impartErr,
+			})
+			return
+		}
+		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionTransactionResponse{
+			Transactions: output,
 		})
 	}
 }

@@ -357,8 +357,8 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	configuration := plaid.NewConfiguration()
 	cfg, _ := config.GetImpart()
 	if cfg != nil {
-		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
-		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
+		configuration.AddDefaultHeader("PLAID-CLIENT-ID", "61377469219f3b00100851fb")
+		configuration.AddDefaultHeader("PLAID-SECRET", "b52ffd4e5cbc52b7511738fe5ed8a8")
 		if cfg.Env == config.Production {
 			configuration.UseEnvironment(plaid.Production)
 		} else if cfg.Env == config.Preproduction {

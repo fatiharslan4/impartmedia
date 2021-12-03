@@ -430,8 +430,10 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		}
 		for _, acnts := range transactions {
 			if currentDate == acnts.Date {
-				allDates = append(allDates, currentDate)
-				transDatawithdate := TransactionToModel(act, userInstitutions.UserInstitutionID)
+				if !checkDateExist(currentDate, allDates) {
+					allDates = append(allDates, currentDate)
+				}
+				transDatawithdate := TransactionToModel(acnts, userInstitutions.UserInstitutionID)
 				transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 			}
 		}

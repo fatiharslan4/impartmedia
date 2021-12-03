@@ -31,6 +31,8 @@ func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 	}
 	if cfg.Env == config.Production {
 		configuration.UseEnvironment(plaid.Production)
+	} else if cfg.Env == config.Preproduction {
+		configuration.UseEnvironment(plaid.Development)
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
@@ -69,6 +71,8 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 	}
 	if cfg.Env == config.Production {
 		configuration.UseEnvironment(plaid.Production)
+	} else if cfg.Env == config.Preproduction {
+		configuration.UseEnvironment(plaid.Development)
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
@@ -203,6 +207,8 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
 		if cfg.Env == config.Production {
 			configuration.UseEnvironment(plaid.Production)
+		} else if cfg.Env == config.Preproduction {
+			configuration.UseEnvironment(plaid.Development)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
@@ -355,6 +361,8 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
 		if cfg.Env == config.Production {
 			configuration.UseEnvironment(plaid.Production)
+		} else if cfg.Env == config.Preproduction {
+			configuration.UseEnvironment(plaid.Development)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}

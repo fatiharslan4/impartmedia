@@ -422,10 +422,15 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	var transDataFinalData []TransactionWithDate
 	institution := InstitutionToModel(userInstitutions)
 
+	var allDates []string
 	for _, act := range transactions {
 		currentDate := act.Date
+		if checkDateExist(currentDate, allDates) {
+			break
+		}
 		for _, acnts := range transactions {
 			if currentDate == acnts.Date {
+				allDates = append(allDates, currentDate)
 				transDatawithdate := TransactionToModel(act, userInstitutions.UserInstitutionID)
 				transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 			}
@@ -451,4 +456,13 @@ func TransactionToModel(act plaid.Transaction, userInstId uint64) Transaction {
 	trans.Name = act.Name
 	trans.Date = act.GetDate()
 	return trans
+}
+
+func checkDateExist(datenew string, alldate []string) bool {
+	for _, date := range alldate {
+		if date == datenew {
+			return true
+		}
+	}
+	return false
 }

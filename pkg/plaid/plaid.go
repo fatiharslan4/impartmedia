@@ -328,6 +328,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	_, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthId)).One(ctx, ser.db)
 	if err != nil {
 		plaidErr.Msg = "Could not find the user."
+		// plaidErr.AccessToken = userInstitutions.AccessToken
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
@@ -343,10 +344,12 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	if userInstitutions == nil {
 		plaidErr.Msg = "No records found."
 		newPlaidErr = append(newPlaidErr, plaidErr)
+		plaidErr.AccessToken = userInstitutions.AccessToken
 		return UserTransaction{}, newPlaidErr
 	}
 	if err != nil {
 		plaidErr.Msg = "Could not find the user institution details."
+		plaidErr.AccessToken = userInstitutions.AccessToken
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
@@ -359,13 +362,14 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	if cfg != nil {
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
-		if cfg.Env == config.Production {
-			configuration.UseEnvironment(plaid.Production)
-		} else if cfg.Env == config.Preproduction {
-			configuration.UseEnvironment(plaid.Development)
-		} else {
-			configuration.UseEnvironment(plaid.Sandbox)
-		}
+		configuration.UseEnvironment(plaid.Production)
+		// if cfg.Env == config.Production {
+		// 	configuration.UseEnvironment(plaid.Production)
+		// } else if cfg.Env == config.Preproduction {
+		// 	configuration.UseEnvironment(plaid.Development)
+		// } else {
+		// 	configuration.UseEnvironment(plaid.Sandbox)
+		// }
 	}
 	client := plaid.NewAPIClient(configuration)
 
@@ -401,6 +405,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 				plaidErr.AuthenticationError = true
 				plaidErr.Msg = "ITEM_LOGIN_REQUIRED"
 			}
+			plaidErr.AccessToken = userInstitutions.AccessToken
 		}
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
@@ -410,7 +415,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	transactions := transGetResp.GetTransactions()
 	if len(transactions) == 0 {
 		plaidErr.Msg = "Could not find the  transaction details."
-
+		plaidErr.AccessToken = userInstitutions.AccessToken
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user transaction details.")
@@ -418,6 +423,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	}
 	userData := UserTransaction{}
 	userData.ImpartWealthID = impartWealthId
+	userData.AccessToken = userInstitutions.AccessToken
 	userinstitution := make(UserInstitutions, 1)
 	var transDatawithdateFinalData []Transaction
 	var transDataFinalData []TransactionWithDate

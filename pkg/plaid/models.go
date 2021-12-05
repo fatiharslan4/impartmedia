@@ -181,6 +181,7 @@ type UserTransaction struct {
 	ImpartWealthID   string                `json:"impartWealthId,omitempty" `
 	TotalTransaction int32                 `json:"total_transaction,omitempty"`
 	Transactions     []TransactionWithDate `json:"transactions,omitempty"`
+	AccessToken      string                `json:"accessToken,omitempty" `
 }
 
 type TransactionWithDates []TransactionWithDate
@@ -204,4 +205,5 @@ type PlaidError struct {
 	Msg                 string `json:"msg" `
 	Key                 string `json:"key"`
 	AuthenticationError bool   `json:"authentication_error" `
+	AccessToken         string `json:"accessToken,omitempty" `
 }

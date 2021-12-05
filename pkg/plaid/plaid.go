@@ -342,11 +342,13 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 
 	if userInstitutions == nil {
 		plaidErr.Msg = "No records found."
+		plaidErr.AccessToken = userInstitutions.AccessToken
 		newPlaidErr = append(newPlaidErr, plaidErr)
 		return UserTransaction{}, newPlaidErr
 	}
 	if err != nil {
 		plaidErr.Msg = "Could not find the user institution details."
+		plaidErr.AccessToken = userInstitutions.AccessToken
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
@@ -401,6 +403,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 				plaidErr.AuthenticationError = true
 				plaidErr.Msg = "ITEM_LOGIN_REQUIRED"
 			}
+			plaidErr.AccessToken = userInstitutions.AccessToken
 		}
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
@@ -410,7 +413,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	transactions := transGetResp.GetTransactions()
 	if len(transactions) == 0 {
 		plaidErr.Msg = "Could not find the  transaction details."
-
+		plaidErr.AccessToken = userInstitutions.AccessToken
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user transaction details.")
@@ -418,6 +421,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	}
 	userData := UserTransaction{}
 	userData.ImpartWealthID = impartWealthId
+	userData.AccessToken = userInstitutions.AccessToken
 	userinstitution := make(UserInstitutions, 1)
 	var transDatawithdateFinalData []Transaction
 	var transDataFinalData []TransactionWithDate

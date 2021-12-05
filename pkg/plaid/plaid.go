@@ -29,13 +29,14 @@ func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
 	}
-	if cfg.Env == config.Production {
-		configuration.UseEnvironment(plaid.Production)
-	} else if cfg.Env == config.Preproduction {
-		configuration.UseEnvironment(plaid.Development)
-	} else {
-		configuration.UseEnvironment(plaid.Sandbox)
-	}
+	// if cfg.Env == config.Production {
+	// 	configuration.UseEnvironment(plaid.Production)
+	// } else if cfg.Env == config.Preproduction {
+	// 	configuration.UseEnvironment(plaid.Development)
+	// } else {
+	// 	configuration.UseEnvironment(plaid.Sandbox)
+	// }
+	configuration.UseEnvironment(plaid.Production)
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
 	request := plaid.NewInstitutionsGetRequest(Count, OffSet, countrCode)
@@ -69,13 +70,14 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
 	}
-	if cfg.Env == config.Production {
-		configuration.UseEnvironment(plaid.Production)
-	} else if cfg.Env == config.Preproduction {
-		configuration.UseEnvironment(plaid.Development)
-	} else {
-		configuration.UseEnvironment(plaid.Sandbox)
-	}
+	// if cfg.Env == config.Production {
+	// 	configuration.UseEnvironment(plaid.Production)
+	// } else if cfg.Env == config.Preproduction {
+	// 	configuration.UseEnvironment(plaid.Development)
+	// } else {
+	// 	configuration.UseEnvironment(plaid.Sandbox)
+	// }
+	configuration.UseEnvironment(plaid.Production)
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
 	var includeOptionalMetadata bool = true
@@ -205,13 +207,14 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 	if cfg != nil {
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
-		if cfg.Env == config.Production {
-			configuration.UseEnvironment(plaid.Production)
-		} else if cfg.Env == config.Preproduction {
-			configuration.UseEnvironment(plaid.Development)
-		} else {
-			configuration.UseEnvironment(plaid.Sandbox)
-		}
+		// if cfg.Env == config.Production {
+		// 	configuration.UseEnvironment(plaid.Production)
+		// } else if cfg.Env == config.Preproduction {
+		// 	configuration.UseEnvironment(plaid.Development)
+		// } else {
+		// 	configuration.UseEnvironment(plaid.Sandbox)
+		// }
+		configuration.UseEnvironment(plaid.Production)
 	}
 	client := plaid.NewAPIClient(configuration)
 
@@ -362,13 +365,14 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	if cfg != nil {
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
-		if cfg.Env == config.Production {
-			configuration.UseEnvironment(plaid.Production)
-		} else if cfg.Env == config.Preproduction {
-			configuration.UseEnvironment(plaid.Development)
-		} else {
-			configuration.UseEnvironment(plaid.Sandbox)
-		}
+		// if cfg.Env == config.Production {
+		// 	configuration.UseEnvironment(plaid.Production)
+		// } else if cfg.Env == config.Preproduction {
+		// 	configuration.UseEnvironment(plaid.Development)
+		// } else {
+		// 	configuration.UseEnvironment(plaid.Sandbox)
+		// }
+		configuration.UseEnvironment(plaid.Production)
 	}
 	client := plaid.NewAPIClient(configuration)
 

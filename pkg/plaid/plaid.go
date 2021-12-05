@@ -343,8 +343,8 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 
 	if userInstitutions == nil {
 		plaidErr.Msg = "No records found."
-		newPlaidErr = append(newPlaidErr, plaidErr)
 		plaidErr.AccessToken = userInstitutions.AccessToken
+		newPlaidErr = append(newPlaidErr, plaidErr)
 		return UserTransaction{}, newPlaidErr
 	}
 	if err != nil {

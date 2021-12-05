@@ -362,14 +362,13 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	if cfg != nil {
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
-		configuration.UseEnvironment(plaid.Production)
-		// if cfg.Env == config.Production {
-		// 	configuration.UseEnvironment(plaid.Production)
-		// } else if cfg.Env == config.Preproduction {
-		// 	configuration.UseEnvironment(plaid.Development)
-		// } else {
-		// 	configuration.UseEnvironment(plaid.Sandbox)
-		// }
+		if cfg.Env == config.Production {
+			configuration.UseEnvironment(plaid.Production)
+		} else if cfg.Env == config.Preproduction {
+			configuration.UseEnvironment(plaid.Development)
+		} else {
+			configuration.UseEnvironment(plaid.Sandbox)
+		}
 	}
 	client := plaid.NewAPIClient(configuration)
 

@@ -3,8 +3,9 @@ package config
 import (
 	"database/sql"
 	"fmt"
-	"github.com/go-sql-driver/mysql"
 	"time"
+
+	"github.com/go-sql-driver/mysql"
 )
 
 func getDefaultConfig() *mysql.Config {
@@ -37,10 +38,17 @@ func (ic *Impart) GetDBConnection() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(10)
-	db.SetConnMaxIdleTime(10 * time.Minute)
-	db.SetConnMaxLifetime(1 * time.Hour)
+	if ic.Env == Production {
+		db.SetMaxOpenConns(10)
+		db.SetMaxIdleConns(10)
+		db.SetConnMaxIdleTime(10 * time.Minute)
+		db.SetConnMaxLifetime(1 * time.Hour)
+	} else {
+		db.SetMaxOpenConns(5)
+		db.SetMaxIdleConns(5)
+		db.SetConnMaxIdleTime(5 * time.Minute)
+		db.SetConnMaxLifetime(1 * time.Hour)
+	}
 
 	//fmt.Println("connecting to ", mysqlConfig.FormatDSN())
 	if err = db.Ping(); err != nil {
@@ -61,10 +69,17 @@ func (ic *Impart) GetMigrationDBConnection() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(10)
-	db.SetConnMaxIdleTime(10 * time.Minute)
-	db.SetConnMaxLifetime(1 * time.Hour)
+	if ic.Env == Production {
+		db.SetMaxOpenConns(10)
+		db.SetMaxIdleConns(10)
+		db.SetConnMaxIdleTime(10 * time.Minute)
+		db.SetConnMaxLifetime(1 * time.Hour)
+	} else {
+		db.SetMaxOpenConns(5)
+		db.SetMaxIdleConns(5)
+		db.SetConnMaxIdleTime(5 * time.Minute)
+		db.SetConnMaxLifetime(1 * time.Hour)
+	}
 
 	//fmt.Println("connecting to ", mysqlConfig.FormatDSN())
 	if err = db.Ping(); err != nil {

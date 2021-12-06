@@ -37,7 +37,6 @@ func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
-	configuration.UseEnvironment(plaid.Production)
 
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
@@ -79,7 +78,7 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
-	configuration.UseEnvironment(plaid.Production)
+
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
 	var includeOptionalMetadata bool = true
@@ -235,7 +234,6 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
-		configuration.UseEnvironment(plaid.Production)
 
 	}
 	client := plaid.NewAPIClient(configuration)
@@ -398,7 +396,6 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
-		configuration.UseEnvironment(plaid.Production)
 
 	}
 	client := plaid.NewAPIClient(configuration)
@@ -515,7 +512,6 @@ func checkDateExist(datenew string, alldate []string) bool {
 	return false
 }
 
-
 func GetAccessTokenStatus(accessToken string, ctx context.Context) bool {
 	configuration := plaid.NewConfiguration()
 	cfg, _ := config.GetImpart()
@@ -551,4 +547,3 @@ func GetAccessTokenStatus(accessToken string, ctx context.Context) bool {
 	}
 	return false
 }
-

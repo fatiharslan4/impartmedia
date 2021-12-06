@@ -29,6 +29,7 @@ func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
 	}
+
 	if cfg.Env == config.Production {
 		configuration.UseEnvironment(plaid.Production)
 	} else if cfg.Env == config.Preproduction {
@@ -36,6 +37,8 @@ func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
+	configuration.UseEnvironment(plaid.Production)
+
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
 	request := plaid.NewInstitutionsGetRequest(Count, OffSet, countrCode)
@@ -76,6 +79,7 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
+	configuration.UseEnvironment(plaid.Production)
 	client := plaid.NewAPIClient(configuration)
 	var countrCode = []plaid.CountryCode{plaid.COUNTRYCODE_US}
 	var includeOptionalMetadata bool = true
@@ -223,6 +227,7 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 	if cfg != nil {
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
+
 		if cfg.Env == config.Production {
 			configuration.UseEnvironment(plaid.Production)
 		} else if cfg.Env == config.Preproduction {
@@ -230,6 +235,8 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
+		configuration.UseEnvironment(plaid.Production)
+
 	}
 	client := plaid.NewAPIClient(configuration)
 
@@ -349,6 +356,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	_, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthId)).One(ctx, ser.db)
 	if err != nil {
 		plaidErr.Msg = "Could not find the user."
+		// plaidErr.AccessToken = userInstitutions.AccessToken
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
@@ -382,6 +390,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	if cfg != nil {
 		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
 		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
+
 		if cfg.Env == config.Production {
 			configuration.UseEnvironment(plaid.Production)
 		} else if cfg.Env == config.Preproduction {
@@ -389,6 +398,8 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
+		configuration.UseEnvironment(plaid.Production)
+
 	}
 	client := plaid.NewAPIClient(configuration)
 
@@ -504,6 +515,7 @@ func checkDateExist(datenew string, alldate []string) bool {
 	return false
 }
 
+
 func GetAccessTokenStatus(accessToken string, ctx context.Context) bool {
 	configuration := plaid.NewConfiguration()
 	cfg, _ := config.GetImpart()
@@ -539,3 +551,4 @@ func GetAccessTokenStatus(accessToken string, ctx context.Context) bool {
 	}
 	return false
 }
+

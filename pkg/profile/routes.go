@@ -912,6 +912,12 @@ func (ph *profileHandler) GetUsersDetails() gin.HandlerFunc {
 		if search := strings.TrimSpace(params.Get("q")); search != "" {
 			gpi.SearchKey = strings.TrimSpace(params.Get("q"))
 		}
+		if hive := strings.TrimSpace(params.Get("hive")); hive != "" {
+			val, err := strconv.Atoi(hive)
+			if val > 0 && err == nil {
+				gpi.Hive = val
+			}
+		}
 		var err error
 		gpi.Limit, gpi.Offset, err = parseLimitOffset(ctx)
 		if err != nil {

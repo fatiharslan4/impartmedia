@@ -144,7 +144,6 @@ type PlaidInput struct {
 	ImpartWealthID   string `json:"impartWealthID"`
 	PlaidAccessToken string `json:"plaidAccessToken"`
 }
-
 type GetPlaidInput struct {
 	Limit  int32
 	Offset int32

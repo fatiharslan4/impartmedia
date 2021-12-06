@@ -44,9 +44,9 @@ func (ic *Impart) GetDBConnection() (*sql.DB, error) {
 		db.SetConnMaxIdleTime(10 * time.Minute)
 		db.SetConnMaxLifetime(1 * time.Hour)
 	} else {
-		db.SetMaxOpenConns(5)
-		db.SetMaxIdleConns(5)
-		db.SetConnMaxIdleTime(5 * time.Minute)
+		db.SetMaxOpenConns(2)
+		db.SetMaxIdleConns(2)
+		db.SetConnMaxIdleTime(2 * time.Minute)
 		db.SetConnMaxLifetime(1 * time.Hour)
 	}
 
@@ -75,9 +75,9 @@ func (ic *Impart) GetMigrationDBConnection() (*sql.DB, error) {
 		db.SetConnMaxIdleTime(10 * time.Minute)
 		db.SetConnMaxLifetime(1 * time.Hour)
 	} else {
-		db.SetMaxOpenConns(5)
-		db.SetMaxIdleConns(5)
-		db.SetConnMaxIdleTime(5 * time.Minute)
+		db.SetMaxOpenConns(2)
+		db.SetMaxIdleConns(2)
+		db.SetConnMaxIdleTime(2 * time.Minute)
 		db.SetConnMaxLifetime(1 * time.Hour)
 	}
 

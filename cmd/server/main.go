@@ -257,7 +257,6 @@ func CORS(c *gin.Context) {
 	// if err != nil {
 	// 	logger.Fatal("error parsing config", zap.Error(err))
 	// }
-	fmt.Println("the allow origin are", cfg.AllowOrigin)
 
 	c.Header("Access-Control-Allow-Origin", cfg.AllowOrigin)
 	c.Header("Access-Control-Allow-Methods", "POST,GET,PATCH,PUT,DELETE,OPTION")

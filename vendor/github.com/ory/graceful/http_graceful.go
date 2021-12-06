@@ -38,7 +38,7 @@ type StartFunc func() error
 type ShutdownFunc func(context.Context) error
 
 // DefaultShutdownTimeout defines how long Graceful will wait before forcibly shutting down
-var DefaultShutdownTimeout = 5 * time.Second
+var DefaultShutdownTimeout = 60 * time.Second
 
 // Graceful sets up graceful handling of SIGINT and SIGTERM, typically for an HTTP server.
 // When signal is trapped, the shutdown handler will be invoked with a context that expires

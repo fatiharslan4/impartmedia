@@ -1,6 +1,7 @@
 package plaid
 
 import (
+	"context"
 	"time"
 
 	"github.com/impartwealthapp/backend/pkg/models/dbmodels"
@@ -20,12 +21,13 @@ type Institution struct {
 
 type UserInstitutionTokens []UserInstitutionToken
 type UserInstitutionToken struct {
-	UserInstitutionsId uint64    `json:"user_institutions_id" `
-	Id                 uint64    `json:"id"`
-	ImpartWealthID     string    `json:"impartWealthId" `
-	AccessToken        string    `json:"access_token"`
-	CreatedAt          time.Time `json:"created_at"`
-	PlaidInstitutionId string    `json:"plaid_institution_id"`
+	UserInstitutionsId    uint64    `json:"user_institutions_id" `
+	Id                    uint64    `json:"id"`
+	ImpartWealthID        string    `json:"impartWealthId" `
+	AccessToken           string    `json:"access_token"`
+	CreatedAt             time.Time `json:"created_at"`
+	PlaidInstitutionId    string    `json:"plaid_institution_id"`
+	IsAuthenticationError bool      `json:"is_authentication_error"`
 }
 
 type Balance struct {
@@ -58,17 +60,18 @@ type UserAccount struct {
 
 type UserInstitutions []UserInstitution
 type UserInstitution struct {
-	UserInstitutionsId uint64    `json:"user_institutions_id" `
-	Id                 uint64    `json:"id"`
-	ImpartWealthID     string    `json:"impartWealthId" `
-	AccessToken        string    `json:"access_token"`
-	CreatedAt          time.Time `json:"created_at"`
-	PlaidInstitutionId string    `json:"plaid_institution_id"`
-	Logo               string    `json:"logo"`
-	Weburl             string    `json:"weburl"`
-	RequestId          string    `json:"request_id"`
-	InstitutionName    string    `json:"institution_name"`
-	Accounts           []Account `json:"accounts"`
+	UserInstitutionsId    uint64    `json:"user_institutions_id" `
+	Id                    uint64    `json:"id"`
+	ImpartWealthID        string    `json:"impartWealthId" `
+	AccessToken           string    `json:"access_token"`
+	CreatedAt             time.Time `json:"created_at"`
+	PlaidInstitutionId    string    `json:"plaid_institution_id"`
+	Logo                  string    `json:"logo"`
+	Weburl                string    `json:"weburl"`
+	RequestId             string    `json:"request_id"`
+	InstitutionName       string    `json:"institution_name"`
+	IsAuthenticationError bool      `json:"is_authentication_error"`
+	Accounts              []Account `json:"accounts"`
 }
 
 type Accounts []Account
@@ -128,15 +131,15 @@ func (p UserInstitutionToken) ToDBModel() *dbmodels.UserInstitution {
 	return out
 }
 
-func DBmodelsToUserInstitutionResult(dbInstitution dbmodels.UserInstitutionSlice) UserInstitutionTokens {
+func DBmodelsToUserInstitutionResult(dbInstitution dbmodels.UserInstitutionSlice, ctx context.Context) UserInstitutionTokens {
 	out := make(UserInstitutionTokens, len(dbInstitution))
 	for i, p := range dbInstitution {
-		out[i] = UserInstitutionFromDB(p)
+		out[i] = UserInstitutionFromDB(p, ctx)
 	}
 	return out
 }
 
-func UserInstitutionFromDB(p *dbmodels.UserInstitution) UserInstitutionToken {
+func UserInstitutionFromDB(p *dbmodels.UserInstitution, ctx context.Context) UserInstitutionToken {
 	out := UserInstitutionToken{
 		AccessToken:        p.AccessToken,
 		CreatedAt:          p.CreatedAt,
@@ -144,6 +147,7 @@ func UserInstitutionFromDB(p *dbmodels.UserInstitution) UserInstitutionToken {
 		PlaidInstitutionId: p.R.Institution.PlaidInstitutionID,
 		ImpartWealthID:     p.ImpartWealthID,
 	}
+	out.IsAuthenticationError = GetAccessTokenStatus(p.AccessToken, ctx)
 
 	return out
 }

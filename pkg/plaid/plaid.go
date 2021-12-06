@@ -245,9 +245,24 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 	for i, user := range userInstitutions {
 		institution := InstitutionToModel(user)
 		accountsGetRequest := plaid.NewAccountsGetRequest(user.AccessToken)
-		accountsGetResp, _, err := client.PlaidApi.AccountsGet(ctx).AccountsGetRequest(
+		accountsGetResp, response, err := client.PlaidApi.AccountsGet(ctx).AccountsGetRequest(
 			*accountsGetRequest,
 		).Execute()
+
+		if response.StatusCode == 400 {
+			bodyBytes, _ := ioutil.ReadAll(response.Body)
+			type errorResponse struct {
+				ErrorCode string `json:"error_code" `
+			}
+			newRes := errorResponse{}
+			err = json.Unmarshal(bodyBytes, &newRes)
+			if err != nil {
+				fmt.Println(err)
+			}
+			if newRes.ErrorCode == "ITEM_LOGIN_REQUIRED" {
+				institution.IsAuthenticationError = true
+			}
+		}
 		if err != nil {
 			ser.logger.Error("Could not find the user plaid account details.", zap.String("User", impartWealthId),
 				zap.String("token", user.AccessToken))
@@ -259,14 +274,14 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		userinstitution[i] = institution
 		userData.Institutions = userinstitution
 
-		userDb := user
+		qury := ""
+		query := ""
+		for i, act := range accounts {
+			userAccounts[i], qury = AccountToModel(act, user.UserInstitutionID)
+			query = fmt.Sprintf("%s %s", query, qury)
+		}
+		userData.Institutions = userinstitution
 		go func() {
-			qury := ""
-			query := ""
-			for i, act := range accounts {
-				userAccounts[i], qury = AccountToModel(act, userDb.UserInstitutionID)
-				query = fmt.Sprintf("%s %s", query, qury)
-			}
 			lastQury := "INSERT INTO `user_plaid_accounts_log` (`user_institution_id`,`account_id`,`mask`,`name`,`official_name`,`subtype`,`type`,`iso_currency_code`,`unofficial_currency_code`,`available`,`current`,`credit_limit`,`created_at`) VALUES "
 			lastQury = fmt.Sprintf("%s %s", lastQury, query)
 			lastQury = strings.Trim(lastQury, ",")

@@ -60,17 +60,18 @@ type UserAccount struct {
 
 type UserInstitutions []UserInstitution
 type UserInstitution struct {
-	UserInstitutionsId uint64    `json:"user_institutions_id" `
-	Id                 uint64    `json:"id"`
-	ImpartWealthID     string    `json:"impartWealthId" `
-	AccessToken        string    `json:"access_token"`
-	CreatedAt          time.Time `json:"created_at"`
-	PlaidInstitutionId string    `json:"plaid_institution_id"`
-	Logo               string    `json:"logo"`
-	Weburl             string    `json:"weburl"`
-	RequestId          string    `json:"request_id"`
-	InstitutionName    string    `json:"institution_name"`
-	Accounts           []Account `json:"accounts"`
+	UserInstitutionsId    uint64    `json:"user_institutions_id" `
+	Id                    uint64    `json:"id"`
+	ImpartWealthID        string    `json:"impartWealthId" `
+	AccessToken           string    `json:"access_token"`
+	CreatedAt             time.Time `json:"created_at"`
+	PlaidInstitutionId    string    `json:"plaid_institution_id"`
+	Logo                  string    `json:"logo"`
+	Weburl                string    `json:"weburl"`
+	RequestId             string    `json:"request_id"`
+	InstitutionName       string    `json:"institution_name"`
+	IsAuthenticationError bool      `json:"is_authentication_error"`
+	Accounts              []Account `json:"accounts"`
 }
 
 type Accounts []Account

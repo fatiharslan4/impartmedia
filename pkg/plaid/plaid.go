@@ -151,7 +151,7 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 				zap.Any("InstitutionID", inst.ID))
 		}
 		if userInst != nil {
-			impartErr := impart.NewError(impart.ErrBadRequest, "Institution already added.")
+			impartErr := impart.NewError(impart.ErrBadRequest, "You already have an account with this bank, please register with some other bank account, thanks.")
 			ser.logger.Error("Acces token saving failed", zap.String("User", userInstitution.ImpartWealthID),
 				zap.Any("impartErr", impartErr))
 

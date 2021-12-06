@@ -85,17 +85,19 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 	request.Options.IncludeOptionalMetadata = &includeOptionalMetadata
 	response, _, err := client.PlaidApi.InstitutionsGetById(ctx).InstitutionsGetByIdRequest(*request).Execute()
 	if err != nil {
-		impartErr := impart.NewError(impart.ErrBadRequest, "Could not Plaid institution the user.")
+		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find Plaid institution for the user.")
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", userInstitution.ImpartWealthID),
 			zap.String("PlaidInstitutionId", userInstitution.PlaidInstitutionId))
 
 		return impartErr
 	}
+	noInstitution := false
 	inst, err := dbmodels.Institutions(dbmodels.InstitutionWhere.PlaidInstitutionID.EQ(userInstitution.PlaidInstitutionId)).One(ctx, ser.db)
 	if err != nil {
 
 		if err == sql.ErrNoRows {
 			url := ""
+			noInstitution = true
 			if response.Institution.GetLogo() != "" {
 				files := make([]models.File, 1)
 				files[0].Content = response.Institution.GetLogo()
@@ -137,6 +139,22 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 	userInstitution.CreatedAt = impart.CurrentUTC()
 	userInstitution.Id = inst.ID
 	dbUserInstitution := userInstitution.ToDBModel()
+	if !noInstitution {
+		userInst, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(userInstitution.ImpartWealthID),
+			dbmodels.UserInstitutionWhere.InstitutionID.EQ(inst.ID)).One(ctx, ser.db)
+		if err != nil {
+			ser.logger.Error("UserInstitutions fetching failed", zap.String("User", userInstitution.ImpartWealthID),
+				zap.String("PlaidInstitutionId", userInstitution.PlaidInstitutionId),
+				zap.Any("InstitutionID", inst.ID))
+		}
+		if userInst != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Institution already added.")
+			ser.logger.Error("Acces token saving failed", zap.String("User", userInstitution.ImpartWealthID),
+				zap.Any("impartErr", impartErr))
+
+			return impartErr
+		}
+	}
 	err = dbUserInstitution.Insert(ctx, ser.db, boil.Infer())
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, "Acces token saving failed.")
@@ -171,7 +189,7 @@ func (ser *service) GetPlaidUserInstitutions(ctx context.Context, impartWealthId
 		return nil, err
 	}
 
-	output := DBmodelsToUserInstitutionResult(userInstitutions)
+	output := DBmodelsToUserInstitutionResult(userInstitutions, ctx)
 	return output, nil
 }
 
@@ -232,30 +250,33 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		}
 		accounts := accountsGetResp.GetAccounts()
 		userAccounts := make(Accounts, len(accounts))
-		qury := ""
-		query := ""
-		for i, act := range accounts {
-			userAccounts[i], qury = AccountToModel(act, user.UserInstitutionID)
-			query = fmt.Sprintf("%s %s", query, qury)
-		}
 		institution.Accounts = userAccounts
 		userinstitution[i] = institution
 		userData.Institutions = userinstitution
 
-		lastQury := "INSERT INTO `user_plaid_accounts_log` (`user_institution_id`,`account_id`,`mask`,`name`,`official_name`,`subtype`,`type`,`iso_currency_code`,`unofficial_currency_code`,`available`,`current`,`credit_limit`,`created_at`) VALUES "
-		lastQury = fmt.Sprintf("%s %s", lastQury, query)
-		lastQury = strings.Trim(lastQury, ",")
-		lastQury = fmt.Sprintf("%s ;", lastQury)
-		// tx, err := ser.db.BeginTx(ctx, nil)
-		// if err != nil {
-		// 	ser.logger.Error("error attempting to log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
-		// }
-		// defer impart.CommitRollbackLogger(tx, err, ser.logger)
+		userDb := user
+		go func() {
+			qury := ""
+			query := ""
+			for i, act := range accounts {
+				userAccounts[i], qury = AccountToModel(act, userDb.UserInstitutionID)
+				query = fmt.Sprintf("%s %s", query, qury)
+			}
+			lastQury := "INSERT INTO `user_plaid_accounts_log` (`user_institution_id`,`account_id`,`mask`,`name`,`official_name`,`subtype`,`type`,`iso_currency_code`,`unofficial_currency_code`,`available`,`current`,`credit_limit`,`created_at`) VALUES "
+			lastQury = fmt.Sprintf("%s %s", lastQury, query)
+			lastQury = strings.Trim(lastQury, ",")
+			lastQury = fmt.Sprintf("%s ;", lastQury)
+			// tx, err := ser.db.BeginTx(ctx, nil)
+			// if err != nil {
+			// 	ser.logger.Error("error attempting to log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
+			// }
+			// defer impart.CommitRollbackLogger(tx, err, ser.logger)
 
-		_, err = queries.Raw(lastQury).QueryContext(ctx, ser.db)
-		if err != nil {
-			ser.logger.Error("error attempting to  log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
-		}
+			_, err = queries.Raw(lastQury).QueryContext(ctx, ser.db)
+			if err != nil {
+				ser.logger.Error("error attempting to  log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
+			}
+		}()
 	}
 	return userData, nil
 }
@@ -477,6 +498,42 @@ func TransactionToModel(act plaid.Transaction, userInstId uint64) Transaction {
 func checkDateExist(datenew string, alldate []string) bool {
 	for _, date := range alldate {
 		if date == datenew {
+			return true
+		}
+	}
+	return false
+}
+
+func GetAccessTokenStatus(accessToken string, ctx context.Context) bool {
+	configuration := plaid.NewConfiguration()
+	cfg, _ := config.GetImpart()
+	if cfg != nil {
+		configuration.AddDefaultHeader("PLAID-CLIENT-ID", cfg.PlaidClientId)
+		configuration.AddDefaultHeader("PLAID-SECRET", cfg.PlaidSecret)
+		if cfg.Env == config.Production {
+			configuration.UseEnvironment(plaid.Production)
+		} else if cfg.Env == config.Preproduction {
+			configuration.UseEnvironment(plaid.Development)
+		} else {
+			configuration.UseEnvironment(plaid.Sandbox)
+		}
+	}
+	client := plaid.NewAPIClient(configuration)
+	accountsGetRequest := plaid.NewAccountsGetRequest(accessToken)
+	_, response, err := client.PlaidApi.AccountsGet(ctx).AccountsGetRequest(
+		*accountsGetRequest,
+	).Execute()
+	if response.StatusCode == 400 {
+		bodyBytes, _ := ioutil.ReadAll(response.Body)
+		type errorResponse struct {
+			ErrorCode string `json:"error_code" `
+		}
+		newRes := errorResponse{}
+		err = json.Unmarshal(bodyBytes, &newRes)
+		if err != nil {
+			fmt.Println(err)
+		}
+		if newRes.ErrorCode == "ITEM_LOGIN_REQUIRED" {
 			return true
 		}
 	}

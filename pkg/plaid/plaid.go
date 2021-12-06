@@ -251,6 +251,7 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		).Execute()
 
 		if response.StatusCode == 400 {
+			defer response.Body.Close()
 			bodyBytes, _ := ioutil.ReadAll(response.Body)
 			type errorResponse struct {
 				ErrorCode string `json:"error_code" `
@@ -435,6 +436,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 			zap.String("token", userInstitutions.AccessToken))
 		plaidErr.Msg = "Could not find the  transaction details."
 		if resp.StatusCode == 400 {
+			defer resp.Body.Close()
 			bodyBytes, _ := ioutil.ReadAll(resp.Body)
 			type errorResponse struct {
 				ErrorCode string `json:"error_code" `
@@ -549,6 +551,7 @@ func GetAccessTokenStatus(accessToken string, ctx context.Context) bool {
 		*accountsGetRequest,
 	).Execute()
 	if response.StatusCode == 400 {
+		defer response.Body.Close()
 		bodyBytes, _ := ioutil.ReadAll(response.Body)
 		type errorResponse struct {
 			ErrorCode string `json:"error_code" `

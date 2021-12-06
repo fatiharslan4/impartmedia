@@ -242,6 +242,7 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 	userData.ImpartWealthID = impartWealthId
 	userData.UpdatedAt = time.Now().UTC().Unix()
 	userinstitution := make(UserInstitutions, len(userInstitutions))
+	finalQuery := ""
 	for i, user := range userInstitutions {
 		institution := InstitutionToModel(user)
 		accountsGetRequest := plaid.NewAccountsGetRequest(user.AccessToken)
@@ -283,23 +284,21 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		userData.Institutions = userinstitution
 
 		if logwrite {
-			go func() {
-				lastQury := "INSERT INTO `user_plaid_accounts_log` (`user_institution_id`,`account_id`,`mask`,`name`,`official_name`,`subtype`,`type`,`iso_currency_code`,`unofficial_currency_code`,`available`,`current`,`credit_limit`,`created_at`) VALUES "
-				lastQury = fmt.Sprintf("%s %s", lastQury, query)
-				lastQury = strings.Trim(lastQury, ",")
-				lastQury = fmt.Sprintf("%s ;", lastQury)
-				// tx, err := ser.db.BeginTx(ctx, nil)
-				// if err != nil {
-				// 	ser.logger.Error("error attempting to log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
-				// }
-				// defer impart.CommitRollbackLogger(tx, err, ser.logger)
-				fmt.Println(lastQury)
-				_, err = queries.Raw(lastQury).QueryContext(ctx, ser.db)
-				if err != nil {
-					ser.logger.Error("error attempting to  log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
-				}
-			}()
+			finalQuery = fmt.Sprintf("%s %s", finalQuery, query)
 		}
+	}
+	if finalQuery != "" {
+		go func() {
+			lastQury := "INSERT INTO `user_plaid_accounts_log` (`user_institution_id`,`account_id`,`mask`,`name`,`official_name`,`subtype`,`type`,`iso_currency_code`,`unofficial_currency_code`,`available`,`current`,`credit_limit`,`created_at`) VALUES "
+			lastQury = fmt.Sprintf("%s %s", lastQury, finalQuery)
+			lastQury = strings.Trim(lastQury, ",")
+			lastQury = fmt.Sprintf("%s ;", lastQury)
+			ser.logger.Info("Query", zap.Any("Query", lastQury))
+			_, err = queries.Raw(lastQury).QueryContext(ctx, ser.db)
+			if err != nil {
+				ser.logger.Error("error attempting to  log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
+			}
+		}()
 	}
 	return userData, nil
 }

@@ -103,7 +103,7 @@ func main() {
 	if err != nil {
 		logger.Fatal("unable to connect to DB", zap.Error(err))
 	}
-	defer db.Close()
+	// defer db.Close()
 	defer logger.Sync()
 
 	// if err := migrater.BootStrapAdminUsers(db, cfg.Env, logger); err != nil {

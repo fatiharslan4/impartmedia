@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"regexp"
 	"strings"
@@ -251,16 +250,12 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		).Execute()
 
 		if response.StatusCode == 400 {
-			// defer response.Body.Close()
-			bodyBytes, _ := ioutil.ReadAll(response.Body)
+			defer response.Body.Close()
 			type errorResponse struct {
 				ErrorCode string `json:"error_code" `
 			}
 			newRes := errorResponse{}
-			err = json.Unmarshal(bodyBytes, &newRes)
-			if err != nil {
-				fmt.Println(err)
-			}
+			json.NewDecoder(response.Body).Decode(&newRes)
 			if newRes.ErrorCode == "ITEM_LOGIN_REQUIRED" {
 				institution.IsAuthenticationError = true
 			}
@@ -268,17 +263,28 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		if err != nil {
 			ser.logger.Error("Could not find the user plaid account details.", zap.String("User", impartWealthId),
 				zap.String("token", user.AccessToken))
-			continue
+			// continue
 		}
 		accounts := accountsGetResp.GetAccounts()
 		userAccounts := make(Accounts, len(accounts))
 		qury := ""
 		query := ""
 		logwrite := false
+		logexist := false
+		userlogs, err := dbmodels.UserPlaidAccountsLogs(dbmodels.UserPlaidAccountsLogWhere.UserInstitutionID.EQ(user.UserInstitutionID)).One(ctx, ser.db)
+		if userlogs != nil {
+			logexist = true
+		}
+		if err != nil {
+			fmt.Println(err)
+			ser.logger.Error("error checking UserPlaidAccountsLogExists ", zap.Error(err))
+		}
 		for i, act := range accounts {
-			userAccounts[i], qury = AccountToModel(act, user.UserInstitutionID)
-			query = fmt.Sprintf("%s %s", query, qury)
-			logwrite = true
+			userAccounts[i], qury = AccountToModel(act, user.UserInstitutionID, logexist)
+			if !logexist {
+				query = fmt.Sprintf("%s %s", query, qury)
+				logwrite = true
+			}
 		}
 		institution.Accounts = userAccounts
 		userinstitution[i] = institution
@@ -288,23 +294,29 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 			finalQuery = fmt.Sprintf("%s %s", finalQuery, query)
 		}
 	}
-	if finalQuery != "" {
+	if strings.Trim(finalQuery, "") != "" {
 		go func() {
-			lastQury := "INSERT INTO `user_plaid_accounts_log` (`user_institution_id`,`account_id`,`mask`,`name`,`official_name`,`subtype`,`type`,`iso_currency_code`,`unofficial_currency_code`,`available`,`current`,`credit_limit`,`created_at`) VALUES "
-			lastQury = fmt.Sprintf("%s %s", lastQury, finalQuery)
-			lastQury = strings.Trim(lastQury, ",")
-			lastQury = fmt.Sprintf("%s ;", lastQury)
-			ser.logger.Info("Query", zap.Any("Query", lastQury))
-			_, err = queries.Raw(lastQury).QueryContext(ctx, ser.db)
+			tx, err := ser.db.BeginTx(ctx, nil)
 			if err != nil {
-				ser.logger.Error("error attempting to  log in user_plaid_accounts_log ", zap.Any("user_plaid_accounts_log", lastQury), zap.Error(err))
+				ser.logger.Error("Query", zap.Any("Query", err))
+			} else {
+				defer impart.CommitRollbackLogger(tx, err, ser.logger)
+				lastQury := "LOCK TABLE user_plaid_accounts_log WRITE ;INSERT INTO `user_plaid_accounts_log` (`user_institution_id`,`account_id`,`mask`,`name`,`official_name`,`subtype`,`type`,`iso_currency_code`,`unofficial_currency_code`,`available`,`current`,`credit_limit`,`created_at`) VALUES "
+				lastQury = fmt.Sprintf("%s %s", lastQury, finalQuery)
+				lastQury = strings.Trim(lastQury, ",")
+				lastQury = fmt.Sprintf("%s ; UNLOCK TABLES;", lastQury)
+				_, err = queries.Raw(lastQury).QueryContext(ctx, ser.db)
+				if err != nil {
+					ser.logger.Error("error attempting to  log in user_plaid_accounts_log ", zap.Error(err))
+				}
+				tx.Commit()
 			}
 		}()
 	}
 	return userData, nil
 }
 
-func AccountToModel(act plaid.AccountBase, userInstId uint64) (Account, string) {
+func AccountToModel(act plaid.AccountBase, userInstId uint64, logexist bool) (Account, string) {
 	accounts := Account{}
 	accounts.AccountID = act.AccountId
 	accounts.Available = act.Balances.GetAvailable()
@@ -317,9 +329,11 @@ func AccountToModel(act plaid.AccountBase, userInstId uint64) (Account, string) 
 	accounts.Name = act.GetName()
 	accounts.OfficialName = act.GetOfficialName()
 	accounts.UnofficialCurrencyCode = act.Balances.GetUnofficialCurrencyCode()
-
-	query := fmt.Sprintf("(%d,'%s','%s','%s','%s','%s','%s','%s','%s',%f,%f,%f,UTC_TIMESTAMP(3)),",
-		userInstId, accounts.AccountID, accounts.Mask, accounts.Name, accounts.OfficialName, accounts.Subtype, accounts.Type, accounts.IsoCurrencyCode, accounts.UnofficialCurrencyCode, accounts.Available, accounts.Current, accounts.CreditLimit)
+	query := ""
+	if !logexist {
+		query = fmt.Sprintf("(%d,'%s','%s','%s','%s','%s','%s','%s','%s',%f,%f,%f,UTC_TIMESTAMP(3)),",
+			userInstId, accounts.AccountID, accounts.Mask, accounts.Name, accounts.OfficialName, accounts.Subtype, accounts.Type, accounts.IsoCurrencyCode, accounts.UnofficialCurrencyCode, accounts.Available, accounts.Current, accounts.CreditLimit)
+	}
 
 	return accounts, query
 }
@@ -384,10 +398,8 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		qm.Load(dbmodels.UserInstitutionRels.ImpartWealth),
 		qm.Load(dbmodels.UserInstitutionRels.Institution),
 	).One(ctx, ser.db)
-
 	if userInstitutions == nil {
 		plaidErr.Msg = "No records found."
-		plaidErr.AccessToken = userInstitutions.AccessToken
 		newPlaidErr = append(newPlaidErr, plaidErr)
 		return UserTransaction{}, newPlaidErr
 	}
@@ -436,17 +448,12 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 			zap.String("token", userInstitutions.AccessToken))
 		plaidErr.Msg = "Could not find the  transaction details."
 		if resp.StatusCode == 400 {
-			// defer resp.Body.Close()
-			bodyBytes, _ := ioutil.ReadAll(resp.Body)
+			defer resp.Body.Close()
 			type errorResponse struct {
 				ErrorCode string `json:"error_code" `
 			}
 			newRes := errorResponse{}
-			err := json.Unmarshal(bodyBytes, &newRes)
-			if err != nil {
-				ser.logger.Error("Could not unmarshal bodyBytes.", zap.Any("bodyBytes", bodyBytes),
-					zap.String("token", userInstitutions.AccessToken))
-			}
+			json.NewDecoder(resp.Body).Decode(&newRes)
 			if newRes.ErrorCode == "ITEM_LOGIN_REQUIRED" {
 				plaidErr.AuthenticationError = true
 				plaidErr.Msg = "ITEM_LOGIN_REQUIRED"
@@ -547,20 +554,17 @@ func GetAccessTokenStatus(accessToken string, ctx context.Context) bool {
 	}
 	client := plaid.NewAPIClient(configuration)
 	accountsGetRequest := plaid.NewAccountsGetRequest(accessToken)
-	_, response, err := client.PlaidApi.AccountsGet(ctx).AccountsGetRequest(
+	_, response, _ := client.PlaidApi.AccountsGet(ctx).AccountsGetRequest(
 		*accountsGetRequest,
 	).Execute()
+
 	if response.StatusCode == 400 {
-		// defer response.Body.Close()
-		bodyBytes, _ := ioutil.ReadAll(response.Body)
+		defer response.Body.Close()
 		type errorResponse struct {
 			ErrorCode string `json:"error_code" `
 		}
 		newRes := errorResponse{}
-		err = json.Unmarshal(bodyBytes, &newRes)
-		if err != nil {
-			fmt.Println(err)
-		}
+		json.NewDecoder(response.Body).Decode(&newRes)
 		if newRes.ErrorCode == "ITEM_LOGIN_REQUIRED" {
 			return true
 		}

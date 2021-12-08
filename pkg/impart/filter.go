@@ -54,7 +54,7 @@ const (
 	Industry_SafetySecurity                          = 45
 	Industry_Transportation                          = 46
 	Career_Entrylevel                                = 47
-	Career_Midlevel                                  = 47
+	Career_Midlevel                                  = 48
 	Career_Management                                = 49
 	Career_UpperManagement                           = 50
 	Career_BusinessOwner                             = 51
@@ -77,6 +77,10 @@ const (
 	EmploymentStatus_Retired                         = 65
 	Waitlist_Yes                                     = 0
 	Waitlist_No                                      = -1
+	Admin_Yes                                        = -2
+	Admin_No                                         = -3
+	Super_Admin_Yes                                  = -4
+	Super_Admin_No                                   = -5
 )
 
 func FilterData() ([]byte, error) {
@@ -124,7 +128,7 @@ func FilterData() ([]byte, error) {
 		"Industry-Natural Resources/Environmental":      Industry_NaturalResources,
 		"Industry-Personal & Professional Services":     Industry_PersonalProfessionalServices,
 		"Industry-Real Estate & Housing":                Industry_RealEstateHousing,
-		"Industry-Retail & eCommerce":                   Industry_RealEstateHousing,
+		"Industry-Retail & eCommerce":                   Industry_RetaileCommerce,
 		"Industry-Safety & Security":                    Industry_SafetySecurity,
 		"Industry-Transportation":                       Industry_Transportation,
 		"Career-Entry-level":                            Career_Entrylevel,
@@ -151,6 +155,10 @@ func FilterData() ([]byte, error) {
 		"EmploymentStatus-Retired":                      EmploymentStatus_Retired,
 		"Waitlist-Yes":                                  Waitlist_Yes,
 		"Waitlist-No":                                   Waitlist_No,
+		"Admin-Yes":                                     Admin_Yes,
+		"Admin-No":                                      Admin_No,
+		"Super Admin-Yes":                               Super_Admin_Yes,
+		"Super Admin-No":                                Super_Admin_No,
 	})
 	if err != nil {
 		return nil, err
@@ -172,10 +180,14 @@ const (
 	Waitlist_mail_previewtext = "Thank you for signing up – we’ll let you know when we’ve found your Hive"
 	Hive_mail_subject         = "Great news! We’ve found your Hive!"
 	Hive_mail_previewtext     = "What now? Let the journey to your financial empowerment begin!"
+	AddToSuperAdmin           = "addto_super_admin"
+	RemoveSuperAdmin          = "remove_super_admin"
 )
 
 const (
-	IncludeAdmin = 1
-	ExcludeAdmin = 0
-	IncludeAll   = 2
+	IncludeAdmin      = 1
+	ExcludeAdmin      = 0
+	IncludeAll        = 2
+	IncludeSuperAdmin = 1
+	ExcludeSuperAdmin = 0
 )

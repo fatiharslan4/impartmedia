@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"math/rand"
-	"sort"
 	"time"
 
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/beeker1121/mailchimp-go/lists/members"
 	"github.com/impartwealthapp/backend/internal/pkg/impart/config"
 	"github.com/impartwealthapp/backend/pkg/impart"
@@ -18,7 +18,6 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
-	. "github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"go.uber.org/zap"
 )
 
@@ -204,14 +203,26 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 	if len(gpi.SearchIDs) > 0 {
 		onlyWaitlist := ""
 		onlyHive := ""
+		adminYes := false
+		adminNo := false
+		superAdminYes := false
+		superAdminNo := false
 		for _, filter := range gpi.SearchIDs {
-			if filter != "" && filter != "0" && filter != "-1" {
-				extraQery = fmt.Sprintf(` and FIND_IN_SET( %s ,makeup.answer_ids) `, filter)
-				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
-			} else if filter == "0" {
+			if filter == "0" {
 				onlyWaitlist = "0"
 			} else if filter == "-1" {
 				onlyHive = "-1"
+			} else if filter == "-2" {
+				adminYes = true
+			} else if filter == "-3" {
+				adminNo = true
+			} else if filter == "-4" {
+				superAdminYes = true
+			} else if filter == "-5" {
+				superAdminNo = true
+			} else if filter != "" {
+				extraQery = fmt.Sprintf(` and FIND_IN_SET( %s ,makeup.answer_ids) `, filter)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 			}
 		}
 		if onlyWaitlist != "" && onlyHive == "" {
@@ -221,6 +232,28 @@ func (m *mysqlStore) GetUsersDetails(ctx context.Context, gpi models.GetAdminInp
 			extraQery = fmt.Sprintf(` and hivedata.hive != 1 `)
 			inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 		}
+		if adminYes != adminNo {
+			if adminYes {
+				extraQery = fmt.Sprintf(` and admin = true `)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+			} else if adminNo {
+				extraQery = fmt.Sprintf(` and admin = false `)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+			}
+		}
+		if superAdminNo != superAdminYes {
+			if superAdminYes {
+				extraQery = fmt.Sprintf(` and super_admin = true `)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+			} else if superAdminNo {
+				extraQery = fmt.Sprintf(` and super_admin = false `)
+				inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
+			}
+		}
+	}
+	if gpi.Hive > 0 {
+		extraQery = fmt.Sprintf(` and hivedata.hive = %d `, gpi.Hive)
+		inputQuery = fmt.Sprintf("%s %s", inputQuery, extraQery)
 	}
 	if gpi.SortBy == "created_at" {
 		gpi.SortBy = "user.created_at"
@@ -411,8 +444,13 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if err != nil {
 			m.logger.Error("Update HiveUpdatedAt failed", zap.Any("user", userToUpdate))
 		}
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, DefaultHiveId)
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
+		go func() {
+			err = m.UpdateHiveUserDemographic(ctx, answerIds, existingHiveId, DefaultHiveId, false, true, false)
+			if err != nil {
+				m.logger.Error("UpdateHiveUserDemographic update failed", zap.String("Email", userToUpdate.Email),
+					zap.Error(err))
+			}
+		}()
 		msg = "User added to waitlist."
 
 		mailChimpParams := &members.UpdateParams{
@@ -489,8 +527,13 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if err != nil {
 			m.logger.Error("Update HiveUpdatedAt failed", zap.Any("user", userToUpdate))
 		}
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, true, gpi.HiveID)
-		// err = m.UpdateHiveUserDemographic(ctx, answerIds, false, existingHiveId)
+		go func() {
+			err = m.UpdateHiveUserDemographic(ctx, answerIds, existingHiveId, gpi.HiveID, false, true, false)
+			if err != nil {
+				m.logger.Error("UpdateHiveUserDemographic update failed", zap.String("Email", userToUpdate.Email),
+					zap.Error(err))
+			}
+		}()
 		msg = "User added to hive."
 
 		isMailSent := false
@@ -532,23 +575,25 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 						}
 					}
 				}
-				// if isMailSent && isNotificationEnabled {
-				// 	notificationData := impart.NotificationData{
-				// 		EventDatetime: impart.CurrentUTC(),
-				// 		HiveID:        nwHive.HiveID,
-				// 	}
-				// 	alert := impart.Alert{
-				// 		Title: aws.String(impart.AssignHiveTitle),
-				// 		Body:  aws.String(impart.AssignHiveBody),
-				// 	}
-				// 	err = m.notificationService.Notify(ctx, notificationData, alert, userToUpdate.ImpartWealthID)
-				// 	if err != nil {
-				// 		m.logger.Error("push-notification : error attempting to send hive notification ",
-				// 			zap.Any("postData", notificationData),
-				// 			zap.Any("postData", alert),
-				// 			zap.Error(err))
-				// 	}
-				// }
+				if isMailSent && isNotificationEnabled {
+					notificationData := impart.NotificationData{
+						EventDatetime:  impart.CurrentUTC(),
+						HiveID:         nwHive.HiveID,
+						ImpartWealthID: userToUpdate.ImpartWealthID,
+						Email:          userToUpdate.Email,
+					}
+					alert := impart.Alert{
+						Title: aws.String(impart.AssignHiveTitle),
+						Body:  aws.String(impart.AssignHiveBody),
+					}
+					err = m.notificationService.Notify(ctx, notificationData, alert, userToUpdate.ImpartWealthID)
+					if err != nil {
+						m.logger.Error("push-notification : error attempting to send hive notification ",
+							zap.Any("postData", notificationData),
+							zap.Any("postData", alert),
+							zap.Error(err))
+					}
+				}
 			}
 		}()
 		mailChimpParams := &members.UpdateParams{
@@ -597,10 +642,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		}
 
 		if isnotificationEnabled {
-			// var waitGrp sync.WaitGroup
-			// waitGrp.Add(1)
 			go func() {
-				// defer waitGrp.Done()
 				for _, device := range deviceDetails {
 					if (device.LastloginAt == null.Time{}) {
 						endpointARN, err := m.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
@@ -614,161 +656,48 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 					}
 				}
 			}()
-			// waitGrp.Wait()
 		}
+	} else if gpi.Type == impart.AddToSuperAdmin {
+		if userToUpdate.SuperAdmin {
+			return msg, impart.NewError(impart.ErrBadRequest, "User is already Super Admin.")
+		}
+		userToUpdate.Admin = true
+		userToUpdate.SuperAdmin = true
+
+		rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
+		admin := impart.GetAvatharLettersAdmin()
+		adminindex := rand.Intn(len(admin))
+		userToUpdate.AvatarBackground = admin[adminindex]
+
+		err = m.UpdateProfile(ctx, userToUpdate, nil)
+		if err != nil {
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as admin")
+		}
+		msg = "User role changed to super admin."
+
+		if userToUpdate.R.MemberHiveHives != nil {
+			if userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String != "" {
+				err := m.notificationService.UnsubscribeTopicForAllDevice(ctx, userToUpdate.ImpartWealthID, userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String)
+				if err != nil {
+					m.logger.Error("SubscribeTopic", zap.String("DeviceToken", userToUpdate.R.MemberHiveHives[0].NotificationTopicArn.String),
+						zap.Error(err))
+				}
+			}
+		}
+	} else if gpi.Type == impart.RemoveSuperAdmin {
+		if !userToUpdate.SuperAdmin {
+			return msg, impart.NewError(impart.ErrBadRequest, "User is not Super Admin.")
+		}
+		userToUpdate.SuperAdmin = false
+		err = m.UpdateProfile(ctx, userToUpdate, nil)
+		if err != nil {
+			return msg, impart.NewError(impart.ErrBadRequest, "Unable to set the member as admin")
+		}
+		msg = "User role changed to admin."
 	}
 	return msg, nil
 }
 
-func (m *mysqlStore) GetHiveDetailsOld(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, error) {
-	outOffset := &models.NextPage{
-		Offset: gpi.Offset,
-	}
-
-	if gpi.Limit <= 0 {
-		gpi.Limit = defaultLimit
-	} else if gpi.Limit > maxLimit {
-		gpi.Limit = maxLimit
-	}
-	isSorted := false
-	if gpi.SortBy == "" {
-		isSorted = true
-		gpi.SortBy = "hive.hive_id asc"
-	} else if gpi.SortBy == "name" || gpi.SortBy == "created_at" {
-		gpi.SortBy = fmt.Sprintf("%s.%s %s", "hive", gpi.SortBy, gpi.SortOrder)
-		isSorted = true
-	}
-	queryMods := []qm.QueryMod{
-		qm.Load(dbmodels.HiveUserDemographicRels.Answer),
-		qm.Load(dbmodels.HiveUserDemographicRels.Question),
-		qm.Load(dbmodels.HiveUserDemographicRels.Hive),
-	}
-	where := fmt.Sprintf(`hive on hive_user_demographic.hive_id=hive.hive_id and hive.deleted_at is null `)
-	queryMods = append(queryMods, qm.InnerJoin(where))
-	if isSorted {
-		queryMods = append(queryMods, qm.OrderBy(gpi.SortBy))
-	}
-	demographic, err := dbmodels.HiveUserDemographics(queryMods...).All(ctx, m.db)
-	if err != nil {
-		return nil, outOffset, err
-	}
-	hiveId := 0
-	preHiveId := 0
-	i := 0
-	totalCnt := 0
-	lenHive := 0
-	indexes := make(map[uint]int)
-	var memberHives []models.DemographicHivesCount
-	err = queries.Raw(`
-	select member_hive_id , count(member_hive_id) count
-	from hive_members
-	join user on hive_members.member_impart_wealth_id=user.impart_wealth_id
-	join hive on hive.hive_id=hive_members.member_hive_id
-	where hive.deleted_at is null and user.deleted_at is null and user.blocked=0
-	group by hive_members.member_hive_id
-	`).Bind(ctx, m.db, &memberHives)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, i := range memberHives {
-		indexes[uint(i.MemberHiveId)] = i.Count
-	}
-
-	for _, p := range demographic {
-		if int(p.HiveID) != preHiveId {
-			lenHive = lenHive + 1
-		}
-		preHiveId = int(p.HiveID)
-	}
-	preHiveId = 0
-	hives := make([]map[string]interface{}, lenHive, lenHive)
-	hive := make(map[string]interface{})
-	for _, p := range demographic {
-		hiveId = int(p.HiveID)
-		if hiveId != preHiveId && preHiveId != 0 {
-			hives[i] = hive
-			hive = make(map[string]interface{})
-			i = i + 1
-			totalCnt = 0
-		}
-		hive["hive_id"] = hiveId
-		hive["name"] = p.R.Hive.Name
-		if (p.R.Hive.CreatedAt == null.Time{}) {
-			hive["date created"] = "NA"
-		} else {
-			hive["date created"] = p.R.Hive.CreatedAt
-		}
-		hive[fmt.Sprintf("%s-%s", p.R.Question.QuestionName, p.R.Answer.Text)] = int(p.UserCount)
-		totalCnt = totalCnt + int(p.UserCount)
-		hive["users"] = int(indexes[uint(p.HiveID)])
-		preHiveId = int(p.HiveID)
-	}
-	hives[i] = hive
-	if gpi.SortBy != "" && !isSorted {
-		if gpi.SortOrder == "desc" {
-			sort.Slice(hives, func(i, j int) bool {
-				compareItem := hives[i][gpi.SortBy]
-				compareItemNext := hives[j][gpi.SortBy]
-				switch compareItem.(type) {
-				case int:
-					if _, ok := compareItemNext.(int); ok {
-						return compareItem.(int) > compareItemNext.(int)
-					}
-					return compareItem == compareItemNext
-				case string:
-					if _, ok := compareItemNext.(string); ok {
-						return compareItem.(string) > compareItemNext.(string)
-					}
-					return compareItem == compareItemNext
-				case uint64:
-					if _, ok := compareItemNext.(uint64); ok {
-						return compareItem.(uint64) > compareItemNext.(uint64)
-					}
-					return compareItem == compareItemNext
-				case time.Time:
-					if _, ok := compareItemNext.(time.Time); ok {
-						return compareItem.(time.Time).After(compareItemNext.(time.Time))
-					}
-					return compareItem == compareItemNext
-				default:
-					return compareItem == compareItemNext
-				}
-			})
-		} else {
-			sort.Slice(hives, func(i, j int) bool {
-				compareItem := hives[i][gpi.SortBy]
-				compareItemNext := hives[j][gpi.SortBy]
-				switch compareItem.(type) {
-				case int:
-					if _, ok := compareItemNext.(int); ok {
-						return compareItem.(int) < compareItemNext.(int)
-					}
-					return compareItem == compareItemNext
-				case string:
-					if _, ok := compareItemNext.(string); ok {
-						return compareItem.(string) < compareItemNext.(string)
-					}
-					return compareItem == compareItemNext
-				case uint64:
-					if _, ok := compareItemNext.(uint64); ok {
-						return compareItem.(uint64) < compareItemNext.(uint64)
-					}
-					return compareItem == compareItemNext
-				case time.Time:
-					if _, ok := compareItemNext.(time.Time); ok {
-						return compareItem.(time.Time).Before(compareItemNext.(time.Time))
-					}
-					return compareItem != compareItemNext
-				default:
-					return compareItem != compareItemNext
-				}
-
-			})
-		}
-	}
-	return hives, outOffset, nil
-
-}
 func (m *mysqlStore) GetFilterDetails(ctx context.Context) ([]byte, error) {
 	result, err := impart.FilterData()
 	if err != nil {
@@ -778,29 +707,25 @@ func (m *mysqlStore) GetFilterDetails(ctx context.Context) ([]byte, error) {
 }
 
 func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) *models.UserUpdate {
-	userOutput := models.UserUpdate{}
-	userDatas := make([]models.UserData, len(userUpdatesInput.Users))
+	userOutput := &models.UserUpdate{}
+	// userDatas := make([]models.UserData, len(userUpdatesInput.Users))
 	userOutput.Type = userUpdatesInput.Type
 	userOutput.HiveID = userUpdatesInput.HiveID
 	userOutput.Action = userUpdatesInput.Action
+	userOutput.Users = userUpdatesInput.Users
 	impartWealthIDs := make([]interface{}, len(userUpdatesInput.Users))
 	cfg, _ := config.GetImpart()
 	for i, user := range userUpdatesInput.Users {
-		userData := &models.UserData{}
-		userData.ImpartWealthID = user.ImpartWealthID
-		userData.ScreenName = user.ScreenName
-		userData.Status = false
-		userData.Message = "No update activity."
-		userData.Value = 0
+		userOutput.Users[i].Message = "No update activity."
+		userOutput.Users[i].Status = false
 		if user.ImpartWealthID != "" {
 			impartWealthIDs = append(impartWealthIDs, (user.ImpartWealthID))
 		}
-		userDatas[i] = *userData
 	}
 	m.logger.Info("User list created")
-	userOutput.Users = userDatas
-	userOutputRslt := &userOutput
+	userOutputRslt := userOutput
 	includeUsers := 2
+	includeSuperadmin := impart.IncludeAll
 	if userUpdatesInput.Type == impart.AddToAdmin {
 		includeUsers = impart.ExcludeAdmin
 	} else if userUpdatesInput.Type == impart.RemoveAdmin {
@@ -811,13 +736,13 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 		excludeHive = impart.DefaultHiveID
 	} else if userUpdatesInput.Type == impart.AddToHive {
 		excludeHive = userUpdatesInput.HiveID
+	} else if userUpdatesInput.Type == impart.AddToSuperAdmin {
+		includeSuperadmin = impart.ExcludeSuperAdmin
+	} else if userUpdatesInput.Type == impart.RemoveSuperAdmin {
+		includeSuperadmin = impart.IncludeSuperAdmin
 	}
-	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, false, includeUsers, excludeHive, nil)
-	if err != nil {
-		fmt.Println(err)
-		return userOutputRslt
-	}
-	if updateUsers == nil {
+	updateUsers, err := m.getUserAll(ctx, impartWealthIDs, includeSuperadmin, includeUsers, excludeHive, nil)
+	if err != nil || updateUsers == nil {
 		return userOutputRslt
 	}
 	userOutputs, impartErr := m.UpdateBulkUserProfile(ctx, updateUsers, false, userOutputRslt)
@@ -834,7 +759,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 	m.logger.Info("status updated")
 	for _, user := range updateUsers {
 		for cnt := 0; cnt < lenUser; cnt++ {
-			if userOutputs.Users[cnt].ImpartWealthID == user.ImpartWealthID && userOutputs.Users[cnt].Value == 1 {
+			if userOutputs.Users[cnt].ImpartWealthID == user.ImpartWealthID {
 				userOutputs.Users[cnt].Message = "User updated."
 				userOutputs.Users[cnt].Status = true
 				m.logger.Info("User status updating", zap.String("impartWealthID", user.ImpartWealthID))
@@ -842,15 +767,17 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 			}
 		}
 		if userOutputRslt.Type == impart.AddToWaitlist || userOutputRslt.Type == impart.AddToHive {
-			mailChimpParams := &members.UpdateParams{
-				MergeFields: map[string]interface{}{"STATUS": status},
-			}
-			_, err = members.Update(cfg.MailchimpAudienceId, user.Email, mailChimpParams)
-			if err != nil {
-				m.logger.Info("mailchimp failed")
-				m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
-					zap.Error(err))
-			}
+			go func() {
+				mailChimpParams := &members.UpdateParams{
+					MergeFields: map[string]interface{}{"STATUS": status},
+				}
+				_, err = members.Update(cfg.MailchimpAudienceId, user.Email, mailChimpParams)
+				if err != nil {
+					m.logger.Info("mailchimp failed")
+					m.logger.Error("MailChimp update failed", zap.String("Email", user.Email),
+						zap.Error(err))
+				}
+			}()
 		}
 	}
 	m.logger.Info("all process completed")
@@ -878,7 +805,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 
 	userOutputRslt := &userOutput
 
-	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, true, impart.IncludeAll, 0, nil)
+	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, impart.ExcludeSuperAdmin, impart.IncludeAll, 0, nil)
 	if err != nil || len(deleteUser) == 0 {
 		return userOutputRslt
 	}
@@ -905,7 +832,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 	return userOutputRslt
 }
 
-func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) ([]map[string]interface{}, *models.NextPage, error) {
+func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) (models.HiveDetails, *models.NextPage, error) {
 	outOffset := &models.NextPage{
 		Offset: gpi.Offset,
 	}
@@ -915,163 +842,111 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 	} else if gpi.Limit > maxLimit {
 		gpi.Limit = maxLimit
 	}
-	isSorted := false
-	orderByMod := qm.OrderBy("hive_id desc")
 	if gpi.SortBy == "" {
-		isSorted = true
-		// gpi.SortBy = "hive.hive_id asc"
-	} else if gpi.SortBy == "name" || gpi.SortBy == "date created" {
-		if gpi.SortBy == "date created" {
-			gpi.SortBy = "created_at"
-		}
-		// gpi.SortBy = fmt.Sprintf("%s.%s %s", "hive", gpi.SortBy, gpi.SortOrder)
-		orderByMod = qm.OrderBy(fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder))
-		isSorted = true
-	}
-	var demographic dbmodels.HiveSlice
-	var err error
-	if !isSorted {
-		demographic, err = dbmodels.Hives(
-			qm.Offset(gpi.Offset),
-			qm.Limit(gpi.Limit),
-			Load(Rels(dbmodels.HiveRels.HiveUserDemographics, dbmodels.HiveUserDemographicRels.Question)),
-			Load(Rels(dbmodels.HiveRels.HiveUserDemographics, dbmodels.HiveUserDemographicRels.Answer)),
-		).All(ctx, m.db)
+		gpi.SortBy = "hive_id asc"
 	} else {
-		demographic, err = dbmodels.Hives(
-			qm.Offset(gpi.Offset),
-			qm.Limit(gpi.Limit),
-			orderByMod,
-			Load(Rels(dbmodels.HiveRels.HiveUserDemographics, dbmodels.HiveUserDemographicRels.Question)),
-			Load(Rels(dbmodels.HiveRels.HiveUserDemographics, dbmodels.HiveUserDemographicRels.Answer)),
-		).All(ctx, m.db)
+		gpi.SortBy = fmt.Sprintf("%s %s", gpi.SortBy, gpi.SortOrder)
 	}
+	var hiveDetails models.HiveDetails
+	query := fmt.Sprintf(`select hive.hive_id,name,created_at,
+	case when total_user.count is null then 0 else total_user.count end as  users,
+	
+	SUM(CASE WHEN demo.answer_id =1 THEN user_count  END) AS 'household_single',
+	SUM(CASE WHEN demo.answer_id =2 THEN user_count  END)AS 'household_singleroommates',
+	SUM(CASE WHEN demo.answer_id =3 THEN user_count  END)AS 'household_partner',
+	SUM(CASE WHEN demo.answer_id =4 THEN user_count  END)AS 'household_married',
+	SUM(CASE WHEN demo.answer_id =5 THEN user_count  END)AS 'household_sharedcustody',
+	SUM(CASE WHEN demo.answer_id =6 THEN user_count  END)AS 'dependents_none',
+	SUM(CASE WHEN demo.answer_id =7 THEN user_count  END)AS 'dependents_preschool',
+	SUM(CASE WHEN demo.answer_id =8 THEN user_count  END)AS 'dependents_schoolage',
+	SUM(CASE WHEN demo.answer_id =9 THEN user_count  END)AS 'dependents_postschool',
+	SUM(CASE WHEN demo.answer_id =10 THEN user_count  END)AS 'dependents_parents',
+	SUM(CASE WHEN demo.answer_id =11 THEN user_count  END)AS 'dependents_other',
+	SUM(CASE WHEN demo.answer_id =12 THEN user_count  END)AS 'generation_genz',
+	SUM(CASE WHEN demo.answer_id =13 THEN user_count  END)AS 'generation_millennial',
+	SUM(CASE WHEN demo.answer_id =14 THEN user_count  END)AS 'generation_genx',
+	SUM(CASE WHEN demo.answer_id =15 THEN user_count  END)AS 'generation_boomer',
+	SUM(CASE WHEN demo.answer_id =16 THEN user_count  END)AS 'gender_woman',
+	SUM(CASE WHEN demo.answer_id =17 THEN user_count  END)AS 'gender_man',
+	SUM(CASE WHEN demo.answer_id =18 THEN user_count  END)AS 'gender_nonbinary',
+	SUM(CASE WHEN demo.answer_id =19 THEN user_count  END)AS 'gender_notlisted',
+	SUM(CASE WHEN demo.answer_id =20 THEN user_count  END)AS 'race_amindianalnative',
+	SUM(CASE WHEN demo.answer_id =21 THEN user_count  END)AS 'race_asianpacislander',
+	SUM(CASE WHEN demo.answer_id =22 THEN user_count  END)AS 'race_black',
+	SUM(CASE WHEN demo.answer_id =23 THEN user_count  END)AS 'race_hispanic',
+	SUM(CASE WHEN demo.answer_id =24 THEN user_count  END)AS 'race_swasiannafrican',
+	SUM(CASE WHEN demo.answer_id =25 THEN user_count  END)AS 'race_white',
+	SUM(CASE WHEN demo.answer_id =26 THEN user_count  END)AS 'financialgoals_retirement',
+	SUM(CASE WHEN demo.answer_id =27 THEN user_count  END)AS 'financialgoals_savecollege',
+	SUM(CASE WHEN demo.answer_id =28 THEN user_count  END)AS 'financialgoals_house',
+	SUM(CASE WHEN demo.answer_id =29 THEN user_count  END)AS 'financialgoals_philanthropy',
+	SUM(CASE WHEN demo.answer_id =30 THEN user_count  END)AS 'financialgoals_generationalwealth',
+	SUM(CASE WHEN demo.answer_id =31 THEN user_count  END)AS 'industry_agriculture',
+	SUM(CASE WHEN demo.answer_id =32 THEN user_count  END)AS 'industry_business',
+	SUM(CASE WHEN demo.answer_id =33 THEN user_count  END)AS 'industry_construction',
+	SUM(CASE WHEN demo.answer_id =34 THEN user_count  END)AS 'industry_education',
+	SUM(CASE WHEN demo.answer_id =35 THEN user_count  END)AS 'industry_entertainmentgaming',
+	SUM(CASE WHEN demo.answer_id =36 THEN user_count  END)AS 'industry_financensurance',
+	SUM(CASE WHEN demo.answer_id =37 THEN user_count  END)AS 'industry_foodhospitality',
+	SUM(CASE WHEN demo.answer_id =38 THEN user_count  END)AS 'industry_governmentpublicservices',
+	SUM(CASE WHEN demo.answer_id =39 THEN user_count  END)AS 'industry_healthservices',
+	SUM(CASE WHEN demo.answer_id =40 THEN user_count  END)AS 'industry_legal',
+	SUM(CASE WHEN demo.answer_id =41 THEN user_count  END)AS 'industry_naturalresources',
+	SUM(CASE WHEN demo.answer_id =42 THEN user_count  END)AS 'industry_personalprofessionalservices',
+	SUM(CASE WHEN demo.answer_id =43 THEN user_count  END)AS 'industry_realestatehousing',
+	SUM(CASE WHEN demo.answer_id =44 THEN user_count  END)AS 'industry_retailecommerce',
+	SUM(CASE WHEN demo.answer_id =45 THEN user_count  END)AS 'industry_safetysecurity',
+	SUM(CASE WHEN demo.answer_id =46 THEN user_count  END)AS 'industry_transportation',
+	SUM(CASE WHEN demo.answer_id =47 THEN user_count  END)AS 'career_entrylevel',
+	SUM(CASE WHEN demo.answer_id =48 THEN user_count  END)AS 'career_midlevel',
+	SUM(CASE WHEN demo.answer_id =49 THEN user_count  END)AS 'career_management',
+	SUM(CASE WHEN demo.answer_id =50 THEN user_count  END)AS 'career_uppermanagement',
+	SUM(CASE WHEN demo.answer_id =51 THEN user_count  END)AS 'career_businessowner',
+	SUM(CASE WHEN demo.answer_id =52 THEN user_count  END)AS 'career_other',
+	SUM(CASE WHEN demo.answer_id =53 THEN user_count  END)AS 'income_income0',
+	SUM(CASE WHEN demo.answer_id =54 THEN user_count  END)AS 'income_income1',
+	SUM(CASE WHEN demo.answer_id =55 THEN user_count  END)AS 'income_income2',
+	SUM(CASE WHEN demo.answer_id =56 THEN user_count  END)AS 'income_income3',
+	SUM(CASE WHEN demo.answer_id =57 THEN user_count  END)AS 'income_income4',
+	SUM(CASE WHEN demo.answer_id =58 THEN user_count  END)AS 'income_income5',
+	SUM(CASE WHEN demo.answer_id =59 THEN user_count  END)AS 'employmentstatus_fulltime',
+	SUM(CASE WHEN demo.answer_id =60 THEN user_count  END)AS 'employmentstatus_parttime',
+	SUM(CASE WHEN demo.answer_id =61 THEN user_count  END)AS 'employmentstatus_unemployed',
+	SUM(CASE WHEN demo.answer_id =62 THEN user_count  END)AS 'employmentstatus_self',
+	SUM(CASE WHEN demo.answer_id =63 THEN user_count  END)AS 'employmentstatus_homemaker',
+	SUM(CASE WHEN demo.answer_id =64 THEN user_count  END)AS 'employmentstatus_student',
+	SUM(CASE WHEN demo.answer_id =65 THEN user_count  END)AS 'employmentstatus_retired',
+	SUM(CASE WHEN demo.answer_id =66 THEN user_count  END)AS 'income_income6',
+	SUM(CASE WHEN demo.answer_id =67 THEN user_count  END)AS 'income_income7',
+	SUM(CASE WHEN demo.answer_id =68 THEN user_count  END)AS 'income_income8'
 
+	from hive
+	left join hive_user_demographic demo
+	on demo.hive_id=hive.hive_id
+	left join
+	(select member_hive_id , count(member_hive_id) count
+		from hive_members
+		join user on hive_members.member_impart_wealth_id=user.impart_wealth_id
+		join hive on hive.hive_id=hive_members.member_hive_id
+		where hive.deleted_at is null and user.deleted_at is null and user.blocked=0
+		group by hive_members.member_hive_id
+		) total_user
+	on total_user.member_hive_id=hive.hive_id
+	where deleted_at is null
+	group by hive.hive_id
+	order by %s 
+	limit %d
+	offset %d `, gpi.SortBy, gpi.Limit, gpi.Offset)
+	err := queries.Raw(query).Bind(ctx, m.db, &hiveDetails)
 	if err != nil {
-		return nil, outOffset, err
-	}
-	hiveId := 0
-	preHiveId := 0
-	i := 0
-	totalCnt := 0
-	lenHive := 0
-	indexes := make(map[uint]int)
-	var memberHives []models.DemographicHivesCount
-	err = queries.Raw(`
-	select member_hive_id , count(member_hive_id) count
-	from hive_members
-	join user on hive_members.member_impart_wealth_id=user.impart_wealth_id
-	join hive on hive.hive_id=hive_members.member_hive_id
-	where hive.deleted_at is null and user.deleted_at is null and user.blocked=0
-	group by hive_members.member_hive_id
-	`).Bind(ctx, m.db, &memberHives)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, i := range memberHives {
-		indexes[uint(i.MemberHiveId)] = i.Count
+		m.logger.Error("error in data fetching", zap.Any("err", err))
 	}
 
-	for _, p := range demographic {
-		if int(p.HiveID) != preHiveId {
-			lenHive = lenHive + 1
-		}
-		preHiveId = int(p.HiveID)
-	}
-	preHiveId = 0
-	hives := make([]map[string]interface{}, lenHive)
-	hive := make(map[string]interface{})
-	for _, p := range demographic {
-		hiveId = int(p.HiveID)
-		if hiveId != preHiveId && preHiveId != 0 {
-			hives[i] = hive
-			hive = make(map[string]interface{})
-			i = i + 1
-			totalCnt = 0
-		}
-		hive["hive_id"] = hiveId
-		hive["name"] = p.Name
-		if (p.CreatedAt == null.Time{}) {
-			hive["date created"] = "NA"
-		} else {
-			hive["date created"] = p.CreatedAt
-		}
-		for _, demo := range p.R.HiveUserDemographics {
-			hive[fmt.Sprintf("%s-%s", demo.R.Question.QuestionName, demo.R.Answer.Text)] = int(demo.UserCount)
-			totalCnt = totalCnt + int(demo.UserCount)
-		}
-
-		hive["users"] = int(indexes[uint(p.HiveID)])
-		preHiveId = int(p.HiveID)
-	}
-	hives[i] = hive
-	if gpi.SortBy != "" && !isSorted {
-		if gpi.SortOrder == "desc" {
-			sort.Slice(hives, func(i, j int) bool {
-				compareItem := hives[i][gpi.SortBy]
-				compareItemNext := hives[j][gpi.SortBy]
-				switch compareItem.(type) {
-				case int:
-					if _, ok := compareItemNext.(int); ok {
-						return compareItem.(int) > compareItemNext.(int)
-					}
-					return compareItem == compareItemNext
-				case string:
-					if _, ok := compareItemNext.(string); ok {
-						return compareItem.(string) > compareItemNext.(string)
-					}
-					return compareItem == compareItemNext
-				case uint64:
-					if _, ok := compareItemNext.(uint64); ok {
-						return compareItem.(uint64) > compareItemNext.(uint64)
-					}
-					return compareItem == compareItemNext
-				case time.Time:
-					if _, ok := compareItemNext.(time.Time); ok {
-						return compareItem.(time.Time).After(compareItemNext.(time.Time))
-					}
-					return compareItem == compareItemNext
-				default:
-					return compareItem == compareItemNext
-				}
-			})
-		} else {
-			sort.Slice(hives, func(i, j int) bool {
-				compareItem := hives[i][gpi.SortBy]
-				compareItemNext := hives[j][gpi.SortBy]
-				switch compareItem.(type) {
-				case int:
-					if _, ok := compareItemNext.(int); ok {
-						return compareItem.(int) < compareItemNext.(int)
-					}
-					return compareItem == compareItemNext
-				case string:
-					if _, ok := compareItemNext.(string); ok {
-						return compareItem.(string) < compareItemNext.(string)
-					}
-					return compareItem == compareItemNext
-				case uint64:
-					if _, ok := compareItemNext.(uint64); ok {
-						return compareItem.(uint64) < compareItemNext.(uint64)
-					}
-					return compareItem == compareItemNext
-				case time.Time:
-					if _, ok := compareItemNext.(time.Time); ok {
-						return compareItem.(time.Time).Before(compareItemNext.(time.Time))
-					}
-					return compareItem != compareItemNext
-				default:
-					return compareItem != compareItemNext
-				}
-
-			})
-		}
-	}
-	if lenHive < gpi.Limit {
+	if len(hiveDetails) < gpi.Limit {
 		outOffset = nil
 	} else {
-		outOffset.Offset += lenHive
+		outOffset.Offset += len(hiveDetails)
 	}
-	return hives, outOffset, nil
+	return hiveDetails, outOffset, nil
 
 }

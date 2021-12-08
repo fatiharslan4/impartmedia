@@ -309,6 +309,7 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 				if err != nil {
 					ser.logger.Error("error attempting to  log in user_plaid_accounts_log ", zap.Error(err))
 				}
+				tx.Commit()
 			}
 		}()
 	}

@@ -1278,6 +1278,8 @@ func (m *mysqlStore) GetHiveNotification(ctx context.Context) error {
 }
 
 func DeleteUserPosts(ImpartWealthIds string) string {
+	/// Delete user fun need to delete the  all posts created by the user and
+	///need to delete likes and comments of user
 	currTime := time.Now().In(boil.GetLocation())
 	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
 	postDeleteQuery := fmt.Sprintf(`
@@ -1297,6 +1299,36 @@ func DeleteUserPosts(ImpartWealthIds string) string {
 				on post.post_id=votes.post_id
 				set up_vote_count=up_vote_count-votes.upvote,
 				down_vote_count=down_vote_count-votes.downvoted;
+
+
+				update comment
+					join(
+					select
+					comment_reactions.post_id,
+					comment_reactions.comment_id,
+					comment_reactions.impart_wealth_id,
+					sum(upvoted) as upvote, 
+					sum(downvoted) as downvoted
+					from comment_reactions
+					join comment on comment_reactions.comment_id=comment.comment_id
+					where 
+					comment_reactions.impart_wealth_id in(%s)
+					and 
+					comment.deleted_at is null
+					group by comment_reactions.impart_wealth_id, comment_reactions.comment_id)as votes
+					on comment.comment_id=votes.comment_id
+					set up_vote_count=up_vote_count-votes.upvote,
+					down_vote_count=down_vote_count-votes.downvoted;
+
+					update comment_reactions 
+					set upvoted=0,
+					downvoted=0
+					where comment_reactions.impart_wealth_id in(%s);
+
+					update post_reactions 
+					set upvoted=0,
+					downvoted=0
+					where post_reactions.impart_wealth_id in(%s);
 
 	update post
 		join ( select comment.post_id,count(comment_id) as count, comment.impart_wealth_id
@@ -1326,7 +1358,8 @@ func DeleteUserPosts(ImpartWealthIds string) string {
 	set deleted_at='%s',pinned=false
 	where impart_wealth_id in (%s)
 	and deleted_at is null;`,
-		ImpartWealthIds, ImpartWealthIds, golangDateTime, ImpartWealthIds, ImpartWealthIds, golangDateTime, ImpartWealthIds)
+		ImpartWealthIds, ImpartWealthIds, ImpartWealthIds, ImpartWealthIds,
+		ImpartWealthIds, golangDateTime, ImpartWealthIds, ImpartWealthIds, golangDateTime, ImpartWealthIds)
 	return postDeleteQuery
 
 }

@@ -288,6 +288,7 @@ func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.H
 	if err != nil {
 		return err
 	}
+	tx.Commit()
 	// Update mailChimp
 	go func() {
 		cfg, _ := config.GetImpart()
@@ -366,11 +367,12 @@ func (d *mysqlHiveData) PinPostForBulkPostAction(ctx context.Context, postHiveDe
 
 	finlQuery := fmt.Sprintf("%s %s", query, postQuery)
 
-	_, err = queries.Raw(finlQuery).QueryContext(ctx, d.db)
+	_, err = queries.Raw(finlQuery).ExecContext(ctx, d.db)
 	if err != nil {
 		d.logger.Error("error attempting to creating bulk post  data tag ", zap.Any("post", finlQuery), zap.Error(err))
 		return err
 	}
+	tx.Commit()
 
 	return nil
 

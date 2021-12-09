@@ -305,7 +305,7 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 				lastQury = fmt.Sprintf("%s %s", lastQury, finalQuery)
 				lastQury = strings.Trim(lastQury, ",")
 				lastQury = fmt.Sprintf("%s ; UNLOCK TABLES;", lastQury)
-				_, err = queries.Raw(lastQury).QueryContext(ctx, ser.db)
+				_, err = queries.Raw(lastQury).ExecContext(ctx, ser.db)
 				if err != nil {
 					ser.logger.Error("error attempting to  log in user_plaid_accounts_log ", zap.Error(err))
 				}

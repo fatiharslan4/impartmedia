@@ -495,7 +495,7 @@ func (s *service) AddPostVideo(ctx context.Context, postID uint64, postVideo mod
 			}
 			defer impart.CommitRollbackLogger(tx, err, s.logger)
 
-			_, err = queries.Raw(query).QueryContext(ctx, s.db)
+			_, err = queries.Raw(query).ExecContext(ctx, s.db)
 			if err != nil {
 				s.logger.Error("error attempting to creating bulk post_videos  data tag ", zap.Any("post", query), zap.Error(err))
 				return models.PostVideo{}, nil
@@ -554,7 +554,7 @@ func (s *service) AddPostUrl(ctx context.Context, postID uint64, postUrl string,
 			}
 			defer impart.CommitRollbackLogger(tx, err, s.logger)
 
-			_, err = queries.Raw(query).QueryContext(ctx, s.db)
+			_, err = queries.Raw(query).ExecContext(ctx, s.db)
 			if err != nil {
 				s.logger.Error("error attempting to Save post video data ", zap.Any("postVideo", postUrl), zap.Error(err))
 				return models.PostUrl{}, nil
@@ -693,10 +693,11 @@ func (s *service) AddPostFilesDB(ctx context.Context, post *dbmodels.Post, file 
 				}
 				defer impart.CommitRollbackLogger(tx, err, s.logger)
 
-				_, err = queries.Raw(query).QueryContext(ctx, s.db)
+				_, err = queries.Raw(query).ExecContext(ctx, s.db)
 				if err != nil {
 					s.logger.Error("error attempting to creating bulk post  data tag ", zap.Any("post", query), zap.Error(err))
 				}
+				tx.Commit()
 			} else {
 				err := post.AddPostFiles(ctx, s.db, true, postFielRelationMap...)
 				if err != nil {
@@ -794,7 +795,7 @@ func (s *service) NewPostForMultipleHives(ctx context.Context, post models.Post)
 	postDetails, err := s.postData.NewPostForMultipleHives(ctx, post, tagsSlice)
 	if err != nil {
 		s.logger.Error("unable to create a new post", zap.Error(err))
-		return impart.UnknownError
+		return impart.NewError(impart.ErrBadRequest, "Unable to create post.")
 	}
 	if shouldPin {
 		if err := s.PinPostForBulkPostAction(ctx, postDetails, true, isAdminActivity); err != nil {

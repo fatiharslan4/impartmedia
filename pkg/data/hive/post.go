@@ -432,7 +432,7 @@ func (d *mysqlHiveData) NewPostForMultipleHives(ctx context.Context, post models
 	query = fmt.Sprintf("%s %s", query, inserQury)
 	query = strings.Trim(query, ",")
 	query = fmt.Sprintf("%s ;", query)
-	_, err = queries.Raw(query).QueryContext(ctx, d.db)
+	_, err = queries.Raw(query).ExecContext(ctx, d.db)
 	if err != nil {
 		d.logger.Error("error attempting to creating bulk post  data ", zap.Any("post", post), zap.Error(err))
 		return nil, err
@@ -459,9 +459,10 @@ func (d *mysqlHiveData) NewPostForMultipleHives(ctx context.Context, post models
 	}
 	query = fmt.Sprintf("%s %s", query, inserQury)
 	query = strings.Trim(query, ",")
-	_, err = queries.Raw(query).QueryContext(ctx, d.db)
+	_, err = queries.Raw(query).ExecContext(ctx, d.db)
 	if err != nil {
 		d.logger.Error("error attempting to creating bulk post  data tag ", zap.Any("post", post), zap.Error(err))
 	}
+	tx.Commit()
 	return postIds, nil
 }

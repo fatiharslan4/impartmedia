@@ -298,7 +298,7 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 	if err != nil {
 		ps.Logger().Error("error in update user demogrpahics", zap.Error(err))
 	}
-	if isnewhive {
+	if memberhive != impart.DefaultHiveID {
 		status = impart.Hive
 	}
 
@@ -337,7 +337,7 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 			userAnswer[anser.R.Answer.R.Question.QuestionID] = strings.Trim(userAnswer[anser.R.Answer.R.Question.QuestionID], ",")
 		}
 	}
-	mergeFlds := impart.SetMailChimpAnswer(userAnswer, status, questionnaire.ZipCode)
+	mergeFlds := impart.SetMailChimpAnswer(userAnswer, status, questionnaire.ZipCode, ctxUser.FirstName, ctxUser.LastName)
 	mailChimpParams := &members.UpdateParams{
 		MergeFields: mergeFlds,
 	}

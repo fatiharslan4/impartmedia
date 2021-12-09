@@ -1160,7 +1160,7 @@ func (m *mysqlStore) CreateMailChimpForExistingUsers(ctx context.Context) error 
 					userAnswer[anser.R.Answer.R.Question.QuestionID] = strings.Trim(userAnswer[anser.R.Answer.R.Question.QuestionID], ",")
 				}
 			}
-			mergeFlds := impart.SetMailChimpAnswer(userAnswer, status, "")
+			mergeFlds := impart.SetMailChimpAnswer(userAnswer, status, "", user.FirstName, user.LastName)
 			params := &members.NewParams{
 				EmailAddress: user.Email,
 				Status:       members.StatusSubscribed,

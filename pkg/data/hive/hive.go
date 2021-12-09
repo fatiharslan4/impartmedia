@@ -96,7 +96,6 @@ func (d *mysqlHiveData) NewHive(ctx context.Context, hive *dbmodels.Hive) (*dbmo
 					FROM answer;`
 	_, err := queries.Raw(queryFirst, hive.HiveID).ExecContext(ctx, d.db)
 	if err != nil {
-		fmt.Println(err)
 		d.logger.Error("Updating Hive demographic data failed", zap.String("Hive name", hive.Name))
 	}
 	return hive, hive.Reload(ctx, d.db)

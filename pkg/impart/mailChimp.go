@@ -27,9 +27,11 @@ func GetUserAnswerList() map[uint]string {
 	return userAnswer
 }
 
-func SetMailChimpAnswer(userAnswer map[uint]string, status string, zipCode string) map[string]interface{} {
+func SetMailChimpAnswer(userAnswer map[uint]string, status string, zipCode string, firstName, lastName string) map[string]interface{} {
 	data := make(map[string]interface{})
-	data["STATUS"] = status
+	if status != "" {
+		data["STATUS"] = status
+	}
 	data["GENDER"] = userAnswer[uint(Gender)]
 	data["HOUSEHOLD"] = userAnswer[uint(Household)]
 	data["DEPENDENTS"] = userAnswer[uint(Dependents)]
@@ -40,6 +42,14 @@ func SetMailChimpAnswer(userAnswer map[uint]string, status string, zipCode strin
 	data["CAREER"] = userAnswer[uint(Career)]
 	data["INCOME"] = userAnswer[uint(Income)]
 	data["EMPLOYMENT"] = userAnswer[uint(EmploymentStatus)]
-	data["ZIPCODE"] = zipCode
+	if zipCode != "" {
+		data["ZIPCODE"] = zipCode
+	}
+	if firstName != "" {
+		data["FNAME"] = firstName
+	}
+	if lastName != "" {
+		data["LNAME"] = lastName
+	}
 	return data
 }

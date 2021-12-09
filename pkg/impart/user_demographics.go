@@ -66,8 +66,6 @@ func UserDemographicsUpdate(ctx context.Context, db *sql.DB, ishivedemographics 
 		user_count = cte_user_demographic.usercount;`)
 	}
 	query := fmt.Sprintf("%s %s", hivedemographics, demographics)
-	fmt.Println(query)
-	fmt.Println("909090")
 	_, err := queries.Raw(query).ExecContext(ctx, db)
 	if err != nil {
 		Logger.Error("query failed", zap.Any("query", err), zap.Any("query", query))

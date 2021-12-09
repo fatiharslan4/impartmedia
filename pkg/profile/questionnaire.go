@@ -530,8 +530,6 @@ func (ps *profileService) AssignHiveDemograpics(ctx context.Context, answer dbmo
 	 	set user_count=user_count+1 
 	 	where answer_id in (%s) and hive_id = %d;`, inParamValues, inParamValues, hiveId)
 	_, err := queries.Raw(updateHiveDemograph).ExecContext(ctx, ps.db)
-	fmt.Println("-----------------------")
-	fmt.Println(updateHiveDemograph)
 	if err != nil {
 		return err
 	}

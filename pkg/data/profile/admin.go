@@ -805,7 +805,7 @@ func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput
 
 	userOutputRslt := &userOutput
 
-	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, impart.ExcludeSuperAdmin, impart.IncludeAll, 0, nil)
+	deleteUser, err := m.getUserAll(ctx, impartWealthIDs, impart.IncludeAll, impart.IncludeAll, 0, nil)
 	if err != nil || len(deleteUser) == 0 {
 		return userOutputRslt
 	}

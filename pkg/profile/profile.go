@@ -476,11 +476,6 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 		return impart.NewError(impart.ErrUnauthorized, fmt.Sprintf("could not find profile for impartWealthID %s", deleteUser.ImpartWealthID))
 	}
 
-	if userToDelete.SuperAdmin {
-		errorString := "You cannot delete the super admin."
-		ps.Logger().Error(errorString, zap.Any("error", errorString))
-		return impart.NewError(impart.ErrUnauthorized, errorString)
-	}
 	if userToDelete.Blocked {
 		errorString := "Cannot delete  blocked user."
 		ps.Logger().Error(errorString, zap.Any("error", errorString))

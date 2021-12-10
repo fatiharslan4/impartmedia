@@ -472,7 +472,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user transaction details.")
-		return UserTransaction{}, newPlaidErr
+		return UserTransaction{}, nil
 	}
 	userData := UserTransaction{}
 	userData.ImpartWealthID = impartWealthId
@@ -483,8 +483,6 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	institution := InstitutionToModel(userInstitutions)
 
 	var allDates []string
-	fmt.Println("len(transactions)")
-	fmt.Println(len(transactions))
 	for _, act := range transactions {
 		currentDate := act.Date
 

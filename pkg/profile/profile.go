@@ -482,7 +482,7 @@ func (ps *profileService) DeleteUserByAdmin(ctx context.Context, hardDelete bool
 		return impart.NewError(impart.ErrUnauthorized, errorString)
 	}
 	if userToDelete.ImpartWealthID == contextUser.ImpartWealthID {
-		errorString := "It is logged in user."
+		errorString := "You cannot delete logged in user."
 		ps.Logger().Error(errorString, zap.Any("error", errorString))
 		return impart.NewError(impart.ErrUnauthorized, errorString)
 	}

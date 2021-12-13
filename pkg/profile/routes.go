@@ -1425,7 +1425,12 @@ func (ph *profileHandler) GetPlaidUserInstitutionTransactions() gin.HandlerFunc 
 			})
 			return
 		}
+		status := ""
+		if output.Transactions != nil {
+			status = "success"
+		}
 		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionTransactionResponse{
+			Msg:          status,
 			Transactions: output,
 		})
 	}

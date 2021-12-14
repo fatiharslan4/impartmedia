@@ -388,6 +388,7 @@ func (o *Institution) UserInstitutions(mods ...qm.QueryMod) userInstitutionQuery
 
 	queryMods = append(queryMods,
 		qm.Where("`user_institutions`.`institution_id`=?", o.ID),
+		qmhelper.WhereIsNull("`user_institutions`.`deleted_at`"),
 	)
 
 	query := UserInstitutions(queryMods...)
@@ -442,6 +443,7 @@ func (institutionL) LoadUserInstitutions(ctx context.Context, e boil.ContextExec
 	query := NewQuery(
 		qm.From(`user_institutions`),
 		qm.WhereIn(`user_institutions.institution_id in ?`, args...),
+		qmhelper.WhereIsNull(`user_institutions.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)

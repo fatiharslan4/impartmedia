@@ -19,6 +19,7 @@ type Service interface {
 	GetPlaidUserInstitutions(ctx context.Context, impartWealthId string) (UserInstitutionTokens, error)
 	GetPlaidUserInstitutionAccounts(ctx context.Context, impartWealthId string) (UserAccount, impart.Error)
 	GetPlaidUserInstitutionTransactions(ctx context.Context, impartWealthId string, gpi models.GetPlaidInput) (UserTransaction, []PlaidError)
+	DeletePlaidUserInstitutionAccounts(ctx context.Context, userInstitutionId uint64) impart.Error
 }
 
 type service struct {

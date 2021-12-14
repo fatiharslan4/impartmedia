@@ -475,6 +475,7 @@ func (q userPlaidAccountsLogQuery) Exists(ctx context.Context, exec boil.Context
 func (o *UserPlaidAccountsLog) UserInstitution(mods ...qm.QueryMod) userInstitutionQuery {
 	queryMods := []qm.QueryMod{
 		qm.Where("`user_institution_id` = ?", o.UserInstitutionID),
+		qmhelper.WhereIsNull("deleted_at"),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -529,6 +530,7 @@ func (userPlaidAccountsLogL) LoadUserInstitution(ctx context.Context, e boil.Con
 	query := NewQuery(
 		qm.From(`user_institutions`),
 		qm.WhereIn(`user_institutions.user_institution_id in ?`, args...),
+		qmhelper.WhereIsNull(`user_institutions.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)

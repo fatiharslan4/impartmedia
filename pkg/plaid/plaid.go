@@ -353,6 +353,7 @@ func InstitutionToModel(user *dbmodels.UserInstitution) UserInstitution {
 	institution.Weburl = user.R.Institution.Weburl
 	institution.ImpartWealthID = user.ImpartWealthID
 	institution.InstitutionName = user.R.Institution.InstitutionName
+	institution.UserInstitutionsId = user.UserInstitutionID
 	if institution.Weburl != "" {
 		weburl, err := url.Parse(institution.Weburl)
 		if err == nil {
@@ -578,4 +579,19 @@ func GetAccessTokenStatus(accessToken string, ctx context.Context) bool {
 		}
 	}
 	return false
+}
+
+func (ser *service) DeletePlaidUserInstitutionAccounts(ctx context.Context, userInstitutionId uint64) impart.Error {
+	userInstitutions, err := dbmodels.FindUserInstitution(ctx, ser.db, userInstitutionId)
+	if err != nil {
+		fmt.Println(err)
+		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user institution.")
+		return impartErr
+	}
+	_, err = userInstitutions.Delete(ctx, ser.db, false)
+	if err != nil {
+		impartErr := impart.NewError(impart.ErrBadRequest, "Could not delete the record.")
+		return impartErr
+	}
+	return nil
 }

@@ -97,6 +97,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	plaidInstitutionAccountRoutes := version.Group("/plaid/accounts")
 	plaidInstitutionAccountRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionAccounts())
+	plaidInstitutionAccountRoutes.DELETE("/:userinstitutionId", handler.DeletePlaidUserInstitutionAccounts())
 
 	plaidInstitutionTransactionRoutes := version.Group("/plaid/transactions")
 	plaidInstitutionTransactionRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionTransactions())
@@ -1432,6 +1433,37 @@ func (ph *profileHandler) GetPlaidUserInstitutionTransactions() gin.HandlerFunc 
 		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionTransactionResponse{
 			Msg:          status,
 			Transactions: output,
+		})
+	}
+}
+
+func (ph *profileHandler) DeletePlaidUserInstitutionAccounts() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
+		if ctxUser == nil {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Could not find the user.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		var userInstitutionId uint64
+		var err error
+		id := ctx.Param("userinstitutionId")
+		if id != "" {
+			userInstitutionId, err = strconv.ParseUint(id, 10, 64)
+			if err != nil {
+				ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+					impart.NewError(impart.ErrBadRequest, fmt.Sprintf("unable to parse %v error", userInstitutionId), impart.HiveID),
+				))
+				return
+			}
+		}
+		impartErr := ph.plaidData.DeletePlaidUserInstitutionAccounts(ctx, userInstitutionId)
+		if impartErr != nil {
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"status": "success",
 		})
 	}
 }

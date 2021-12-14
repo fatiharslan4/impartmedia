@@ -823,6 +823,7 @@ func (o *User) ImpartWealthUserInstitutions(mods ...qm.QueryMod) userInstitution
 
 	queryMods = append(queryMods,
 		qm.Where("`user_institutions`.`impart_wealth_id`=?", o.ImpartWealthID),
+		qmhelper.WhereIsNull("`user_institutions`.`deleted_at`"),
 	)
 
 	query := UserInstitutions(queryMods...)
@@ -2198,6 +2199,7 @@ func (userL) LoadImpartWealthUserInstitutions(ctx context.Context, e boil.Contex
 	query := NewQuery(
 		qm.From(`user_institutions`),
 		qm.WhereIn(`user_institutions.impart_wealth_id in ?`, args...),
+		qmhelper.WhereIsNull(`user_institutions.deleted_at`),
 	)
 	if mods != nil {
 		mods.Apply(query)

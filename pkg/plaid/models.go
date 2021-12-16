@@ -172,6 +172,7 @@ type PagedUserInstitutionAccountResponse struct {
 }
 
 type PagedUserInstitutionTransactionResponse struct {
+	Msg          string          `json:"msg"`
 	Transactions UserTransaction `json:"userInstitution"`
 	NextPage     *NextPage       `json:"nextPage"`
 }

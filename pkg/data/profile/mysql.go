@@ -1050,7 +1050,6 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 			set member_hive_id=%d where member_impart_wealth_id in(%s);`,
 				userUpdate.HiveID, impartWealthIds)
 		}
-		m.logger.Info("update query", zap.String("query", updateQuery))
 		_, err := queries.Raw(updateQuery).ExecContext(ctx, m.db)
 		if err != nil {
 			m.logger.Error("unable to excute query ", zap.String("query", updateQuery),
@@ -1109,7 +1108,6 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 		admin=false where impart_wealth_id in(%s);`,
 			impartWealthIds)
 
-		m.logger.Info("update query", zap.String("query", updateQuery))
 		_, err := queries.Raw(updateQuery).ExecContext(ctx, m.db)
 		if err != nil {
 			m.logger.Error("unable to excute query", zap.String("query", updateQuery),

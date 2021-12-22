@@ -402,14 +402,26 @@ func (d *mysqlHiveData) GetPostFromPostids(ctx context.Context, postIDs []interf
 
 //// Delete all post with given postIds
 func (d *mysqlHiveData) DeletePostFromList(ctx context.Context, posts dbmodels.PostSlice) error {
-	updateQuery := ""
 	currTime := time.Now().In(boil.GetLocation())
 	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
-	for _, post := range posts {
-		query := fmt.Sprintf("Update post set deleted_at='%s'  where post_id=%d; UPDATE hive SET pinned_post_id = null WHERE pinned_post_id = %d;", golangDateTime, post.PostID, post.PostID)
-		updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
+
+	_, err := posts.UpdateAll(ctx, d.db,
+		dbmodels.M{
+			"deleted_at": golangDateTime})
+
+	if err != nil {
+		d.logger.Error("hive Update Failed", zap.Any("query", posts),
+			zap.Error(err))
+		return err
 	}
-	_, err := queries.Raw(updateQuery).ExecContext(ctx, d.db)
+	postIds := ""
+	for _, post := range posts {
+		postIds = fmt.Sprintf("%s %d ,", postIds, post.PostID)
+	}
+	postIds = strings.Trim(postIds, ",")
+	query := fmt.Sprintf(`UPDATE hive SET pinned_post_id = null WHERE 
+					pinned_post_id in (%s);`, postIds)
+	_, err = queries.Raw(query).ExecContext(ctx, d.db)
 	if err != nil {
 		return err
 	}

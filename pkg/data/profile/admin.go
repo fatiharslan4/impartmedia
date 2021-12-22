@@ -786,7 +786,7 @@ func (m *mysqlStore) EditBulkUserDetails(ctx context.Context, userUpdatesInput m
 
 func (m *mysqlStore) DeleteBulkUserDetails(ctx context.Context, userUpdatesInput models.UserUpdate) *models.UserUpdate {
 	userOutput := models.UserUpdate{}
-	userDatas := make([]models.UserData, len(userUpdatesInput.Users), len(userUpdatesInput.Users))
+	userDatas := make([]models.UserData, len(userUpdatesInput.Users))
 	userOutput.Type = userUpdatesInput.Type
 	impartWealthIDs := make([]interface{}, 0, len(userUpdatesInput.Users))
 	ctxUser := impart.GetCtxUser(ctx)

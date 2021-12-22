@@ -76,7 +76,7 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 		configuration.UseEnvironment(plaid.Production)
 	} else if cfg.Env == config.Preproduction {
 		configuration.UseEnvironment(plaid.Development)
-	} else if cfg.Env == config.Development {
+	} else if cfg.Env == config.Development { //test
 		configuration.UseEnvironment(plaid.Development)
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)

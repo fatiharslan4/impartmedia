@@ -5,6 +5,7 @@
 Combined backend API for ImpartWealth
 
 
+
 ### Connecting to AWS RDS DB via multi-hop SSH tunnel
 The network is separated intentionally - you will only have permissions to the
 bastion host.  However, the bastion host has no connectivity to the RDS Database,

@@ -79,26 +79,28 @@ func (s *service) PinPostForBulkPostAction(ctx context.Context, postHive map[uin
 			pos = pos + 1
 		}
 		dbHive, err := dbmodels.Hives(dbmodels.HiveWhere.HiveID.IN(hiveAll)).All(ctx, s.db)
-		for hive, post := range postHive {
-			pushNotification := impart.Alert{
-				Title: aws.String(title),
-				Body:  aws.String(body),
-			}
-			additionalData := impart.NotificationData{
-				EventDatetime: impart.CurrentUTC(),
-				PostID:        post,
-			}
-			hiveOut := dbmodels.Hive{}
-			for _, hiveSlice := range dbHive {
-				if hiveSlice.HiveID == hive {
-					hiveOut = *hiveSlice
+		go func() {
+			for hive, post := range postHive {
+				pushNotification := impart.Alert{
+					Title: aws.String(title),
+					Body:  aws.String(body),
+				}
+				additionalData := impart.NotificationData{
+					EventDatetime: impart.CurrentUTC(),
+					PostID:        post,
+				}
+				hiveOut := dbmodels.Hive{}
+				for _, hiveSlice := range dbHive {
+					if hiveSlice.HiveID == hive {
+						hiveOut = *hiveSlice
+					}
+				}
+				err = s.notificationService.NotifyTopic(ctx, additionalData, pushNotification, hiveOut.NotificationTopicArn.String)
+				if err != nil {
+					s.logger.Error("error sending notification to topic", zap.Error(err))
 				}
 			}
-			err = s.notificationService.NotifyTopic(ctx, additionalData, pushNotification, hiveOut.NotificationTopicArn.String)
-			if err != nil {
-				s.logger.Error("error sending notification to topic", zap.Error(err))
-			}
-		}
+		}()
 	}
 
 	return nil

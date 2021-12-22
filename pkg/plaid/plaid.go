@@ -33,6 +33,8 @@ func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 		configuration.UseEnvironment(plaid.Production)
 	} else if cfg.Env == config.Preproduction {
 		configuration.UseEnvironment(plaid.Development)
+	} else if cfg.Env == config.Development {
+		configuration.UseEnvironment(plaid.Production)
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
@@ -74,6 +76,8 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 		configuration.UseEnvironment(plaid.Production)
 	} else if cfg.Env == config.Preproduction {
 		configuration.UseEnvironment(plaid.Development)
+	} else if cfg.Env == config.Development {
+		configuration.UseEnvironment(plaid.Production)
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
@@ -230,6 +234,8 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 			configuration.UseEnvironment(plaid.Production)
 		} else if cfg.Env == config.Preproduction {
 			configuration.UseEnvironment(plaid.Development)
+		} else if cfg.Env == config.Development {
+			configuration.UseEnvironment(plaid.Production)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
@@ -424,6 +430,8 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 			configuration.UseEnvironment(plaid.Production)
 		} else if cfg.Env == config.Preproduction {
 			configuration.UseEnvironment(plaid.Development)
+		} else if cfg.Env == config.Development {
+			configuration.UseEnvironment(plaid.Production)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
@@ -547,6 +555,8 @@ func GetAccessTokenStatus(accessToken string, ctx context.Context) bool {
 			configuration.UseEnvironment(plaid.Production)
 		} else if cfg.Env == config.Preproduction {
 			configuration.UseEnvironment(plaid.Development)
+		} else if cfg.Env == config.Development {
+			configuration.UseEnvironment(plaid.Production)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}

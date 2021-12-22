@@ -202,7 +202,9 @@ func (d *mysqlHiveData) DeleteHive(ctx context.Context, hiveID uint64) error {
 	join user on hive_members.member_impart_wealth_id=user.impart_wealth_id
 	where user.deleted_at is null and member_hive_id=?
 	`, hiveID).Bind(ctx, d.db, &memberHives)
-
+	if err != nil {
+		d.logger.Error(err.Error())
+	}
 	hives.Name = fmt.Sprintf("%s-%d-%s", hives.Name, hives.HiveID, "Deleted")
 	if _, err := hives.Update(ctx, d.db, boil.Infer()); err != nil {
 		return err
@@ -213,71 +215,52 @@ func (d *mysqlHiveData) DeleteHive(ctx context.Context, hiveID uint64) error {
 		}
 		return err
 	}
-	updatememberhives := ""
-	updateHiveDemographic := ""
-	userHiveDemo := make(map[uint64]map[uint64]int)
-	for _, member := range memberHives {
-		query := fmt.Sprintf("update hive_members set member_hive_id=%d where member_impart_wealth_id='%s';", impart.DefaultHiveID, member.ImpartWealthID)
-		updatememberhives = fmt.Sprintf("%s %s", updatememberhives, query)
+	impartWealthIDs := ""
+	for _, existmember := range memberHives {
+		impartWealthIDs = fmt.Sprintf("%s '%s' ,", impartWealthIDs, existmember.ImpartWealthID)
 	}
-	hive_lst := []uint64{hiveID, impart.DefaultHiveID}
-	answer, err := dbmodels.HiveUserDemographics(
-		dbmodels.HiveUserDemographicWhere.HiveID.IN(hive_lst),
-	).All(ctx, d.db)
-
-	for _, demohive := range answer {
-		data := userHiveDemo[uint64(demohive.HiveID)]
-		if data == nil {
-			count := make(map[uint64]int)
-			count[uint64(demohive.AnswerID)] = int(demohive.UserCount)
-			userHiveDemo[uint64(demohive.HiveID)] = count
-		} else {
-			data[uint64(demohive.AnswerID)] = int(demohive.UserCount)
-		}
-	}
-	for _, demohive := range answer {
-		if demohive.HiveID == hiveID {
-			userHiveDemo[impart.DefaultHiveID][uint64(demohive.AnswerID)] = userHiveDemo[impart.DefaultHiveID][uint64(demohive.AnswerID)] + userHiveDemo[demohive.HiveID][uint64(demohive.AnswerID)]
-			userHiveDemo[demohive.HiveID][uint64(demohive.AnswerID)] = 0
-		}
-	}
-	for hive, demo := range userHiveDemo {
-		for answer, cnt := range demo {
-			query := fmt.Sprintf("update hive_user_demographic set user_count=%d where hive_id=%d and answer_id=%d;", cnt, hive, answer)
-			updateHiveDemographic = fmt.Sprintf("%s %s", updateHiveDemographic, query)
+	if impartWealthIDs != "" {
+		impartWealthIDs = strings.Trim(impartWealthIDs, ",")
+		query := fmt.Sprintf(`update hive_members set member_hive_id=%d 
+		where member_impart_wealth_id in(%s);`,
+			impart.DefaultHiveID, impartWealthIDs)
+		_, err = queries.Raw(query).ExecContext(ctx, d.db)
+		if err != nil {
+			d.logger.Error(err.Error())
 		}
 	}
 
-	if updateHiveDemographic != "" || updatememberhives != "" {
-		query := fmt.Sprintf("%s %s", updateHiveDemographic, updatememberhives)
-		_, _ = queries.Raw(query).ExecContext(ctx, d.db)
-	}
-
+	go impart.UserDemographicsUpdate(ctx, d.db, true, true)
 	return nil
 }
 
 func (d *mysqlHiveData) DeleteBulkHive(ctx context.Context, hiveInput dbmodels.HiveSlice) error {
-	updateQuery := ""
-	updatememberHive := ""
 	var allUser []string
 	currTime := time.Now().In(boil.GetLocation())
 	golangDateTime := currTime.Format("2006-01-02 15:04:05.000")
-
+	hiveIds := ""
+	impartWealthIDs := ""
 	for _, hive := range hiveInput {
 		if hive.HiveID == impart.DefaultHiveID {
 			continue
 		}
-		deleteName := fmt.Sprintf("%s-%d-%s", hive.Name, hive.HiveID, "Deleted")
-		query := fmt.Sprintf("Update hive set deleted_at='%s' , name='%s' where hive_id='%d';", golangDateTime, deleteName, hive.HiveID)
-		updateQuery = fmt.Sprintf("%s %s", updateQuery, query)
+
+		hiveIds = fmt.Sprintf("%s %d ,", hiveIds, hive.HiveID)
 		exitingmembers := hive.R.MemberImpartWealthUsers
-		for _, member := range exitingmembers {
-			query := fmt.Sprintf("update hive_members set member_hive_id=%d where member_impart_wealth_id='%s';", impart.DefaultHiveID, member.ImpartWealthID)
-			updatememberHive = fmt.Sprintf("%s %s", updatememberHive, query)
-			allUser = append(allUser, member.Email)
+		for _, existmem := range exitingmembers {
+			impartWealthIDs = fmt.Sprintf("%s '%s' ,", impartWealthIDs, existmem.ImpartWealthID)
+			allUser = append(allUser, existmem.Email)
 		}
 	}
-	query := fmt.Sprintf("%s %s ", updateQuery, updatememberHive)
+	impartWealthIDs = strings.Trim(impartWealthIDs, ",")
+	hiveIds = strings.Trim(hiveIds, ",")
+	query := fmt.Sprintf(`update hive
+			set name=CONCAT(name, "-",hive_id, "-", "Deleted"),
+			deleted_at='%s'
+			where hive_id in (%s);
+			update hive_members set member_hive_id=%d
+			where member_impart_wealth_id in(%s);`, golangDateTime, hiveIds, impart.DefaultHiveID, impartWealthIDs)
+
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err

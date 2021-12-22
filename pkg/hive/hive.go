@@ -295,7 +295,7 @@ func (s *service) DeleteHive(ctx context.Context, hiveID uint64) impart.Error {
 
 func (s *service) HiveBulkOperations(ctx context.Context, hiveUpdates models.HiveUpdate) *models.HiveUpdate {
 	hiveOutput := models.HiveUpdate{}
-	hiveDatas := make([]models.HiveData, len(hiveUpdates.Hives), len(hiveUpdates.Hives))
+	hiveDatas := make([]models.HiveData, len(hiveUpdates.Hives))
 	hiveOutput.Action = hiveUpdates.Action
 	HiveIds := make([]interface{}, 0, len(hiveUpdates.Hives))
 	for i, hive := range hiveUpdates.Hives {

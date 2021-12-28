@@ -478,6 +478,21 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	}
 	transactions := transGetResp.GetTransactions()
 	if len(transactions) == 0 {
+		isInvestments := false
+		accounts := transGetResp.GetAccounts()
+		for _, accnt := range accounts {
+			if accnt.Type != "investment" {
+				return UserTransaction{}, nil
+			} else {
+				isInvestments = true
+			}
+		}
+		if isInvestments {
+			plaidErr.Msg = "The transaction is empty since investment transactions are not supported.."
+			plaidErr.AccessToken = userInstitutions.AccessToken
+			newPlaidErr = append(newPlaidErr, plaidErr)
+			return UserTransaction{}, newPlaidErr
+		}
 		plaidErr.Msg = "Could not find the  transaction details."
 		plaidErr.AccessToken = userInstitutions.AccessToken
 		newPlaidErr = append(newPlaidErr, plaidErr)

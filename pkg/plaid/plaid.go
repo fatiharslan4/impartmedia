@@ -336,6 +336,7 @@ func AccountToModel(act plaid.AccountBase, userInstId uint64, logexist bool) (Ac
 	accounts.OfficialName = act.GetOfficialName()
 	accounts.UnofficialCurrencyCode = act.Balances.GetUnofficialCurrencyCode()
 	accounts.DisplayValue = act.Balances.GetCurrent()
+	accounts.DisplayName = act.GetName()
 	query := ""
 	if !logexist {
 		query = fmt.Sprintf("(%d,'%s','%s','%s','%s','%s','%s','%s','%s',%f,%f,%f,UTC_TIMESTAMP(3)),",

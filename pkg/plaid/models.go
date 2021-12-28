@@ -88,6 +88,7 @@ type Account struct {
 	CreditLimit            float32 `json:"credit_limit"`
 	UnofficialCurrencyCode string  `json:"unofficial_currency_code"`
 	DisplayValue           float32 `json:"display_value"`
+	DisplayName            string  `json:"display_name"`
 }
 
 func ToDBModel(p plaid.Institution) *dbmodels.Institution {

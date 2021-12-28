@@ -385,7 +385,9 @@ func ValidatePostFilesName(ctx context.Context, postFiles []models.File, institu
 	return postFiles
 }
 
-func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, impartWealthId string, gpi models.GetPlaidInput) (UserTransaction, []PlaidError) {
+func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, impartWealthId string, gpi models.GetPlaidInput) (UserTransaction, *NextPage, []PlaidError) {
+
+	var totalTransaction int32
 
 	var newPlaidErr []PlaidError
 	plaidErr := PlaidError{Error: "unable to complete the request",
@@ -400,7 +402,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
 			zap.String("user", impartWealthId))
-		return UserTransaction{}, newPlaidErr
+		return UserTransaction{}, nil, newPlaidErr
 	}
 
 	userInstitutions, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(impartWealthId),
@@ -410,7 +412,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	if userInstitutions == nil {
 		plaidErr.Msg = "No records found."
 		newPlaidErr = append(newPlaidErr, plaidErr)
-		return UserTransaction{}, newPlaidErr
+		return UserTransaction{}, nil, newPlaidErr
 	}
 	if err != nil {
 		plaidErr.Msg = "Could not find the user institution details."
@@ -419,7 +421,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
 			zap.String("user", impartWealthId))
-		return UserTransaction{}, newPlaidErr
+		return UserTransaction{}, nil, newPlaidErr
 	}
 
 	configuration := plaid.NewConfiguration()
@@ -474,7 +476,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the  transaction details.")
-		return UserTransaction{}, newPlaidErr
+		return UserTransaction{}, nil, newPlaidErr
 	}
 	transactions := transGetResp.GetTransactions()
 	if len(transactions) == 0 {
@@ -482,7 +484,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		accounts := transGetResp.GetAccounts()
 		for _, accnt := range accounts {
 			if accnt.Type != "investment" {
-				return UserTransaction{}, nil
+				return UserTransaction{}, nil, nil
 			} else {
 				isInvestments = true
 			}
@@ -491,15 +493,16 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 			plaidErr.Msg = "The transaction is empty since investment transactions are not supported.."
 			plaidErr.AccessToken = userInstitutions.AccessToken
 			newPlaidErr = append(newPlaidErr, plaidErr)
-			return UserTransaction{}, newPlaidErr
+			return UserTransaction{}, nil, newPlaidErr
 		}
 		plaidErr.Msg = "Could not find the  transaction details."
 		plaidErr.AccessToken = userInstitutions.AccessToken
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user transaction details.")
-		return UserTransaction{}, nil
+		return UserTransaction{}, nil, nil
 	}
+	totalTransaction = int32(len(transactions))
 	userData := UserTransaction{}
 	userData.ImpartWealthID = impartWealthId
 	userData.AccessToken = userInstitutions.AccessToken
@@ -540,7 +543,17 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	userinstitution[0] = institution
 	userData.Transactions = transDataFinalData
 	userData.TotalTransaction = transGetResp.GetTotalTransactions()
-	return userData, nil
+	outOffset := &NextPage{
+		Offset: int(gpi.Offset),
+	}
+	fmt.Println(totalTransaction)
+	fmt.Println(gpi.Limit)
+	if totalTransaction < gpi.Limit {
+		outOffset = nil
+	} else {
+		outOffset.Offset += int(totalTransaction)
+	}
+	return userData, outOffset, nil
 }
 
 func TransactionToModel(act plaid.Transaction, userInstId uint64) Transaction {

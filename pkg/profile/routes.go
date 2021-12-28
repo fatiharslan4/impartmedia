@@ -1419,7 +1419,7 @@ func (ph *profileHandler) GetPlaidUserInstitutionTransactions() gin.HandlerFunc 
 		}
 		gpi.Limit = int32(limit)
 		gpi.Offset = int32(offset)
-		output, impartErr := ph.plaidData.GetPlaidUserInstitutionTransactions(ctx, impartWealthId, gpi)
+		output, nextpage, impartErr := ph.plaidData.GetPlaidUserInstitutionTransactions(ctx, impartWealthId, gpi)
 		if impartErr != nil {
 			ctx.JSON(http.StatusBadRequest, plaid.PagedUserInstitutionTransactionErrorResponse{
 				Error: impartErr,
@@ -1433,6 +1433,7 @@ func (ph *profileHandler) GetPlaidUserInstitutionTransactions() gin.HandlerFunc 
 		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionTransactionResponse{
 			Msg:          status,
 			Transactions: output,
+			NextPage:     nextpage,
 		})
 	}
 }

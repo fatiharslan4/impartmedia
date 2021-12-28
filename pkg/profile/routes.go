@@ -1352,13 +1352,24 @@ func (ph *profileHandler) GetPlaidUserInstitutionAccounts() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-		output, impartErr := ph.plaidData.GetPlaidUserInstitutionAccounts(ctx, impartWealthId)
+		limit, offset, err := parseLimitOffset(ctx)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Invalid parameter.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		gpi := models.GetPlaidInput{}
+		gpi.Limit = int32(limit)
+		gpi.Offset = int32(offset)
+
+		output, nextpage, impartErr := ph.plaidData.GetPlaidUserInstitutionAccounts(ctx, impartWealthId, gpi)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionAccountResponse{
 			Accounts: output,
+			NextPage: nextpage,
 		})
 	}
 }

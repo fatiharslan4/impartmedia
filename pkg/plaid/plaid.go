@@ -199,29 +199,34 @@ func (ser *service) GetPlaidUserInstitutions(ctx context.Context, impartWealthId
 	return output, nil
 }
 
-func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartWealthId string) (UserAccount, impart.Error) {
+func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartWealthId string, gpi models.GetPlaidInput) (UserAccount, *NextPage, impart.Error) {
 
 	_, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthId)).One(ctx, ser.db)
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user.")
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
 			zap.String("user", impartWealthId))
-		return UserAccount{}, impartErr
+		return UserAccount{}, nil, impartErr
+	}
+	if gpi.Limit <= 0 {
+		gpi.Limit = 100
 	}
 
 	userInstitutions, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(impartWealthId),
 		qm.Load(dbmodels.UserInstitutionRels.ImpartWealth),
 		qm.Load(dbmodels.UserInstitutionRels.Institution),
+		qm.Limit(int(gpi.Limit)),
+		qm.Offset(int(gpi.Offset)),
 	).All(ctx, ser.db)
 
 	if len(userInstitutions) == 0 {
-		return UserAccount{}, impart.NewError(impart.ErrBadRequest, "No records found.")
+		return UserAccount{}, nil, impart.NewError(impart.ErrBadRequest, "No records found.")
 	}
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user institution details.")
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
 			zap.String("user", impartWealthId))
-		return UserAccount{}, impartErr
+		return UserAccount{}, nil, impartErr
 	}
 
 	configuration := plaid.NewConfiguration()
@@ -319,7 +324,15 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 			}
 		}()
 	}
-	return userData, nil
+	outOffset := &NextPage{
+		Offset: int(gpi.Offset),
+	}
+	if len(userInstitutions) < int(gpi.Limit) {
+		outOffset = nil
+	} else {
+		outOffset.Offset += len(userInstitutions)
+	}
+	return userData, outOffset, nil
 }
 
 func AccountToModel(act plaid.AccountBase, userInstId uint64, logexist bool) (Account, string) {

@@ -34,7 +34,7 @@ func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 	} else if cfg.Env == config.Preproduction {
 		configuration.UseEnvironment(plaid.Development)
 	} else if cfg.Env == config.Development {
-		configuration.UseEnvironment(plaid.Production)
+		configuration.UseEnvironment(plaid.Development)
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
@@ -76,8 +76,8 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 		configuration.UseEnvironment(plaid.Production)
 	} else if cfg.Env == config.Preproduction {
 		configuration.UseEnvironment(plaid.Development)
-	} else if cfg.Env == config.Development {
-		configuration.UseEnvironment(plaid.Production)
+	} else if cfg.Env == config.Development { //test
+		configuration.UseEnvironment(plaid.Development)
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
@@ -199,29 +199,34 @@ func (ser *service) GetPlaidUserInstitutions(ctx context.Context, impartWealthId
 	return output, nil
 }
 
-func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartWealthId string) (UserAccount, impart.Error) {
+func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartWealthId string, gpi models.GetPlaidInput) (UserAccount, *NextPage, impart.Error) {
 
 	_, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthId)).One(ctx, ser.db)
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user.")
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
 			zap.String("user", impartWealthId))
-		return UserAccount{}, impartErr
+		return UserAccount{}, nil, impartErr
+	}
+	if gpi.Limit <= 0 {
+		gpi.Limit = 100
 	}
 
 	userInstitutions, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(impartWealthId),
 		qm.Load(dbmodels.UserInstitutionRels.ImpartWealth),
 		qm.Load(dbmodels.UserInstitutionRels.Institution),
+		qm.Limit(int(gpi.Limit)),
+		qm.Offset(int(gpi.Offset)),
 	).All(ctx, ser.db)
 
 	if len(userInstitutions) == 0 {
-		return UserAccount{}, impart.NewError(impart.ErrBadRequest, "No records found.")
+		return UserAccount{}, nil, impart.NewError(impart.ErrBadRequest, "No records found.")
 	}
 	if err != nil {
 		impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user institution details.")
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
 			zap.String("user", impartWealthId))
-		return UserAccount{}, impartErr
+		return UserAccount{}, nil, impartErr
 	}
 
 	configuration := plaid.NewConfiguration()
@@ -235,7 +240,7 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		} else if cfg.Env == config.Preproduction {
 			configuration.UseEnvironment(plaid.Development)
 		} else if cfg.Env == config.Development {
-			configuration.UseEnvironment(plaid.Production)
+			configuration.UseEnvironment(plaid.Development)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
@@ -319,7 +324,15 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 			}
 		}()
 	}
-	return userData, nil
+	outOffset := &NextPage{
+		Offset: int(gpi.Offset),
+	}
+	if len(userInstitutions) < int(gpi.Limit) {
+		outOffset = nil
+	} else {
+		outOffset.Offset += len(userInstitutions)
+	}
+	return userData, outOffset, nil
 }
 
 func AccountToModel(act plaid.AccountBase, userInstId uint64, logexist bool) (Account, string) {
@@ -335,6 +348,8 @@ func AccountToModel(act plaid.AccountBase, userInstId uint64, logexist bool) (Ac
 	accounts.Name = act.GetName()
 	accounts.OfficialName = act.GetOfficialName()
 	accounts.UnofficialCurrencyCode = act.Balances.GetUnofficialCurrencyCode()
+	accounts.DisplayValue = act.Balances.GetCurrent()
+	accounts.DisplayName = act.GetName()
 	query := ""
 	if !logexist {
 		query = fmt.Sprintf("(%d,'%s','%s','%s','%s','%s','%s','%s','%s',%f,%f,%f,UTC_TIMESTAMP(3)),",
@@ -383,7 +398,9 @@ func ValidatePostFilesName(ctx context.Context, postFiles []models.File, institu
 	return postFiles
 }
 
-func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, impartWealthId string, gpi models.GetPlaidInput) (UserTransaction, []PlaidError) {
+func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, impartWealthId string, gpi models.GetPlaidInput) (UserTransaction, *NextPage, []PlaidError) {
+
+	var totalTransaction int32
 
 	var newPlaidErr []PlaidError
 	plaidErr := PlaidError{Error: "unable to complete the request",
@@ -398,7 +415,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
 			zap.String("user", impartWealthId))
-		return UserTransaction{}, newPlaidErr
+		return UserTransaction{}, nil, newPlaidErr
 	}
 
 	userInstitutions, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(impartWealthId),
@@ -408,7 +425,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	if userInstitutions == nil {
 		plaidErr.Msg = "No records found."
 		newPlaidErr = append(newPlaidErr, plaidErr)
-		return UserTransaction{}, newPlaidErr
+		return UserTransaction{}, nil, newPlaidErr
 	}
 	if err != nil {
 		plaidErr.Msg = "Could not find the user institution details."
@@ -417,7 +434,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 
 		ser.logger.Error("Could not find the user institution details.", zap.String("User", impartWealthId),
 			zap.String("user", impartWealthId))
-		return UserTransaction{}, newPlaidErr
+		return UserTransaction{}, nil, newPlaidErr
 	}
 
 	configuration := plaid.NewConfiguration()
@@ -431,7 +448,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		} else if cfg.Env == config.Preproduction {
 			configuration.UseEnvironment(plaid.Development)
 		} else if cfg.Env == config.Development {
-			configuration.UseEnvironment(plaid.Production)
+			configuration.UseEnvironment(plaid.Development)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
@@ -472,17 +489,33 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the  transaction details.")
-		return UserTransaction{}, newPlaidErr
+		return UserTransaction{}, nil, newPlaidErr
 	}
 	transactions := transGetResp.GetTransactions()
 	if len(transactions) == 0 {
+		isInvestments := false
+		accounts := transGetResp.GetAccounts()
+		for _, accnt := range accounts {
+			if accnt.Type != "investment" {
+				return UserTransaction{}, nil, nil
+			} else {
+				isInvestments = true
+			}
+		}
+		if isInvestments {
+			plaidErr.Msg = "The transaction is empty since investment transactions are not supported.."
+			plaidErr.AccessToken = userInstitutions.AccessToken
+			newPlaidErr = append(newPlaidErr, plaidErr)
+			return UserTransaction{}, nil, newPlaidErr
+		}
 		plaidErr.Msg = "Could not find the  transaction details."
 		plaidErr.AccessToken = userInstitutions.AccessToken
 		newPlaidErr = append(newPlaidErr, plaidErr)
 
 		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user transaction details.")
-		return UserTransaction{}, nil
+		return UserTransaction{}, nil, nil
 	}
+	totalTransaction = int32(len(transactions))
 	userData := UserTransaction{}
 	userData.ImpartWealthID = impartWealthId
 	userData.AccessToken = userInstitutions.AccessToken
@@ -523,7 +556,17 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	userinstitution[0] = institution
 	userData.Transactions = transDataFinalData
 	userData.TotalTransaction = transGetResp.GetTotalTransactions()
-	return userData, nil
+	outOffset := &NextPage{
+		Offset: int(gpi.Offset),
+	}
+	fmt.Println(totalTransaction)
+	fmt.Println(gpi.Limit)
+	if totalTransaction < gpi.Limit {
+		outOffset = nil
+	} else {
+		outOffset.Offset += int(totalTransaction)
+	}
+	return userData, outOffset, nil
 }
 
 func TransactionToModel(act plaid.Transaction, userInstId uint64) Transaction {
@@ -556,7 +599,7 @@ func GetAccessTokenStatus(accessToken string, ctx context.Context) bool {
 		} else if cfg.Env == config.Preproduction {
 			configuration.UseEnvironment(plaid.Development)
 		} else if cfg.Env == config.Development {
-			configuration.UseEnvironment(plaid.Production)
+			configuration.UseEnvironment(plaid.Development)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}

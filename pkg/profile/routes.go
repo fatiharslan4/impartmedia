@@ -1352,13 +1352,24 @@ func (ph *profileHandler) GetPlaidUserInstitutionAccounts() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-		output, impartErr := ph.plaidData.GetPlaidUserInstitutionAccounts(ctx, impartWealthId)
+		limit, offset, err := parseLimitOffset(ctx)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Invalid parameter.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		gpi := models.GetPlaidInput{}
+		gpi.Limit = int32(limit)
+		gpi.Offset = int32(offset)
+
+		output, nextpage, impartErr := ph.plaidData.GetPlaidUserInstitutionAccounts(ctx, impartWealthId, gpi)
 		if impartErr != nil {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
 		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionAccountResponse{
 			Accounts: output,
+			NextPage: nextpage,
 		})
 	}
 }
@@ -1419,7 +1430,7 @@ func (ph *profileHandler) GetPlaidUserInstitutionTransactions() gin.HandlerFunc 
 		}
 		gpi.Limit = int32(limit)
 		gpi.Offset = int32(offset)
-		output, impartErr := ph.plaidData.GetPlaidUserInstitutionTransactions(ctx, impartWealthId, gpi)
+		output, nextpage, impartErr := ph.plaidData.GetPlaidUserInstitutionTransactions(ctx, impartWealthId, gpi)
 		if impartErr != nil {
 			ctx.JSON(http.StatusBadRequest, plaid.PagedUserInstitutionTransactionErrorResponse{
 				Error: impartErr,
@@ -1433,6 +1444,7 @@ func (ph *profileHandler) GetPlaidUserInstitutionTransactions() gin.HandlerFunc 
 		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionTransactionResponse{
 			Msg:          status,
 			Transactions: output,
+			NextPage:     nextpage,
 		})
 	}
 }

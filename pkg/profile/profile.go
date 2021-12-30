@@ -67,6 +67,8 @@ type Service interface {
 	GetWeeklyMostPopularNotification(ctx context.Context)
 	UpdateUserDevicesDetails(ctx context.Context, userDevice *dbmodels.UserDevice, login bool) (bool, error)
 	GetHiveNotification(ctx context.Context) error
+
+	UserEmailDetailsUpdate(ctx context.Context, gpi models.WebAppUserInput) impart.Error
 }
 
 func New(logger *zap.SugaredLogger, db *sql.DB, dal profile_data.Store, ns impart.NotificationService, schema gojsonschema.JSONLoader, stage string, hivedata hive_main.Service, hiveSotre hive_data.Hives) Service {

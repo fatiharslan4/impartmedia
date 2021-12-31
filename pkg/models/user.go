@@ -148,3 +148,8 @@ type GetPlaidInput struct {
 	Limit  int32
 	Offset int32
 }
+
+type WebAppUserInput struct {
+	ImpartWealthID string `json:"impartWealthID,omitempty"`
+	Subscribe      bool   `json:"subscribe,omitempty"`
+}

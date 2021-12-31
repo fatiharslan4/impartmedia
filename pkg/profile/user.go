@@ -463,3 +463,25 @@ func (ps *profileService) UpdateUserDevicesDetails(ctx context.Context, userDevi
 	return true, nil
 
 }
+
+func (ps *profileService) UserEmailDetailsUpdate(ctx context.Context, gpi models.WebAppUserInput) impart.Error {
+	contextUser := impart.GetCtxUser(ctx)
+	if contextUser == nil || contextUser.ImpartWealthID == "" {
+		return impart.NewError(impart.ErrBadRequest, "context user not found.")
+	}
+	userToUpdate, err := ps.profileStore.GetUser(ctx, gpi.ImpartWealthID)
+	if err != nil {
+		ps.Logger().Error("Cannot Find the user", zap.Error(err))
+		return impart.NewError(impart.ErrNotFound, "Cannot find the user")
+	}
+	if userToUpdate.Blocked {
+		ps.Logger().Error("Blocked user", zap.Error(err))
+		return impart.NewError(impart.ErrNotFound, "Blocked user")
+	}
+	err0 := ps.profileStore.UserEmailDetailsUpdate(ctx, gpi)
+	if err0 != nil {
+		ps.Logger().Error("Error in adding waitlist", zap.Error(err))
+		return err0
+	}
+	return nil
+}

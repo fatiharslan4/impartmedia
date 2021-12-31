@@ -540,7 +540,7 @@ func (m *mysqlStore) EditUserDetails(ctx context.Context, gpi models.WaitListUse
 		if existingHiveId == impart.DefaultHiveID {
 			isMailSent = true
 		}
-		if isMailSent {
+		if isMailSent && userToUpdate.EmailSubscribe {
 			go impart.SendAWSEMails(ctx, m.db, userToUpdate, impart.Hive_mail)
 		}
 
@@ -949,4 +949,44 @@ func (m *mysqlStore) GetHiveDetails(ctx context.Context, gpi models.GetAdminInpu
 	}
 	return hiveDetails, outOffset, nil
 
+}
+
+func (m *mysqlStore) UserEmailDetailsUpdate(ctx context.Context, gpi models.WebAppUserInput) impart.Error {
+
+	cfg, _ := config.GetImpart()
+	userData, err := m.GetUser(ctx, gpi.ImpartWealthID)
+	if err != nil {
+		return impart.NewError(impart.ErrBadRequest, "Unable to find the user")
+	}
+	if !gpi.Subscribe {
+		userData.EmailSubscribe = false
+		_, err = userData.Update(ctx, m.db, boil.Infer())
+		if err != nil {
+			return impart.NewError(impart.ErrBadRequest, "Email unsubscribe failed.")
+		}
+		mailChimpParams := &members.UpdateParams{
+			Status: members.StatusUnsubscribed,
+		}
+		_, err = members.Update(cfg.MailchimpAudienceId, userData.Email, mailChimpParams)
+		if err != nil {
+			m.logger.Error("MailChimp update failed", zap.String("Email", userData.Email),
+				zap.Error(err))
+		}
+	} else {
+		userData.EmailSubscribe = true
+		_, err = userData.Update(ctx, m.db, boil.Infer())
+		if err != nil {
+			return impart.NewError(impart.ErrBadRequest, "Email subscribe failed.")
+		}
+		mailChimpParams := &members.UpdateParams{
+			Status: members.StatusSubscribed,
+		}
+		_, err = members.Update(cfg.MailchimpAudienceId, userData.Email, mailChimpParams)
+		if err != nil {
+			m.logger.Error("MailChimp update failed", zap.String("Email", userData.Email),
+				zap.Error(err))
+		}
+	}
+
+	return nil
 }

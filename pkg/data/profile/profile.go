@@ -55,6 +55,7 @@ type Store interface {
 	GetUserAnswer(ctx context.Context, impartWealthId string) (dbmodels.UserAnswerSlice, error)
 	GetHiveDetails(ctx context.Context, gpi models.GetAdminInputs) (models.HiveDetails, *models.NextPage, error)
 	GetHiveNotification(ctx context.Context) error
+	UserEmailDetailsUpdate(ctx context.Context, gpi models.WebAppUserInput) impart.Error
 }
 
 func NewMySQLStore(db *sql.DB, logger *zap.Logger, notificationService impart.NotificationService) Store {

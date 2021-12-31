@@ -83,6 +83,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	mailChimpRoutes := version.Group("/mailchimp")
 	mailChimpRoutes.POST("", handler.CreateMailChimpForExistingUsers())
+	mailChimpRoutes.PATCH("/:impartWealthId", handler.UserEmailDetailsUpdate())
 
 	plaidRoutes := version.Group("/plaid")
 	plaidRoutes.POST("/token", handler.CreatePlaidToken())
@@ -1477,5 +1478,45 @@ func (ph *profileHandler) DeletePlaidUserInstitutionAccounts() gin.HandlerFunc {
 		ctx.JSON(http.StatusOK, gin.H{
 			"status": "success",
 		})
+	}
+}
+
+func (ph *profileHandler) UserEmailDetailsUpdate() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		rawData, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ph.logger.Error("error deserializing", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+
+		ctxUser := impart.GetCtxUser(ctx)
+		if !ctxUser.SuperAdmin {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Current user does not have the permission.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+
+		input := models.WebAppUserInput{}
+		input.ImpartWealthID = ctx.Param("impartWealthId")
+		err = json.Unmarshal(rawData, &input)
+		if err != nil {
+			ph.logger.Error("input json parse error", zap.Error(err))
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+		if input.ImpartWealthID == "" {
+			err := impart.NewError(impart.ErrBadRequest, "please provide user information")
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(err))
+			return
+		}
+		impartErr := ph.profileService.UserEmailDetailsUpdate(ctx, input)
+		if impartErr != nil {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(impartErr))
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{"status": true})
 	}
 }

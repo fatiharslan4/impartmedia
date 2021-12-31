@@ -83,6 +83,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 
 	mailChimpRoutes := version.Group("/mailchimp")
 	mailChimpRoutes.POST("", handler.CreateMailChimpForExistingUsers())
+	mailChimpRoutes.PATCH("/:impartWealthId", handler.UserEmailDetailsUpdate())
 
 	plaidRoutes := version.Group("/plaid")
 	plaidRoutes.POST("/token", handler.CreatePlaidToken())

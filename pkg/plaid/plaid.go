@@ -648,10 +648,12 @@ func TransactionToModel(act plaid.Transaction, userInstId uint64) Transaction {
 }
 
 func InvestmentTransactionToModel(act plaid.InvestmentTransaction, userInstId uint64) Transaction {
+	var allDates []string
+	allDates = append(allDates, "Investment")
 	trans := Transaction{}
 	trans.AccountID = act.AccountId
 	trans.Amount = act.GetAmount()
-	// trans.Category = []
+	trans.Category = allDates
 	trans.Name = act.Name
 	trans.Date = act.GetDate()
 	return trans

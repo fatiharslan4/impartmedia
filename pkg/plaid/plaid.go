@@ -492,8 +492,9 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		return UserTransaction{}, nil, newPlaidErr
 	}
 	transactions := transGetResp.GetTransactions()
+	var investTransactions []plaid.InvestmentTransaction
+	isInvestments := false
 	if len(transactions) == 0 {
-		isInvestments := false
 		accounts := transGetResp.GetAccounts()
 		for _, accnt := range accounts {
 			if accnt.Type != "investment" {
@@ -503,10 +504,41 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 			}
 		}
 		if isInvestments {
-			plaidErr.Msg = "The transaction is empty since investment transactions are not supported.."
-			plaidErr.AccessToken = userInstitutions.AccessToken
-			newPlaidErr = append(newPlaidErr, plaidErr)
-			return UserTransaction{}, nil, newPlaidErr
+			// plaidErr.Msg = "The transaction is empty since investment transactions are not supported.."
+			// plaidErr.AccessToken = userInstitutions.AccessToken
+			// newPlaidErr = append(newPlaidErr, plaidErr)
+			// return UserTransaction{}, nil, newPlaidErr
+			transInvestGetRequest := plaid.NewInvestmentsTransactionsGetRequest(userInstitutions.AccessToken, impart.CurrentUTC().AddDate(0, 0, -30).Format("2006-01-02"), impart.CurrentUTC().Format("2006-01-02"))
+			data := plaid.NewInvestmentsTransactionsGetRequestOptions()
+			transInvestGetRequest.Options = data
+			transInvestGetRequest.Options.Count = &gpi.Limit
+			transInvestGetRequest.Options.Offset = &gpi.Offset
+			transGetResp, resp, err := client.PlaidApi.InvestmentsTransactionsGet(ctx).InvestmentsTransactionsGetRequest(
+				*transInvestGetRequest,
+			).Execute()
+			if err != nil || resp.StatusCode == 400 {
+				ser.logger.Error("Could not find the user plaid account details.", zap.String("User", impartWealthId),
+					zap.String("token", userInstitutions.AccessToken))
+				plaidErr.Msg = "Could not find the  transaction details."
+				if resp.StatusCode == 400 {
+					defer resp.Body.Close()
+					type errorResponse struct {
+						ErrorCode string `json:"error_code" `
+					}
+					newRes := errorResponse{}
+					json.NewDecoder(resp.Body).Decode(&newRes)
+					if newRes.ErrorCode == "ITEM_LOGIN_REQUIRED" {
+						plaidErr.AuthenticationError = true
+						plaidErr.Msg = "ITEM_LOGIN_REQUIRED"
+					}
+					plaidErr.AccessToken = userInstitutions.AccessToken
+				}
+				newPlaidErr = append(newPlaidErr, plaidErr)
+
+				// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the  transaction details.")
+				return UserTransaction{}, nil, newPlaidErr
+			}
+			investTransactions = transGetResp.GetInvestmentTransactions()
 		}
 		plaidErr.Msg = "Could not find the  transaction details."
 		plaidErr.AccessToken = userInstitutions.AccessToken
@@ -515,7 +547,11 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		// impartErr := impart.NewError(impart.ErrBadRequest, "Could not find the user transaction details.")
 		return UserTransaction{}, nil, nil
 	}
-	totalTransaction = int32(len(transactions))
+	if isInvestments {
+		totalTransaction = int32(len(investTransactions))
+	} else {
+		totalTransaction = int32(len(transactions))
+	}
 	userData := UserTransaction{}
 	userData.ImpartWealthID = impartWealthId
 	userData.AccessToken = userInstitutions.AccessToken
@@ -523,39 +559,71 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	var transDatawithdateFinalData []Transaction
 	var transDataFinalData []TransactionWithDate
 	institution := InstitutionToModel(userInstitutions)
+	if isInvestments {
+		var allDates []string
+		for _, act := range investTransactions {
+			currentDate := act.Date
+			ser.logger.Info(currentDate)
+			ser.logger.Info("allDates", zap.Any("allDates", allDates))
+			if !checkDateExist(currentDate, allDates) {
+				ser.logger.Info("alredy date added", zap.Any("allDates", allDates),
+					zap.Any("currentDate", currentDate))
 
-	var allDates []string
-	for _, act := range transactions {
-		currentDate := act.Date
-
-		ser.logger.Info(currentDate)
-		ser.logger.Info("allDates", zap.Any("allDates", allDates))
-		if !checkDateExist(currentDate, allDates) {
-			ser.logger.Info("alredy date added", zap.Any("allDates", allDates),
-				zap.Any("currentDate", currentDate))
-
-			for _, acnts := range transactions {
-				if currentDate == acnts.Date {
-					ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
-					if !checkDateExist(currentDate, allDates) {
-						allDates = append(allDates, currentDate)
+				for _, acnts := range investTransactions {
+					if currentDate == acnts.Date {
+						ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
+						if !checkDateExist(currentDate, allDates) {
+							allDates = append(allDates, currentDate)
+						}
+						ser.logger.Info("aallDates", zap.Any("allDates", allDates))
+						transDatawithdate := InvestmentTransactionToModel(acnts, userInstitutions.UserInstitutionID)
+						transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 					}
-					ser.logger.Info("aallDates", zap.Any("allDates", allDates))
-					transDatawithdate := TransactionToModel(acnts, userInstitutions.UserInstitutionID)
-					transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 				}
+				transWIthdate := TransactionWithDate{}
+				transWIthdate.Date = currentDate
+				transWIthdate.Data = transDatawithdateFinalData
+				transDataFinalData = append(transDataFinalData, transWIthdate)
+				transDatawithdateFinalData = nil
 			}
-			transWIthdate := TransactionWithDate{}
-			transWIthdate.Date = currentDate
-			transWIthdate.Data = transDatawithdateFinalData
-			transDataFinalData = append(transDataFinalData, transWIthdate)
-			transDatawithdateFinalData = nil
 		}
+
+		userinstitution[0] = institution
+		userData.Transactions = transDataFinalData
+		userData.TotalTransaction = transGetResp.GetTotalTransactions()
+	} else {
+		var allDates []string
+		for _, act := range transactions {
+			currentDate := act.Date
+			ser.logger.Info(currentDate)
+			ser.logger.Info("allDates", zap.Any("allDates", allDates))
+			if !checkDateExist(currentDate, allDates) {
+				ser.logger.Info("alredy date added", zap.Any("allDates", allDates),
+					zap.Any("currentDate", currentDate))
+
+				for _, acnts := range transactions {
+					if currentDate == acnts.Date {
+						ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
+						if !checkDateExist(currentDate, allDates) {
+							allDates = append(allDates, currentDate)
+						}
+						ser.logger.Info("aallDates", zap.Any("allDates", allDates))
+						transDatawithdate := TransactionToModel(acnts, userInstitutions.UserInstitutionID)
+						transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
+					}
+				}
+				transWIthdate := TransactionWithDate{}
+				transWIthdate.Date = currentDate
+				transWIthdate.Data = transDatawithdateFinalData
+				transDataFinalData = append(transDataFinalData, transWIthdate)
+				transDatawithdateFinalData = nil
+			}
+		}
+		userinstitution[0] = institution
+		userData.Transactions = transDataFinalData
+		userData.TotalTransaction = transGetResp.GetTotalTransactions()
 	}
 
-	userinstitution[0] = institution
-	userData.Transactions = transDataFinalData
-	userData.TotalTransaction = transGetResp.GetTotalTransactions()
 	outOffset := &NextPage{
 		Offset: int(gpi.Offset),
 	}
@@ -574,6 +642,16 @@ func TransactionToModel(act plaid.Transaction, userInstId uint64) Transaction {
 	trans.AccountID = act.AccountId
 	trans.Amount = act.GetAmount()
 	trans.Category = act.Category
+	trans.Name = act.Name
+	trans.Date = act.GetDate()
+	return trans
+}
+
+func InvestmentTransactionToModel(act plaid.InvestmentTransaction, userInstId uint64) Transaction {
+	trans := Transaction{}
+	trans.AccountID = act.AccountId
+	trans.Amount = act.GetAmount()
+	// trans.Category = []
 	trans.Name = act.Name
 	trans.Date = act.GetDate()
 	return trans

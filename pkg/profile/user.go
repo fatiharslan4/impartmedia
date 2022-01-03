@@ -478,6 +478,15 @@ func (ps *profileService) UserEmailDetailsUpdate(ctx context.Context, gpi models
 		ps.Logger().Error("Blocked user", zap.Error(err))
 		return impart.NewError(impart.ErrNotFound, "Blocked user")
 	}
+	if gpi.Subscribe {
+		if userToUpdate.EmailSubscribe {
+			return impart.NewError(impart.ErrBadRequest, "Email already subscribed.")
+		}
+	} else {
+		if !userToUpdate.EmailSubscribe {
+			return impart.NewError(impart.ErrBadRequest, "Email already unsubscribed.")
+		}
+	}
 	err0 := ps.profileStore.UserEmailDetailsUpdate(ctx, gpi)
 	if err0 != nil {
 		ps.Logger().Error("Error in adding waitlist", zap.Error(err))

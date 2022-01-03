@@ -503,6 +503,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 				isInvestments = true
 			}
 		}
+		isInvestments = true
 		if isInvestments {
 			// plaidErr.Msg = "The transaction is empty since investment transactions are not supported.."
 			// plaidErr.AccessToken = userInstitutions.AccessToken

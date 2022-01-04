@@ -30,6 +30,7 @@ type UserInstitution struct {
 	AccessToken       string    `boil:"access_token" json:"access_token" toml:"access_token" yaml:"access_token"`
 	CreatedAt         time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	DeletedAt         null.Time `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	BankType          uint64    `boil:"bank_type" json:"bank_type" toml:"bank_type" yaml:"bank_type"`
 
 	R *userInstitutionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userInstitutionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -42,6 +43,7 @@ var UserInstitutionColumns = struct {
 	AccessToken       string
 	CreatedAt         string
 	DeletedAt         string
+	BankType          string
 }{
 	UserInstitutionID: "user_institution_id",
 	InstitutionID:     "institution_id",
@@ -49,6 +51,7 @@ var UserInstitutionColumns = struct {
 	AccessToken:       "access_token",
 	CreatedAt:         "created_at",
 	DeletedAt:         "deleted_at",
+	BankType:          "bank_type",
 }
 
 var UserInstitutionTableColumns = struct {
@@ -58,6 +61,7 @@ var UserInstitutionTableColumns = struct {
 	AccessToken       string
 	CreatedAt         string
 	DeletedAt         string
+	BankType          string
 }{
 	UserInstitutionID: "user_institutions.user_institution_id",
 	InstitutionID:     "user_institutions.institution_id",
@@ -65,6 +69,7 @@ var UserInstitutionTableColumns = struct {
 	AccessToken:       "user_institutions.access_token",
 	CreatedAt:         "user_institutions.created_at",
 	DeletedAt:         "user_institutions.deleted_at",
+	BankType:          "user_institutions.bank_type",
 }
 
 // Generated where
@@ -76,6 +81,7 @@ var UserInstitutionWhere = struct {
 	AccessToken       whereHelperstring
 	CreatedAt         whereHelpertime_Time
 	DeletedAt         whereHelpernull_Time
+	BankType          whereHelperuint64
 }{
 	UserInstitutionID: whereHelperuint64{field: "`user_institutions`.`user_institution_id`"},
 	InstitutionID:     whereHelperuint64{field: "`user_institutions`.`institution_id`"},
@@ -83,24 +89,28 @@ var UserInstitutionWhere = struct {
 	AccessToken:       whereHelperstring{field: "`user_institutions`.`access_token`"},
 	CreatedAt:         whereHelpertime_Time{field: "`user_institutions`.`created_at`"},
 	DeletedAt:         whereHelpernull_Time{field: "`user_institutions`.`deleted_at`"},
+	BankType:          whereHelperuint64{field: "`user_institutions`.`bank_type`"},
 }
 
 // UserInstitutionRels is where relationship names are stored.
 var UserInstitutionRels = struct {
-	ImpartWealth          string
-	Institution           string
-	UserPlaidAccountsLogs string
+	ImpartWealth            string
+	Institution             string
+	UserInstitutionBankType string
+	UserPlaidAccountsLogs   string
 }{
-	ImpartWealth:          "ImpartWealth",
-	Institution:           "Institution",
-	UserPlaidAccountsLogs: "UserPlaidAccountsLogs",
+	ImpartWealth:            "ImpartWealth",
+	Institution:             "Institution",
+	UserInstitutionBankType: "UserInstitutionBankType",
+	UserPlaidAccountsLogs:   "UserPlaidAccountsLogs",
 }
 
 // userInstitutionR is where relationships are stored.
 type userInstitutionR struct {
-	ImpartWealth          *User                     `boil:"ImpartWealth" json:"ImpartWealth" toml:"ImpartWealth" yaml:"ImpartWealth"`
-	Institution           *Institution              `boil:"Institution" json:"Institution" toml:"Institution" yaml:"Institution"`
-	UserPlaidAccountsLogs UserPlaidAccountsLogSlice `boil:"UserPlaidAccountsLogs" json:"UserPlaidAccountsLogs" toml:"UserPlaidAccountsLogs" yaml:"UserPlaidAccountsLogs"`
+	ImpartWealth            *User                     `boil:"ImpartWealth" json:"ImpartWealth" toml:"ImpartWealth" yaml:"ImpartWealth"`
+	Institution             *Institution              `boil:"Institution" json:"Institution" toml:"Institution" yaml:"Institution"`
+	UserInstitutionBankType *BankType                 `boil:"UserInstitutionBankType" json:"UserInstitutionBankType" toml:"UserInstitutionBankType" yaml:"UserInstitutionBankType"`
+	UserPlaidAccountsLogs   UserPlaidAccountsLogSlice `boil:"UserPlaidAccountsLogs" json:"UserPlaidAccountsLogs" toml:"UserPlaidAccountsLogs" yaml:"UserPlaidAccountsLogs"`
 }
 
 // NewStruct creates a new relationship struct
@@ -112,9 +122,9 @@ func (*userInstitutionR) NewStruct() *userInstitutionR {
 type userInstitutionL struct{}
 
 var (
-	userInstitutionAllColumns            = []string{"user_institution_id", "institution_id", "impart_wealth_id", "access_token", "created_at", "deleted_at"}
+	userInstitutionAllColumns            = []string{"user_institution_id", "institution_id", "impart_wealth_id", "access_token", "created_at", "deleted_at", "bank_type"}
 	userInstitutionColumnsWithoutDefault = []string{"institution_id", "impart_wealth_id", "access_token", "created_at", "deleted_at"}
-	userInstitutionColumnsWithDefault    = []string{"user_institution_id"}
+	userInstitutionColumnsWithDefault    = []string{"user_institution_id", "bank_type"}
 	userInstitutionPrimaryKeyColumns     = []string{"user_institution_id"}
 )
 
@@ -422,6 +432,20 @@ func (o *UserInstitution) Institution(mods ...qm.QueryMod) institutionQuery {
 	return query
 }
 
+// UserInstitutionBankType pointed to by the foreign key.
+func (o *UserInstitution) UserInstitutionBankType(mods ...qm.QueryMod) bankTypeQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("`bank_type_id` = ?", o.BankType),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := BankTypes(queryMods...)
+	queries.SetFrom(query.Query, "`bank_types`")
+
+	return query
+}
+
 // UserPlaidAccountsLogs retrieves all the user_plaid_accounts_log's UserPlaidAccountsLogs with an executor.
 func (o *UserInstitution) UserPlaidAccountsLogs(mods ...qm.QueryMod) userPlaidAccountsLogQuery {
 	var queryMods []qm.QueryMod
@@ -652,6 +676,110 @@ func (userInstitutionL) LoadInstitution(ctx context.Context, e boil.ContextExecu
 	return nil
 }
 
+// LoadUserInstitutionBankType allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (userInstitutionL) LoadUserInstitutionBankType(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserInstitution interface{}, mods queries.Applicator) error {
+	var slice []*UserInstitution
+	var object *UserInstitution
+
+	if singular {
+		object = maybeUserInstitution.(*UserInstitution)
+	} else {
+		slice = *maybeUserInstitution.(*[]*UserInstitution)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &userInstitutionR{}
+		}
+		args = append(args, object.BankType)
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userInstitutionR{}
+			}
+
+			for _, a := range args {
+				if a == obj.BankType {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.BankType)
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`bank_types`),
+		qm.WhereIn(`bank_types.bank_type_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load BankType")
+	}
+
+	var resultSlice []*BankType
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice BankType")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for bank_types")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for bank_types")
+	}
+
+	if len(userInstitutionAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.UserInstitutionBankType = foreign
+		if foreign.R == nil {
+			foreign.R = &bankTypeR{}
+		}
+		foreign.R.UserInstitutions = append(foreign.R.UserInstitutions, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if local.BankType == foreign.BankTypeID {
+				local.R.UserInstitutionBankType = foreign
+				if foreign.R == nil {
+					foreign.R = &bankTypeR{}
+				}
+				foreign.R.UserInstitutions = append(foreign.R.UserInstitutions, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // LoadUserPlaidAccountsLogs allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
 func (userInstitutionL) LoadUserPlaidAccountsLogs(ctx context.Context, e boil.ContextExecutor, singular bool, maybeUserInstitution interface{}, mods queries.Applicator) error {
@@ -835,6 +963,53 @@ func (o *UserInstitution) SetInstitution(ctx context.Context, exec boil.ContextE
 
 	if related.R == nil {
 		related.R = &institutionR{
+			UserInstitutions: UserInstitutionSlice{o},
+		}
+	} else {
+		related.R.UserInstitutions = append(related.R.UserInstitutions, o)
+	}
+
+	return nil
+}
+
+// SetUserInstitutionBankType of the userInstitution to the related item.
+// Sets o.R.UserInstitutionBankType to related.
+// Adds o to related.R.UserInstitutions.
+func (o *UserInstitution) SetUserInstitutionBankType(ctx context.Context, exec boil.ContextExecutor, insert bool, related *BankType) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE `user_institutions` SET %s WHERE %s",
+		strmangle.SetParamNames("`", "`", 0, []string{"bank_type"}),
+		strmangle.WhereClause("`", "`", 0, userInstitutionPrimaryKeyColumns),
+	)
+	values := []interface{}{related.BankTypeID, o.UserInstitutionID}
+
+	if boil.IsDebug(ctx) {
+		writer := boil.DebugWriterFrom(ctx)
+		fmt.Fprintln(writer, updateQuery)
+		fmt.Fprintln(writer, values)
+	}
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.BankType = related.BankTypeID
+	if o.R == nil {
+		o.R = &userInstitutionR{
+			UserInstitutionBankType: related,
+		}
+	} else {
+		o.R.UserInstitutionBankType = related
+	}
+
+	if related.R == nil {
+		related.R = &bankTypeR{
 			UserInstitutions: UserInstitutionSlice{o},
 		}
 	} else {

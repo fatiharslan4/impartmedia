@@ -404,7 +404,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 
 	var newPlaidErr []PlaidError
 	plaidErr := PlaidError{Error: "unable to complete the request",
-		Msg:                 "",
+		Msg:                 "No transaction records found.",
 		AuthenticationError: false}
 
 	_, err := dbmodels.Users(dbmodels.UserWhere.ImpartWealthID.EQ(impartWealthId)).One(ctx, ser.db)
@@ -664,7 +664,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	// } else {
 	// 	outOffset.Offset += int(totalTransaction)
 	// }
-	return UserTransaction{}, nil, nil
+	return UserTransaction{}, nil, newPlaidErr
 }
 
 func TransactionToModel(act plaid.Transaction, userInstId uint64) Transaction {

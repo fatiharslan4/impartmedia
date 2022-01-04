@@ -5,6 +5,7 @@ package dbmodels
 
 var TableNames = struct {
 	Answer                    string
+	BankTypes                 string
 	Comment                   string
 	CommentEdits              string
 	CommentReactions          string
@@ -43,6 +44,7 @@ var TableNames = struct {
 	UserPlaidAccountsLog      string
 }{
 	Answer:                    "answer",
+	BankTypes:                 "bank_types",
 	Comment:                   "comment",
 	CommentEdits:              "comment_edits",
 	CommentReactions:          "comment_reactions",

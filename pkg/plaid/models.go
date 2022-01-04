@@ -27,6 +27,7 @@ type UserInstitutionToken struct {
 	AccessToken           string    `json:"access_token"`
 	CreatedAt             time.Time `json:"created_at"`
 	PlaidInstitutionId    string    `json:"plaid_institution_id"`
+	BankType              uint64    `json:"bank_type"`
 	IsAuthenticationError bool      `json:"is_authentication_error"`
 }
 
@@ -128,6 +129,7 @@ func (p UserInstitutionToken) ToDBModel() *dbmodels.UserInstitution {
 		CreatedAt:      p.CreatedAt,
 		AccessToken:    p.AccessToken,
 		InstitutionID:  p.Id,
+		BankType:       p.BankType,
 	}
 
 	return out

@@ -34,7 +34,7 @@ func (ser *service) SavePlaidInstitutions(ctx context.Context) error {
 	} else if cfg.Env == config.Preproduction {
 		configuration.UseEnvironment(plaid.Development)
 	} else if cfg.Env == config.Development {
-		configuration.UseEnvironment(plaid.Development)
+		configuration.UseEnvironment(plaid.Sandbox)
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
@@ -77,7 +77,7 @@ func (ser *service) SavePlaidInstitutionToken(ctx context.Context, userInstituti
 	} else if cfg.Env == config.Preproduction {
 		configuration.UseEnvironment(plaid.Development)
 	} else if cfg.Env == config.Development { //test
-		configuration.UseEnvironment(plaid.Development)
+		configuration.UseEnvironment(plaid.Sandbox)
 	} else {
 		configuration.UseEnvironment(plaid.Sandbox)
 	}
@@ -240,7 +240,7 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 		} else if cfg.Env == config.Preproduction {
 			configuration.UseEnvironment(plaid.Development)
 		} else if cfg.Env == config.Development {
-			configuration.UseEnvironment(plaid.Development)
+			configuration.UseEnvironment(plaid.Sandbox)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
@@ -449,7 +449,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 		} else if cfg.Env == config.Preproduction {
 			configuration.UseEnvironment(plaid.Development)
 		} else if cfg.Env == config.Development {
-			configuration.UseEnvironment(plaid.Development)
+			configuration.UseEnvironment(plaid.Sandbox)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}
@@ -536,7 +536,6 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 				outOffset := &NextPage{
 					Offset: int(gpi.Offset),
 				}
-
 				if totalTransaction < gpi.Limit {
 					outOffset = nil
 				} else {
@@ -679,6 +678,18 @@ func TransactionToModel(act plaid.Transaction, userInstId uint64) Transaction {
 	return trans
 }
 
+func InvestmentTransactionToModel(act plaid.InvestmentTransaction, userInstId uint64) Transaction {
+	var allDates []string
+	allDates = append(allDates, act.Subtype)
+	trans := Transaction{}
+	trans.AccountID = act.AccountId
+	trans.Amount = act.GetAmount()
+	trans.Category = allDates
+	trans.Name = act.Name
+	trans.Date = act.GetDate()
+	return trans
+}
+
 func checkDateExist(datenew string, alldate []string) bool {
 	for _, date := range alldate {
 		if date == datenew {
@@ -699,7 +710,7 @@ func GetAccessTokenStatus(accessToken string, ctx context.Context) bool {
 		} else if cfg.Env == config.Preproduction {
 			configuration.UseEnvironment(plaid.Development)
 		} else if cfg.Env == config.Development {
-			configuration.UseEnvironment(plaid.Development)
+			configuration.UseEnvironment(plaid.Sandbox)
 		} else {
 			configuration.UseEnvironment(plaid.Sandbox)
 		}

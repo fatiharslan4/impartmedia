@@ -421,7 +421,6 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	userInstitutionList, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(impartWealthId),
 		qm.Load(dbmodels.UserInstitutionRels.ImpartWealth),
 		qm.Load(dbmodels.UserInstitutionRels.Institution),
-		qm.OrderBy("bank_type"),
 	).All(ctx, ser.db)
 	if userInstitutionList == nil {
 		plaidErr.Msg = "No records found."
@@ -680,7 +679,11 @@ func TransactionToModel(act plaid.Transaction, userInstId uint64) Transaction {
 
 func InvestmentTransactionToModel(act plaid.InvestmentTransaction, userInstId uint64) Transaction {
 	var allDates []string
-	allDates = append(allDates, act.Subtype)
+	if act.Subtype == "" {
+		allDates = append(allDates, "investment")
+	} else {
+		allDates = append(allDates, act.Subtype)
+	}
 	trans := Transaction{}
 	trans.AccountID = act.AccountId
 	trans.Amount = act.GetAmount()

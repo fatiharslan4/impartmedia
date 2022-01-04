@@ -285,6 +285,33 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		go impart.SendAWSEMails(ctx, ps.db, ctxUser, impart.Hive_mail)
 	}
 
+	isNotificationEnabled := false
+	if hiveId != nil {
+		if hives[0].NotificationTopicArn.String != "" {
+			if ctxUser.R.ImpartWealthUserConfigurations != nil && !ctxUser.Admin {
+				if ctxUser.R.ImpartWealthUserConfigurations[0].NotificationStatus {
+					isNotificationEnabled = true
+				}
+			}
+		}
+	}
+	if isNotificationEnabled {
+		deviceDetails := ctxUser.R.ImpartWealthUserDevices
+		if len(deviceDetails) > 0 {
+			for _, device := range deviceDetails {
+				if (device.LastloginAt == null.Time{}) {
+					endpointARN, err := ps.notificationService.GetEndPointArn(ctx, device.DeviceToken, "")
+					if err != nil {
+						ps.Logger().Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
+							zap.Error(err))
+					}
+					if endpointARN != "" && hives[0].NotificationTopicArn.String != "" {
+						ps.notificationService.SubscribeTopic(ctx, ctxUser.ImpartWealthID, hives[0].NotificationTopicArn.String, endpointARN)
+					}
+				}
+			}
+		}
+	}
 	err := ctxUser.SetMemberHiveHives(ctx, ps.db, false, hives...)
 	if err != nil {
 		ps.Logger().Error("error setting member hives", zap.Error(err))

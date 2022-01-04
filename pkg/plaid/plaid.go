@@ -680,7 +680,11 @@ func TransactionToModel(act plaid.Transaction, userInstId uint64) Transaction {
 
 func InvestmentTransactionToModel(act plaid.InvestmentTransaction, userInstId uint64) Transaction {
 	var allDates []string
-	allDates = append(allDates, act.Subtype)
+	if act.Subtype == "" {
+		allDates = append(allDates, "investment")
+	} else {
+		allDates = append(allDates, act.Subtype)
+	}
 	trans := Transaction{}
 	trans.AccountID = act.AccountId
 	trans.Amount = act.GetAmount()

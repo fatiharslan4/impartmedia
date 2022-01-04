@@ -421,7 +421,6 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	userInstitutionList, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.ImpartWealthID.EQ(impartWealthId),
 		qm.Load(dbmodels.UserInstitutionRels.ImpartWealth),
 		qm.Load(dbmodels.UserInstitutionRels.Institution),
-		qm.OrderBy("bank_type"),
 	).All(ctx, ser.db)
 	if userInstitutionList == nil {
 		plaidErr.Msg = "No records found."

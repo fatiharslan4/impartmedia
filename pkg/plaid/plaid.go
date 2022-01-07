@@ -768,17 +768,16 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 							zap.Any("currentDate", currentDate))
 
 						for _, acnts := range transactions {
-							if currentDate == acnts.Date {
-								ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
+							if currentDate == acnts.Date && acnts.AccountId == accountId {
 								if !checkDateExist(currentDate, allDates) {
 									allDates = append(allDates, currentDate)
 								}
-								ser.logger.Info("aallDates", zap.Any("allDates", allDates))
 								transDatawithdate := TransactionToModel(acnts, userInstitutionList[0].UserInstitutionID)
-								transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 
+								transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 							}
 						}
+
 						if len(transDatawithdateFinalData) > 0 {
 							transWIthdate := TransactionWithDate{}
 							transWIthdate.Date = currentDate
@@ -861,7 +860,7 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 							zap.Any("currentDate", currentDate))
 
 						for _, acnts := range investTransactions {
-							if currentDate == acnts.Date {
+							if currentDate == acnts.Date && acnts.AccountId == accountId {
 								ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
 								if !checkDateExist(currentDate, allDates) {
 									allDates = append(allDates, currentDate)

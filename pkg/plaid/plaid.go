@@ -767,7 +767,7 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 						zap.Any("currentDate", currentDate))
 
 					for _, acnts := range transactions {
-						if currentDate == acnts.Date && act.AccountId == accountId {
+						if acnts.AccountId == accountId {
 							ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
 							if !checkDateExist(currentDate, allDates) {
 								allDates = append(allDates, currentDate)
@@ -855,7 +855,7 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 						zap.Any("currentDate", currentDate))
 
 					for _, acnts := range investTransactions {
-						if currentDate == acnts.Date && act.AccountId == accountId {
+						if acnts.AccountId == accountId {
 							ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
 							if !checkDateExist(currentDate, allDates) {
 								allDates = append(allDates, currentDate)

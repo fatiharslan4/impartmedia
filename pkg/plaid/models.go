@@ -31,6 +31,10 @@ type UserInstitutionToken struct {
 	IsAuthenticationError bool      `json:"is_authentication_error"`
 }
 
+type GetPlaidAccountInput struct {
+	PlaidAccessToken string `json:"plaidAccessToken"`
+}
+
 type Balance struct {
 	Available              uint64      `json:"available" `
 	Current                uint64      `json:"current"`

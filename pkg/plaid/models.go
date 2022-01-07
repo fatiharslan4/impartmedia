@@ -32,7 +32,7 @@ type UserInstitutionToken struct {
 }
 
 type GetPlaidAccountInput struct {
-	PlaidAccessToken string `json:"plaidAccessToken"`
+	UserInstitutionsId uint64 `json:"user_institutions_id"`
 }
 
 type Balance struct {

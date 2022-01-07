@@ -759,33 +759,35 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 			institution := InstitutionToModel(userInstitutionList[0])
 			var allDates []string
 			for _, act := range transactions {
-				currentDate := act.Date
-				ser.logger.Info(currentDate)
-				ser.logger.Info("allDates", zap.Any("allDates", allDates))
-				if !checkDateExist(currentDate, allDates) {
-					ser.logger.Info("alredy date added", zap.Any("allDates", allDates),
-						zap.Any("currentDate", currentDate))
+				if act.AccountId == accountId {
+					currentDate := act.Date
+					ser.logger.Info(currentDate)
+					ser.logger.Info("allDates", zap.Any("allDates", allDates))
+					if !checkDateExist(currentDate, allDates) {
+						ser.logger.Info("alredy date added", zap.Any("allDates", allDates),
+							zap.Any("currentDate", currentDate))
 
-					for _, acnts := range transactions {
-						if acnts.AccountId == accountId {
-							ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
-							if !checkDateExist(currentDate, allDates) {
-								allDates = append(allDates, currentDate)
+						for _, acnts := range transactions {
+							if currentDate == acnts.Date {
+								ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
+								if !checkDateExist(currentDate, allDates) {
+									allDates = append(allDates, currentDate)
+								}
+								ser.logger.Info("aallDates", zap.Any("allDates", allDates))
+								transDatawithdate := TransactionToModel(acnts, userInstitutionList[0].UserInstitutionID)
+								transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
+
 							}
-							ser.logger.Info("aallDates", zap.Any("allDates", allDates))
-							transDatawithdate := TransactionToModel(acnts, userInstitutionList[0].UserInstitutionID)
-							transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
-
 						}
-					}
-					if len(transDatawithdateFinalData) > 0 {
-						transWIthdate := TransactionWithDate{}
-						transWIthdate.Date = currentDate
-						transWIthdate.Data = transDatawithdateFinalData
-						transDataFinalData = append(transDataFinalData, transWIthdate)
-						transDatawithdateFinalData = nil
-					} else {
-						return UserTransaction{}, nil, newPlaidErr
+						if len(transDatawithdateFinalData) > 0 {
+							transWIthdate := TransactionWithDate{}
+							transWIthdate.Date = currentDate
+							transWIthdate.Data = transDatawithdateFinalData
+							transDataFinalData = append(transDataFinalData, transWIthdate)
+							transDatawithdateFinalData = nil
+						} else {
+							return UserTransaction{}, nil, newPlaidErr
+						}
 					}
 				}
 			}
@@ -847,32 +849,34 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 			institution := InstitutionToModel(userInstitutionList[0])
 			var allDates []string
 			for _, act := range investTransactions {
-				currentDate := act.Date
-				ser.logger.Info(currentDate)
-				ser.logger.Info("allDates", zap.Any("allDates", allDates))
-				if !checkDateExist(currentDate, allDates) {
-					ser.logger.Info("alredy date added", zap.Any("allDates", allDates),
-						zap.Any("currentDate", currentDate))
+				if act.AccountId == accountId {
+					currentDate := act.Date
+					ser.logger.Info(currentDate)
+					ser.logger.Info("allDates", zap.Any("allDates", allDates))
+					if !checkDateExist(currentDate, allDates) {
+						ser.logger.Info("alredy date added", zap.Any("allDates", allDates),
+							zap.Any("currentDate", currentDate))
 
-					for _, acnts := range investTransactions {
-						if acnts.AccountId == accountId {
-							ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
-							if !checkDateExist(currentDate, allDates) {
-								allDates = append(allDates, currentDate)
+						for _, acnts := range investTransactions {
+							if currentDate == acnts.Date {
+								ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
+								if !checkDateExist(currentDate, allDates) {
+									allDates = append(allDates, currentDate)
+								}
+								ser.logger.Info("aallDates", zap.Any("allDates", allDates))
+								transDatawithdate := InvestmentTransactionToModel(acnts, userInstitutionList[0].UserInstitutionID)
+								transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 							}
-							ser.logger.Info("aallDates", zap.Any("allDates", allDates))
-							transDatawithdate := InvestmentTransactionToModel(acnts, userInstitutionList[0].UserInstitutionID)
-							transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 						}
-					}
-					if len(transDatawithdateFinalData) > 0 {
-						transWIthdate := TransactionWithDate{}
-						transWIthdate.Date = currentDate
-						transWIthdate.Data = transDatawithdateFinalData
-						transDataFinalData = append(transDataFinalData, transWIthdate)
-						transDatawithdateFinalData = nil
-					} else {
-						return UserTransaction{}, nil, newPlaidErr
+						if len(transDatawithdateFinalData) > 0 {
+							transWIthdate := TransactionWithDate{}
+							transWIthdate.Date = currentDate
+							transWIthdate.Data = transDatawithdateFinalData
+							transDataFinalData = append(transDataFinalData, transWIthdate)
+							transDatawithdateFinalData = nil
+						} else {
+							return UserTransaction{}, nil, newPlaidErr
+						}
 					}
 				}
 			}

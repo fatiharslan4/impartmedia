@@ -99,6 +99,7 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	plaidInstitutionAccountRoutes := version.Group("/plaid/accounts")
 	plaidInstitutionAccountRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionAccounts())
 	plaidInstitutionAccountRoutes.DELETE("/:userinstitutionId", handler.DeletePlaidUserInstitutionAccounts())
+	plaidInstitutionAccountRoutes.POST("/transactions/:accountId", handler.GetPlaidUserAccountsTransactions())
 
 	plaidInstitutionTransactionRoutes := version.Group("/plaid/transactions")
 	plaidInstitutionTransactionRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionTransactions())
@@ -1432,6 +1433,62 @@ func (ph *profileHandler) GetPlaidUserInstitutionTransactions() gin.HandlerFunc 
 		gpi.Limit = int32(limit)
 		gpi.Offset = int32(offset)
 		output, nextpage, impartErr := ph.plaidData.GetPlaidUserInstitutionTransactions(ctx, impartWealthId, gpi)
+		if impartErr != nil {
+			ctx.JSON(http.StatusBadRequest, plaid.PagedUserInstitutionTransactionErrorResponse{
+				Error: impartErr,
+			})
+			return
+		}
+		status := ""
+		if output.Transactions != nil {
+			status = "success"
+		}
+		ctx.JSON(http.StatusOK, plaid.PagedUserInstitutionTransactionResponse{
+			Msg:          status,
+			Transactions: output,
+			NextPage:     nextpage,
+		})
+	}
+}
+
+func (ph *profileHandler) GetPlaidUserAccountsTransactions() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		ctxUser := impart.GetCtxUser(ctx)
+		impartWealthId := ctxUser.ImpartWealthID
+		if ctxUser == nil {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Could not find the user.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		accountId := ctx.Param("accountId")
+		if accountId == "" {
+			impartErr := impart.NewError(impart.ErrUnauthorized, "Invalid accountId.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		gpi := models.GetPlaidInput{}
+		limit, offset, err := parseLimitOffset(ctx)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Invalid parameter.")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		gpi.Limit = int32(limit)
+		gpi.Offset = int32(offset)
+		b, err := ctx.GetRawData()
+		if err != nil && err != io.EOF {
+			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
+				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
+			))
+		}
+		accountins := plaid.GetPlaidAccountInput{}
+		err = json.Unmarshal(b, &accountins)
+		if err != nil {
+			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to unmarshal JSON Body to a Post")
+			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
+			return
+		}
+		output, nextpage, impartErr := ph.plaidData.GetPlaidUserAccountsTransactions(ctx, accountId, accountins.PlaidAccessToken, impartWealthId, gpi)
 		if impartErr != nil {
 			ctx.JSON(http.StatusBadRequest, plaid.PagedUserInstitutionTransactionErrorResponse{
 				Error: impartErr,

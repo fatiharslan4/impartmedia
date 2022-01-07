@@ -1488,7 +1488,7 @@ func (ph *profileHandler) GetPlaidUserAccountsTransactions() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-		output, nextpage, impartErr := ph.plaidData.GetPlaidUserAccountsTransactions(ctx, accountId, accountins.PlaidAccessToken, impartWealthId, gpi)
+		output, nextpage, impartErr := ph.plaidData.GetPlaidUserAccountsTransactions(ctx, accountId, accountins.UserInstitutionsId, impartWealthId, gpi)
 		if impartErr != nil {
 			ctx.JSON(http.StatusBadRequest, plaid.PagedUserInstitutionTransactionErrorResponse{
 				Error: impartErr,

@@ -667,7 +667,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	return UserTransaction{}, nil, newPlaidErr
 }
 
-func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accountId string, accessToken string, impartWealthId string, gpi models.GetPlaidInput) (UserTransaction, *NextPage, []PlaidError) {
+func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accountId string, userInstId uint64, impartWealthId string, gpi models.GetPlaidInput) (UserTransaction, *NextPage, []PlaidError) {
 
 	var totalTransaction int32
 
@@ -675,17 +675,16 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 	plaidErr := PlaidError{Error: "unable to complete the request",
 		Msg:                 "No transaction records found.",
 		AuthenticationError: false}
-
-	userInstitutionList, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.AccessToken.EQ(accessToken),
+	userInstitutionList, err := dbmodels.UserInstitutions(dbmodels.UserInstitutionWhere.UserInstitutionID.EQ(userInstId),
 		qm.Load(dbmodels.UserInstitutionRels.ImpartWealth),
 		qm.Load(dbmodels.UserInstitutionRels.Institution),
 	).All(ctx, ser.db)
-
 	if userInstitutionList == nil {
 		plaidErr.Msg = "No records found."
 		newPlaidErr = append(newPlaidErr, plaidErr)
 		return UserTransaction{}, nil, newPlaidErr
 	}
+	accessToken := userInstitutionList[0].AccessToken
 	if err != nil {
 		plaidErr.Msg = "Could not find the user institution details."
 		// plaidErr.AccessToken = userInstitutions.AccessToken
@@ -749,6 +748,7 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 			return UserTransaction{}, nil, newPlaidErr
 		}
 		transactions := transGetResp.GetTransactions()
+
 		if len(transactions) > 0 {
 			totalTransaction = int32(len(transactions))
 			userData.ImpartWealthID = impartWealthId
@@ -768,17 +768,16 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 							zap.Any("currentDate", currentDate))
 
 						for _, acnts := range transactions {
-							if currentDate == acnts.Date {
-								ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
+							if currentDate == acnts.Date && acnts.AccountId == accountId {
 								if !checkDateExist(currentDate, allDates) {
 									allDates = append(allDates, currentDate)
 								}
-								ser.logger.Info("aallDates", zap.Any("allDates", allDates))
 								transDatawithdate := TransactionToModel(acnts, userInstitutionList[0].UserInstitutionID)
-								transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 
+								transDatawithdateFinalData = append(transDatawithdateFinalData, transDatawithdate)
 							}
 						}
+
 						if len(transDatawithdateFinalData) > 0 {
 							transWIthdate := TransactionWithDate{}
 							transWIthdate.Date = currentDate
@@ -791,7 +790,8 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 					}
 				}
 			}
-			if len(transDatawithdateFinalData) > 0 {
+
+			if len(transDataFinalData) > 0 {
 				userinstitution[0] = institution
 				userData.Transactions = transDataFinalData
 				userData.TotalTransaction = transGetResp.GetTotalTransactions()
@@ -860,7 +860,7 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 							zap.Any("currentDate", currentDate))
 
 						for _, acnts := range investTransactions {
-							if currentDate == acnts.Date {
+							if currentDate == acnts.Date && acnts.AccountId == accountId {
 								ser.logger.Info("acnts.Date", zap.Any("acnts.Date", acnts.Date))
 								if !checkDateExist(currentDate, allDates) {
 									allDates = append(allDates, currentDate)
@@ -882,7 +882,7 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 					}
 				}
 			}
-			if len(transDatawithdateFinalData) > 0 {
+			if len(transDataFinalData) > 0 {
 				userinstitution[0] = institution
 				userData.Transactions = transDataFinalData
 				userData.TotalTransaction = transGetResp.GetTotalInvestmentTransactions()

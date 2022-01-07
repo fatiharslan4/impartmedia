@@ -1004,10 +1004,11 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 		} else if userUpdate.Type == impart.RemoveAdmin {
 			if user.Admin {
 				impartWealthIds = fmt.Sprintf("%s '%s' ,", impartWealthIds, user.ImpartWealthID)
-				var existingHive *dbmodels.Hive
+				// var existingHive *dbmodels.Hive
 				for _, h := range user.R.MemberHiveHives {
-					existingHive = h
+					existinghiveid = h.HiveID
 				}
+				existingHive, _ = dbmodels.FindHive(ctx, m.db, existinghiveid)
 				deviceDetails := user.R.ImpartWealthUserDevices
 				isnotificationEnabled := false
 				if existingHive != nil && existingHive.NotificationTopicArn.String != "" {

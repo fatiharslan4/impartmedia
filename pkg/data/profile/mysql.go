@@ -1012,7 +1012,7 @@ func (m *mysqlStore) UpdateBulkUserProfile(ctx context.Context, userDetails dbmo
 				deviceDetails := user.R.ImpartWealthUserDevices
 				isnotificationEnabled := false
 				if existingHive != nil && existingHive.NotificationTopicArn.String != "" {
-					if user.R.ImpartWealthUserConfigurations != nil && !user.Admin {
+					if user.R.ImpartWealthUserConfigurations != nil {
 						if user.R.ImpartWealthUserConfigurations[0].NotificationStatus {
 							isnotificationEnabled = true
 						}

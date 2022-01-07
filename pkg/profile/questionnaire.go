@@ -273,10 +273,12 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 		// }
 	}
 	var hiveId *uint64
+	var hiveData *dbmodels.Hive
 	if hiveId = ps.isAssignHiveRule(ctx, questionnaire, answer); hiveId != nil {
 		hives = dbmodels.HiveSlice{
 			&dbmodels.Hive{HiveID: *hiveId},
 		}
+		hiveData, _ = dbmodels.FindHive(ctx, ps.db, *hiveId)
 	}
 	if hiveId == nil || *hiveId == impart.DefaultHiveID {
 		//// send waitlist mail
@@ -286,8 +288,8 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 	}
 
 	isNotificationEnabled := false
-	if hiveId != nil {
-		if hives[0].NotificationTopicArn.String != "" {
+	if hiveId != nil && hiveData != nil {
+		if hiveData.NotificationTopicArn.String != "" {
 			if ctxUser.R.ImpartWealthUserConfigurations != nil && !ctxUser.Admin {
 				if ctxUser.R.ImpartWealthUserConfigurations[0].NotificationStatus {
 					isNotificationEnabled = true
@@ -305,8 +307,8 @@ func (ps *profileService) AssignHives(ctx context.Context, questionnaire models.
 						ps.Logger().Error("End point ARN finding failed", zap.String("DeviceToken", device.DeviceToken),
 							zap.Error(err))
 					}
-					if endpointARN != "" && hives[0].NotificationTopicArn.String != "" {
-						ps.notificationService.SubscribeTopic(ctx, ctxUser.ImpartWealthID, hives[0].NotificationTopicArn.String, endpointARN)
+					if endpointARN != "" && hiveData.NotificationTopicArn.String != "" {
+						ps.notificationService.SubscribeTopic(ctx, ctxUser.ImpartWealthID, hiveData.NotificationTopicArn.String, endpointARN)
 					}
 				}
 			}

@@ -791,20 +791,22 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 					}
 				}
 			}
+			if len(transDatawithdateFinalData) > 0 {
+				userinstitution[0] = institution
+				userData.Transactions = transDataFinalData
+				userData.TotalTransaction = transGetResp.GetTotalTransactions()
 
-			userinstitution[0] = institution
-			userData.Transactions = transDataFinalData
-			userData.TotalTransaction = transGetResp.GetTotalTransactions()
+				outOffset := &NextPage{
+					Offset: int(gpi.Offset),
+				}
+				if totalTransaction < gpi.Limit {
+					outOffset = nil
+				} else {
+					outOffset.Offset += int(totalTransaction)
+				}
+				return userData, outOffset, nil
+			}
 
-			outOffset := &NextPage{
-				Offset: int(gpi.Offset),
-			}
-			if totalTransaction < gpi.Limit {
-				outOffset = nil
-			} else {
-				outOffset.Offset += int(totalTransaction)
-			}
-			return userData, outOffset, nil
 		}
 
 	} else if userInstitutionList[0].BankType == 2 {
@@ -880,21 +882,23 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 					}
 				}
 			}
+			if len(transDatawithdateFinalData) > 0 {
+				userinstitution[0] = institution
+				userData.Transactions = transDataFinalData
+				userData.TotalTransaction = transGetResp.GetTotalInvestmentTransactions()
 
-			userinstitution[0] = institution
-			userData.Transactions = transDataFinalData
-			userData.TotalTransaction = transGetResp.GetTotalInvestmentTransactions()
+				outOffset := &NextPage{
+					Offset: int(gpi.Offset),
+				}
 
-			outOffset := &NextPage{
-				Offset: int(gpi.Offset),
+				if totalTransaction < gpi.Limit {
+					outOffset = nil
+				} else {
+					outOffset.Offset += int(totalTransaction)
+				}
+				return userData, outOffset, nil
 			}
 
-			if totalTransaction < gpi.Limit {
-				outOffset = nil
-			} else {
-				outOffset.Offset += int(totalTransaction)
-			}
-			return userData, outOffset, nil
 		}
 	}
 

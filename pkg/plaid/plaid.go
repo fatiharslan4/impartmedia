@@ -667,7 +667,7 @@ func (ser *service) GetPlaidUserInstitutionTransactions(ctx context.Context, imp
 	return UserTransaction{}, nil, newPlaidErr
 }
 
-func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accountId string, userInstId uint64, impartWealthId string, gpi models.GetPlaidInput) (UserTransaction, *NextPage, []PlaidError) {
+func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accountId string, userInstId uint64, impartWealthId string, gpi models.GetPlaidAccountTransactionInput) (UserTransaction, *NextPage, []PlaidError) {
 
 	var totalTransaction int32
 

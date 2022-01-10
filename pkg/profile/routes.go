@@ -99,7 +99,9 @@ func SetupRoutes(version *gin.RouterGroup, profileData profiledata.Store,
 	plaidInstitutionAccountRoutes := version.Group("/plaid/accounts")
 	plaidInstitutionAccountRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionAccounts())
 	plaidInstitutionAccountRoutes.DELETE("/:userinstitutionId", handler.DeletePlaidUserInstitutionAccounts())
-	plaidInstitutionAccountRoutes.POST("/transactions/:accountId", handler.GetPlaidUserAccountsTransactions())
+
+	plaidInstitutionAccountTransactionRoutes := version.Group("/plaid/accounts-transaction")
+	plaidInstitutionAccountTransactionRoutes.GET("/:accountId", handler.GetPlaidUserAccountsTransactions())
 
 	plaidInstitutionTransactionRoutes := version.Group("/plaid/transactions")
 	plaidInstitutionTransactionRoutes.GET("/:impartWealthId", handler.GetPlaidUserInstitutionTransactions())
@@ -1455,6 +1457,8 @@ func (ph *profileHandler) GetPlaidUserAccountsTransactions() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctxUser := impart.GetCtxUser(ctx)
 		impartWealthId := ctxUser.ImpartWealthID
+		var impartError impart.Error
+		var insId uint64
 		if ctxUser == nil {
 			impartErr := impart.NewError(impart.ErrUnauthorized, "Could not find the user.")
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
@@ -1466,7 +1470,14 @@ func (ph *profileHandler) GetPlaidUserAccountsTransactions() gin.HandlerFunc {
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-		gpi := models.GetPlaidInput{}
+		if insId, impartError = ctxUint64Param(ctx, "user_institutions_id"); impartError != nil {
+			fmt.Println("the error is", impartError)
+			ctx.JSON(impartError.HttpStatus(), impart.ErrorResponse(impartError))
+			return
+		}
+		fmt.Println("the id is", insId, accountId)
+		gpi := models.GetPlaidAccountTransactionInput{}
+		gpi.UserInstitutionId = insId
 		limit, offset, err := parseLimitOffset(ctx)
 		if err != nil {
 			impartErr := impart.NewError(impart.ErrBadRequest, "Invalid parameter.")
@@ -1475,20 +1486,12 @@ func (ph *profileHandler) GetPlaidUserAccountsTransactions() gin.HandlerFunc {
 		}
 		gpi.Limit = int32(limit)
 		gpi.Offset = int32(offset)
-		b, err := ctx.GetRawData()
-		if err != nil && err != io.EOF {
-			ctx.JSON(http.StatusBadRequest, impart.ErrorResponse(
-				impart.NewError(impart.ErrBadRequest, "couldn't parse JSON request body"),
-			))
-		}
-		accountins := plaid.GetPlaidAccountInput{}
-		err = json.Unmarshal(b, &accountins)
 		if err != nil {
 			impartErr := impart.NewError(impart.ErrBadRequest, "Unable to unmarshal JSON Body to a Post")
 			ctx.JSON(impartErr.HttpStatus(), impart.ErrorResponse(impartErr))
 			return
 		}
-		output, nextpage, impartErr := ph.plaidData.GetPlaidUserAccountsTransactions(ctx, accountId, accountins.UserInstitutionsId, impartWealthId, gpi)
+		output, nextpage, impartErr := ph.plaidData.GetPlaidUserAccountsTransactions(ctx, accountId, gpi.UserInstitutionId, impartWealthId, gpi)
 		if impartErr != nil {
 			ctx.JSON(http.StatusBadRequest, plaid.PagedUserInstitutionTransactionErrorResponse{
 				Error: impartErr,
@@ -1576,4 +1579,13 @@ func (ph *profileHandler) UserEmailDetailsUpdate() gin.HandlerFunc {
 
 		ctx.JSON(http.StatusOK, gin.H{"status": true})
 	}
+}
+
+func ctxUint64Param(ctx *gin.Context, param string) (uint64, impart.Error) {
+	strVal := ctx.Query(param)
+	out, err := strconv.ParseUint(strVal, 10, 64)
+	if err != nil {
+		return 0, impart.NewError(impart.ErrBadRequest, fmt.Sprintf("invalid value for param %s: %s", param, strVal))
+	}
+	return out, nil
 }

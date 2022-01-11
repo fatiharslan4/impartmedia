@@ -718,9 +718,12 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 	if userInstitutionList[0].BankType == 1 {
 		transGetRequest := plaid.NewTransactionsGetRequest(accessToken, impart.CurrentUTC().AddDate(0, 0, -30).Format("2006-01-02"), impart.CurrentUTC().Format("2006-01-02"))
 		data := plaid.NewTransactionsGetRequestOptions()
+		var accountIds []string
+		accountIds = append(accountIds, accountId)
 		transGetRequest.Options = data
 		transGetRequest.Options.Count = &gpi.Limit
 		transGetRequest.Options.Offset = &gpi.Offset
+		transGetRequest.Options.AccountIds = &accountIds
 
 		transGetResp, resp, err := client.PlaidApi.TransactionsGet(ctx).TransactionsGetRequest(
 			*transGetRequest,
@@ -794,7 +797,7 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 			if len(transDataFinalData) > 0 {
 				userinstitution[0] = institution
 				userData.Transactions = transDataFinalData
-				userData.TotalTransaction = int32(len(transDataFinalData))
+				userData.TotalTransaction = transGetResp.GetTotalTransactions()
 
 				outOffset := &NextPage{
 					Offset: int(gpi.Offset),
@@ -812,9 +815,12 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 	} else if userInstitutionList[0].BankType == 2 {
 		transInvestGetRequest := plaid.NewInvestmentsTransactionsGetRequest(accessToken, impart.CurrentUTC().AddDate(0, 0, -30).Format("2006-01-02"), impart.CurrentUTC().Format("2006-01-02"))
 		data := plaid.NewInvestmentsTransactionsGetRequestOptions()
+		var accountIds []string
+		accountIds = append(accountIds, accountId)
 		transInvestGetRequest.Options = data
 		transInvestGetRequest.Options.Count = &gpi.Limit
 		transInvestGetRequest.Options.Offset = &gpi.Offset
+		transInvestGetRequest.Options.AccountIds = &accountIds
 		transGetResp, resp, err := client.PlaidApi.InvestmentsTransactionsGet(ctx).InvestmentsTransactionsGetRequest(
 			*transInvestGetRequest,
 		).Execute()
@@ -885,7 +891,7 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 			if len(transDataFinalData) > 0 {
 				userinstitution[0] = institution
 				userData.Transactions = transDataFinalData
-				userData.TotalTransaction = int32(len(transDataFinalData))
+				userData.TotalTransaction = transGetResp.GetTotalInvestmentTransactions()
 				outOffset := &NextPage{
 					Offset: int(gpi.Offset),
 				}

@@ -794,7 +794,7 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 			if len(transDataFinalData) > 0 {
 				userinstitution[0] = institution
 				userData.Transactions = transDataFinalData
-				userData.TotalTransaction = transGetResp.GetTotalTransactions()
+				userData.TotalTransaction = int32(len(transDataFinalData))
 
 				outOffset := &NextPage{
 					Offset: int(gpi.Offset),
@@ -885,8 +885,7 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 			if len(transDataFinalData) > 0 {
 				userinstitution[0] = institution
 				userData.Transactions = transDataFinalData
-				userData.TotalTransaction = transGetResp.GetTotalInvestmentTransactions()
-
+				userData.TotalTransaction = int32(len(transDataFinalData))
 				outOffset := &NextPage{
 					Offset: int(gpi.Offset),
 				}

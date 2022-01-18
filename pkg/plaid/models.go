@@ -61,6 +61,8 @@ type UserAccount struct {
 	ImpartWealthID string            `json:"impartWealthId,omitempty" `
 	UpdatedAt      int64             `json:"updated_at,omitempty" `
 	Institutions   []UserInstitution `json:"institutions,omitempty"`
+	TotalAsset     float32           `json:"total_asset,omitempty"`
+	AccountCount   int32             `json:"account_count,omitempty"`
 }
 
 type UserInstitutions []UserInstitution
@@ -77,8 +79,6 @@ type UserInstitution struct {
 	InstitutionName       string    `json:"institution_name"`
 	IsAuthenticationError bool      `json:"is_authentication_error"`
 	Accounts              []Account `json:"accounts"`
-	TotalAsset            float32   `json:"total_asset,omitempty"`
-	AccountCount          int32     `json:"account_count,omitempty"`
 }
 
 type Accounts []Account

@@ -290,7 +290,11 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 			fmt.Println(err)
 			ser.logger.Error("error checking UserPlaidAccountsLogExists ", zap.Error(err))
 		}
+		var totalAsset float32
 		for i, act := range accounts {
+			if act.Type == "depository" || act.Type == "investment" || act.Type == "brokerage" {
+				totalAsset += float32(act.Balances.GetCurrent())
+			}
 			userAccounts[i], qury = AccountToModel(act, user.UserInstitutionID, logexist)
 			if !logexist {
 				query = fmt.Sprintf("%s %s", query, qury)
@@ -298,6 +302,7 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 			}
 		}
 		institution.Accounts = userAccounts
+		institution.TotalAsset = totalAsset
 		userinstitution[i] = institution
 		userData.Institutions = userinstitution
 

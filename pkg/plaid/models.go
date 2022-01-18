@@ -77,6 +77,7 @@ type UserInstitution struct {
 	InstitutionName       string    `json:"institution_name"`
 	IsAuthenticationError bool      `json:"is_authentication_error"`
 	Accounts              []Account `json:"accounts"`
+	TotalAsset            float32   `json:"total_asset,omitempty"`
 }
 
 type Accounts []Account

@@ -355,7 +355,7 @@ func AccountToModel(act plaid.AccountBase, userInstId uint64, logexist bool) (Ac
 	accounts.IsoCurrencyCode = act.Balances.GetIsoCurrencyCode()
 	accounts.Mask = act.GetMask()
 	accounts.Type = string(act.Type)
-	accounts.Subtype = string(act.GetSubtype())
+	accounts.Subtype = impart.GetSubtype(string(act.GetSubtype()))
 	accounts.Name = act.GetName()
 	accounts.OfficialName = act.GetOfficialName()
 	accounts.UnofficialCurrencyCode = act.Balances.GetUnofficialCurrencyCode()

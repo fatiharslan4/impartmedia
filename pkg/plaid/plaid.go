@@ -253,6 +253,8 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 	userData.UpdatedAt = time.Now().UTC().Unix()
 	userinstitution := make(UserInstitutions, len(userInstitutions))
 	finalQuery := ""
+	var totalAsset float32
+	var acctCount int32
 	for i, user := range userInstitutions {
 		institution := InstitutionToModel(user)
 		accountsGetRequest := plaid.NewAccountsGetRequest(user.AccessToken)
@@ -290,7 +292,12 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 			fmt.Println(err)
 			ser.logger.Error("error checking UserPlaidAccountsLogExists ", zap.Error(err))
 		}
+
 		for i, act := range accounts {
+			if act.Type == "depository" || act.Type == "investment" || act.Type == "brokerage" {
+				totalAsset += float32(act.Balances.GetCurrent())
+				acctCount += 1
+			}
 			userAccounts[i], qury = AccountToModel(act, user.UserInstitutionID, logexist)
 			if !logexist {
 				query = fmt.Sprintf("%s %s", query, qury)
@@ -298,8 +305,12 @@ func (ser *service) GetPlaidUserInstitutionAccounts(ctx context.Context, impartW
 			}
 		}
 		institution.Accounts = userAccounts
+		// institution.TotalAsset = totalAsset
+		// institution.AccountCount = acctCount
 		userinstitution[i] = institution
 		userData.Institutions = userinstitution
+		userData.TotalAsset = totalAsset
+		userData.AccountCount = acctCount
 
 		if logwrite {
 			finalQuery = fmt.Sprintf("%s %s", finalQuery, query)
@@ -344,7 +355,7 @@ func AccountToModel(act plaid.AccountBase, userInstId uint64, logexist bool) (Ac
 	accounts.IsoCurrencyCode = act.Balances.GetIsoCurrencyCode()
 	accounts.Mask = act.GetMask()
 	accounts.Type = string(act.Type)
-	accounts.Subtype = string(act.GetSubtype())
+	accounts.Subtype = impart.GetSubtype(string(act.GetSubtype()))
 	accounts.Name = act.GetName()
 	accounts.OfficialName = act.GetOfficialName()
 	accounts.UnofficialCurrencyCode = act.Balances.GetUnofficialCurrencyCode()
@@ -718,9 +729,12 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 	if userInstitutionList[0].BankType == 1 {
 		transGetRequest := plaid.NewTransactionsGetRequest(accessToken, impart.CurrentUTC().AddDate(0, 0, -30).Format("2006-01-02"), impart.CurrentUTC().Format("2006-01-02"))
 		data := plaid.NewTransactionsGetRequestOptions()
+		var accountIds []string
+		accountIds = append(accountIds, accountId)
 		transGetRequest.Options = data
 		transGetRequest.Options.Count = &gpi.Limit
 		transGetRequest.Options.Offset = &gpi.Offset
+		transGetRequest.Options.AccountIds = &accountIds
 
 		transGetResp, resp, err := client.PlaidApi.TransactionsGet(ctx).TransactionsGetRequest(
 			*transGetRequest,
@@ -812,9 +826,12 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 	} else if userInstitutionList[0].BankType == 2 {
 		transInvestGetRequest := plaid.NewInvestmentsTransactionsGetRequest(accessToken, impart.CurrentUTC().AddDate(0, 0, -30).Format("2006-01-02"), impart.CurrentUTC().Format("2006-01-02"))
 		data := plaid.NewInvestmentsTransactionsGetRequestOptions()
+		var accountIds []string
+		accountIds = append(accountIds, accountId)
 		transInvestGetRequest.Options = data
 		transInvestGetRequest.Options.Count = &gpi.Limit
 		transInvestGetRequest.Options.Offset = &gpi.Offset
+		transInvestGetRequest.Options.AccountIds = &accountIds
 		transGetResp, resp, err := client.PlaidApi.InvestmentsTransactionsGet(ctx).InvestmentsTransactionsGetRequest(
 			*transInvestGetRequest,
 		).Execute()
@@ -886,7 +903,6 @@ func (ser *service) GetPlaidUserAccountsTransactions(ctx context.Context, accoun
 				userinstitution[0] = institution
 				userData.Transactions = transDataFinalData
 				userData.TotalTransaction = transGetResp.GetTotalInvestmentTransactions()
-
 				outOffset := &NextPage{
 					Offset: int(gpi.Offset),
 				}

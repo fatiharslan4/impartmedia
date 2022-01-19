@@ -6,6 +6,8 @@ import (
 
 type FilterEnum int
 
+var plaidTypeMap map[string]string
+
 const (
 	Gender_Man                            FilterEnum = 17
 	Gender_NonBinary                                 = 18
@@ -183,6 +185,78 @@ const (
 	AddToSuperAdmin           = "addto_super_admin"
 	RemoveSuperAdmin          = "remove_super_admin"
 )
+
+func GetSubtype(subtype string) string {
+	plaidTypeMap = map[string]string{
+		"checking":                         "Checking",
+		"savings":                          "Savings",
+		"hsa":                              "HSA",
+		"cd":                               "CD",
+		"money market":                     "Money Market",
+		"paypal":                           "Paypal",
+		"prepaid":                          "Prepaid",
+		"cash management":                  "Cash Management",
+		"ebt":                              "EBT",
+		"credit card":                      "Credit Card",
+		"auto":                             "Auto",
+		"business":                         "Business",
+		"commercial":                       "Commercial",
+		"construction":                     "Construction",
+		"consumer":                         "Consumer",
+		"home equity":                      "Home Equity",
+		"loan":                             "Loan",
+		"mortgage":                         "Mortgage",
+		"overdraft":                        "Overdraft",
+		"line of credit":                   "Line Of Credit",
+		"student":                          "Student",
+		"other":                            "Other",
+		"brokerage":                        "Brokerage",
+		"cash isa":                         "Cash ISA",
+		"education savings account":        "Education Savings Account",
+		"fixed annuity":                    "Fixed Annuity",
+		"gic":                              "GIC",
+		"health reimbursement arrangement": "Health Reimbursement Arrangement",
+		"ira":                              "IRA",
+		"isa":                              "ISA",
+		"keogh":                            "Keogh",
+		"lif":                              "LIF",
+		"life insurance":                   "Life Insurance",
+		"lira":                             "LIRA",
+		"lrif":                             "LRIF",
+		"lrsp":                             "LRSP",
+		"mutual fund":                      "Mutual Fund",
+		"non-taxable brokerage account":    "Non-Taxable Brokerage Account",
+		"other insurance":                  "Other Insurance",
+		"other annuity":                    "Other Annuity",
+		"pension":                          "Pension",
+		"prif":                             "PRIF",
+		"profit sharing plan":              "Profit Sharing Plan",
+		"qshr":                             "QSHR",
+		"rdsp":                             "RDSP",
+		"resp":                             "RESP",
+		"retirement":                       "Retirement",
+		"rlif":                             "RLIF",
+		"roth":                             "Roth",
+		"roth 401k":                        "Roth 401k",
+		"rrif":                             "RRIF",
+		"rrsp":                             "RRSP",
+		"sarsep":                           "SARSEP",
+		"sep ira":                          "SEP IRA",
+		"simple ira":                       "simple IRA",
+		"sipp":                             "SIPP",
+		"stock plan":                       "Stock Plan",
+		"tfsa":                             "TFSA",
+		"trust":                            "Trust",
+		"ugma":                             "UGMA",
+		"utma":                             "UTMA",
+		"variable annuity":                 "Variable Annuity",
+	}
+	value, ok := plaidTypeMap[subtype]
+	if ok == true {
+		return value
+	}
+	return subtype
+}
 
 const (
 	IncludeAdmin      = 1

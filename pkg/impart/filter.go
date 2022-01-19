@@ -242,7 +242,7 @@ func GetSubtype(subtype string) string {
 		"rrsp":                             "RRSP",
 		"sarsep":                           "SARSEP",
 		"sep ira":                          "SEP IRA",
-		"simple ira":                       "simple IRA",
+		"simple ira":                       "Simple IRA",
 		"sipp":                             "SIPP",
 		"stock plan":                       "Stock Plan",
 		"tfsa":                             "TFSA",
